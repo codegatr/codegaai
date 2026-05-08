@@ -24,6 +24,7 @@
 
     // Modüller
     Views.init();
+    Chats.init();
     Chat.init();
     System.init();
   }

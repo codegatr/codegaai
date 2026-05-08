@@ -5,75 +5,79 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CODEGA AI</title>
 
-  <!-- Tipografi: IBM Plex (Sans + Mono + Serif) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 
-  <!-- Stiller -->
   <link rel="stylesheet" href="/css/variables.css">
   <link rel="stylesheet" href="/css/base.css">
   <link rel="stylesheet" href="/css/layout.css">
   <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="/css/views.css">
 
-  <!-- Favicon (basit SVG) -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f59e0b'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='system-ui' font-weight='700' font-size='16' fill='%230a0b0d'%3EC%3C/text%3E%3C/svg%3E">
 </head>
 <body>
 
   <!-- =========================================================
-       Sol kenar çubuğu
+       Sol kenar çubuğu (Claude tarzı)
        ========================================================= -->
   <aside class="sidebar">
     <div class="sidebar__brand">
       <div class="brand-mark">C</div>
       <div class="brand-text">
         <span class="brand-name">CODEGA AI</span>
-        <span class="brand-version" id="brand-version">v0.2.0</span>
+        <span class="brand-version" id="brand-version">v0.2.1</span>
       </div>
     </div>
 
-    <nav class="sidebar__nav" role="navigation">
+    <!-- Yeni sohbet -->
+    <div class="sidebar__top-actions">
+      <button class="new-chat-btn" id="new-chat-btn">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        <span>Yeni Sohbet</span>
+        <kbd>N</kbd>
+      </button>
+    </div>
+
+    <!-- Birincil nav (modlar) -->
+    <nav class="sidebar__nav sidebar__nav--primary" role="navigation">
       <button class="nav-item active" data-view="chat">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <span>Sohbet</span>
-        <kbd>1</kbd>
       </button>
-
       <button class="nav-item" data-view="image">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
         <span>Görsel</span>
-        <kbd>2</kbd>
       </button>
-
       <button class="nav-item" data-view="video">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
         <span>Video</span>
-        <kbd>3</kbd>
       </button>
-
       <button class="nav-item" data-view="audio">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c0-4.97 4.03-9 9-9v9H3z"/><path d="M12 3a9 9 0 0 1 9 9h-9V3z"/><path d="M12 12v9a9 9 0 0 1-9-9h9z"/><path d="M12 12h9a9 9 0 0 1-9 9v-9z"/></svg>
         <span>Ses</span>
-        <kbd>4</kbd>
       </button>
-
       <button class="nav-item" data-view="memory">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></svg>
         <span>Bellek</span>
-        <kbd>5</kbd>
       </button>
     </nav>
 
-    <div class="sidebar__divider"></div>
+    <!-- Geçmiş sohbetler (Claude'daki "Recents" gibi) -->
+    <div class="sidebar__chats">
+      <div class="sidebar__section-label">Sohbet Geçmişi</div>
+      <div class="chat-list" id="chat-list">
+        <div class="chat-list__empty">Henüz sohbet yok</div>
+      </div>
+    </div>
 
-    <nav class="sidebar__nav" role="navigation">
+    <!-- Alt sabit nav -->
+    <nav class="sidebar__nav sidebar__nav--bottom" role="navigation">
       <button class="nav-item" data-view="system">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
         <span>Sistem</span>
       </button>
-
       <button class="nav-item" data-view="settings">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span>Ayarlar</span>
@@ -83,7 +87,7 @@
     <div class="sidebar__footer">
       <div class="phase-indicator" id="phase-indicator">
         <span class="phase-dot"></span>
-        <span class="phase-text">Faz 2 / 8</span>
+        <span class="phase-text">Faz 2.1 / 8</span>
       </div>
     </div>
   </aside>
@@ -95,24 +99,20 @@
 
     <!-- ─── Sohbet ─── -->
     <section class="view active" data-view="chat">
-      <header class="view-header">
-        <div>
-          <h1 class="view-title">Sohbet</h1>
-          <p class="view-subtitle">
-            <span class="status-pill status-pill--pending">
-              <span class="status-pill__dot"></span>
-              LLM motoru henüz aktif değil
-            </span>
-          </p>
+      <header class="view-header view-header--compact">
+        <div class="chat-header">
+          <h1 class="chat-title" id="chat-title">Yeni sohbet</h1>
+          <span class="status-pill status-pill--pending">
+            <span class="status-pill__dot"></span>
+            stub yanıt — gerçek LLM Faz 3'te
+          </span>
         </div>
         <div class="view-actions">
-          <button class="btn btn--ghost" id="chat-clear">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            Temizle
+          <button class="icon-btn" id="chat-rename" title="Başlığı değiştir" disabled>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
-          <button class="btn btn--primary" id="chat-new">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            Yeni Sohbet
+          <button class="icon-btn icon-btn--danger" id="chat-delete" title="Sohbeti sil" disabled>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
         </div>
       </header>
@@ -133,7 +133,7 @@
               <button class="suggestion-card" data-suggest="Türkçe yazılım terimleri için bir sözlük hazırla">
                 <span class="suggestion-card__icon">📚</span>
                 <span class="suggestion-card__title">Sözlük hazırla</span>
-                <span class="suggestion-card__desc">Türkçe yazılım terimleri için referans</span>
+                <span class="suggestion-card__desc">Türkçe yazılım terimleri</span>
               </button>
               <button class="suggestion-card" data-suggest="PHP 8.3'te yeni eklenen özellikleri açıkla">
                 <span class="suggestion-card__icon">💻</span>
@@ -295,7 +295,7 @@
           <p class="view-subtitle">
             <span class="status-pill status-pill--scheduled">
               <span class="status-pill__dot"></span>
-              Faz 3'te aktif olacak (v0.3.0)
+              RAG belleği Faz 3'te aktif olacak (v0.3.0)
             </span>
           </p>
         </div>
@@ -456,59 +456,35 @@
           <ol class="roadmap">
             <li class="roadmap__item roadmap__item--done">
               <span class="roadmap__num">1</span>
-              <div>
-                <strong>Faz 1 — Temel İskelet</strong>
-                <em>v0.1.0 · tamamlandı</em>
-              </div>
+              <div><strong>Faz 1 — Temel İskelet</strong><em>v0.1.0 · tamamlandı</em></div>
             </li>
             <li class="roadmap__item roadmap__item--current">
               <span class="roadmap__num">2</span>
-              <div>
-                <strong>Faz 2 — Masaüstü UI</strong>
-                <em>v0.2.0 · şu anda buradasın</em>
-              </div>
+              <div><strong>Faz 2 — Masaüstü UI + Kalıcı Sohbet</strong><em>v0.2.1 · şu anda buradasın</em></div>
             </li>
             <li class="roadmap__item">
               <span class="roadmap__num">3</span>
-              <div>
-                <strong>Faz 3 — LLM Motoru</strong>
-                <em>v0.3.0 · sıradaki</em>
-              </div>
+              <div><strong>Faz 3 — LLM Motoru</strong><em>v0.3.0 · sıradaki</em></div>
             </li>
             <li class="roadmap__item">
               <span class="roadmap__num">4</span>
-              <div>
-                <strong>Faz 4 — Görsel Üretim</strong>
-                <em>v0.4.0</em>
-              </div>
+              <div><strong>Faz 4 — Görsel Üretim</strong><em>v0.4.0</em></div>
             </li>
             <li class="roadmap__item">
               <span class="roadmap__num">5</span>
-              <div>
-                <strong>Faz 5 — Ses (TTS + ASR)</strong>
-                <em>v0.5.0</em>
-              </div>
+              <div><strong>Faz 5 — Ses (TTS + ASR)</strong><em>v0.5.0</em></div>
             </li>
             <li class="roadmap__item">
               <span class="roadmap__num">6</span>
-              <div>
-                <strong>Faz 6 — Video Üretim</strong>
-                <em>v0.6.0</em>
-              </div>
+              <div><strong>Faz 6 — Video Üretim</strong><em>v0.6.0</em></div>
             </li>
             <li class="roadmap__item">
               <span class="roadmap__num">7</span>
-              <div>
-                <strong>Faz 7 — Self-Learning</strong>
-                <em>v0.7.0</em>
-              </div>
+              <div><strong>Faz 7 — Self-Learning</strong><em>v0.7.0</em></div>
             </li>
             <li class="roadmap__item">
               <span class="roadmap__num">8</span>
-              <div>
-                <strong>Faz 8 — Tek .exe + Akıllı Güncelle</strong>
-                <em>v1.0.0</em>
-              </div>
+              <div><strong>Faz 8 — Tek .exe + Akıllı Güncelle</strong><em>v1.0.0</em></div>
             </li>
           </ol>
         </div>
@@ -535,11 +511,9 @@
     </div>
   </footer>
 
-  <!-- =========================================================
-       JavaScript
-       ========================================================= -->
   <script src="/js/api.js"></script>
   <script src="/js/views.js"></script>
+  <script src="/js/chats.js"></script>
   <script src="/js/chat.js"></script>
   <script src="/js/system.js"></script>
   <script src="/js/app.js"></script>

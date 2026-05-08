@@ -1,8 +1,8 @@
 {
   "name": "CODEGA AI",
   "slug": "codegaai",
-  "version": "0.2.0",
-  "phase": "Faz 2 - Masaüstü UI",
+  "version": "0.2.1",
+  "phase": "Faz 2.1 - Kalıcı Sohbet (Claude tarzı sidebar)",
   "description": "Yerelde çalışan, kendi kendine öğrenen, çok modlu yapay zeka platformu. RTX 3060+ ve 16GB+ RAM için optimize edilmiştir.",
   "author": "CODEGA",
   "license": "MIT",
@@ -12,6 +12,7 @@
   "released_at": "2026-05-08",
   "requires": {
     "python": ">=3.10,<3.13",
+    "python_note": "3.13+ desteklenmiyor (pywebview pythonnet bağımlılığı henüz wheel yayınlamadı)",
     "os": ["windows", "linux", "macos"],
     "ram_gb_min": 16,
     "ram_gb_recommended": 24,
@@ -22,8 +23,13 @@
   },
   "features": {
     "desktop_window": true,
+    "browser_fallback": true,
     "fastapi_backend": true,
     "system_check": true,
+    "persistent_chats": true,
+    "chat_history_sidebar": true,
+    "chat_rename": true,
+    "chat_delete": true,
     "auto_update": true,
     "installer": true,
     "chat": false,
@@ -40,27 +46,19 @@
       "default": "qwen2.5-7b-instruct-q4_k_m",
       "alternatives": ["llama-3.1-8b-instruct-q4", "aya-expanse-8b-q4", "phi-3.5-mini-q4"]
     },
-    "embedding": {
-      "default": "bge-m3"
-    },
+    "embedding": {"default": "bge-m3"},
     "image": {
       "default": "stable-diffusion-xl-base-1.0",
       "alternatives": ["flux.1-schnell", "sdxl-turbo"]
     },
-    "video": {
-      "default": "cogvideox-2b"
-    },
-    "tts": {
-      "default": "xtts-v2",
-      "alternatives": ["piper-tr"]
-    },
-    "asr": {
-      "default": "faster-whisper-large-v3"
-    }
+    "video": {"default": "cogvideox-2b"},
+    "tts": {"default": "xtts-v2", "alternatives": ["piper-tr"]},
+    "asr": {"default": "faster-whisper-large-v3"}
   },
   "phases_complete": [
     "Faz 1 - Temel İskelet (yapılandırma, başlatıcı, kurulum, logger, sistem kontrol)",
-    "Faz 2 - Masaüstü UI (PyWebView pencere, FastAPI backend, dark theme HTML/CSS/JS arayüz, 6 görünüm: Sohbet/Görsel/Video/Ses/Bellek/Sistem/Ayarlar)"
+    "Faz 2 - Masaüstü UI (PyWebView pencere, FastAPI backend, dark theme HTML/CSS/JS arayüz)",
+    "Faz 2.1 - Kalıcı Sohbet (SQLite chat store, Claude tarzı sidebar, çoklu sohbet, başlık otomatik üretimi, yeniden adlandırma + silme, install.bat Python 3.10-3.12 detect)"
   ],
   "phases_pending": [
     "Faz 3 - LLM Motoru (Qwen 2.5 7B + BGE-M3 + ChromaDB RAG)",

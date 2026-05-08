@@ -55,6 +55,11 @@
   color: var(--color-text);
 }
 
+.icon-btn--danger:not(:disabled):hover {
+  background: rgb(239 68 68 / 0.15);
+  color: var(--color-danger);
+}
+
 /* ---- Durum pill'leri ---- */
 
 .status-pill {

@@ -46,6 +46,10 @@ async def _lifespan(app: FastAPI):
     log.info("FastAPI başlatılıyor (CODEGA AI v%s)", __version__)
     log.info("Faz: %s", __phase__)
 
+    # Sohbet veritabanını başlat (gerekirse oluşturur)
+    from codegaai.core.chat_store import ChatStore
+    ChatStore.open()
+
     # Faz 3+ ile burada motorlar yüklenecek
     # app.state.llm = LLMEngine.load(...)
     # app.state.memory = MemoryStore.open(...)
@@ -87,6 +91,7 @@ def create_app() -> FastAPI:
 
     # ---- API rotaları ----
     from codegaai.api.routes import system as system_routes
+    from codegaai.api.routes import chats as chats_routes
     from codegaai.api.routes import chat as chat_routes
     from codegaai.api.routes import image as image_routes
     from codegaai.api.routes import video as video_routes
@@ -94,6 +99,7 @@ def create_app() -> FastAPI:
     from codegaai.api.routes import memory as memory_routes
 
     app.include_router(system_routes.router, prefix="/api/system", tags=["system"])
+    app.include_router(chats_routes.router, prefix="/api/chats",  tags=["chats"])
     app.include_router(chat_routes.router,   prefix="/api/chat",   tags=["chat"])
     app.include_router(image_routes.router,  prefix="/api/image",  tags=["image"])
     app.include_router(video_routes.router,  prefix="/api/video",  tags=["video"])

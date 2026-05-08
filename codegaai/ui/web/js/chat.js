@@ -1,14 +1,16 @@
 /* ============================================================
-   CODEGA AI - Sohbet
+   CODEGA AI - Sohbet (kalıcı, çoklu sohbet desteği)
    ============================================================ */
 
 const Chat = (() => {
   const state = {
+    chatId: null,           // Aktif sohbet (null = yeni, henüz oluşturulmadı)
+    chatTitle: "Yeni sohbet",
     messages: [],
     sending: false,
   };
 
-  let elInput, elMessages, elForm, elSend;
+  let elInput, elMessages, elForm, elSend, elTitle, elDelete, elRename;
 
   // ---------- DOM yardımcıları ----------
 
@@ -26,8 +28,7 @@ const Chat = (() => {
     for (const c of children) {
       if (c == null) continue;
       node.appendChild(typeof c === "string"
-        ? document.createTextNode(c)
-        : c);
+        ? document.createTextNode(c) : c);
     }
     return node;
   }
@@ -39,7 +40,6 @@ const Chat = (() => {
     }[m]));
   }
 
-  // Çok hafif markdown — paragraflar, **bold**, `code`, satır sonu
   function renderMarkdown(text) {
     const safe = escapeHTML(text);
     const html = safe
@@ -80,13 +80,67 @@ const Chat = (() => {
     );
   }
 
-  function clearWelcome() {
-    const w = elMessages.querySelector(".welcome");
-    if (w) w.remove();
+  function renderWelcome() {
+    const div = document.createElement("div");
+    div.className = "welcome";
+    div.innerHTML = `
+      <div class="welcome__brand"><span class="welcome__brand-c">C</span></div>
+      <h2 class="welcome__title">Yeni sohbete başla</h2>
+      <p class="welcome__subtitle">
+        Yerelde çalışan, hiçbir buluta veri sızdırmayan,
+        <em>kendi kendine öğrenen</em> yapay zeka.
+      </p>
+      <div class="suggestions">
+        <button class="suggestion-card" data-suggest="Türkçe yazılım terimleri için bir sözlük hazırla">
+          <span class="suggestion-card__icon">📚</span>
+          <span class="suggestion-card__title">Sözlük hazırla</span>
+          <span class="suggestion-card__desc">Türkçe yazılım terimleri</span>
+        </button>
+        <button class="suggestion-card" data-suggest="PHP 8.3'te yeni eklenen özellikleri açıkla">
+          <span class="suggestion-card__icon">💻</span>
+          <span class="suggestion-card__title">Kod öğret</span>
+          <span class="suggestion-card__desc">PHP 8.3'ün yeni özellikleri</span>
+        </button>
+        <button class="suggestion-card" data-suggest="Bana e-ticaret ürün açıklaması yazmayı öğret">
+          <span class="suggestion-card__icon">✍️</span>
+          <span class="suggestion-card__title">Yazı yardımı</span>
+          <span class="suggestion-card__desc">E-ticaret ürün açıklamaları</span>
+        </button>
+        <button class="suggestion-card" data-suggest="LoRA fine-tuning nasıl çalışır, basit dille anlat">
+          <span class="suggestion-card__icon">🧠</span>
+          <span class="suggestion-card__title">Konsept öğren</span>
+          <span class="suggestion-card__desc">LoRA fine-tuning</span>
+        </button>
+      </div>
+    `;
+    // Önerilere tıklamayı bağla
+    div.querySelectorAll(".suggestion-card[data-suggest]").forEach((card) => {
+      card.addEventListener("click", () => {
+        elInput.value = card.dataset.suggest;
+        autoResize();
+        elInput.focus();
+      });
+    });
+    return div;
+  }
+
+  function renderAll() {
+    elMessages.innerHTML = "";
+    if (state.messages.length === 0) {
+      elMessages.appendChild(renderWelcome());
+    } else {
+      for (const msg of state.messages) {
+        elMessages.appendChild(renderMessage(msg));
+      }
+    }
+    scrollToBottom();
+    updateHeader();
   }
 
   function appendMessage(msg) {
-    clearWelcome();
+    // Welcome'ı temizle
+    const w = elMessages.querySelector(".welcome");
+    if (w) w.remove();
     elMessages.appendChild(renderMessage(msg));
     scrollToBottom();
   }
@@ -106,7 +160,33 @@ const Chat = (() => {
     });
   }
 
-  // ---------- Aksiyonlar ----------
+  function updateHeader() {
+    if (elTitle) elTitle.textContent = state.chatTitle || "Yeni sohbet";
+    const hasChat = state.chatId !== null;
+    if (elDelete) elDelete.disabled = !hasChat;
+    if (elRename) elRename.disabled = !hasChat;
+  }
+
+  // ---------- Sohbet yükleme/yönetimi ----------
+
+  function loadChat(chatData, messages) {
+    state.chatId = chatData.id;
+    state.chatTitle = chatData.title || "Yeni sohbet";
+    state.messages = (messages || []).map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+    renderAll();
+  }
+
+  function clearActive() {
+    state.chatId = null;
+    state.chatTitle = "Yeni sohbet";
+    state.messages = [];
+    renderAll();
+  }
+
+  // ---------- Gönder ----------
 
   async function send(text) {
     text = String(text || "").trim();
@@ -114,6 +194,20 @@ const Chat = (() => {
 
     state.sending = true;
     elSend.disabled = true;
+
+    // Aktif sohbet yoksa, otomatik yeni oluştur
+    if (state.chatId === null) {
+      const newChat = await Chats.createNew();
+      if (!newChat) {
+        state.sending = false;
+        elSend.disabled = false;
+        return;
+      }
+      state.chatId = newChat.id;
+      state.chatTitle = newChat.title;
+      state.messages = [];
+      renderAll();
+    }
 
     const userMsg = { role: "user", content: text };
     state.messages.push(userMsg);
@@ -124,7 +218,7 @@ const Chat = (() => {
     showTyping();
 
     try {
-      const resp = await API.chat(state.messages);
+      const resp = await API.chat(state.messages, { chat_id: state.chatId });
       hideTyping();
 
       const assistantMsg = resp.message || {
@@ -134,11 +228,14 @@ const Chat = (() => {
       state.messages.push(assistantMsg);
       appendMessage(assistantMsg);
 
-      // Model etiketini güncelle
+      // Model etiketi
       const lbl = document.getElementById("chat-model-label");
       if (lbl && resp.model) {
         lbl.innerHTML = `Model: <code>${escapeHTML(resp.model)}</code>`;
       }
+
+      // Sidebar listesini tazele (başlık ilk mesajdan otomatik üretildi olabilir)
+      Chats.reload();
     } catch (err) {
       hideTyping();
       console.error(err);
@@ -153,24 +250,33 @@ const Chat = (() => {
     }
   }
 
-  function clear() {
-    state.messages = [];
-    elMessages.innerHTML = "";
-    // Hoş geldin ekranını yeniden göster
-    elMessages.appendChild(buildWelcome());
+  // ---------- Sil / Yeniden adlandır ----------
+
+  async function rename() {
+    if (state.chatId === null) return;
+    const newTitle = prompt("Yeni başlık:", state.chatTitle);
+    if (!newTitle || newTitle === state.chatTitle) return;
+    try {
+      await API.chatsRename(state.chatId, newTitle);
+      state.chatTitle = newTitle;
+      updateHeader();
+      Chats.reload();
+    } catch (err) {
+      alert("Yeniden adlandırma başarısız: " + err.message);
+    }
   }
 
-  function buildWelcome() {
-    // Orijinal welcome HTML'ini yeniden ekle
-    const tmpl = document.createElement("div");
-    tmpl.innerHTML = `
-      <div class="welcome">
-        <div class="welcome__brand"><span class="welcome__brand-c">C</span></div>
-        <h2 class="welcome__title">Yeni sohbet</h2>
-        <p class="welcome__subtitle">Yeni bir konuyla başla.</p>
-      </div>
-    `;
-    return tmpl.firstElementChild;
+  async function deleteCurrent() {
+    if (state.chatId === null) return;
+    const ok = confirm(`"${state.chatTitle}" sohbetini sil?`);
+    if (!ok) return;
+    try {
+      await API.chatsDelete(state.chatId);
+      clearActive();
+      Chats.reload();
+    } catch (err) {
+      alert("Silme başarısız: " + err.message);
+    }
   }
 
   // ---------- Input davranışı ----------
@@ -187,17 +293,11 @@ const Chat = (() => {
     elMessages = document.getElementById("chat-messages");
     elForm = document.getElementById("chat-form");
     elSend = document.getElementById("chat-send");
+    elTitle = document.getElementById("chat-title");
+    elDelete = document.getElementById("chat-delete");
+    elRename = document.getElementById("chat-rename");
 
     if (!elInput || !elMessages || !elForm) return;
-
-    // Önerilen kart tıklamaları
-    document.querySelectorAll(".suggestion-card[data-suggest]").forEach((card) => {
-      card.addEventListener("click", () => {
-        elInput.value = card.dataset.suggest;
-        autoResize();
-        elInput.focus();
-      });
-    });
 
     // Form submit
     elForm.addEventListener("submit", (e) => {
@@ -215,11 +315,36 @@ const Chat = (() => {
 
     elInput.addEventListener("input", autoResize);
 
-    // Yeni / Temizle
-    document.getElementById("chat-new")?.addEventListener("click", clear);
-    document.getElementById("chat-clear")?.addEventListener("click", clear);
+    // Header butonları
+    elDelete?.addEventListener("click", deleteCurrent);
+    elRename?.addEventListener("click", rename);
 
-    // Sohbet görünümüne geçildiğinde input'a odaklan
+    // Welcome ekranındaki suggestion-card'lara bağla
+    document.querySelectorAll(".suggestion-card[data-suggest]").forEach((card) => {
+      card.addEventListener("click", () => {
+        elInput.value = card.dataset.suggest;
+        autoResize();
+        elInput.focus();
+      });
+    });
+
+    // Sohbet listesinden seçim olayını dinle
+    Chats.on((event) => {
+      if (event.type === "load") {
+        loadChat(event.chat, event.messages);
+      } else if (event.type === "create") {
+        state.chatId = event.chat.id;
+        state.chatTitle = event.chat.title;
+        state.messages = [];
+        renderAll();
+      } else if (event.type === "delete") {
+        if (state.chatId === event.id) {
+          clearActive();
+        }
+      }
+    });
+
+    // Sohbet sekmesine geçildiğinde input'a odaklan
     Views.on((name) => {
       if (name === "chat") {
         setTimeout(() => elInput.focus(), 50);
@@ -227,9 +352,10 @@ const Chat = (() => {
     });
 
     autoResize();
+    updateHeader();
   }
 
-  return { init, send, clear };
+  return { init, send, rename, deleteCurrent };
 })();
 
 window.Chat = Chat;

@@ -74,6 +74,21 @@ const API = (() => {
     chatModels: () => request("/api/chat/models"),
     chatStatus: () => request("/api/chat/status"),
 
+    // ---- chats (kalıcı sohbet listesi) ----
+    chatsList:   () => request("/api/chats"),
+    chatsCreate: (title) => request("/api/chats", {
+      method: "POST",
+      body: { title: title || "Yeni sohbet" },
+    }),
+    chatsGet:    (id) => request(`/api/chats/${id}`),
+    chatsRename: (id, title) => request(`/api/chats/${id}`, {
+      method: "PATCH",
+      body: { title },
+    }),
+    chatsDelete: (id) => request(`/api/chats/${id}`, {
+      method: "DELETE",
+    }),
+
     // ---- image ----
     imageGen: (prompt, opts = {}) => request("/api/image", {
       method: "POST",

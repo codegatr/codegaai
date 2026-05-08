@@ -1,4 +1,10 @@
-"""Sohbet uç noktaları (Faz 2 stub, Faz 3'te gerçek motor)."""
+"""
+Sohbet uç noktası — Faz 3'te gerçek LLM motoru gelene kadar stub.
+
+v0.2.1'de eklendi: chat_id ile mesajlar SQLite'a yazılır.
+Sohbet kalıcılığı şimdiden çalışıyor; Faz 3'te yalnızca yanıt
+üretici stub'tan gerçek LLM'e geçecek.
+"""
 
 from __future__ import annotations
 
@@ -8,12 +14,10 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from codegaai.core.chat_store import ChatStore
+
 router = APIRouter()
 
-
-# ============================================================
-# Pydantic modelleri
-# ============================================================
 
 class Message(BaseModel):
     role: str = Field(..., pattern="^(user|assistant|system)$")
@@ -21,6 +25,10 @@ class Message(BaseModel):
 
 
 class ChatRequest(BaseModel):
+    chat_id: Optional[int] = Field(
+        None,
+        description="Mesajları kalıcı saklamak için sohbet ID. None ise stateless.",
+    )
     messages: list[Message] = Field(..., min_length=1)
     model: Optional[str] = None
     temperature: float = Field(0.7, ge=0.0, le=2.0)
@@ -33,43 +41,64 @@ class ChatResponse(BaseModel):
     model: str
     finish_reason: str
     timing_ms: int
+    chat_id: Optional[int] = None
     note: Optional[str] = None
 
 
-# ============================================================
-# Stub yanıtı
-# ============================================================
-
+# Faz 3'te bu sabit yanıt yerine gerçek LLM çıktısı gelecek.
 _STUB_RESPONSE = (
     "Merhaba! Ben CODEGA AI'ın sohbet motoruyum.\n\n"
-    "Şu an **Faz 2 (Masaüstü UI)** sürümündeyiz, yani sen bu arayüzü görüyorsun "
-    "ama LLM motorum henüz yüklü değil.\n\n"
-    "**Faz 3'te** Qwen 2.5 7B modeli, BGE-M3 embedding ve ChromaDB tabanlı RAG "
-    "belleği aktive olacak. O zaman gerçekten konuşabileceğiz, kod yazabilirim, "
-    "ve her etkileşimden öğrenmeye başlayacağım.\n\n"
-    "Şimdilik UI'ın her parçasını test edebilirsin — ayarlar, sistem kontrolü, "
-    "menüler. Backend hazır, yapay zeka motorları sırada."
+    "Şu an **Faz 2.1** sürümündeyiz: arayüz çalışıyor, sohbetler "
+    "kalıcı olarak veritabanına kaydediliyor, ama LLM motorum henüz "
+    "yüklenmedi.\n\n"
+    "**Faz 3'te** Qwen 2.5 7B yüklenecek, BGE-M3 embedding ve "
+    "ChromaDB tabanlı RAG belleği aktive olacak. UI hiç değişmeyecek "
+    "— sadece bu yanıtın yerini gerçek anlama, akıl yürütme ve "
+    "Türkçe sohbet alacak.\n\n"
+    "Şimdilik yeni sohbet aç, eski sohbetlere geri dön, başlık "
+    "değiştir, sil — hepsi çalışıyor. Backend ve veritabanı şeması "
+    "Faz 3 için hazır."
 )
 
 
 @router.post("", response_model=ChatResponse)
 async def chat(req: ChatRequest) -> ChatResponse:
-    """Faz 2 stub — sabit bilgilendirici yanıt döndürür."""
+    """Stub yanıt üret + mesajları kalıcı sakla (chat_id verilmişse)."""
     if not req.messages:
         raise HTTPException(400, "messages boş olamaz")
 
+    store = ChatStore.open()
+
+    # chat_id verilmişse: son kullanıcı mesajını DB'ye yaz
+    if req.chat_id is not None:
+        chat = store.get_chat(req.chat_id)
+        if chat is None:
+            raise HTTPException(404, f"Sohbet bulunamadı: id={req.chat_id}")
+
+        last = req.messages[-1]
+        if last.role == "user":
+            store.add_message(req.chat_id, "user", last.content)
+
+    response_msg = Message(role="assistant", content=_STUB_RESPONSE)
+
+    # Asistan yanıtını da kalıcı sakla
+    if req.chat_id is not None:
+        store.add_message(
+            req.chat_id, "assistant", response_msg.content, model="stub-faz2"
+        )
+
     return ChatResponse(
-        message=Message(role="assistant", content=_STUB_RESPONSE),
+        message=response_msg,
         model="stub-faz2",
         finish_reason="stop",
         timing_ms=0,
-        note="Bu yanıt stub — gerçek LLM Faz 3'te gelecek (v0.3.0).",
+        chat_id=req.chat_id,
+        note="Bu yanıt stub — gerçek LLM Faz 3'te (v0.3.0) gelecek.",
     )
 
 
 @router.get("/models")
 async def list_models() -> dict:
-    """Mevcut LLM modellerini listele (Faz 2'de hiçbiri yüklü değil)."""
     return {
         "loaded": [],
         "available_for_download": [
@@ -110,7 +139,7 @@ async def list_models() -> dict:
 async def status() -> dict:
     return {
         "active": False,
-        "phase": "Faz 2",
+        "phase": "Faz 2.1",
         "expected_in": "Faz 3 (v0.3.0)",
         "now": datetime.now().isoformat(),
     }
