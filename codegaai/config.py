@@ -41,11 +41,47 @@ else:
 # Sabitler
 # ============================================================
 
-# Proje kök dizini (bu dosyanın bir üst dizininin bir üst dizini)
-PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
+# Proje kök dizini.
+# - Geliştirme: bu dosyanın iki üst dizini (repo kökü)
+# - Frozen (.exe / PyInstaller): geçici extract dizini (sys._MEIPASS)
+PROJECT_ROOT: Path = (
+    Path(getattr(sys, "_MEIPASS", "")) if getattr(sys, "frozen", False)
+    else Path(__file__).resolve().parent.parent
+)
+
+
+def _resolve_data_dir() -> Path:
+    """
+    Veri dizinini koşullara göre seç.
+
+    - Frozen (.exe): %LOCALAPPDATA%\\CODEGA AI\\data (Windows)
+                     ~/.local/share/CODEGA AI/data (Linux/macOS)
+                     Kullanıcının yazma izni vardır, install dizini değil.
+    - Geliştirme: <repo>/data
+    - Override: CODEGAAI_DATA_DIR çevre değişkeni varsa onu kullan.
+    """
+    # Manuel override
+    env_dir = os.environ.get("CODEGAAI_DATA_DIR")
+    if env_dir:
+        return Path(env_dir).expanduser().resolve()
+
+    # Frozen mod: AppData
+    if getattr(sys, "frozen", False):
+        if sys.platform == "win32":
+            base = Path(os.environ.get("LOCALAPPDATA",
+                                       Path.home() / "AppData" / "Local"))
+        elif sys.platform == "darwin":
+            base = Path.home() / "Library" / "Application Support"
+        else:
+            base = Path.home() / ".local" / "share"
+        return base / "CODEGA AI" / "data"
+
+    # Geliştirme
+    return Path(__file__).resolve().parent.parent / "data"
+
 
 # Veri dizini (tüm runtime verileri buraya yazılır, repoda yok)
-DATA_DIR: Path = PROJECT_ROOT / "data"
+DATA_DIR: Path = _resolve_data_dir()
 
 # Alt dizinler
 MODELS_DIR: Path = DATA_DIR / "models"
