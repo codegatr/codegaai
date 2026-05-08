@@ -1,0 +1,122 @@
+name: Windows Build
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Tag adı (örn. v0.3.1) — release oluşturulacak"
+        required: false
+        default: ""
+
+permissions:
+  contents: write   # release oluşturmak için
+
+jobs:
+  build-windows:
+    name: Build Windows portable
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Print versions
+        run: |
+          python --version
+          pip --version
+
+      - name: Upgrade pip + install build tools
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          python -m pip install pyinstaller
+
+      - name: Install core deps
+        shell: pwsh
+        run: |
+          python -m pip install fastapi "uvicorn[standard]" pydantic python-multipart psutil rich httpx packaging
+          python -m pip install pywebview
+
+      - name: Install ML deps (CPU only)
+        shell: pwsh
+        run: |
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install llama-cpp-python sentence-transformers chromadb huggingface_hub
+
+      - name: List installed packages
+        shell: pwsh
+        run: pip list
+
+      - name: Run unit tests
+        shell: pwsh
+        run: python -m unittest discover tests
+        continue-on-error: true   # test başarısızlığı build'i durdurmasın
+
+      - name: Build with PyInstaller
+        shell: pwsh
+        run: |
+          pyinstaller build/codegaai.spec --noconfirm --clean
+
+      - name: Verify build output
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "dist/codegaai/codegaai.exe")) {
+            throw "Build basarisiz: codegaai.exe bulunamadi"
+          }
+          $size = (Get-ChildItem -Path "dist/codegaai" -Recurse | Measure-Object Length -Sum).Sum / 1MB
+          Write-Host "Toplam boyut: $([math]::Round($size, 1)) MB"
+
+      - name: Determine version tag
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like "refs/tags/*") {
+            $tag = $env:GITHUB_REF -replace "refs/tags/", ""
+          } elseif ("${{ github.event.inputs.release_tag }}") {
+            $tag = "${{ github.event.inputs.release_tag }}"
+          } else {
+            $tag = "dev-$(git rev-parse --short HEAD)"
+          }
+          Write-Host "Tag: $tag"
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Create portable ZIP
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          $zipName = "codegaai-$tag-windows-cpu.zip"
+          Write-Host "Zipleniyor: $zipName"
+          Compress-Archive -Path "dist/codegaai/*" -DestinationPath $zipName -CompressionLevel Optimal
+          $zipSize = (Get-Item $zipName).Length / 1MB
+          Write-Host "ZIP boyutu: $([math]::Round($zipSize, 1)) MB"
+          "zip_name=$zipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        id: zip
+
+      - name: Upload artifact (workflow_dispatch için)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: codegaai-windows-cpu
+          path: ${{ steps.zip.outputs.zip_name }}
+          retention-days: 30
+
+      - name: Attach to GitHub Release (tag push için)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.zip.outputs.zip_name }}
+          fail_on_unmatched_files: true
+          # Release yoksa otomatik oluştur (mevcut release'e ekleme yapar)
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

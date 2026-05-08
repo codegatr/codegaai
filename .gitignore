@@ -17,7 +17,10 @@ env/
 ENV/
 
 # ---- Dağıtım & paketleme ----
-build/
+# Python build artifacts (PyInstaller dist, ama build/ kaynak dosyalarımız korunur)
+build/__pycache__/
+build/*.pyc
+dist/
 dist/
 *.spec
 *.exe
