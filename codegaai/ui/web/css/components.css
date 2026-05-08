@@ -1,0 +1,191 @@
+/* ============================================================
+   Yeniden kullanılabilir bileşenler
+   ============================================================ */
+
+/* ---- Düğmeler ---- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 7px var(--space-4);
+  border-radius: var(--radius);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-tight);
+  border: 1px solid transparent;
+  transition: all var(--duration-fast) var(--ease-out);
+  white-space: nowrap;
+}
+
+.btn svg { flex-shrink: 0; }
+
+.btn--primary {
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
+}
+.btn--primary:hover {
+  background: var(--color-accent-hover);
+  transform: translateY(-1px);
+}
+.btn--primary:active { transform: translateY(0); }
+
+.btn--ghost {
+  background: transparent;
+  color: var(--color-text-muted);
+  border-color: var(--color-border-strong);
+}
+.btn--ghost:hover {
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  border-color: var(--color-text-dim);
+}
+
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  color: var(--color-text-dim);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.icon-btn:not(:disabled):hover {
+  background: var(--color-bg-raised);
+  color: var(--color-text);
+}
+
+/* ---- Durum pill'leri ---- */
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px var(--space-3);
+  border-radius: 999px;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-tight);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.status-pill__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-text-dim);
+}
+
+.status-pill--ok {
+  color: var(--color-success);
+  border-color: rgb(16 185 129 / 0.3);
+  background: rgb(16 185 129 / 0.08);
+}
+.status-pill--ok .status-pill__dot {
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px rgb(16 185 129 / 0.18);
+}
+
+.status-pill--pending {
+  color: var(--color-pending);
+  border-color: rgb(20 184 166 / 0.3);
+  background: rgb(20 184 166 / 0.08);
+}
+.status-pill--pending .status-pill__dot {
+  background: var(--color-pending);
+  box-shadow: 0 0 0 3px rgb(20 184 166 / 0.18);
+  animation: pulse 2s var(--ease-in-out) infinite;
+}
+
+.status-pill--scheduled {
+  color: var(--color-text-dim);
+  border-style: dashed;
+}
+.status-pill--scheduled .status-pill__dot { background: var(--color-text-dim); }
+
+.status-pill--warn {
+  color: var(--color-warning);
+  border-color: rgb(234 179 8 / 0.3);
+  background: rgb(234 179 8 / 0.08);
+}
+.status-pill--warn .status-pill__dot { background: var(--color-warning); }
+
+.status-pill--err {
+  color: var(--color-danger);
+  border-color: rgb(239 68 68 / 0.3);
+  background: rgb(239 68 68 / 0.08);
+}
+.status-pill--err .status-pill__dot { background: var(--color-danger); }
+
+/* ---- Faz banner ---- */
+
+.phase-banner {
+  margin: var(--space-7) var(--space-8);
+  padding: var(--space-4) var(--space-5);
+  background: rgb(20 184 166 / 0.06);
+  border: 1px solid rgb(20 184 166 / 0.25);
+  border-left: 3px solid var(--color-pending);
+  border-radius: var(--radius);
+  font-size: var(--fs-base);
+  color: var(--color-text-muted);
+  line-height: var(--lh-loose);
+}
+.phase-banner strong {
+  color: var(--color-pending);
+  font-weight: var(--fw-semibold);
+}
+
+/* ---- Placeholder kartları ---- */
+
+.placeholder-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+  padding: var(--space-7) var(--space-8) var(--space-4);
+}
+
+.placeholder-grid--two {
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+}
+
+.placeholder-card {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+.placeholder-card:hover {
+  border-color: var(--color-border-strong);
+}
+
+.placeholder-card__icon {
+  font-size: 24px;
+  margin-bottom: var(--space-2);
+}
+
+.placeholder-card h3 {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+}
+
+.placeholder-card p {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+  line-height: var(--lh-base);
+}
+
+.placeholder-card--large {
+  padding: var(--space-6);
+}
+.placeholder-card--large h3 {
+  font-size: var(--fs-lg);
+}
+.placeholder-card--large p {
+  font-size: var(--fs-base);
+}

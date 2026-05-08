@@ -1,8 +1,8 @@
 {
   "name": "CODEGA AI",
   "slug": "codegaai",
-  "version": "0.1.0",
-  "phase": "Faz 1 - Temel İskelet",
+  "version": "0.2.0",
+  "phase": "Faz 2 - Masaüstü UI",
   "description": "Yerelde çalışan, kendi kendine öğrenen, çok modlu yapay zeka platformu. RTX 3060+ ve 16GB+ RAM için optimize edilmiştir.",
   "author": "CODEGA",
   "license": "MIT",
@@ -21,6 +21,11 @@
     "cuda": ">=11.8 (NVIDIA için)"
   },
   "features": {
+    "desktop_window": true,
+    "fastapi_backend": true,
+    "system_check": true,
+    "auto_update": true,
+    "installer": true,
     "chat": false,
     "code": false,
     "image_generation": false,
@@ -28,9 +33,7 @@
     "tts": false,
     "asr": false,
     "rag_memory": false,
-    "self_learning": false,
-    "auto_update": true,
-    "installer": true
+    "self_learning": false
   },
   "models": {
     "llm": {
@@ -56,15 +59,15 @@
     }
   },
   "phases_complete": [
-    "Faz 1 - Temel İskelet (yapılandırma, başlatıcı, kurulum, logger, sistem kontrol)"
+    "Faz 1 - Temel İskelet (yapılandırma, başlatıcı, kurulum, logger, sistem kontrol)",
+    "Faz 2 - Masaüstü UI (PyWebView pencere, FastAPI backend, dark theme HTML/CSS/JS arayüz, 6 görünüm: Sohbet/Görsel/Video/Ses/Bellek/Sistem/Ayarlar)"
   ],
   "phases_pending": [
-    "Faz 2 - LLM Motoru (sohbet, kod, RAG bellek)",
-    "Faz 3 - Görsel Üretim",
-    "Faz 4 - TTS + ASR",
-    "Faz 5 - Video Üretim",
-    "Faz 6 - Self-Learning Loop",
-    "Faz 7 - Masaüstü UI",
-    "Faz 8 - Akıllı Güncelle + Installer Build"
+    "Faz 3 - LLM Motoru (Qwen 2.5 7B + BGE-M3 + ChromaDB RAG)",
+    "Faz 4 - Görsel Üretim (SDXL / FLUX.1)",
+    "Faz 5 - Ses (XTTS v2 + faster-whisper)",
+    "Faz 6 - Video Üretim (CogVideoX-2B)",
+    "Faz 7 - Self-Learning (DPO + LoRA hot-swap)",
+    "Faz 8 - Tek .exe paket + Akıllı Güncelle"
   ]
 }

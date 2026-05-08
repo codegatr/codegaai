@@ -1,29 +1,32 @@
 # ============================================================
-# CODEGA AI - Faz 1 (Temel İskelet) bağımlılıkları
+# CODEGA AI - Faz 2 (Masaüstü UI) bağımlılıkları
 # ============================================================
-# Bu dosya sadece Faz 1 için minimal bağımlılıkları içerir.
-# Faz 2+ ile birlikte (LLM, görsel, video, ses) ek bağımlılıklar
-# eklenecektir. Kullanıcı her faz güncellemesinde bu dosyayı
-# yeniden kurar (pip install -r requirements.txt).
+# Faz 2'de aktif: FastAPI backend + PyWebView masaüstü pencere.
+# Faz 3+ ile LLM, görsel, video, ses bağımlılıkları eklenecek.
 # ============================================================
 
-# ---- Çekirdek (Faz 1) ----
-psutil>=5.9.0,<7.0.0          # Sistem bilgisi (RAM, CPU)
-rich>=13.7.0,<14.0.0           # Renkli terminal çıktısı
-tomli>=2.0.1; python_version < "3.11"  # TOML okuma (3.11+ yerleşik)
+# ---- Çekirdek ----
+psutil>=5.9.0,<7.0.0
+rich>=13.7.0,<14.0.0
+tomli>=2.0.1; python_version < "3.11"
 
-# ---- Backend (Faz 2'de aktive olacak, şimdiden listede) ----
+# ---- Backend (Faz 2 - aktif) ----
 fastapi>=0.115.0,<1.0.0
 uvicorn[standard]>=0.32.0,<1.0.0
 pydantic>=2.9.0,<3.0.0
 python-multipart>=0.0.12,<1.0.0
 
-# ---- Yardımcı (her fazda kullanılır) ----
-httpx>=0.27.0,<1.0.0           # Güncelleme kontrolü için
-packaging>=24.0,<25.0          # Sürüm karşılaştırma
+# ---- Masaüstü pencere (Faz 2 - aktif) ----
+# pywebview Windows'ta otomatik olarak Edge WebView2'yi kullanır,
+# macOS'ta WebKit, Linux'ta GTK/QT (sistem WebKit).
+pywebview>=5.3.0,<6.0.0
+
+# ---- Yardımcı ----
+httpx>=0.27.0,<1.0.0
+packaging>=24.0,<25.0
 
 # ============================================================
-# Faz 2 (LLM Motoru) - YORUM SATIRINDA, Faz 2'de aktive edilecek
+# Faz 3 (LLM Motoru) - YORUM SATIRINDA, Faz 3'te aktive edilecek
 # ============================================================
 # llama-cpp-python>=0.3.0
 # chromadb>=0.5.0
@@ -32,7 +35,7 @@ packaging>=24.0,<25.0          # Sürüm karşılaştırma
 # transformers>=4.45.0
 
 # ============================================================
-# Faz 3-5 (Görsel/Video/Ses) - YORUM SATIRINDA
+# Faz 4-6 (Görsel/Ses/Video) - YORUM SATIRINDA
 # ============================================================
 # diffusers>=0.31.0
 # accelerate>=1.0.0
@@ -41,14 +44,13 @@ packaging>=24.0,<25.0          # Sürüm karşılaştırma
 # soundfile>=0.12.0
 
 # ============================================================
-# Faz 6 (Self-Learning) - YORUM SATIRINDA
+# Faz 7 (Self-Learning) - YORUM SATIRINDA
 # ============================================================
 # peft>=0.13.0
 # trl>=0.11.0
 # bitsandbytes>=0.44.0
 
 # ============================================================
-# Faz 7 (Masaüstü UI) - YORUM SATIRINDA
+# Faz 8 (Paketleme) - YORUM SATIRINDA
 # ============================================================
-# pywebview>=5.3.0
 # pyinstaller>=6.10.0

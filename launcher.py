@@ -3,13 +3,14 @@
 CODEGA AI - Başlatıcı
 ======================
 
-Ana giriş noktası. Üç modda çalışır:
+Ana giriş noktası. Şu modlarda çalışır:
 
-    python launcher.py            # Uygulamayı başlat (Faz 7'den itibaren UI)
-    python launcher.py --check    # Sadece sistem kontrolünü yap
-    python launcher.py --version  # Sürüm bilgisini yazdır
-
-Faz 1'de UI henüz yok. Bu sürümde --check ve --version işlevseldir.
+    python launcher.py              # Masaüstü pencere (PyWebView)
+    python launcher.py --browser    # Sistem tarayıcısında aç
+    python launcher.py --serve      # Sadece sunucu (UI açma)
+    python launcher.py --check      # Sistem kontrolü
+    python launcher.py --init       # Veri dizinleri + örnek config
+    python launcher.py --version    # Sürüm bilgisi
 """
 
 from __future__ import annotations
@@ -18,7 +19,6 @@ import argparse
 import sys
 from pathlib import Path
 
-# Repo kökünü import path'e ekle (in-place çalışma için)
 ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -36,15 +36,13 @@ from codegaai.utils.logger import get_logger
 
 
 # ============================================================
-# Komut: --version
+# --version
 # ============================================================
 
 def cmd_version() -> int:
-    """Sürüm bilgisini yazdır."""
     try:
         from rich.console import Console
         from rich.panel import Panel
-
         console = Console()
         body = (
             f"[bold]CODEGA AI[/bold] v{__version__}\n"
@@ -65,33 +63,25 @@ def cmd_version() -> int:
 
 
 # ============================================================
-# Komut: --check
+# --check
 # ============================================================
 
 def cmd_check() -> int:
-    """Sistem gereksinim kontrolü çalıştır."""
     report = run_all_checks()
     print_report(report)
-
-    if report.has_failures:
-        return 1
-    return 0
+    return 1 if report.has_failures else 0
 
 
 # ============================================================
-# Komut: --init
+# --init
 # ============================================================
 
 def cmd_init() -> int:
-    """Veri dizinlerini ve örnek config dosyasını oluştur."""
     log = get_logger(__name__)
-
     log.info("Veri dizinleri oluşturuluyor...")
     ensure_directories()
-
-    paths = get_paths()
-    for label, p in paths.items():
-        if p.is_dir():
+    for label, p in get_paths().items():
+        if isinstance(p, Path) and p.is_dir():
             log.info("  ✓ %s -> %s", label, p)
 
     log.info("Örnek yapılandırma dosyası yazılıyor...")
@@ -105,53 +95,87 @@ def cmd_init() -> int:
 
 
 # ============================================================
-# Komut: varsayılan (server start - Faz 1'de stub)
+# --serve (sadece sunucu)
 # ============================================================
 
-def cmd_run() -> int:
-    """Uygulamayı başlat. Faz 1'de bu sadece stub."""
+def cmd_serve() -> int:
     log = get_logger(__name__)
-
-    log.info("CODEGA AI v%s başlatılıyor...", __version__)
-    log.info("Faz: %s", __phase__)
-
-    # Sistem kontrol özeti
-    report = run_all_checks()
-    if report.has_failures:
-        log.error("Sistem kontrolü başarısız. Detay için: python launcher.py --check")
-        return 1
-
-    if report.has_warnings:
-        log.warning("Sistem kontrolünde uyarılar var. Detay için: python launcher.py --check")
-
-    # Dizinleri hazırla
     ensure_directories()
 
-    # Yapılandırmayı yükle
     cfg = get_config()
-    log.info("Yapılandırma yüklendi (dil=%s, sunucu=%s:%s)",
-             cfg["app"]["language"],
-             cfg["server"]["host"],
-             cfg["server"]["port"])
+    server_cfg = cfg["server"]
 
-    # Faz 1 stub mesajı
-    log.info("─" * 60)
-    log.info("Faz 1 (Temel İskelet) - bu sürüm sadece altyapı kurar.")
-    log.info("Yapay zeka motorları sonraki fazlarda gelir:")
-    log.info("  Faz 2: LLM Motoru     (sohbet + kod + RAG bellek)")
-    log.info("  Faz 3: Görsel Üretim  (SDXL / FLUX.1)")
-    log.info("  Faz 4: Ses           (XTTS + faster-whisper)")
-    log.info("  Faz 5: Video Üretim  (CogVideoX-2B)")
-    log.info("  Faz 6: Self-Learning (DPO + LoRA hot-swap)")
-    log.info("  Faz 7: Masaüstü UI   (PyWebView)")
-    log.info("  Faz 8: Akıllı Güncelle + .exe paketi")
-    log.info("─" * 60)
-    log.info("Sistem hazır. Faz 2 güncellemesini bekliyorsunuz.")
+    log.info("CODEGA AI sunucusu başlatılıyor (sadece backend modu).")
+    log.info("UI'a tarayıcıdan erişmek için: http://%s:%d/",
+             server_cfg["host"], server_cfg["port"])
+
+    try:
+        from codegaai.api.server import run_server
+    except ImportError as exc:
+        log.error("FastAPI bağımlılıkları eksik: %s", exc)
+        log.error("Yüklemek için: pip install -r requirements.txt")
+        return 1
+
+    run_server()
     return 0
 
 
 # ============================================================
-# CLI ana fonksiyonu
+# --browser (sistem tarayıcısında)
+# ============================================================
+
+def cmd_browser() -> int:
+    log = get_logger(__name__)
+    ensure_directories()
+
+    try:
+        from codegaai.ui.window import open_in_browser
+    except ImportError as exc:
+        log.error("UI modülü yüklenemedi: %s", exc)
+        return 1
+
+    cfg = get_config()
+    return open_in_browser(
+        host=cfg["server"]["host"],
+        port=int(cfg["server"]["port"]),
+    )
+
+
+# ============================================================
+# Varsayılan: masaüstü penceresi
+# ============================================================
+
+def cmd_window() -> int:
+    log = get_logger(__name__)
+    log.info("CODEGA AI v%s başlatılıyor...", __version__)
+    log.info("Faz: %s", __phase__)
+
+    report = run_all_checks()
+    if report.has_failures:
+        log.warning("Sistem kontrolünde sorunlar var:")
+        log.warning("Detay için: python launcher.py --check")
+        log.warning("Faz 2'de UI yine de açılır; sonraki fazlarda donanım kritik.")
+
+    ensure_directories()
+
+    try:
+        from codegaai.ui.window import open_window
+    except ImportError as exc:
+        log.error("UI modülü yüklenemedi: %s", exc)
+        log.error("Bağımlılıkları yükleyin: pip install -r requirements.txt")
+        return 1
+
+    cfg = get_config()
+    server_cfg = cfg["server"]
+
+    return open_window(
+        host=server_cfg["host"],
+        port=int(server_cfg["port"]),
+    )
+
+
+# ============================================================
+# CLI
 # ============================================================
 
 def main(argv: list[str] | None = None) -> int:
@@ -161,10 +185,12 @@ def main(argv: list[str] | None = None) -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Örnekler:
-  python launcher.py             # Uygulamayı başlat
+  python launcher.py             # Masaüstü penceresi (PyWebView)
+  python launcher.py --browser   # Sistem tarayıcısında aç
+  python launcher.py --serve     # Sadece backend (UI açma)
   python launcher.py --check     # Sistem kontrolü
-  python launcher.py --init      # Dizinleri ve örnek yapılandırmayı oluştur
-  python launcher.py --version   # Sürüm bilgisi
+  python launcher.py --init      # İlk kurulum
+  python launcher.py --version   # Sürüm
         """.strip(),
     )
 
@@ -172,20 +198,23 @@ def main(argv: list[str] | None = None) -> int:
     group.add_argument("--version", action="store_true",
                        help="Sürüm bilgisini yazdır")
     group.add_argument("--check", action="store_true",
-                       help="Sistem gereksinim kontrolü yap")
+                       help="Sistem gereksinim kontrolü")
     group.add_argument("--init", action="store_true",
-                       help="İlk kurulum: dizinleri ve örnek config'i oluştur")
+                       help="İlk kurulum: dizinler + örnek config")
+    group.add_argument("--serve", action="store_true",
+                       help="Sadece backend sunucusunu çalıştır (UI açmadan)")
+    group.add_argument("--browser", action="store_true",
+                       help="Sunucuyu başlat ve sistem tarayıcısında aç")
 
     args = parser.parse_args(argv)
 
     try:
-        if args.version:
-            return cmd_version()
-        if args.check:
-            return cmd_check()
-        if args.init:
-            return cmd_init()
-        return cmd_run()
+        if args.version: return cmd_version()
+        if args.check:   return cmd_check()
+        if args.init:    return cmd_init()
+        if args.serve:   return cmd_serve()
+        if args.browser: return cmd_browser()
+        return cmd_window()
     except KeyboardInterrupt:
         print("\nKullanıcı iptal etti.")
         return 130

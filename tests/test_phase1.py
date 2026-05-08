@@ -88,8 +88,9 @@ class TestLauncherImport(unittest.TestCase):
         module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
         spec.loader.exec_module(module)  # type: ignore[union-attr]
 
-        # Beklenen fonksiyonlar
-        for fn in ("main", "cmd_version", "cmd_check", "cmd_init", "cmd_run"):
+        # Beklenen fonksiyonlar (Faz 2 ile cmd_run yerine cmd_window/browser/serve)
+        for fn in ("main", "cmd_version", "cmd_check", "cmd_init",
+                   "cmd_window", "cmd_browser", "cmd_serve"):
             self.assertTrue(hasattr(module, fn), f"launcher.py içinde {fn} yok")
 
 
