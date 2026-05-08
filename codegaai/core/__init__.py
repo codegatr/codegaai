@@ -2,15 +2,34 @@
 codegaai.core
 =============
 
-Çekirdek motorlar — LLM, bellek, embedding, öğrenme.
+Çekirdek motorlar — LLM, bellek, embedding, model yönetimi.
 
-Bu paket Faz 2+ ile aktif hale gelir. Faz 1'de yalnızca iskelet bulunur.
+Faz 3'ten itibaren aktif. Tüm modüller lazy-import kullanır:
+ağır ML kütüphaneleri sadece motor yüklenirken çekilir.
+
+Public:
+    ChatStore           — SQLite sohbet kalıcılığı (Faz 2.1)
+    ModelRegistry       — model kataloğu + indirme yöneticisi (Faz 3)
+    LLMEngine           — llama-cpp-python wrapper (Faz 3)
+    EmbeddingService    — BGE-M3 embedding (Faz 3)
+    MemoryStore         — ChromaDB tabanlı RAG (Faz 3)
 """
 
-# Faz 2 ile eklenecek:
-# from .engine import LLMEngine
-# from .memory import MemoryStore
-# from .embeddings import EmbeddingService
-# from .learning import LearningLoop
+from codegaai.core.chat_store import ChatStore
 
-__all__: list[str] = []
+# Aşağıdakiler lazy — import ettiğinizde ağır kütüphaneler çekilmez,
+# sadece sınıf nesnelerinin kendisi gelir.
+from codegaai.core.models_registry import ModelRegistry
+from codegaai.core.engine import LLMEngine, GenerationConfig, DEFAULT_SYSTEM_PROMPT
+from codegaai.core.embeddings import EmbeddingService
+from codegaai.core.memory import MemoryStore
+
+__all__ = [
+    "ChatStore",
+    "ModelRegistry",
+    "LLMEngine",
+    "GenerationConfig",
+    "DEFAULT_SYSTEM_PROMPT",
+    "EmbeddingService",
+    "MemoryStore",
+]

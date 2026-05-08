@@ -96,7 +96,9 @@ class TestApiClient(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertEqual(data["message"]["role"], "assistant")
-        self.assertIn("Faz", data["message"]["content"])
+        # Faz 3'te artık "LLM motoru yüklü değil" döner (motor yüklenmediği sürece)
+        content = data["message"]["content"].lower()
+        self.assertTrue("yüklü değil" in content or "faz" in content)
 
     def test_chat_models(self) -> None:
         r = self.client.get("/api/chat/models")
@@ -118,8 +120,10 @@ class TestApiClient(unittest.TestCase):
         r = self.client.get("/api/memory/stats")
         self.assertEqual(r.status_code, 200)
         data = r.json()
-        self.assertIn("active", data)
-        self.assertEqual(data["active"], False)
+        # Faz 3'te /stats gerçek alanlar döner
+        for k in ("archive_documents", "core_facts", "vector_store",
+                  "embedding_model"):
+            self.assertIn(k, data)
 
     def test_root_serves_html(self) -> None:
         r = self.client.get("/")

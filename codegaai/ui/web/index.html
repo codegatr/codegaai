@@ -27,7 +27,7 @@
       <div class="brand-mark">C</div>
       <div class="brand-text">
         <span class="brand-name">CODEGA AI</span>
-        <span class="brand-version" id="brand-version">v0.2.1</span>
+        <span class="brand-version" id="brand-version">v0.3.0</span>
       </div>
     </div>
 
@@ -87,7 +87,7 @@
     <div class="sidebar__footer">
       <div class="phase-indicator" id="phase-indicator">
         <span class="phase-dot"></span>
-        <span class="phase-text">Faz 2.1 / 8</span>
+        <span class="phase-text">Faz 3 / 8</span>
       </div>
     </div>
   </aside>
@@ -102,9 +102,9 @@
       <header class="view-header view-header--compact">
         <div class="chat-header">
           <h1 class="chat-title" id="chat-title">Yeni sohbet</h1>
-          <span class="status-pill status-pill--pending">
+          <span class="status-pill status-pill--pending" id="chat-engine-pill">
             <span class="status-pill__dot"></span>
-            stub yanıt — gerçek LLM Faz 3'te
+            <span id="chat-engine-status">motor durumu yükleniyor...</span>
           </span>
         </div>
         <div class="view-actions">
@@ -379,6 +379,17 @@
           </div>
         </div>
       </div>
+
+      <div class="system-section system-section--full">
+        <h3>LLM Modelleri</h3>
+        <p class="system-section__hint">
+          Sohbet için bir model indir, sonra yükle. RTX 3060 12GB için
+          <strong>Qwen 2.5 7B</strong> önerilir (~5 GB indirme, tek seferlik).
+        </p>
+        <div class="models-grid" id="models-grid">
+          <div class="engine-row engine-row--loading">Yükleniyor...</div>
+        </div>
+      </div>
     </section>
 
     <!-- ─── Ayarlar ─── -->
@@ -458,17 +469,17 @@
               <span class="roadmap__num">1</span>
               <div><strong>Faz 1 — Temel İskelet</strong><em>v0.1.0 · tamamlandı</em></div>
             </li>
-            <li class="roadmap__item roadmap__item--current">
+            <li class="roadmap__item roadmap__item--done">
               <span class="roadmap__num">2</span>
-              <div><strong>Faz 2 — Masaüstü UI + Kalıcı Sohbet</strong><em>v0.2.1 · şu anda buradasın</em></div>
+              <div><strong>Faz 2 — Masaüstü UI + Kalıcı Sohbet</strong><em>v0.2.x · tamamlandı</em></div>
             </li>
-            <li class="roadmap__item">
+            <li class="roadmap__item roadmap__item--current">
               <span class="roadmap__num">3</span>
-              <div><strong>Faz 3 — LLM Motoru</strong><em>v0.3.0 · sıradaki</em></div>
+              <div><strong>Faz 3 — LLM Motoru</strong><em>v0.3.0 · şu anda buradasın</em></div>
             </li>
             <li class="roadmap__item">
               <span class="roadmap__num">4</span>
-              <div><strong>Faz 4 — Görsel Üretim</strong><em>v0.4.0</em></div>
+              <div><strong>Faz 4 — Görsel Üretim</strong><em>v0.4.0 · sıradaki</em></div>
             </li>
             <li class="roadmap__item">
               <span class="roadmap__num">5</span>
@@ -516,6 +527,7 @@
   <script src="/js/chats.js"></script>
   <script src="/js/chat.js"></script>
   <script src="/js/system.js"></script>
+  <script src="/js/models.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>

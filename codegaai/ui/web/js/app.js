@@ -27,6 +27,7 @@
     Chats.init();
     Chat.init();
     System.init();
+    Models.init();
   }
 
   function setStatus(key, type, text) {

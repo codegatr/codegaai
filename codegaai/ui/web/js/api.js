@@ -74,6 +74,17 @@ const API = (() => {
     chatModels: () => request("/api/chat/models"),
     chatStatus: () => request("/api/chat/status"),
 
+    // ---- models (Faz 3) ----
+    modelsAll:        () => request("/api/models"),
+    modelsLLM:        () => request("/api/models/llm"),
+    modelsEmbedding:  () => request("/api/models/embedding"),
+    modelStatus:      (id) => request(`/api/models/${id}/status`),
+    modelDownload:    (id) => request(`/api/models/${id}/download`, {method:"POST"}),
+    modelCancel:      (id) => request(`/api/models/${id}/cancel`,   {method:"POST"}),
+    modelLoad:        (id) => request(`/api/models/${id}/load`,     {method:"POST"}),
+    modelUnload:      (id) => request(`/api/models/${id}/unload`,   {method:"POST"}),
+    modelDelete:      (id) => request(`/api/models/${id}`,          {method:"DELETE"}),
+
     // ---- chats (kalıcı sohbet listesi) ----
     chatsList:   () => request("/api/chats"),
     chatsCreate: (title) => request("/api/chats", {

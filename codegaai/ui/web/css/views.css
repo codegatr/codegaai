@@ -480,9 +480,155 @@
   font-family: var(--font-mono);
 }
 
-/* ============================================================
-   AYARLAR
-   ============================================================ */
+.system-section--full {
+  padding: 0 var(--space-8);
+  max-width: var(--max-content);
+  margin: 0 auto var(--space-7);
+  width: 100%;
+}
+
+.system-section__hint {
+  font-size: var(--fs-base);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-4);
+  line-height: var(--lh-loose);
+}
+
+.models-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: var(--space-4);
+}
+
+.model-card {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.model-card:hover {
+  border-color: var(--color-border-strong);
+}
+
+.model-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.model-card__name {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--color-text);
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.model-card__id {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--color-text-dim);
+}
+
+.badge {
+  background: var(--color-accent-glow);
+  color: var(--color-accent);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  padding: 1px 6px;
+  border-radius: 3px;
+  letter-spacing: var(--ls-tight);
+  font-family: var(--font-sans);
+}
+
+.model-card__meta {
+  display: flex;
+  gap: var(--space-4);
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+  flex-wrap: wrap;
+}
+
+.model-card__meta strong {
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-weight: var(--fw-medium);
+}
+
+.model-card__desc {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+  line-height: var(--lh-base);
+}
+
+.model-card__actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.model-card__error {
+  font-size: var(--fs-sm);
+  color: var(--color-danger);
+  padding: var(--space-2) var(--space-3);
+  background: rgb(239 68 68 / 0.08);
+  border: 1px solid rgb(239 68 68 / 0.25);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+}
+
+/* Progress bar (model indirme) */
+.progress-bar {
+  position: relative;
+  height: 24px;
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.progress-bar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg,
+    var(--color-accent),
+    var(--color-accent-hover));
+  transition: width 0.3s var(--ease-out);
+}
+
+.progress-bar__text {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--color-text);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+}
+
+/* btn--danger */
+.btn--danger {
+  color: var(--color-danger);
+  border-color: rgb(239 68 68 / 0.3);
+}
+.btn--danger:hover {
+  background: rgb(239 68 68 / 0.1);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
 
 .settings-content {
   padding: var(--space-7) var(--space-8);

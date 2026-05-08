@@ -80,6 +80,10 @@ const System = (() => {
 
     try {
       const data = await API.engines();
+
+      // Sohbet header'ındaki motor pill'ini güncelle
+      updateChatPill(data.llm);
+
       listEl.innerHTML = "";
 
       const ENGINE_LABELS = {
@@ -119,7 +123,35 @@ const System = (() => {
     }
   }
 
-  // ---------- Ayarlar sayfasını doldur ----------
+  function updateChatPill(llmEngine) {
+    const pill = document.getElementById("chat-engine-pill");
+    const text = document.getElementById("chat-engine-status");
+    const statusText = document.getElementById("status-engine");
+    if (!pill || !text) return;
+
+    pill.classList.remove("status-pill--pending", "status-pill--ok",
+                          "status-pill--scheduled", "status-pill--err");
+
+    if (llmEngine.active) {
+      pill.classList.add("status-pill--ok");
+      const backend = llmEngine.backend || "?";
+      text.textContent = `${llmEngine.model_id} · ${backend.toUpperCase()}`;
+      if (statusText) statusText.textContent = `Motor: ${llmEngine.model_id} (${backend})`;
+    } else if (llmEngine.state === "loading") {
+      pill.classList.add("status-pill--pending");
+      text.textContent = "Model yükleniyor...";
+      if (statusText) statusText.textContent = "Motor: yükleniyor";
+    } else if (llmEngine.state === "error") {
+      pill.classList.add("status-pill--err");
+      text.textContent = "Yükleme hatası";
+      if (statusText) statusText.textContent = "Motor: hata";
+    } else {
+      pill.classList.add("status-pill--scheduled");
+      text.textContent = "model yüklü değil — Sistem'den indir";
+      if (statusText) statusText.textContent = "Motor: bekleniyor";
+    }
+  }
+
 
   async function loadSettings() {
     try {
@@ -186,6 +218,7 @@ const System = (() => {
 
     // Başlangıçta arka planda yükle
     loadSettings();
+    loadEngines();         // chat header pill için
     startClock();
   }
 

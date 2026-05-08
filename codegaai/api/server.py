@@ -50,9 +50,12 @@ async def _lifespan(app: FastAPI):
     from codegaai.core.chat_store import ChatStore
     ChatStore.open()
 
-    # Faz 3+ ile burada motorlar yüklenecek
-    # app.state.llm = LLMEngine.load(...)
-    # app.state.memory = MemoryStore.open(...)
+    # Faz 3: model registry hazırla (dizinler oluşturulur)
+    from codegaai.core.models_registry import ModelRegistry
+    ModelRegistry.get()
+
+    # NOT: LLM ve embedding motorları lazy yüklenir.
+    # İlk kullanıma kadar bellekte yer kaplamaz.
 
     yield
 
@@ -91,6 +94,7 @@ def create_app() -> FastAPI:
 
     # ---- API rotaları ----
     from codegaai.api.routes import system as system_routes
+    from codegaai.api.routes import models as models_routes
     from codegaai.api.routes import chats as chats_routes
     from codegaai.api.routes import chat as chat_routes
     from codegaai.api.routes import image as image_routes
@@ -99,7 +103,8 @@ def create_app() -> FastAPI:
     from codegaai.api.routes import memory as memory_routes
 
     app.include_router(system_routes.router, prefix="/api/system", tags=["system"])
-    app.include_router(chats_routes.router, prefix="/api/chats",  tags=["chats"])
+    app.include_router(models_routes.router, prefix="/api/models", tags=["models"])
+    app.include_router(chats_routes.router,  prefix="/api/chats",  tags=["chats"])
     app.include_router(chat_routes.router,   prefix="/api/chat",   tags=["chat"])
     app.include_router(image_routes.router,  prefix="/api/image",  tags=["image"])
     app.include_router(video_routes.router,  prefix="/api/video",  tags=["video"])
