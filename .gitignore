@@ -23,6 +23,7 @@ build/*.pyc
 dist/
 dist/
 *.spec
+!build/codegaai.spec
 *.exe
 *.dmg
 *.pkg
