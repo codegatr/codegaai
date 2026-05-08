@@ -1,0 +1,70 @@
+{
+  "name": "CODEGA AI",
+  "slug": "codegaai",
+  "version": "0.1.0",
+  "phase": "Faz 1 - Temel İskelet",
+  "description": "Yerelde çalışan, kendi kendine öğrenen, çok modlu yapay zeka platformu. RTX 3060+ ve 16GB+ RAM için optimize edilmiştir.",
+  "author": "CODEGA",
+  "license": "MIT",
+  "repo": "codegatr/codegaai",
+  "homepage": "https://codega.com.tr",
+  "release_url": "https://github.com/codegatr/codegaai/releases/latest",
+  "released_at": "2026-05-08",
+  "requires": {
+    "python": ">=3.10,<3.13",
+    "os": ["windows", "linux", "macos"],
+    "ram_gb_min": 16,
+    "ram_gb_recommended": 24,
+    "vram_gb_min": 6,
+    "vram_gb_recommended": 12,
+    "disk_gb_min": 60,
+    "cuda": ">=11.8 (NVIDIA için)"
+  },
+  "features": {
+    "chat": false,
+    "code": false,
+    "image_generation": false,
+    "video_generation": false,
+    "tts": false,
+    "asr": false,
+    "rag_memory": false,
+    "self_learning": false,
+    "auto_update": true,
+    "installer": true
+  },
+  "models": {
+    "llm": {
+      "default": "qwen2.5-7b-instruct-q4_k_m",
+      "alternatives": ["llama-3.1-8b-instruct-q4", "aya-expanse-8b-q4", "phi-3.5-mini-q4"]
+    },
+    "embedding": {
+      "default": "bge-m3"
+    },
+    "image": {
+      "default": "stable-diffusion-xl-base-1.0",
+      "alternatives": ["flux.1-schnell", "sdxl-turbo"]
+    },
+    "video": {
+      "default": "cogvideox-2b"
+    },
+    "tts": {
+      "default": "xtts-v2",
+      "alternatives": ["piper-tr"]
+    },
+    "asr": {
+      "default": "faster-whisper-large-v3"
+    }
+  },
+  "phases_complete": [
+    "Faz 1 - Temel İskelet (yapılandırma, başlatıcı, kurulum, logger, sistem kontrol)"
+  ],
+  "phases_pending": [
+    "Faz 2 - LLM Motoru (sohbet, kod, RAG bellek)",
+    "Faz 3 - Görsel Üretim",
+    "Faz 4 - TTS + ASR",
+    "Faz 5 - Video Üretim",
+    "Faz 6 - Self-Learning Loop",
+    "Faz 7 - Masaüstü UI",
+    "Faz 8 - Akıllı Güncelle + Installer Build"
+  ]
+}

@@ -1,0 +1,65 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- Sanal ortamlar ----
+.venv/
+venv/
+env/
+ENV/
+
+# ---- Dağıtım & paketleme ----
+build/
+dist/
+*.spec
+*.exe
+*.dmg
+*.pkg
+*.deb
+*.rpm
+*.AppImage
+
+# ---- CODEGA AI - çalışma zamanı verisi ----
+data/models/
+data/memory/
+data/outputs/
+data/logs/
+data/cache/
+data/temp/
+
+# Yapılandırma dosyası kullanıcıya özel olabilir; örnek korunur
+config.toml
+!config.example.toml
+
+# ---- IDE / editör ----
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ---- Loglar ----
+*.log
+logs/
+
+# ---- Çevre değişkenleri ----
+.env
+.env.local
+.env.*.local
+
+# ---- Notebook çıktıları ----
+.ipynb_checkpoints/
+
+# ---- Üretim çıktıları (test sırasında) ----
+test_outputs/
+generated/

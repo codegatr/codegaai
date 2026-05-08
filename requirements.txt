@@ -1,0 +1,54 @@
+# ============================================================
+# CODEGA AI - Faz 1 (Temel İskelet) bağımlılıkları
+# ============================================================
+# Bu dosya sadece Faz 1 için minimal bağımlılıkları içerir.
+# Faz 2+ ile birlikte (LLM, görsel, video, ses) ek bağımlılıklar
+# eklenecektir. Kullanıcı her faz güncellemesinde bu dosyayı
+# yeniden kurar (pip install -r requirements.txt).
+# ============================================================
+
+# ---- Çekirdek (Faz 1) ----
+psutil>=5.9.0,<7.0.0          # Sistem bilgisi (RAM, CPU)
+rich>=13.7.0,<14.0.0           # Renkli terminal çıktısı
+tomli>=2.0.1; python_version < "3.11"  # TOML okuma (3.11+ yerleşik)
+
+# ---- Backend (Faz 2'de aktive olacak, şimdiden listede) ----
+fastapi>=0.115.0,<1.0.0
+uvicorn[standard]>=0.32.0,<1.0.0
+pydantic>=2.9.0,<3.0.0
+python-multipart>=0.0.12,<1.0.0
+
+# ---- Yardımcı (her fazda kullanılır) ----
+httpx>=0.27.0,<1.0.0           # Güncelleme kontrolü için
+packaging>=24.0,<25.0          # Sürüm karşılaştırma
+
+# ============================================================
+# Faz 2 (LLM Motoru) - YORUM SATIRINDA, Faz 2'de aktive edilecek
+# ============================================================
+# llama-cpp-python>=0.3.0
+# chromadb>=0.5.0
+# sentence-transformers>=3.0.0
+# torch>=2.2.0
+# transformers>=4.45.0
+
+# ============================================================
+# Faz 3-5 (Görsel/Video/Ses) - YORUM SATIRINDA
+# ============================================================
+# diffusers>=0.31.0
+# accelerate>=1.0.0
+# faster-whisper>=1.0.0
+# TTS>=0.22.0
+# soundfile>=0.12.0
+
+# ============================================================
+# Faz 6 (Self-Learning) - YORUM SATIRINDA
+# ============================================================
+# peft>=0.13.0
+# trl>=0.11.0
+# bitsandbytes>=0.44.0
+
+# ============================================================
+# Faz 7 (Masaüstü UI) - YORUM SATIRINDA
+# ============================================================
+# pywebview>=5.3.0
+# pyinstaller>=6.10.0
