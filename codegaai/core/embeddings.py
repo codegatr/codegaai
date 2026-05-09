@@ -76,7 +76,12 @@ class EmbeddingService:
         }
 
     def load(self, model_id: str = DEFAULT_MODEL_ID) -> None:
-        """Embedding modelini belleğe yükle."""
+        """Embedding modelini belleğe yükle.
+
+        scipy bağımlılığını kaldırmak için sentence-transformers wrapper'ı
+        yerine direkt transformers (AutoModel + AutoTokenizer) kullanıyoruz.
+        BGE-M3 zaten XLMRoberta tabanlı, manuel CLS pooling ile çalışır.
+        """
         registry = ModelRegistry.get()
         spec = registry.get_embedding_spec(model_id)
         if not spec:
@@ -84,40 +89,55 @@ class EmbeddingService:
 
         with self._lock:
             if self.is_ready and self._status.model_id == model_id:
-                return  # zaten yüklü
+                return
 
             self._status = EmbeddingStatus(
                 state="loading", model_id=model_id, dimensions=spec.dimensions,
             )
 
             try:
-                # Lazy import
-                from sentence_transformers import SentenceTransformer  # type: ignore[import-not-found]
+                # Lazy import — sadece transformers + torch (scipy YOK)
+                import torch  # type: ignore[import-not-found]
+                from transformers import (  # type: ignore[import-not-found]
+                    AutoTokenizer, AutoModel,
+                )
 
-                # sentence-transformers HF Hub'dan otomatik indirir
-                # ve önbelleğe alır (HF_HOME/CACHE_DIR ile yönetilir).
-                cache_root = str(CACHE_DIR / "huggingface")
                 target_dir = registry.embedding_dir_path(model_id)
+                cache_root = str(CACHE_DIR / "huggingface")
 
-                # Yerel dizin tam (config.json + weights + tokenizer) ise
-                # oradan yükle, değilse HF'den otomatik indir.
                 model_source = (
                     str(target_dir)
                     if registry.is_embedding_downloaded(model_id)
                     else spec.hf_repo
                 )
 
-                self._model = SentenceTransformer(
-                    model_source,
-                    cache_folder=cache_root,
+                log.info("Embedding modeli yükleniyor (transformers): %s",
+                         model_source)
+
+                tokenizer = AutoTokenizer.from_pretrained(
+                    model_source, cache_dir=cache_root,
                 )
+                model = AutoModel.from_pretrained(
+                    model_source, cache_dir=cache_root,
+                )
+
+                # CUDA varsa GPU'ya taşı
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                model = model.to(device).eval()
+
+                self._model = {
+                    "tokenizer": tokenizer,
+                    "model": model,
+                    "device": device,
+                    "torch": torch,
+                }
 
                 self._status = EmbeddingStatus(
                     state="ready", model_id=model_id,
                     dimensions=spec.dimensions, loaded_at=time.time(),
                 )
-                log.info("Embedding modeli hazır: %s (%dD)",
-                         model_id, spec.dimensions)
+                log.info("Embedding hazır: %s (%dD, %s)",
+                         model_id, spec.dimensions, device)
 
             except Exception as exc:
                 log.exception("Embedding yüklemesi başarısız: %s", exc)
@@ -127,12 +147,7 @@ class EmbeddingService:
                 raise
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        """
-        Metinleri vektörlere çevir.
-
-        Returns:
-            len(texts) adet vektör (her biri 1024-boyutlu BGE-M3 için).
-        """
+        """Metinleri vektörlere çevir (BGE-M3: 1024D, normalize edilmiş)."""
         if not self.is_ready:
             self.load()
 
@@ -140,13 +155,32 @@ class EmbeddingService:
             return []
 
         with self._lock:
-            vectors = self._model.encode(
+            torch = self._model["torch"]
+            tokenizer = self._model["tokenizer"]
+            model = self._model["model"]
+            device = self._model["device"]
+
+            # Tokenize
+            inputs = tokenizer(
                 texts,
-                normalize_embeddings=True,  # cosine similarity için
-                show_progress_bar=False,
-                convert_to_numpy=True,
+                padding=True,
+                truncation=True,
+                return_tensors="pt",
+                max_length=512,
             )
-            return vectors.tolist()
+            inputs = {k: v.to(device) for k, v in inputs.items()}
+
+            # Forward pass — gradient yok
+            with torch.no_grad():
+                outputs = model(**inputs)
+
+            # BGE-M3 için CLS token pooling
+            embeddings = outputs.last_hidden_state[:, 0]
+
+            # L2 normalize (cosine similarity için)
+            embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
+
+            return embeddings.cpu().tolist()
 
     def embed_one(self, text: str) -> list[float]:
         return self.embed([text])[0]
