@@ -99,9 +99,11 @@ class EmbeddingService:
                 cache_root = str(CACHE_DIR / "huggingface")
                 target_dir = registry.embedding_dir_path(model_id)
 
-                # Önce yerel dizini dene, yoksa HF'den çek
+                # Yerel dizin tam (config.json + weights + tokenizer) ise
+                # oradan yükle, değilse HF'den otomatik indir.
                 model_source = (
-                    str(target_dir) if target_dir.exists()
+                    str(target_dir)
+                    if registry.is_embedding_downloaded(model_id)
                     else spec.hf_repo
                 )
 

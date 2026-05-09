@@ -573,9 +573,23 @@ class ModelRegistry:
         d = self.embedding_dir_path(model_id)
         if not d.exists():
             return False
-        # Tipik transformer dosyaları var mı?
-        required = ["config.json"]
-        return all((d / f).exists() for f in required)
+        # Sentence-transformers paketinin gerektirdigi temel dosyalar
+        # config.json HER ZAMAN olmali. Model agirligi safetensors veya
+        # pytorch_model.bin olarak gelebilir.
+        if not (d / "config.json").exists():
+            return False
+        # Tokenizer + model agirligi
+        has_weights = any([
+            (d / "model.safetensors").exists(),
+            (d / "pytorch_model.bin").exists(),
+            (d / "onnx").is_dir(),
+        ])
+        has_tokenizer = any([
+            (d / "tokenizer.json").exists(),
+            (d / "sentencepiece.bpe.model").exists(),
+            (d / "vocab.txt").exists(),
+        ])
+        return has_weights and has_tokenizer
 
     def is_image_downloaded(self, model_id: str) -> bool:
         spec = self.get_image_spec(model_id)
@@ -869,6 +883,9 @@ class ModelRegistry:
         elif spec_kind == "video":
             spec = self.get_video_spec(model_id)
             target_dir = self.video_dir_path(model_id) if spec else None
+        elif spec_kind == "embedding":
+            spec = self.get_embedding_spec(model_id)
+            target_dir = self.embedding_dir_path(model_id) if spec else None
         else:
             raise ValueError(f"Henüz desteklenmiyor: {spec_kind}")
 
@@ -883,6 +900,8 @@ class ModelRegistry:
             already = self.is_audio_downloaded(model_id)
         elif spec_kind == "video":
             already = self.is_video_downloaded(model_id)
+        elif spec_kind == "embedding":
+            already = self.is_embedding_downloaded(model_id)
 
         if already:
             self._set_progress(model_id, status="completed",

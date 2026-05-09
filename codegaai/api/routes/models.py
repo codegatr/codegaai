@@ -58,6 +58,7 @@ async def list_all_models() -> dict[str, Any]:
             "downloaded": registry.is_embedding_downloaded(m["id"]),
             "loaded": (embedding.status.get("model_id") == m["id"]
                        and embedding.status.get("ready", False)),
+            "download": registry.get_progress(m["id"]).to_dict(),
         }
         for m in registry.list_embedding_models()
     ]
@@ -288,13 +289,14 @@ async def start_download(model_id: str) -> dict[str, Any]:
         return {"status": "started", "model_id": model_id,
                 "progress": registry.get_progress(model_id).to_dict()}
 
-    # Embedding — sentence-transformers ilk yüklemede otomatik indirir
+    # Embedding — snapshot_download ile gercek indirme (Faz 8.2'de aktif)
     if registry.get_embedding_spec(model_id):
-        return {
-            "status": "auto",
-            "message": (f"{model_id} ilk yüklemede sentence-transformers "
-                        f"tarafından otomatik indirilir. /load çağırın."),
-        }
+        if registry.is_embedding_downloaded(model_id):
+            return {"status": "already_downloaded", "model_id": model_id,
+                    "progress": registry.get_progress(model_id).to_dict()}
+        registry.download_snapshot_async(model_id, spec_kind="embedding")
+        return {"status": "started", "model_id": model_id,
+                "progress": registry.get_progress(model_id).to_dict()}
 
     raise HTTPException(404, f"Model bulunamadı: {model_id}")
 
