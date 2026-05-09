@@ -1,8 +1,8 @@
 {
   "name": "CODEGA AI",
   "slug": "codegaai",
-  "version": "0.5.0",
-  "phase": "Faz 5 - Ses (XTTS v2 TTS + faster-whisper ASR)",
+  "version": "0.5.1",
+  "phase": "Faz 5 + GGUF indirme URL hotfix (Qwen modelleri bartowski repo'suna geçirildi)",
   "description": "Yerelde çalışan, kendi kendine öğrenen, çok modlu yapay zeka platformu. RTX 3060+ ve 16GB+ RAM için optimize edilmiştir.",
   "author": "CODEGA",
   "license": "MIT",

@@ -51,7 +51,10 @@ class TestModelRegistry(unittest.TestCase):
         reg = ModelRegistry.get()
         spec = reg.get_llm_spec("qwen2.5-7b-instruct-q4_k_m")
         self.assertIsNotNone(spec)
-        self.assertTrue(spec.hf_repo.startswith("Qwen/"))
+        # bartowski'nin tek-dosyalı GGUF repo'sunu kullanıyoruz
+        # (resmi Qwen repo'su Q4_K_M'i parçalara bölmüş)
+        self.assertIn("Qwen2.5-7B-Instruct-GGUF", spec.hf_repo)
+        self.assertTrue(spec.hf_file.endswith(".gguf"))
 
     def test_unknown_model_returns_none(self) -> None:
         from codegaai.core.models_registry import ModelRegistry

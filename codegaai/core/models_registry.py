@@ -106,8 +106,8 @@ LLM_MODELS: tuple[LLMModelSpec, ...] = (
     LLMModelSpec(
         id="qwen2.5-7b-instruct-q4_k_m",
         name="Qwen 2.5 7B Instruct (Q4_K_M)",
-        hf_repo="Qwen/Qwen2.5-7B-Instruct-GGUF",
-        hf_file="qwen2.5-7b-instruct-q4_k_m.gguf",
+        hf_repo="bartowski/Qwen2.5-7B-Instruct-GGUF",
+        hf_file="Qwen2.5-7B-Instruct-Q4_K_M.gguf",
         size_gb=4.68,
         vram_gb=5.5,
         languages=("tr", "en", "zh", "ar", "fr", "de", "es", "ja"),
@@ -118,8 +118,8 @@ LLM_MODELS: tuple[LLMModelSpec, ...] = (
     LLMModelSpec(
         id="qwen2.5-coder-7b-instruct-q4_k_m",
         name="Qwen 2.5 Coder 7B (Q4_K_M)",
-        hf_repo="Qwen/Qwen2.5-Coder-7B-Instruct-GGUF",
-        hf_file="qwen2.5-coder-7b-instruct-q4_k_m.gguf",
+        hf_repo="bartowski/Qwen2.5-Coder-7B-Instruct-GGUF",
+        hf_file="Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf",
         size_gb=4.68,
         vram_gb=5.5,
         languages=("en",),
@@ -585,6 +585,16 @@ class ModelRegistry:
         target = self.llm_path(spec.id)
         partial = target.with_suffix(target.suffix + ".part")
         url = f"https://huggingface.co/{spec.hf_repo}/resolve/main/{spec.hf_file}"
+
+        # Önceki indirme hata/iptal ile bittiyse partial dosyayı temizle
+        prev = self.get_progress(spec.id)
+        if prev.status in ("error", "cancelled") and partial.exists():
+            log.info("Önceki başarısız indirmeden kalan .part siliniyor: %s",
+                     partial.name)
+            try:
+                partial.unlink()
+            except Exception:
+                pass
 
         self._set_progress(
             spec.id, status="downloading", downloaded=0, total=0,
