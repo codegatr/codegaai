@@ -91,6 +91,14 @@ const API = (() => {
     imageDelete:   (id) => request(`/api/image/${id}`, {method:"DELETE"}),
     imageStatus:   () => request("/api/image/status"),
 
+    // ---- updater (Faz 8) ----
+    updaterCheck:    (force=false) => request(`/api/updater/check?force=${force}`),
+    updaterStatus:   () => request("/api/updater/status"),
+    updaterDownload: (version) => request("/api/updater/download", {method:"POST", body: JSON.stringify({version})}),
+    updaterCancel:   () => request("/api/updater/cancel", {method:"POST"}),
+    updaterApply:    () => request("/api/updater/apply", {method:"POST"}),
+    updaterInstallDir: () => request("/api/updater/install-dir"),
+
     // ---- learning (Faz 7) ----
     learningStats:     () => request("/api/learning/stats"),
     learningDataset:   () => request("/api/learning/dataset?min_pairs=4"),

@@ -27,7 +27,80 @@
       <div class="brand-mark">C</div>
       <div class="brand-text">
         <span class="brand-name">CODEGA AI</span>
-        <span class="brand-version" id="brand-version">v0.7.0</span>
+        <span class="brand-version" id="brand-version">v0.8.0</span>
+        <button class="update-badge" id="update-badge" hidden
+                title="Yeni sürüm mevcut">
+          <span id="update-badge-text">Yeni!</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Updater Modal -->
+    <div class="update-modal" id="update-modal" hidden>
+      <div class="update-modal__backdrop" id="update-modal-close"></div>
+      <div class="update-modal__panel">
+        <header class="update-modal__header">
+          <h2 class="update-modal__title">
+            <span id="update-modal-icon">🚀</span>
+            <span id="update-modal-heading">Güncelleme</span>
+          </h2>
+          <button class="update-modal__x" id="update-modal-x"
+                  title="Kapat">×</button>
+        </header>
+        <div class="update-modal__body" id="update-modal-body">
+          <div class="update-version-row">
+            <div>
+              <div class="form-hint">Mevcut</div>
+              <div class="update-version" id="update-current-ver">—</div>
+            </div>
+            <div class="update-arrow">→</div>
+            <div>
+              <div class="form-hint">Yeni</div>
+              <div class="update-version update-version--new"
+                   id="update-latest-ver">—</div>
+            </div>
+            <div class="update-size" id="update-size"></div>
+          </div>
+
+          <div class="update-progress" id="update-progress" hidden>
+            <div class="progress-bar">
+              <div class="progress-bar__fill" id="update-progress-fill"></div>
+            </div>
+            <div class="progress-bar__label" id="update-progress-label">
+              0%
+            </div>
+          </div>
+
+          <div class="image-status" id="update-status"></div>
+
+          <div class="update-notes" id="update-notes-wrap" hidden>
+            <h4>Sürüm notları</h4>
+            <pre class="update-notes__text" id="update-notes"></pre>
+          </div>
+
+          <div class="update-actions" id="update-actions">
+            <button class="btn btn--primary" id="update-download-btn">
+              İndir
+            </button>
+            <button class="btn btn--primary" id="update-apply-btn" hidden>
+              Otomatik Uygula (yeniden başlatır)
+            </button>
+            <button class="btn btn--ghost" id="update-open-folder-btn" hidden>
+              Klasörü Aç (manuel kopyala)
+            </button>
+            <button class="btn btn--ghost" id="update-cancel-btn" hidden>
+              İptal Et
+            </button>
+            <button class="btn btn--ghost" id="update-close-btn">
+              Kapat
+            </button>
+          </div>
+
+          <p class="update-help" id="update-help">
+            Veriler ve modeller <code>%LOCALAPPDATA%\\CODEGA AI\\data\\</code>
+            altında saklanır, güncelleme sırasında etkilenmez.
+          </p>
+        </div>
       </div>
     </div>
 
@@ -87,7 +160,7 @@
     <div class="sidebar__footer">
       <div class="phase-indicator" id="phase-indicator">
         <span class="phase-dot"></span>
-        <span class="phase-text">Faz 7 / 8</span>
+        <span class="phase-text">Faz 8 / 8 ✓</span>
       </div>
     </div>
   </aside>
@@ -694,13 +767,13 @@
               <span class="roadmap__num">6</span>
               <div><strong>Faz 6 — Video Üretim</strong><em>v0.6.0 · tamamlandı</em></div>
             </li>
-            <li class="roadmap__item roadmap__item--current">
-              <span class="roadmap__num">7</span>
-              <div><strong>Faz 7 — Self-Learning</strong><em>v0.7.0 · şu anda buradasın</em></div>
-            </li>
             <li class="roadmap__item roadmap__item--done">
+              <span class="roadmap__num">7</span>
+              <div><strong>Faz 7 — Self-Learning</strong><em>v0.7.0 · tamamlandı</em></div>
+            </li>
+            <li class="roadmap__item roadmap__item--current">
               <span class="roadmap__num">8</span>
-              <div><strong>Faz 8 — Tek .exe + Akıllı Güncelle</strong><em>v0.3.1 · build pipeline aktif</em></div>
+              <div><strong>Faz 8 — Tek .exe + Akıllı Güncelle</strong><em>v0.8.0 · şu anda buradasın · TÜM YOL HARİTASI TAMAM 🎉</em></div>
             </li>
           </ol>
         </div>
@@ -737,6 +810,7 @@
   <script src="/js/audio.js"></script>
   <script src="/js/video.js"></script>
   <script src="/js/learning.js"></script>
+  <script src="/js/updater.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>

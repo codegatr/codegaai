@@ -32,6 +32,7 @@
     AudioView.init();
     VideoView.init();
     Learning.init();
+    Updater.init();
   }
 
   function setStatus(key, type, text) {

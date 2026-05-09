@@ -29,6 +29,7 @@ from codegaai.core.video_engine import VideoEngine
 from codegaai.core.learning import (
     AdapterManager, FeedbackStore, TrainingEngine,
 )
+from codegaai.core.updater import Updater
 
 __all__ = [
     "ChatStore",
@@ -45,4 +46,5 @@ __all__ = [
     "AdapterManager",
     "FeedbackStore",
     "TrainingEngine",
+    "Updater",
 ]

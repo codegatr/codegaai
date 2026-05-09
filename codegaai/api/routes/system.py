@@ -104,6 +104,18 @@ async def engines() -> dict[str, Any]:
     except Exception:
         pass
 
+    # Updater (Faz 8)
+    updater_status = {"frozen_mode": False, "state": "idle"}
+    try:
+        from codegaai.core.updater import Updater
+        upd = Updater.get()
+        updater_status = {
+            "frozen_mode": upd.is_frozen(),
+            "state": upd.status.get("state", "idle"),
+        }
+    except Exception:
+        pass
+
     return {
         "llm": {
             "active": llm.is_ready,
@@ -152,5 +164,11 @@ async def engines() -> dict[str, Any]:
             "feedback_count": feedback_count,
             "training_deps_ok": deps_ok,
             "phase": "Faz 7",
+        },
+        "updater": {
+            "active": updater_status.get("frozen_mode", False),
+            "state": updater_status.get("state", "idle"),
+            "frozen_mode": updater_status.get("frozen_mode", False),
+            "phase": "Faz 8",
         },
     }
