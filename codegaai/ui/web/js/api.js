@@ -85,6 +85,12 @@ const API = (() => {
     modelUnload:      (id) => request(`/api/models/${id}/unload`,   {method:"POST"}),
     modelDelete:      (id) => request(`/api/models/${id}`,          {method:"DELETE"}),
 
+    // ---- image (Faz 4) ----
+    imageGenerate: (body) => request("/api/image/generate", {method:"POST", body: JSON.stringify(body)}),
+    imageList:     () => request("/api/image/list?limit=50"),
+    imageDelete:   (id) => request(`/api/image/${id}`, {method:"DELETE"}),
+    imageStatus:   () => request("/api/image/status"),
+
     // ---- chats (kalıcı sohbet listesi) ----
     chatsList:   () => request("/api/chats"),
     chatsCreate: (title) => request("/api/chats", {

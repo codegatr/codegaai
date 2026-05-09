@@ -63,6 +63,15 @@ async def engines() -> dict[str, Any]:
     except ImportError:
         pass
 
+    # Image motor (Faz 4)
+    img_status = {"state": "unloaded", "ready": False}
+    try:
+        from codegaai.core.image_engine import ImageEngine
+        img = ImageEngine.get()
+        img_status = img.status
+    except Exception:
+        pass
+
     return {
         "llm": {
             "active": llm.is_ready,
@@ -85,8 +94,11 @@ async def engines() -> dict[str, Any]:
             "phase": "Faz 3",
         },
         "image": {
-            "active": False, "state": "unloaded",
-            "reason": "Faz 4'te gelecek (v0.4.0)",
+            "active": img_status.get("ready", False),
+            "state": img_status.get("state", "unloaded"),
+            "model_id": img_status.get("model_id"),
+            "backend": img_status.get("backend"),
+            "phase": "Faz 4",
         },
         "audio": {
             "active": False, "state": "unloaded",

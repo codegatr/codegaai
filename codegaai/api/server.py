@@ -140,6 +140,15 @@ def create_app() -> FastAPI:
                     name=f"ui-{sub}",
                 )
 
+    # ---- Üretilen çıktılar (Faz 4+) ----
+    from codegaai.config import OUTPUTS_DIR
+    OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+    app.mount(
+        "/outputs",
+        StaticFiles(directory=str(OUTPUTS_DIR)),
+        name="outputs",
+    )
+
     @app.get("/api", include_in_schema=False)
     async def api_root() -> dict:
         return {

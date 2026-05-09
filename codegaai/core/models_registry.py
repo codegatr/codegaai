@@ -66,6 +66,23 @@ class EmbeddingModelSpec:
     default: bool = False
 
 
+@dataclass(frozen=True)
+class ImageModelSpec:
+    """Diffusion tabanlı görsel üretim modeli (multi-file HF repo)."""
+    id: str
+    name: str
+    hf_repo: str               # örn: stabilityai/stable-diffusion-xl-base-1.0
+    size_gb: float
+    vram_gb: float
+    pipeline: str              # "sdxl" | "sdxl-turbo" | "flux"
+    default_steps: int = 30
+    default_guidance: float = 7.5
+    default_width: int = 1024
+    default_height: int = 1024
+    description: str = ""
+    default: bool = False
+
+
 # ============================================================
 # Katalog
 # ============================================================
@@ -134,6 +151,51 @@ EMBEDDING_MODELS: tuple[EmbeddingModelSpec, ...] = (
 )
 
 
+IMAGE_MODELS: tuple[ImageModelSpec, ...] = (
+    ImageModelSpec(
+        id="sdxl-base-1.0",
+        name="Stable Diffusion XL 1.0 (Base)",
+        hf_repo="stabilityai/stable-diffusion-xl-base-1.0",
+        size_gb=6.94,
+        vram_gb=8.0,
+        pipeline="sdxl",
+        default_steps=30,
+        default_guidance=7.5,
+        default_width=1024,
+        default_height=1024,
+        description="Foto-gerçekçi, 1024×1024 üretim. RTX 3060 12GB için ideal.",
+        default=True,
+    ),
+    ImageModelSpec(
+        id="sdxl-turbo",
+        name="SDXL Turbo (1-step)",
+        hf_repo="stabilityai/sdxl-turbo",
+        size_gb=6.94,
+        vram_gb=8.0,
+        pipeline="sdxl-turbo",
+        default_steps=1,
+        default_guidance=0.0,
+        default_width=512,
+        default_height=512,
+        description="Tek adımda anlık üretim. Hız > kalite.",
+    ),
+    ImageModelSpec(
+        id="flux.1-schnell",
+        name="FLUX.1-schnell (Black Forest Labs)",
+        hf_repo="black-forest-labs/FLUX.1-schnell",
+        size_gb=23.8,
+        vram_gb=24.0,
+        pipeline="flux",
+        default_steps=4,
+        default_guidance=0.0,
+        default_width=1024,
+        default_height=1024,
+        description=("En iyi açık T2I modeli. 24 GB VRAM ister; 12GB'da CPU "
+                     "offload ile çalışır ama yavaş."),
+    ),
+)
+
+
 # ============================================================
 # İndirme durumu
 # ============================================================
@@ -187,8 +249,12 @@ class ModelRegistry:
     def __init__(self) -> None:
         self.llm_dir = MODELS_DIR / "llm"
         self.embedding_dir = MODELS_DIR / "embedding"
-        self.llm_dir.mkdir(parents=True, exist_ok=True)
-        self.embedding_dir.mkdir(parents=True, exist_ok=True)
+        self.image_dir = MODELS_DIR / "image"
+        self.video_dir = MODELS_DIR / "video"
+        self.audio_dir = MODELS_DIR / "audio"
+        for d in (self.llm_dir, self.embedding_dir, self.image_dir,
+                  self.video_dir, self.audio_dir):
+            d.mkdir(parents=True, exist_ok=True)
 
         self._progress: dict[str, DownloadProgress] = {}
         self._progress_lock = threading.Lock()
@@ -237,6 +303,25 @@ class ModelRegistry:
         ]
 
     @staticmethod
+    def list_image_models() -> list[dict[str, Any]]:
+        return [
+            {
+                "id": m.id, "name": m.name,
+                "type": "image",
+                "hf_repo": m.hf_repo,
+                "size_gb": m.size_gb, "vram_gb": m.vram_gb,
+                "pipeline": m.pipeline,
+                "default_steps": m.default_steps,
+                "default_guidance": m.default_guidance,
+                "default_width": m.default_width,
+                "default_height": m.default_height,
+                "description": m.description,
+                "default": m.default,
+            }
+            for m in IMAGE_MODELS
+        ]
+
+    @staticmethod
     def get_llm_spec(model_id: str) -> Optional[LLMModelSpec]:
         for m in LLM_MODELS:
             if m.id == model_id:
@@ -246,6 +331,13 @@ class ModelRegistry:
     @staticmethod
     def get_embedding_spec(model_id: str) -> Optional[EmbeddingModelSpec]:
         for m in EMBEDDING_MODELS:
+            if m.id == model_id:
+                return m
+        return None
+
+    @staticmethod
+    def get_image_spec(model_id: str) -> Optional[ImageModelSpec]:
+        for m in IMAGE_MODELS:
             if m.id == model_id:
                 return m
         return None
@@ -263,6 +355,12 @@ class ModelRegistry:
         if not spec:
             raise ValueError(f"Bilinmeyen embedding modeli: {model_id}")
         return self.embedding_dir / model_id
+
+    def image_dir_path(self, model_id: str) -> Path:
+        spec = self.get_image_spec(model_id)
+        if not spec:
+            raise ValueError(f"Bilinmeyen image modeli: {model_id}")
+        return self.image_dir / model_id
 
     def is_llm_downloaded(self, model_id: str) -> bool:
         spec = self.get_llm_spec(model_id)
@@ -286,6 +384,22 @@ class ModelRegistry:
         # Tipik transformer dosyaları var mı?
         required = ["config.json"]
         return all((d / f).exists() for f in required)
+
+    def is_image_downloaded(self, model_id: str) -> bool:
+        spec = self.get_image_spec(model_id)
+        if not spec:
+            return False
+        d = self.image_dir_path(model_id)
+        if not d.exists():
+            return False
+        # Diffusers repolarında model_index.json bulunur (pipeline tanımı)
+        # Ayrıca .from_pretrained alt klasörlerden okuyabilmeli.
+        if (d / "model_index.json").exists():
+            return True
+        # FLUX ve bazı yeni modeller farklı yapıda
+        if (d / "transformer").exists() or (d / "unet").exists():
+            return True
+        return False
 
     # ---- indirme: LLM (httpx ile, ilerlemeli, resumable) ----
 
@@ -456,6 +570,148 @@ class ModelRegistry:
             log.info("Embedding modeli silindi: %s", model_id)
             return True
         return False
+
+    # ---- silme ----
+
+    def delete_image(self, model_id: str) -> bool:
+        d = self.image_dir_path(model_id)
+        if d.exists():
+            shutil.rmtree(d)
+            log.info("Image modeli silindi: %s", model_id)
+            with self._progress_lock:
+                self._progress.pop(model_id, None)
+            return True
+        return False
+
+    # ---- snapshot indirme (image / video / TTS gibi multi-file modeller) ----
+
+    def download_snapshot_async(self, model_id: str,
+                                 spec_kind: str = "image") -> threading.Thread:
+        """
+        HuggingFace snapshot_download ile multi-file repo indir.
+
+        Args:
+            spec_kind: "image" | "video" | "audio"
+        """
+        if spec_kind == "image":
+            spec = self.get_image_spec(model_id)
+            target_dir = self.image_dir_path(model_id) if spec else None
+        else:
+            raise ValueError(f"Henüz desteklenmiyor: {spec_kind}")
+
+        if not spec:
+            raise ValueError(f"Bilinmeyen model: {model_id}")
+
+        # Zaten var mı?
+        if spec_kind == "image" and self.is_image_downloaded(model_id):
+            self._set_progress(model_id, status="completed",
+                               downloaded=int(spec.size_gb * 1024**3),
+                               total=int(spec.size_gb * 1024**3))
+            t = threading.Thread(target=lambda: None)
+            t.start()
+            return t
+
+        cur = self.get_progress(model_id)
+        if cur.status == "downloading":
+            log.warning("%s zaten indiriliyor.", model_id)
+            t = threading.Thread(target=lambda: None)
+            t.start()
+            return t
+
+        cancel = threading.Event()
+        self._cancel_flags[model_id] = cancel
+
+        thread = threading.Thread(
+            target=self._download_snapshot_worker,
+            args=(model_id, spec, target_dir, cancel),
+            daemon=True,
+            name=f"download-{model_id}",
+        )
+        thread.start()
+        return thread
+
+    def _download_snapshot_worker(self, model_id: str, spec,
+                                   target_dir: Path,
+                                   cancel: threading.Event) -> None:
+        import time
+
+        expected_total = int(spec.size_gb * (1024 ** 3))
+        self._set_progress(
+            model_id, status="downloading", downloaded=0,
+            total=expected_total, error=None,
+            started_at=time.time(), completed_at=None,
+        )
+        log.info("Snapshot indirme başladı: %s -> %s", spec.hf_repo, target_dir)
+
+        # Filesystem-tabanlı ilerleme izleme thread'i
+        stop_monitor = threading.Event()
+
+        def monitor():
+            last_bytes = 0
+            last_t = time.time()
+            while not stop_monitor.is_set():
+                try:
+                    if target_dir.exists():
+                        cur = sum(p.stat().st_size
+                                  for p in target_dir.rglob("*") if p.is_file())
+                        now = time.time()
+                        speed = (cur - last_bytes) / max(now - last_t, 0.1)
+                        self._set_progress(
+                            model_id, downloaded=cur, speed_bps=speed,
+                        )
+                        last_bytes = cur
+                        last_t = now
+                except Exception:
+                    pass
+                time.sleep(1.0)
+
+        mon_thread = threading.Thread(target=monitor, daemon=True)
+        mon_thread.start()
+
+        try:
+            # Lazy import
+            from huggingface_hub import snapshot_download
+
+            target_dir.mkdir(parents=True, exist_ok=True)
+
+            snapshot_download(
+                repo_id=spec.hf_repo,
+                local_dir=str(target_dir),
+                local_dir_use_symlinks=False,
+                resume_download=True,
+                # max_workers: paralel parça indirme
+                max_workers=4,
+            )
+
+            stop_monitor.set()
+
+            if cancel.is_set():
+                self._set_progress(
+                    model_id, status="cancelled",
+                    completed_at=time.time(),
+                )
+                return
+
+            # Final boyut
+            final = sum(p.stat().st_size
+                        for p in target_dir.rglob("*") if p.is_file())
+            self._set_progress(
+                model_id, status="completed",
+                downloaded=final, total=final,
+                speed_bps=0.0, completed_at=time.time(),
+            )
+            log.info("Snapshot tamamlandı: %s (%.2f GB)",
+                     model_id, final / 1e9)
+
+        except Exception as exc:
+            stop_monitor.set()
+            log.exception("Snapshot indirme hatası: %s", exc)
+            self._set_progress(
+                model_id, status="error", error=str(exc),
+                completed_at=time.time(),
+            )
+        finally:
+            self._cancel_flags.pop(model_id, None)
 
     # ---- özet ----
 

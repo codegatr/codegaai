@@ -39,7 +39,9 @@ class TestApiServer(unittest.TestCase):
             "/api/chat",
             "/api/chat/models",
             "/api/chat/status",
-            "/api/image",
+            "/api/image/generate",
+            "/api/image/list",
+            "/api/image/status",
             "/api/video",
             "/api/audio/tts",
             "/api/audio/asr",
@@ -109,12 +111,11 @@ class TestApiClient(unittest.TestCase):
         self.assertGreater(len(data["available_for_download"]), 0)
 
     def test_image_stub(self) -> None:
-        r = self.client.post("/api/image", json={
+        # Faz 4'te image artık gerçek endpoint — motor yok = 409
+        r = self.client.post("/api/image/generate", json={
             "prompt": "konya cumhuriyet meydanı"
         })
-        self.assertEqual(r.status_code, 200)
-        data = r.json()
-        self.assertEqual(data["status"], "stub")
+        self.assertIn(r.status_code, (200, 409))
 
     def test_memory_stats(self) -> None:
         r = self.client.get("/api/memory/stats")

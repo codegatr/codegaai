@@ -23,6 +23,7 @@ from codegaai.core.models_registry import ModelRegistry
 from codegaai.core.engine import LLMEngine, GenerationConfig, DEFAULT_SYSTEM_PROMPT
 from codegaai.core.embeddings import EmbeddingService
 from codegaai.core.memory import MemoryStore
+from codegaai.core.image_engine import ImageEngine
 
 __all__ = [
     "ChatStore",
@@ -32,4 +33,5 @@ __all__ = [
     "DEFAULT_SYSTEM_PROMPT",
     "EmbeddingService",
     "MemoryStore",
+    "ImageEngine",
 ]

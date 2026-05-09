@@ -1,8 +1,8 @@
 {
   "name": "CODEGA AI",
   "slug": "codegaai",
-  "version": "0.3.1",
-  "phase": "Faz 3 + .exe build (GitHub Actions ile otomatik Windows derleme)",
+  "version": "0.4.0",
+  "phase": "Faz 4 - Görsel Üretim (SDXL + SDXL-Turbo + FLUX.1-schnell)",
   "description": "Yerelde çalışan, kendi kendine öğrenen, çok modlu yapay zeka platformu. RTX 3060+ ve 16GB+ RAM için optimize edilmiştir.",
   "author": "CODEGA",
   "license": "MIT",
@@ -36,7 +36,7 @@
     "core_memory_facts": true,
     "auto_update": true,
     "installer": true,
-    "image_generation": false,
+    "image_generation": true,
     "video_generation": false,
     "tts": false,
     "asr": false,
@@ -60,13 +60,14 @@
     "Faz 1 - Temel İskelet",
     "Faz 2 - Masaüstü UI (PyWebView + FastAPI + dark theme)",
     "Faz 2.1 - Kalıcı Sohbet (SQLite + Claude tarzı sidebar)",
-    "Faz 3 - LLM Motoru (Qwen 2.5 7B GGUF + BGE-M3 embedding + ChromaDB RAG + 3 katmanlı bellek + model indirme yöneticisi)"
+    "Faz 3 - LLM Motoru (Qwen 2.5 7B GGUF + BGE-M3 embedding + ChromaDB RAG + 3 katmanlı bellek + model indirme yöneticisi)",
+    "Faz 3.1 - GitHub Actions Windows .exe build pipeline (PyInstaller --onedir)",
+    "Faz 4 - Görsel Üretim (SDXL Base 1.0 + SDXL-Turbo + FLUX.1-schnell + diffusers wrapper + EXIF metadata + galeri)"
   ],
   "phases_pending": [
-    "Faz 4 - Görsel Üretim (SDXL / FLUX.1)",
     "Faz 5 - Ses (XTTS v2 + faster-whisper)",
     "Faz 6 - Video Üretim (CogVideoX-2B)",
     "Faz 7 - Self-Learning (DPO + LoRA hot-swap)",
-    "Faz 8 - Tek .exe paket + Akıllı Güncelle"
+    "Faz 8 - Tek .exe paket (DONE) + Akıllı Güncelle"
   ]
 }

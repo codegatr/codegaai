@@ -76,6 +76,25 @@ try:
 except Exception as exc:
     print(f"[uyarı] huggingface_hub toplama atlandı: {exc}")
 
+# ---- Faz 4: diffusers + accelerate + transformers (görsel üretim) ----
+try:
+    df_d, df_b, df_h = collect_all("diffusers")
+    datas += df_d; binaries += df_b; hiddenimports += df_h
+except Exception as exc:
+    print(f"[uyarı] diffusers toplama atlandı: {exc}")
+
+try:
+    ac_d, ac_b, ac_h = collect_all("accelerate")
+    datas += ac_d; binaries += ac_b; hiddenimports += ac_h
+except Exception as exc:
+    print(f"[uyarı] accelerate toplama atlandı: {exc}")
+
+try:
+    tr_d, tr_b, tr_h = collect_all("transformers")
+    datas += tr_d; binaries += tr_b; hiddenimports += tr_h
+except Exception as exc:
+    print(f"[uyarı] transformers toplama atlandı: {exc}")
+
 # ---- Statik veriler (UI + manifest) ----
 datas += [
     (str(PROJECT_ROOT / "codegaai" / "ui" / "web"), "codegaai/ui/web"),

@@ -28,6 +28,7 @@
     Chat.init();
     System.init();
     Models.init();
+    ImageView.init();
   }
 
   function setStatus(key, type, text) {
