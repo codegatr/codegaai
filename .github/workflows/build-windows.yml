@@ -52,6 +52,9 @@ jobs:
         run: |
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
           python -m pip install llama-cpp-python sentence-transformers chromadb huggingface_hub
+          # sentence-transformers transitive: scipy + scikit-learn bazen
+          # otomatik gelmiyor (özellikle PyInstaller bundle'da). Acik koy:
+          python -m pip install scipy scikit-learn
           # Faz 4: diffusion image generation
           python -m pip install diffusers accelerate transformers Pillow safetensors
           # Faz 5: ASR (faster-whisper) + soundfile

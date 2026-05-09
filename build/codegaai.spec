@@ -62,6 +62,19 @@ try:
 except Exception as exc:
     print(f"[uyarı] sentence_transformers toplama atlandı: {exc}")
 
+# scipy + scikit-learn (sentence-transformers'in transitive bagimliligi)
+try:
+    sp_d, sp_b, sp_h = collect_all("scipy")
+    datas += sp_d; binaries += sp_b; hiddenimports += sp_h
+except Exception as exc:
+    print(f"[uyarı] scipy toplama atlandı: {exc}")
+
+try:
+    sk_d, sk_b, sk_h = collect_all("sklearn")
+    datas += sk_d; binaries += sk_b; hiddenimports += sk_h
+except Exception as exc:
+    print(f"[uyarı] sklearn toplama atlandı: {exc}")
+
 # ---- chromadb (RAG) ----
 try:
     cd_d, cd_b, cd_h = collect_all("chromadb")
