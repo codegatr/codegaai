@@ -59,6 +59,8 @@ jobs:
           # TTS (Coqui) ağır bağımlılıklar getiriyor; başarısız olabilir,
           # devam et:
           python -m pip install TTS || echo "TTS install başarısız, devam"
+          # Faz 6: video export (imageio for diffusers export_to_video)
+          python -m pip install imageio imageio-ffmpeg
 
       - name: List installed packages
         shell: pwsh

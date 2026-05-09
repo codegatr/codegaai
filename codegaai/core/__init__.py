@@ -25,6 +25,7 @@ from codegaai.core.embeddings import EmbeddingService
 from codegaai.core.memory import MemoryStore
 from codegaai.core.image_engine import ImageEngine
 from codegaai.core.audio_engine import TTSEngine, ASREngine
+from codegaai.core.video_engine import VideoEngine
 
 __all__ = [
     "ChatStore",
@@ -37,4 +38,5 @@ __all__ = [
     "ImageEngine",
     "TTSEngine",
     "ASREngine",
+    "VideoEngine",
 ]

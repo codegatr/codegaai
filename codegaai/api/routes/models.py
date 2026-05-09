@@ -107,11 +107,31 @@ async def list_all_models() -> dict[str, Any]:
         for m in registry.list_audio_models()
     ]
 
+    # Video motor (Faz 6'da eklendi)
+    video_status = {"state": "unloaded", "ready": False}
+    try:
+        from codegaai.core.video_engine import VideoEngine
+        video_status = VideoEngine.get().status
+    except Exception:
+        pass
+
+    video_models = [
+        {
+            **m,
+            "downloaded": registry.is_video_downloaded(m["id"]),
+            "loaded": (video_status.get("model_id") == m["id"]
+                       and video_status.get("ready", False)),
+            "download": registry.get_progress(m["id"]).to_dict(),
+        }
+        for m in registry.list_video_models()
+    ]
+
     return {
         "llm": llm_models,
         "embedding": emb_models,
         "image": image_models,
         "audio": audio_models,
+        "video": video_models,
         "disk_usage": registry.disk_usage(),
         "engines": {
             "llm": engine_status,
@@ -119,6 +139,7 @@ async def list_all_models() -> dict[str, Any]:
             "image": img_status,
             "tts": tts_status,
             "asr": asr_status,
+            "video": video_status,
         },
     }
 
@@ -158,7 +179,8 @@ async def get_status(model_id: str) -> dict[str, Any]:
     spec = (registry.get_llm_spec(model_id) or
             registry.get_embedding_spec(model_id) or
             registry.get_image_spec(model_id) or
-            registry.get_audio_spec(model_id))
+            registry.get_audio_spec(model_id) or
+            registry.get_video_spec(model_id))
     if not spec:
         raise HTTPException(404, f"Model bulunamadı: {model_id}")
 
@@ -197,6 +219,22 @@ async def get_status(model_id: str) -> dict[str, Any]:
             "model_id": model_id, "downloaded": downloaded,
             "loaded": loaded, "download": progress.to_dict(),
             "kind": f"audio-{audio_spec.kind}",
+        }
+
+    if registry.get_video_spec(model_id):
+        downloaded = registry.is_video_downloaded(model_id)
+        loaded = False
+        try:
+            from codegaai.core.video_engine import VideoEngine
+            v_eng = VideoEngine.get()
+            loaded = (v_eng.status.get("model_id") == model_id
+                      and v_eng.is_ready)
+        except Exception:
+            pass
+        return {
+            "model_id": model_id, "downloaded": downloaded,
+            "loaded": loaded, "download": progress.to_dict(),
+            "kind": "video",
         }
 
     return {
@@ -238,6 +276,15 @@ async def start_download(model_id: str) -> dict[str, Any]:
             return {"status": "already_downloaded", "model_id": model_id,
                     "progress": registry.get_progress(model_id).to_dict()}
         registry.download_snapshot_async(model_id, spec_kind="audio")
+        return {"status": "started", "model_id": model_id,
+                "progress": registry.get_progress(model_id).to_dict()}
+
+    # Video
+    if registry.get_video_spec(model_id):
+        if registry.is_video_downloaded(model_id):
+            return {"status": "already_downloaded", "model_id": model_id,
+                    "progress": registry.get_progress(model_id).to_dict()}
+        registry.download_snapshot_async(model_id, spec_kind="video")
         return {"status": "started", "model_id": model_id,
                 "progress": registry.get_progress(model_id).to_dict()}
 

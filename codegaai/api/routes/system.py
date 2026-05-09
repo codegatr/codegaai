@@ -82,6 +82,14 @@ async def engines() -> dict[str, Any]:
     except Exception:
         pass
 
+    # Video motoru (Faz 6)
+    video_status = {"state": "unloaded", "ready": False}
+    try:
+        from codegaai.core.video_engine import VideoEngine
+        video_status = VideoEngine.get().status
+    except Exception:
+        pass
+
     return {
         "llm": {
             "active": llm.is_ready,
@@ -117,8 +125,12 @@ async def engines() -> dict[str, Any]:
             "phase": "Faz 5",
         },
         "video": {
-            "active": False, "state": "unloaded",
-            "reason": "Faz 6'da gelecek (v0.6.0)",
+            "active": video_status.get("ready", False),
+            "state": video_status.get("state", "unloaded"),
+            "model_id": video_status.get("model_id"),
+            "backend": video_status.get("backend"),
+            "pipeline": video_status.get("pipeline"),
+            "phase": "Faz 6",
         },
         "learning": {
             "active": False, "state": "unloaded",

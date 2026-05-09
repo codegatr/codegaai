@@ -91,6 +91,12 @@ const API = (() => {
     imageDelete:   (id) => request(`/api/image/${id}`, {method:"DELETE"}),
     imageStatus:   () => request("/api/image/status"),
 
+    // ---- video (Faz 6) ----
+    videoGenerate:  (body) => request("/api/video/generate", {method:"POST", body: JSON.stringify(body)}),
+    videoList:      () => request("/api/video/list?limit=30"),
+    videoDelete:    (id) => request(`/api/video/${id}`, {method:"DELETE"}),
+    videoStatus:    () => request("/api/video/status"),
+
     // ---- audio (Faz 5) ----
     audioStatus:    () => request("/api/audio/status"),
     audioVoices:    () => request("/api/audio/voices"),

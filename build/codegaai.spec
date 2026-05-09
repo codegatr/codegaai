@@ -114,6 +114,19 @@ try:
 except Exception as exc:
     print(f"[uyarı] soundfile toplama atlandı: {exc}")
 
+# ---- Faz 6: imageio (video export_to_video için) ----
+try:
+    io_d, io_b, io_h = collect_all("imageio")
+    datas += io_d; binaries += io_b; hiddenimports += io_h
+except Exception as exc:
+    print(f"[uyarı] imageio toplama atlandı: {exc}")
+
+try:
+    iff_d, iff_b, iff_h = collect_all("imageio_ffmpeg")
+    datas += iff_d; binaries += iff_b; hiddenimports += iff_h
+except Exception as exc:
+    print(f"[uyarı] imageio_ffmpeg toplama atlandı: {exc}")
+
 # ---- Statik veriler (UI + manifest) ----
 datas += [
     (str(PROJECT_ROOT / "codegaai" / "ui" / "web"), "codegaai/ui/web"),

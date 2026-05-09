@@ -27,7 +27,7 @@
       <div class="brand-mark">C</div>
       <div class="brand-text">
         <span class="brand-name">CODEGA AI</span>
-        <span class="brand-version" id="brand-version">v0.5.1</span>
+        <span class="brand-version" id="brand-version">v0.6.0</span>
       </div>
     </div>
 
@@ -87,7 +87,7 @@
     <div class="sidebar__footer">
       <div class="phase-indicator" id="phase-indicator">
         <span class="phase-dot"></span>
-        <span class="phase-text">Faz 5 / 8</span>
+        <span class="phase-text">Faz 6 / 8</span>
       </div>
     </div>
   </aside>
@@ -280,30 +280,92 @@
         <div>
           <h1 class="view-title">Video Üretimi</h1>
           <p class="view-subtitle">
-            <span class="status-pill status-pill--scheduled">
+            <span class="status-pill status-pill--pending" id="video-engine-pill">
               <span class="status-pill__dot"></span>
-              Faz 6'da aktif olacak (v0.6.0)
+              <span id="video-engine-status">motor durumu yükleniyor...</span>
             </span>
           </p>
         </div>
       </header>
 
-      <div class="placeholder-grid">
-        <div class="placeholder-card">
-          <div class="placeholder-card__icon">🎬</div>
-          <h3>CogVideoX 2B</h3>
-          <p>Text-to-video, 6 saniyeye kadar klipler, RTX 3060 12GB için optimize.</p>
-        </div>
-        <div class="placeholder-card">
-          <div class="placeholder-card__icon">🎞️</div>
-          <h3>AnimateDiff (SDXL)</h3>
-          <p>SDXL üretiminden hareketli sahne, 16 kare, hafif.</p>
-        </div>
-      </div>
+      <div class="image-studio">
+        <div class="image-studio__form">
+          <label class="form-label">
+            Prompt
+            <textarea id="video-prompt" rows="3"
+              placeholder="bir kedi yağmurda pencereden dışarı bakıyor, yumuşak ışık"></textarea>
+          </label>
 
-      <div class="phase-banner">
-        <strong>Faz 6'da neler gelecek:</strong> 4-10 saniye text-to-video,
-        720p kadar çözünürlük, FPS kontrolü, FFmpeg ile post-processing.
+          <label class="form-label">
+            Negatif Prompt
+            <textarea id="video-negative" rows="2"
+              placeholder="bulanık, düşük kaliteli, donuk, kırpık"></textarea>
+          </label>
+
+          <div class="form-row">
+            <label class="form-label form-label--inline">
+              Kare sayısı <span class="form-hint" id="video-frames-val">49</span>
+              <input type="range" id="video-frames" min="8" max="120"
+                step="1" value="49">
+            </label>
+            <label class="form-label form-label--inline">
+              FPS <span class="form-hint" id="video-fps-val">8</span>
+              <input type="range" id="video-fps" min="4" max="30"
+                step="1" value="8">
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label form-label--inline">
+              Adım <span class="form-hint" id="video-steps-val">50</span>
+              <input type="range" id="video-steps" min="10" max="100"
+                step="5" value="50">
+            </label>
+            <label class="form-label form-label--inline">
+              Guidance <span class="form-hint" id="video-guidance-val">6.0</span>
+              <input type="range" id="video-guidance" min="0" max="15"
+                step="0.5" value="6.0">
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label form-label--inline">
+              Genişlik
+              <select id="video-width">
+                <option value="480">480</option>
+                <option value="640">640</option>
+                <option value="720" selected>720</option>
+                <option value="1024">1024</option>
+              </select>
+            </label>
+            <label class="form-label form-label--inline">
+              Yükseklik
+              <select id="video-height">
+                <option value="320">320</option>
+                <option value="480" selected>480</option>
+                <option value="576">576</option>
+                <option value="720">720</option>
+              </select>
+            </label>
+            <label class="form-label form-label--inline">
+              Seed <span class="form-hint">(boş = rastgele)</span>
+              <input type="number" id="video-seed" placeholder="rastgele"
+                min="0" max="4294967295">
+            </label>
+          </div>
+
+          <button class="btn btn--primary btn--large" id="video-generate-btn">
+            Video Üret
+          </button>
+          <div class="image-status" id="video-status"></div>
+        </div>
+
+        <div class="image-studio__gallery">
+          <h3 class="image-gallery__title">Video Galerisi</h3>
+          <div class="video-gallery" id="video-gallery">
+            <div class="image-gallery__empty">Henüz video yok</div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -582,17 +644,17 @@
               <span class="roadmap__num">4</span>
               <div><strong>Faz 4 — Görsel Üretim</strong><em>v0.4.0 · tamamlandı</em></div>
             </li>
-            <li class="roadmap__item roadmap__item--current">
+            <li class="roadmap__item roadmap__item--done">
               <span class="roadmap__num">5</span>
-              <div><strong>Faz 5 — Ses (TTS + ASR)</strong><em>v0.5.0 · şu anda buradasın</em></div>
+              <div><strong>Faz 5 — Ses (TTS + ASR)</strong><em>v0.5.x · tamamlandı</em></div>
             </li>
-            <li class="roadmap__item">
+            <li class="roadmap__item roadmap__item--current">
               <span class="roadmap__num">6</span>
-              <div><strong>Faz 6 — Video Üretim</strong><em>v0.6.0 · sıradaki</em></div>
+              <div><strong>Faz 6 — Video Üretim</strong><em>v0.6.0 · şu anda buradasın</em></div>
             </li>
             <li class="roadmap__item">
               <span class="roadmap__num">7</span>
-              <div><strong>Faz 7 — Self-Learning</strong><em>v0.7.0</em></div>
+              <div><strong>Faz 7 — Self-Learning</strong><em>v0.7.0 · sıradaki</em></div>
             </li>
             <li class="roadmap__item">
               <span class="roadmap__num">8</span>
@@ -631,6 +693,7 @@
   <script src="/js/models.js"></script>
   <script src="/js/image.js"></script>
   <script src="/js/audio.js"></script>
+  <script src="/js/video.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>

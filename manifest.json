@@ -1,8 +1,8 @@
 {
   "name": "CODEGA AI",
   "slug": "codegaai",
-  "version": "0.5.1",
-  "phase": "Faz 5 + GGUF indirme URL hotfix (Qwen modelleri bartowski repo'suna geçirildi)",
+  "version": "0.6.0",
+  "phase": "Faz 6 - Video Üretim (CogVideoX-2B + SVD)",
   "description": "Yerelde çalışan, kendi kendine öğrenen, çok modlu yapay zeka platformu. RTX 3060+ ve 16GB+ RAM için optimize edilmiştir.",
   "author": "CODEGA",
   "license": "MIT",
@@ -37,7 +37,7 @@
     "auto_update": true,
     "installer": true,
     "image_generation": true,
-    "video_generation": false,
+    "video_generation": true,
     "tts": true,
     "asr": true,
     "self_learning": false
@@ -63,10 +63,10 @@
     "Faz 3 - LLM Motoru (Qwen 2.5 7B GGUF + BGE-M3 embedding + ChromaDB RAG + 3 katmanlı bellek + model indirme yöneticisi)",
     "Faz 3.1 - GitHub Actions Windows .exe build pipeline (PyInstaller --onedir)",
     "Faz 4 - Görsel Üretim (SDXL Base 1.0 + SDXL-Turbo + FLUX.1-schnell + diffusers wrapper + EXIF metadata + galeri)",
-    "Faz 5 - Ses (XTTS v2 TTS 17 dil + Piper TR + faster-whisper Large v3 ASR + segmentli çevriyazı + ses kopyalama)"
+    "Faz 5 - Ses (XTTS v2 TTS 17 dil + Piper TR + faster-whisper Large v3 ASR + segmentli çevriyazı + ses kopyalama)",
+    "Faz 6 - Video Üretim (CogVideoX-2B/5B text-to-video + Stable Video Diffusion image-to-video + diffusers wrapper + MP4 export)"
   ],
   "phases_pending": [
-    "Faz 6 - Video Üretim (CogVideoX-2B)",
     "Faz 7 - Self-Learning (DPO + LoRA hot-swap)",
     "Faz 8 - Tek .exe paket (DONE) + Akıllı Güncelle"
   ]

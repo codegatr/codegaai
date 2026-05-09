@@ -30,6 +30,7 @@
     Models.init();
     ImageView.init();
     AudioView.init();
+    VideoView.init();
   }
 
   function setStatus(key, type, text) {

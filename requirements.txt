@@ -65,9 +65,11 @@ soundfile>=0.12.0,<1.0.0
 # piper-tts>=1.2.0
 
 # ============================================================
-# Faz 6 (Video) - YORUM SATIRINDA
+# Faz 6 (Video) - AKTİF
 # ============================================================
-# diffusers zaten Faz 4'te var, video için ek yok
+# diffusers zaten Faz 4'te var, video için ek MP4 export için imageio:
+imageio>=2.34.0,<3.0.0
+imageio-ffmpeg>=0.5.0,<1.0.0
 
 # ============================================================
 # Faz 7 (Self-Learning) - YORUM SATIRINDA

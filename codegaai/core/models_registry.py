@@ -98,6 +98,26 @@ class AudioModelSpec:
     default: bool = False
 
 
+@dataclass(frozen=True)
+class VideoModelSpec:
+    """Video üretim modeli (text-to-video veya image-to-video)."""
+    id: str
+    name: str
+    hf_repo: str
+    size_gb: float
+    vram_gb: float
+    pipeline: str              # "cogvideox" | "svd"
+    mode: str                  # "t2v" | "i2v"
+    default_steps: int = 50
+    default_guidance: float = 6.0
+    default_frames: int = 49
+    default_fps: int = 8
+    default_width: int = 720
+    default_height: int = 480
+    description: str = ""
+    default: bool = False
+
+
 # ============================================================
 # Katalog
 # ============================================================
@@ -261,6 +281,59 @@ AUDIO_MODELS: tuple[AudioModelSpec, ...] = (
 )
 
 
+VIDEO_MODELS: tuple[VideoModelSpec, ...] = (
+    VideoModelSpec(
+        id="cogvideox-2b",
+        name="CogVideoX-2B (THUDM)",
+        hf_repo="THUDM/CogVideoX-2b",
+        size_gb=10.5,
+        vram_gb=12.0,
+        pipeline="cogvideox",
+        mode="t2v",
+        default_steps=50,
+        default_guidance=6.0,
+        default_frames=49,
+        default_fps=8,
+        default_width=720,
+        default_height=480,
+        description="Text-to-video, 6 sn ~720x480 @ 8 fps. RTX 3060 12GB tam yetiyor.",
+        default=True,
+    ),
+    VideoModelSpec(
+        id="cogvideox-5b",
+        name="CogVideoX-5B (THUDM)",
+        hf_repo="THUDM/CogVideoX-5b",
+        size_gb=22.0,
+        vram_gb=24.0,
+        pipeline="cogvideox",
+        mode="t2v",
+        default_steps=50,
+        default_guidance=7.0,
+        default_frames=49,
+        default_fps=8,
+        default_width=720,
+        default_height=480,
+        description="Daha kaliteli ama 24 GB VRAM ister; 12 GB'da CPU offload zorunlu.",
+    ),
+    VideoModelSpec(
+        id="svd-xt",
+        name="Stable Video Diffusion XT (image-to-video)",
+        hf_repo="stabilityai/stable-video-diffusion-img2vid-xt",
+        size_gb=9.6,
+        vram_gb=10.0,
+        pipeline="svd",
+        mode="i2v",
+        default_steps=25,
+        default_guidance=3.0,
+        default_frames=25,
+        default_fps=7,
+        default_width=1024,
+        default_height=576,
+        description="Bir görseli 25 kareye animasyona çevirir.",
+    ),
+)
+
+
 # ============================================================
 # İndirme durumu
 # ============================================================
@@ -404,6 +477,28 @@ class ModelRegistry:
         ]
 
     @staticmethod
+    def list_video_models() -> list[dict[str, Any]]:
+        return [
+            {
+                "id": m.id, "name": m.name,
+                "type": "video",
+                "hf_repo": m.hf_repo,
+                "size_gb": m.size_gb, "vram_gb": m.vram_gb,
+                "pipeline": m.pipeline,
+                "mode": m.mode,
+                "default_steps": m.default_steps,
+                "default_guidance": m.default_guidance,
+                "default_frames": m.default_frames,
+                "default_fps": m.default_fps,
+                "default_width": m.default_width,
+                "default_height": m.default_height,
+                "description": m.description,
+                "default": m.default,
+            }
+            for m in VIDEO_MODELS
+        ]
+
+    @staticmethod
     def get_llm_spec(model_id: str) -> Optional[LLMModelSpec]:
         for m in LLM_MODELS:
             if m.id == model_id:
@@ -427,6 +522,13 @@ class ModelRegistry:
     @staticmethod
     def get_audio_spec(model_id: str) -> Optional[AudioModelSpec]:
         for m in AUDIO_MODELS:
+            if m.id == model_id:
+                return m
+        return None
+
+    @staticmethod
+    def get_video_spec(model_id: str) -> Optional[VideoModelSpec]:
+        for m in VIDEO_MODELS:
             if m.id == model_id:
                 return m
         return None
@@ -515,6 +617,36 @@ class ModelRegistry:
         if d.exists():
             shutil.rmtree(d)
             log.info("Audio modeli silindi: %s", model_id)
+            with self._progress_lock:
+                self._progress.pop(model_id, None)
+            return True
+        return False
+
+    def video_dir_path(self, model_id: str) -> Path:
+        spec = self.get_video_spec(model_id)
+        if not spec:
+            raise ValueError(f"Bilinmeyen video modeli: {model_id}")
+        return self.video_dir / model_id
+
+    def is_video_downloaded(self, model_id: str) -> bool:
+        spec = self.get_video_spec(model_id)
+        if not spec:
+            return False
+        d = self.video_dir_path(model_id)
+        if not d.exists():
+            return False
+        # Diffusion video modelleri model_index.json içerir
+        if (d / "model_index.json").exists():
+            return True
+        if (d / "transformer").exists() or (d / "unet").exists():
+            return True
+        return False
+
+    def delete_video(self, model_id: str) -> bool:
+        d = self.video_dir_path(model_id)
+        if d.exists():
+            shutil.rmtree(d)
+            log.info("Video modeli silindi: %s", model_id)
             with self._progress_lock:
                 self._progress.pop(model_id, None)
             return True
@@ -728,6 +860,9 @@ class ModelRegistry:
         elif spec_kind == "audio":
             spec = self.get_audio_spec(model_id)
             target_dir = self.audio_dir_path(model_id) if spec else None
+        elif spec_kind == "video":
+            spec = self.get_video_spec(model_id)
+            target_dir = self.video_dir_path(model_id) if spec else None
         else:
             raise ValueError(f"Henüz desteklenmiyor: {spec_kind}")
 
@@ -740,6 +875,8 @@ class ModelRegistry:
             already = self.is_image_downloaded(model_id)
         elif spec_kind == "audio":
             already = self.is_audio_downloaded(model_id)
+        elif spec_kind == "video":
+            already = self.is_video_downloaded(model_id)
 
         if already:
             self._set_progress(model_id, status="completed",
