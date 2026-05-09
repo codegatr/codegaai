@@ -31,6 +31,60 @@ datas = []
 binaries = []
 hiddenimports = []
 
+
+def _force_bundle_package(pkg_name):
+    """
+    Bir Python paketinin TÜM dosyalarını (.py, .pyd, .dll, data files,
+    alt klasörler dahil) bundle'a manuel koyar. PyInstaller'in
+    collect_all + collect_dynamic_libs'i scipy/sklearn gibi karmaşık
+    bilimsel paketler için yetmiyor — _ccallback_c.cp312-win_amd64.pyd
+    gibi C uzantıları eksik kalıyor. Bu fonksiyon emin olmak için
+    paketi olduğu gibi diske kopyalanacak şekilde işaretler.
+    """
+    import os
+    import importlib
+    try:
+        pkg = importlib.import_module(pkg_name)
+    except Exception as exc:
+        print(f"[uyari] {pkg_name} import edilemedi: {exc}")
+        return [], []
+
+    pkg_dir = os.path.dirname(pkg.__file__)
+    pkg_parent = os.path.dirname(pkg_dir)
+
+    extra_datas = []
+    extra_binaries = []
+
+    for root, dirs, files in os.walk(pkg_dir):
+        # __pycache__ klasorlerini atla
+        dirs[:] = [d for d in dirs if d != "__pycache__"]
+        for fname in files:
+            if fname.endswith(".pyc"):
+                continue
+            src = os.path.join(root, fname)
+            # Bundle icindeki goreli yol: pkg_name/alt/dizin/file
+            rel_dir = os.path.relpath(root, pkg_parent)
+
+            # .pyd ve .dll dosyalari binaries'e gider
+            if fname.endswith((".pyd", ".dll", ".so")):
+                extra_binaries.append((src, rel_dir))
+            else:
+                extra_datas.append((src, rel_dir))
+
+    file_count = len(extra_datas) + len(extra_binaries)
+    print(f"[ok] {pkg_name}: {file_count} dosya manuel bundle "
+          f"({len(extra_binaries)} binary)")
+    return extra_datas, extra_binaries
+
+
+# scipy + sklearn + numpy: manuel full-directory bundling
+# (PyInstaller'in scipy hook'undaki kronik C extension eksikligini
+#  kokten cozer)
+for pkg in ("scipy", "sklearn", "numpy"):
+    _d, _b = _force_bundle_package(pkg)
+    datas += _d
+    binaries += _b
+
 # ---- uvicorn lazy-loaded modülleri ----
 hiddenimports += [
     "uvicorn.logging",
@@ -64,34 +118,9 @@ try:
 except Exception as exc:
     print(f"[uyarı] sentence_transformers toplama atlandı: {exc}")
 
-# scipy + scikit-learn (sentence-transformers'in transitive bagimliligi)
-# scipy ozellikle problemli: collect_all() yetmiyor, C uzantilari (.pyd)
-# eksik kaliyor. Bu yuzden 3'lu yaklasim: collect_all + collect_submodules
-# + collect_dynamic_libs + copy_metadata.
-try:
-    sp_d, sp_b, sp_h = collect_all("scipy")
-    sp_h += collect_submodules("scipy")
-    sp_b += collect_dynamic_libs("scipy")
-    sp_d += copy_metadata("scipy")
-    datas += sp_d; binaries += sp_b; hiddenimports += sp_h
-except Exception as exc:
-    print(f"[uyari] scipy toplama atlandi: {exc}")
-
-try:
-    sk_d, sk_b, sk_h = collect_all("sklearn")
-    sk_h += collect_submodules("sklearn")
-    sk_b += collect_dynamic_libs("sklearn")
-    datas += sk_d; binaries += sk_b; hiddenimports += sk_h
-except Exception as exc:
-    print(f"[uyari] sklearn toplama atlandi: {exc}")
-
-# numpy de scipy'nin temel bagimliligi — onun icin de:
-try:
-    np_d, np_b, np_h = collect_all("numpy")
-    np_b += collect_dynamic_libs("numpy")
-    datas += np_d; binaries += np_b; hiddenimports += np_h
-except Exception as exc:
-    print(f"[uyari] numpy toplama atlandi: {exc}")
+# scipy/sklearn/numpy yukarida _force_bundle_package ile manuel
+# yapildi. Bu yeterli — collect_all/collect_submodules/collect_dynamic_libs
+# scipy hook'unda buggy oldugu icin atlandi.
 
 # ---- chromadb (RAG) ----
 try:
@@ -180,7 +209,10 @@ a = Analysis(
     runtime_hooks=[],
     excludes=[
         # Boyutu küçültmek için dışlanan paketler
-        "matplotlib", "scipy", "pandas", "IPython", "jupyter",
+        # NOT: scipy/sklearn/numpy ÇIKARILDI excludes'tan — transformers
+        # ve sentence-transformers tarafından zorunlu olarak import
+        # ediliyorlar, exclude edilirse runtime'da çöküyor.
+        "matplotlib", "pandas", "IPython", "jupyter",
         "notebook", "pytest", "tkinter",
     ],
     noarchive=False,
