@@ -38,6 +38,8 @@ data/outputs/
 data/logs/
 data/cache/
 data/temp/
+data/learning/
+data/adapters/
 
 # Yapılandırma dosyası kullanıcıya özel olabilir; örnek korunur
 config.toml
