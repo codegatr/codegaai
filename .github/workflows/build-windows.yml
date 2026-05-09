@@ -39,7 +39,10 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip wheel setuptools
-          python -m pip install pyinstaller
+          # pyinstaller-hooks-contrib: scipy/numpy/sklearn icin profesyonel
+          # hook'lar — collect_all() yetmedigi yerlerde C uzantilarini
+          # otomatik bundle eder
+          python -m pip install pyinstaller pyinstaller-hooks-contrib
 
       - name: Install core deps
         shell: pwsh

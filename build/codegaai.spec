@@ -20,7 +20,9 @@ Stratejı:
 """
 
 from pathlib import Path
-from PyInstaller.utils.hooks import collect_all, collect_submodules
+from PyInstaller.utils.hooks import (
+    collect_all, collect_submodules, collect_dynamic_libs, copy_metadata,
+)
 
 SPEC_DIR = Path(SPECPATH).resolve()
 PROJECT_ROOT = SPEC_DIR.parent
@@ -63,17 +65,33 @@ except Exception as exc:
     print(f"[uyarı] sentence_transformers toplama atlandı: {exc}")
 
 # scipy + scikit-learn (sentence-transformers'in transitive bagimliligi)
+# scipy ozellikle problemli: collect_all() yetmiyor, C uzantilari (.pyd)
+# eksik kaliyor. Bu yuzden 3'lu yaklasim: collect_all + collect_submodules
+# + collect_dynamic_libs + copy_metadata.
 try:
     sp_d, sp_b, sp_h = collect_all("scipy")
+    sp_h += collect_submodules("scipy")
+    sp_b += collect_dynamic_libs("scipy")
+    sp_d += copy_metadata("scipy")
     datas += sp_d; binaries += sp_b; hiddenimports += sp_h
 except Exception as exc:
-    print(f"[uyarı] scipy toplama atlandı: {exc}")
+    print(f"[uyari] scipy toplama atlandi: {exc}")
 
 try:
     sk_d, sk_b, sk_h = collect_all("sklearn")
+    sk_h += collect_submodules("sklearn")
+    sk_b += collect_dynamic_libs("sklearn")
     datas += sk_d; binaries += sk_b; hiddenimports += sk_h
 except Exception as exc:
-    print(f"[uyarı] sklearn toplama atlandı: {exc}")
+    print(f"[uyari] sklearn toplama atlandi: {exc}")
+
+# numpy de scipy'nin temel bagimliligi — onun icin de:
+try:
+    np_d, np_b, np_h = collect_all("numpy")
+    np_b += collect_dynamic_libs("numpy")
+    datas += np_d; binaries += np_b; hiddenimports += np_h
+except Exception as exc:
+    print(f"[uyari] numpy toplama atlandi: {exc}")
 
 # ---- chromadb (RAG) ----
 try:
