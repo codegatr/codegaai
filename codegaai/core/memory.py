@@ -269,23 +269,28 @@ class _CodegaEmbeddingFunction:
     Hepsi aynı `EmbeddingService.embed()` altyapısını kullanır.
     """
 
-    def __call__(self, input):
+    def __call__(self, input=None, texts=None, **kwargs):
         from codegaai.core.embeddings import EmbeddingService
         svc = EmbeddingService.get()
-        # ChromaDB bazen tek string, bazen list gönderir
-        if isinstance(input, str):
-            return svc.embed([input])[0]
-        return svc.embed(list(input))
+        data = input or texts
+        if isinstance(data, str):
+            return svc.embed([data])
+        return svc.embed(list(data))
 
-    def embed_documents(self, texts):
-        """LangChain-style — bir liste metni vektörlere çevir."""
+    def embed_documents(self, texts=None, input=None, **kwargs):
+        """LangChain-style — liste metni vektörlere çevir."""
         from codegaai.core.embeddings import EmbeddingService
-        return EmbeddingService.get().embed(list(texts))
+        data = texts or input or []
+        return EmbeddingService.get().embed(list(data))
 
-    def embed_query(self, text):
-        """LangChain-style — tek metni vektöre çevir."""
+    def embed_query(self, text=None, input=None, **kwargs):
+        """LangChain-style — tek metni vektöre çevir.
+        ChromaDB bazen text=, bazen input= ile çağırır."""
         from codegaai.core.embeddings import EmbeddingService
-        return EmbeddingService.get().embed([text])[0]
+        t = text or input
+        if isinstance(t, list):
+            t = t[0]
+        return EmbeddingService.get().embed([str(t)])[0]
 
     @classmethod
     def name(cls) -> str:

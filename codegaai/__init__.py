@@ -5,7 +5,7 @@ Telif: 2026 CODEGA - Yunus Demirhan
 Lisans: MIT
 """
 
-__version__ = "1.4.0"
+__version__ = "1.4.1"
 __phase__ = "v1.4.0 - Faz 11: Vision + OCR + Video Analiz"
 __author__ = "CODEGA"
 __license__ = "MIT"
