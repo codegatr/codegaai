@@ -96,7 +96,7 @@ class TestDownloadResume(unittest.TestCase):
 
         partial.parent.mkdir(parents=True, exist_ok=True)
         # Tam beklenen boyut
-        full_size = int(spec.size_gb * (1024 ** 3))
+        full_size = int(spec.size_gb * 1e9)
         with partial.open("wb") as f:
             f.write(b"\x00" * 1024)
             f.seek(full_size - 1)
@@ -202,7 +202,7 @@ class TestDownloadResume(unittest.TestCase):
         correct_hash = hashlib.sha256(url.encode("utf-8")).hexdigest()
 
         partial.parent.mkdir(parents=True, exist_ok=True)
-        full_size = int(spec.size_gb * (1024 ** 3))
+        full_size = int(spec.size_gb * 1e9)
         with partial.open("wb") as f:
             f.seek(full_size - 1)
             f.write(b"\x00")
@@ -251,7 +251,7 @@ class TestDownloadResume(unittest.TestCase):
         correct_hash = hashlib.sha256(url.encode("utf-8")).hexdigest()
 
         partial.parent.mkdir(parents=True, exist_ok=True)
-        full_size = int(spec.size_gb * (1024 ** 3))
+        full_size = int(spec.size_gb * 1e9)
         with partial.open("wb") as f:
             f.seek(full_size - 1)
             f.write(b"\x00")

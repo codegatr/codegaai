@@ -24,11 +24,12 @@ const Updater = (() => {
   }
 
   function fmtBytes(n) {
+    // Decimal SI (1 GB = 1e9 B) — HuggingFace ve dosya boyutları için standart
     if (!n) return "—";
-    if (n < 1024) return n + " B";
-    if (n < 1024 * 1024) return (n / 1024).toFixed(0) + " KB";
-    if (n < 1024 * 1024 * 1024) return (n / (1024 * 1024)).toFixed(1) + " MB";
-    return (n / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+    if (n < 1000) return n + " B";
+    if (n < 1_000_000) return (n / 1000).toFixed(0) + " KB";
+    if (n < 1_000_000_000) return (n / 1_000_000).toFixed(1) + " MB";
+    return (n / 1_000_000_000).toFixed(2) + " GB";
   }
 
   // ---------- Check ----------

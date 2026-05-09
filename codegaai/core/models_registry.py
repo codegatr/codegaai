@@ -563,7 +563,10 @@ class ModelRegistry:
             return False
         # Boyut kontrolü — kısmi indirme önle
         actual = path.stat().st_size
-        expected_min = int(spec.size_gb * (1024 ** 3) * 0.95)
+        # NOT: HuggingFace ve diğer model dağıtıcıları decimal SI birim
+        # kullanır (1 GB = 1e9 byte), binary GiB değil. spec.size_gb da
+        # bu konvansiyona uyar. Yanlış hesap "tam dosyayı eksik" gösterir.
+        expected_min = int(spec.size_gb * 1e9 * 0.95)
         return actual >= expected_min
 
     def is_embedding_downloaded(self, model_id: str) -> bool:
@@ -711,7 +714,7 @@ class ModelRegistry:
         target = self.llm_path(model_id)
         partial = target.with_suffix(target.suffix + ".part")
         if target.exists() and not partial.exists():
-            actual_gb = target.stat().st_size / (1024 ** 3)
+            actual_gb = target.stat().st_size / 1e9
             log.info(
                 "Eksik %s (%.2f GB / %.2f GB beklenen) → resume için "
                 ".part'a çevriliyor",
@@ -823,9 +826,9 @@ class ModelRegistry:
                             supports_range = False
                         log.info(
                             "HEAD: server boyut=%d MB, Range=%s, partial=%d MB",
-                            server_total // (1024 * 1024),
+                            server_total // 1_000_000,
                             "var" if supports_range else "yok",
-                            existing // (1024 * 1024),
+                            existing // 1_000_000,
                         )
                     else:
                         log.warning("HEAD %d, normal GET denenecek",
@@ -976,7 +979,8 @@ class ModelRegistry:
             raise RuntimeError(f"Partial bulunamadı: {partial}")
 
         actual = partial.stat().st_size
-        expected_min = int(spec.size_gb * (1024 ** 3) * 0.90)  # %90 tolerans
+        # decimal SI (1 GB = 1e9 byte) — HF konvansiyonu
+        expected_min = int(spec.size_gb * 1e9 * 0.90)  # %90 tolerans
 
         if actual < expected_min:
             raise RuntimeError(
@@ -1117,7 +1121,7 @@ class ModelRegistry:
                                    cancel: threading.Event) -> None:
         import time
 
-        expected_total = int(spec.size_gb * (1024 ** 3))
+        expected_total = int(spec.size_gb * 1e9)  # decimal SI
         self._set_progress(
             model_id, status="downloading", downloaded=0,
             total=expected_total, error=None,

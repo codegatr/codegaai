@@ -22,11 +22,12 @@ const Models = (() => {
   }
 
   function fmtBytes(bytes) {
+    // Decimal SI (1 KB = 1000 B) - HuggingFace ve backend ile tutarlı
     if (!bytes) return "0 B";
     const units = ["B", "KB", "MB", "GB"];
     let i = 0;
     let v = bytes;
-    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+    while (v >= 1000 && i < units.length - 1) { v /= 1000; i++; }
     return v.toFixed(v < 10 && i > 0 ? 1 : 0) + " " + units[i];
   }
 
