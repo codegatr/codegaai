@@ -83,6 +83,21 @@ class ImageModelSpec:
     default: bool = False
 
 
+@dataclass(frozen=True)
+class AudioModelSpec:
+    """Ses modeli — TTS veya ASR."""
+    id: str
+    name: str
+    kind: str                  # "tts" | "asr"
+    hf_repo: str
+    size_gb: float
+    vram_gb: float
+    languages: tuple[str, ...] = ("tr", "en")
+    sample_rate: int = 22050   # TTS için varsayılan
+    description: str = ""
+    default: bool = False
+
+
 # ============================================================
 # Katalog
 # ============================================================
@@ -192,6 +207,56 @@ IMAGE_MODELS: tuple[ImageModelSpec, ...] = (
         default_height=1024,
         description=("En iyi açık T2I modeli. 24 GB VRAM ister; 12GB'da CPU "
                      "offload ile çalışır ama yavaş."),
+    ),
+)
+
+
+AUDIO_MODELS: tuple[AudioModelSpec, ...] = (
+    AudioModelSpec(
+        id="xtts-v2",
+        name="XTTS v2 (Coqui)",
+        kind="tts",
+        hf_repo="coqui/XTTS-v2",
+        size_gb=1.87,
+        vram_gb=2.0,
+        languages=("tr", "en", "es", "fr", "de", "it", "pt", "pl", "ru",
+                   "nl", "cs", "ar", "zh", "ja", "ko", "hu"),
+        sample_rate=24000,
+        description="17 dil destekli, 6 sn referans sesle ses kopyalama.",
+        default=True,
+    ),
+    AudioModelSpec(
+        id="piper-tr-medium",
+        name="Piper TR (medium)",
+        kind="tts",
+        hf_repo="rhasspy/piper-voices",
+        size_gb=0.06,
+        vram_gb=0.0,
+        languages=("tr",),
+        sample_rate=22050,
+        description="Hafif, hızlı CPU TTS. Sadece Türkçe.",
+    ),
+    AudioModelSpec(
+        id="faster-whisper-large-v3",
+        name="Faster Whisper Large v3",
+        kind="asr",
+        hf_repo="Systran/faster-whisper-large-v3",
+        size_gb=2.88,
+        vram_gb=4.0,
+        languages=("tr", "en", "ar", "fr", "de", "es", "ru", "zh", "ja",
+                   "ko", "it", "pt", "nl", "pl", "tr", "uk", "vi"),
+        description="OpenAI Whisper Large v3'ün CTranslate2 hızlandırılmış sürümü.",
+        default=True,
+    ),
+    AudioModelSpec(
+        id="faster-whisper-base",
+        name="Faster Whisper Base",
+        kind="asr",
+        hf_repo="Systran/faster-whisper-base",
+        size_gb=0.14,
+        vram_gb=1.0,
+        languages=("tr", "en"),
+        description="Hızlı, hafif. CPU'da bile çalışır.",
     ),
 )
 
@@ -322,6 +387,23 @@ class ModelRegistry:
         ]
 
     @staticmethod
+    def list_audio_models() -> list[dict[str, Any]]:
+        return [
+            {
+                "id": m.id, "name": m.name,
+                "type": "audio",
+                "kind": m.kind,
+                "hf_repo": m.hf_repo,
+                "size_gb": m.size_gb, "vram_gb": m.vram_gb,
+                "languages": list(m.languages),
+                "sample_rate": m.sample_rate,
+                "description": m.description,
+                "default": m.default,
+            }
+            for m in AUDIO_MODELS
+        ]
+
+    @staticmethod
     def get_llm_spec(model_id: str) -> Optional[LLMModelSpec]:
         for m in LLM_MODELS:
             if m.id == model_id:
@@ -338,6 +420,13 @@ class ModelRegistry:
     @staticmethod
     def get_image_spec(model_id: str) -> Optional[ImageModelSpec]:
         for m in IMAGE_MODELS:
+            if m.id == model_id:
+                return m
+        return None
+
+    @staticmethod
+    def get_audio_spec(model_id: str) -> Optional[AudioModelSpec]:
+        for m in AUDIO_MODELS:
             if m.id == model_id:
                 return m
         return None
@@ -398,6 +487,36 @@ class ModelRegistry:
             return True
         # FLUX ve bazı yeni modeller farklı yapıda
         if (d / "transformer").exists() or (d / "unet").exists():
+            return True
+        return False
+
+    def audio_dir_path(self, model_id: str) -> Path:
+        spec = self.get_audio_spec(model_id)
+        if not spec:
+            raise ValueError(f"Bilinmeyen audio modeli: {model_id}")
+        return self.audio_dir / model_id
+
+    def is_audio_downloaded(self, model_id: str) -> bool:
+        spec = self.get_audio_spec(model_id)
+        if not spec:
+            return False
+        d = self.audio_dir_path(model_id)
+        if not d.exists():
+            return False
+        # TTS modelleri config.json + model dosyası içerir
+        # ASR (faster-whisper) model.bin + tokenizer içerir
+        if spec.kind == "asr":
+            return (d / "model.bin").exists() or any(d.glob("*.bin"))
+        # TTS
+        return (d / "config.json").exists() or any(d.glob("*.pth"))
+
+    def delete_audio(self, model_id: str) -> bool:
+        d = self.audio_dir_path(model_id)
+        if d.exists():
+            shutil.rmtree(d)
+            log.info("Audio modeli silindi: %s", model_id)
+            with self._progress_lock:
+                self._progress.pop(model_id, None)
             return True
         return False
 
@@ -591,11 +710,14 @@ class ModelRegistry:
         HuggingFace snapshot_download ile multi-file repo indir.
 
         Args:
-            spec_kind: "image" | "video" | "audio"
+            spec_kind: "image" | "audio"
         """
         if spec_kind == "image":
             spec = self.get_image_spec(model_id)
             target_dir = self.image_dir_path(model_id) if spec else None
+        elif spec_kind == "audio":
+            spec = self.get_audio_spec(model_id)
+            target_dir = self.audio_dir_path(model_id) if spec else None
         else:
             raise ValueError(f"Henüz desteklenmiyor: {spec_kind}")
 
@@ -603,7 +725,13 @@ class ModelRegistry:
             raise ValueError(f"Bilinmeyen model: {model_id}")
 
         # Zaten var mı?
-        if spec_kind == "image" and self.is_image_downloaded(model_id):
+        already = False
+        if spec_kind == "image":
+            already = self.is_image_downloaded(model_id)
+        elif spec_kind == "audio":
+            already = self.is_audio_downloaded(model_id)
+
+        if already:
             self._set_progress(model_id, status="completed",
                                downloaded=int(spec.size_gb * 1024**3),
                                total=int(spec.size_gb * 1024**3))

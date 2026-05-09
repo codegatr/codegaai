@@ -24,6 +24,7 @@ from codegaai.core.engine import LLMEngine, GenerationConfig, DEFAULT_SYSTEM_PRO
 from codegaai.core.embeddings import EmbeddingService
 from codegaai.core.memory import MemoryStore
 from codegaai.core.image_engine import ImageEngine
+from codegaai.core.audio_engine import TTSEngine, ASREngine
 
 __all__ = [
     "ChatStore",
@@ -34,4 +35,6 @@ __all__ = [
     "EmbeddingService",
     "MemoryStore",
     "ImageEngine",
+    "TTSEngine",
+    "ASREngine",
 ]

@@ -72,6 +72,16 @@ async def engines() -> dict[str, Any]:
     except Exception:
         pass
 
+    # Audio motorları (Faz 5)
+    tts_status = {"state": "unloaded", "ready": False}
+    asr_status = {"state": "unloaded", "ready": False}
+    try:
+        from codegaai.core.audio_engine import TTSEngine, ASREngine
+        tts_status = TTSEngine.get().status
+        asr_status = ASREngine.get().status
+    except Exception:
+        pass
+
     return {
         "llm": {
             "active": llm.is_ready,
@@ -101,8 +111,10 @@ async def engines() -> dict[str, Any]:
             "phase": "Faz 4",
         },
         "audio": {
-            "active": False, "state": "unloaded",
-            "reason": "Faz 5'te gelecek (v0.5.0)",
+            "active": tts_status.get("ready", False) or asr_status.get("ready", False),
+            "tts": tts_status,
+            "asr": asr_status,
+            "phase": "Faz 5",
         },
         "video": {
             "active": False, "state": "unloaded",

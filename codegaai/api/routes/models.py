@@ -82,15 +82,43 @@ async def list_all_models() -> dict[str, Any]:
         for m in registry.list_image_models()
     ]
 
+    # Audio motorları (Faz 5'te eklendi)
+    tts_status = {"state": "unloaded", "ready": False}
+    asr_status = {"state": "unloaded", "ready": False}
+    try:
+        from codegaai.core.audio_engine import TTSEngine, ASREngine
+        tts_status = TTSEngine.get().status
+        asr_status = ASREngine.get().status
+    except Exception:
+        pass
+
+    audio_models = [
+        {
+            **m,
+            "downloaded": registry.is_audio_downloaded(m["id"]),
+            "loaded": (
+                (m["kind"] == "tts" and tts_status.get("model_id") == m["id"]
+                 and tts_status.get("ready", False)) or
+                (m["kind"] == "asr" and asr_status.get("model_id") == m["id"]
+                 and asr_status.get("ready", False))
+            ),
+            "download": registry.get_progress(m["id"]).to_dict(),
+        }
+        for m in registry.list_audio_models()
+    ]
+
     return {
         "llm": llm_models,
         "embedding": emb_models,
         "image": image_models,
+        "audio": audio_models,
         "disk_usage": registry.disk_usage(),
         "engines": {
             "llm": engine_status,
             "embedding": embedding.status,
             "image": img_status,
+            "tts": tts_status,
+            "asr": asr_status,
         },
     }
 
@@ -129,7 +157,8 @@ async def get_status(model_id: str) -> dict[str, Any]:
     registry = ModelRegistry.get()
     spec = (registry.get_llm_spec(model_id) or
             registry.get_embedding_spec(model_id) or
-            registry.get_image_spec(model_id))
+            registry.get_image_spec(model_id) or
+            registry.get_audio_spec(model_id))
     if not spec:
         raise HTTPException(404, f"Model bulunamadı: {model_id}")
 
@@ -146,11 +175,28 @@ async def get_status(model_id: str) -> dict[str, Any]:
         except Exception:
             loaded = False
         return {
-            "model_id": model_id,
-            "downloaded": downloaded,
-            "loaded": loaded,
-            "download": progress.to_dict(),
+            "model_id": model_id, "downloaded": downloaded,
+            "loaded": loaded, "download": progress.to_dict(),
             "kind": "image",
+        }
+
+    if registry.get_audio_spec(model_id):
+        audio_spec = registry.get_audio_spec(model_id)
+        downloaded = registry.is_audio_downloaded(model_id)
+        loaded = False
+        try:
+            from codegaai.core.audio_engine import TTSEngine, ASREngine
+            if audio_spec.kind == "tts":
+                eng = TTSEngine.get()
+            else:
+                eng = ASREngine.get()
+            loaded = eng.status.get("model_id") == model_id and eng.is_ready
+        except Exception:
+            pass
+        return {
+            "model_id": model_id, "downloaded": downloaded,
+            "loaded": loaded, "download": progress.to_dict(),
+            "kind": f"audio-{audio_spec.kind}",
         }
 
     return {
@@ -171,32 +217,29 @@ async def start_download(model_id: str) -> dict[str, Any]:
     # LLM (single GGUF file)
     if registry.get_llm_spec(model_id):
         if registry.is_llm_downloaded(model_id):
-            return {
-                "status": "already_downloaded",
-                "model_id": model_id,
-                "progress": registry.get_progress(model_id).to_dict(),
-            }
+            return {"status": "already_downloaded", "model_id": model_id,
+                    "progress": registry.get_progress(model_id).to_dict()}
         registry.download_llm_async(model_id)
-        return {
-            "status": "started",
-            "model_id": model_id,
-            "progress": registry.get_progress(model_id).to_dict(),
-        }
+        return {"status": "started", "model_id": model_id,
+                "progress": registry.get_progress(model_id).to_dict()}
 
     # Image (multi-file diffusion repo)
     if registry.get_image_spec(model_id):
         if registry.is_image_downloaded(model_id):
-            return {
-                "status": "already_downloaded",
-                "model_id": model_id,
-                "progress": registry.get_progress(model_id).to_dict(),
-            }
+            return {"status": "already_downloaded", "model_id": model_id,
+                    "progress": registry.get_progress(model_id).to_dict()}
         registry.download_snapshot_async(model_id, spec_kind="image")
-        return {
-            "status": "started",
-            "model_id": model_id,
-            "progress": registry.get_progress(model_id).to_dict(),
-        }
+        return {"status": "started", "model_id": model_id,
+                "progress": registry.get_progress(model_id).to_dict()}
+
+    # Audio (TTS / ASR)
+    if registry.get_audio_spec(model_id):
+        if registry.is_audio_downloaded(model_id):
+            return {"status": "already_downloaded", "model_id": model_id,
+                    "progress": registry.get_progress(model_id).to_dict()}
+        registry.download_snapshot_async(model_id, spec_kind="audio")
+        return {"status": "started", "model_id": model_id,
+                "progress": registry.get_progress(model_id).to_dict()}
 
     # Embedding — sentence-transformers ilk yüklemede otomatik indirir
     if registry.get_embedding_spec(model_id):
@@ -253,6 +296,18 @@ async def load_model(model_id: str,
             raise HTTPException(500, f"Image yükleme başarısız: {exc}")
         return {"loaded": True, "image": img.status}
 
+    if registry.get_audio_spec(model_id):
+        spec = registry.get_audio_spec(model_id)
+        from codegaai.core.audio_engine import TTSEngine, ASREngine
+        eng = TTSEngine.get() if spec.kind == "tts" else ASREngine.get()
+        try:
+            eng.load(model_id)
+        except RuntimeError as exc:
+            raise HTTPException(409, str(exc))
+        except Exception as exc:
+            raise HTTPException(500, f"{spec.kind.upper()} yükleme başarısız: {exc}")
+        return {"loaded": True, "audio": eng.status}
+
     raise HTTPException(404, f"Model bulunamadı: {model_id}")
 
 
@@ -277,6 +332,14 @@ async def unload_model(model_id: str) -> dict[str, Any]:
         img = ImageEngine.get()
         if img.status.get("model_id") == model_id:
             img.unload()
+        return {"unloaded": True}
+
+    if registry.get_audio_spec(model_id):
+        spec = registry.get_audio_spec(model_id)
+        from codegaai.core.audio_engine import TTSEngine, ASREngine
+        eng = TTSEngine.get() if spec.kind == "tts" else ASREngine.get()
+        if eng.status.get("model_id") == model_id:
+            eng.unload()
         return {"unloaded": True}
 
     raise HTTPException(404, f"Model bulunamadı: {model_id}")
@@ -305,5 +368,13 @@ async def delete_model(model_id: str) -> dict[str, Any]:
         if img.status.get("model_id") == model_id:
             img.unload()
         return {"deleted": registry.delete_image(model_id)}
+
+    if registry.get_audio_spec(model_id):
+        spec = registry.get_audio_spec(model_id)
+        from codegaai.core.audio_engine import TTSEngine, ASREngine
+        eng = TTSEngine.get() if spec.kind == "tts" else ASREngine.get()
+        if eng.status.get("model_id") == model_id:
+            eng.unload()
+        return {"deleted": registry.delete_audio(model_id)}
 
     raise HTTPException(404, f"Model bulunamadı: {model_id}")

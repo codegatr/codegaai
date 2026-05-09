@@ -95,6 +95,25 @@ try:
 except Exception as exc:
     print(f"[uyarı] transformers toplama atlandı: {exc}")
 
+# ---- Faz 5: faster-whisper (ASR) + TTS (XTTS) ----
+try:
+    fw_d, fw_b, fw_h = collect_all("faster_whisper")
+    datas += fw_d; binaries += fw_b; hiddenimports += fw_h
+except Exception as exc:
+    print(f"[uyarı] faster_whisper toplama atlandı: {exc}")
+
+try:
+    tts_d, tts_b, tts_h = collect_all("TTS")
+    datas += tts_d; binaries += tts_b; hiddenimports += tts_h
+except Exception as exc:
+    print(f"[uyarı] TTS toplama atlandı (devam ediyor): {exc}")
+
+try:
+    sf_d, sf_b, sf_h = collect_all("soundfile")
+    datas += sf_d; binaries += sf_b; hiddenimports += sf_h
+except Exception as exc:
+    print(f"[uyarı] soundfile toplama atlandı: {exc}")
+
 # ---- Statik veriler (UI + manifest) ----
 datas += [
     (str(PROJECT_ROOT / "codegaai" / "ui" / "web"), "codegaai/ui/web"),

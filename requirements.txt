@@ -55,11 +55,19 @@ Pillow>=10.4.0,<12.0.0
 safetensors>=0.4.5,<1.0.0
 
 # ============================================================
-# Faz 5-6 (Ses/Video) - YORUM SATIRINDA
+# Faz 5 (Ses TTS+ASR) - AKTİF
 # ============================================================
-# faster-whisper>=1.0.0
-# TTS>=0.22.0
-# soundfile>=0.12.0
+faster-whisper>=1.0.0,<2.0.0
+TTS>=0.22.0,<0.23.0
+soundfile>=0.12.0,<1.0.0
+
+# Piper TTS opsiyonel (hafif TR-only)
+# piper-tts>=1.2.0
+
+# ============================================================
+# Faz 6 (Video) - YORUM SATIRINDA
+# ============================================================
+# diffusers zaten Faz 4'te var, video için ek yok
 
 # ============================================================
 # Faz 7 (Self-Learning) - YORUM SATIRINDA

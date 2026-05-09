@@ -91,6 +91,14 @@ const API = (() => {
     imageDelete:   (id) => request(`/api/image/${id}`, {method:"DELETE"}),
     imageStatus:   () => request("/api/image/status"),
 
+    // ---- audio (Faz 5) ----
+    audioStatus:    () => request("/api/audio/status"),
+    audioVoices:    () => request("/api/audio/voices"),
+    audioList:      () => request("/api/audio/list?limit=50"),
+    audioDelete:    (id) => request(`/api/audio/${id}`, {method:"DELETE"}),
+    tts:            (body) => request("/api/audio/tts", {method:"POST", body: JSON.stringify(body)}),
+    // ASR multipart için ayrı (FormData)
+
     // ---- chats (kalıcı sohbet listesi) ----
     chatsList:   () => request("/api/chats"),
     chatsCreate: (title) => request("/api/chats", {

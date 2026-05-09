@@ -29,6 +29,7 @@
     System.init();
     Models.init();
     ImageView.init();
+    AudioView.init();
   }
 
   function setStatus(key, type, text) {

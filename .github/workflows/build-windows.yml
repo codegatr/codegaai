@@ -54,6 +54,11 @@ jobs:
           python -m pip install llama-cpp-python sentence-transformers chromadb huggingface_hub
           # Faz 4: diffusion image generation
           python -m pip install diffusers accelerate transformers Pillow safetensors
+          # Faz 5: TTS (Coqui XTTS) + ASR (faster-whisper)
+          python -m pip install faster-whisper soundfile
+          # TTS (Coqui) ağır bağımlılıklar getiriyor; başarısız olabilir,
+          # devam et:
+          python -m pip install TTS || echo "TTS install başarısız, devam"
 
       - name: List installed packages
         shell: pwsh

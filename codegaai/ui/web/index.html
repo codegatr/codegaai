@@ -27,7 +27,7 @@
       <div class="brand-mark">C</div>
       <div class="brand-text">
         <span class="brand-name">CODEGA AI</span>
-        <span class="brand-version" id="brand-version">v0.4.0</span>
+        <span class="brand-version" id="brand-version">v0.5.0</span>
       </div>
     </div>
 
@@ -87,7 +87,7 @@
     <div class="sidebar__footer">
       <div class="phase-indicator" id="phase-indicator">
         <span class="phase-dot"></span>
-        <span class="phase-text">Faz 4 / 8</span>
+        <span class="phase-text">Faz 5 / 8</span>
       </div>
     </div>
   </aside>
@@ -313,26 +313,77 @@
         <div>
           <h1 class="view-title">Ses</h1>
           <p class="view-subtitle">
-            <span class="status-pill status-pill--scheduled">
+            <span class="status-pill status-pill--pending" id="audio-engine-pill">
               <span class="status-pill__dot"></span>
-              Faz 5'te aktif olacak (v0.5.0)
+              <span id="audio-engine-status">motor durumu yükleniyor...</span>
             </span>
           </p>
         </div>
       </header>
 
-      <div class="placeholder-grid placeholder-grid--two">
-        <div class="placeholder-card placeholder-card--large">
-          <div class="placeholder-card__icon">🔊</div>
-          <h3>Türkçe Ses Sentezi (TTS)</h3>
-          <p>XTTS v2 ile gerçekçi Türkçe ses. 4 hazır ses (kadın/erkek, TR/EN),
-          hız ayarı, kendi sesini eğitebilme (zero-shot voice cloning).</p>
+      <div class="audio-studio">
+        <!-- TTS bölümü -->
+        <div class="audio-panel">
+          <h3 class="audio-panel__title">🔊 Metin → Ses (TTS)</h3>
+          <label class="form-label">
+            Sentezlenecek metin
+            <textarea id="tts-text" rows="4"
+              placeholder="Merhaba dünya! Ben CODEGA AI, yerelde çalışan yapay zeka asistanın."></textarea>
+          </label>
+          <div class="form-row">
+            <label class="form-label form-label--inline">
+              Dil
+              <select id="tts-language">
+                <option value="tr" selected>Türkçe</option>
+                <option value="en">İngilizce</option>
+                <option value="ar">Arapça</option>
+                <option value="fr">Fransızca</option>
+                <option value="de">Almanca</option>
+                <option value="es">İspanyolca</option>
+                <option value="ru">Rusça</option>
+              </select>
+            </label>
+          </div>
+          <button class="btn btn--primary btn--large" id="tts-btn">
+            Sese Çevir
+          </button>
+          <div class="image-status" id="tts-status"></div>
+          <div class="audio-list" id="tts-list">
+            <div class="image-gallery__empty">Henüz ses yok</div>
+          </div>
         </div>
-        <div class="placeholder-card placeholder-card--large">
-          <div class="placeholder-card__icon">🎙️</div>
-          <h3>Konuşma → Metin (ASR)</h3>
-          <p>faster-whisper Large v3 ile Türkçe başta olmak üzere 99 dil
-          desteği. Mikrofon veya ses dosyası yükleme.</p>
+
+        <!-- ASR bölümü -->
+        <div class="audio-panel">
+          <h3 class="audio-panel__title">🎙️ Ses → Metin (ASR)</h3>
+          <label class="form-label">
+            Ses dosyası yükle <span class="form-hint">(.wav, .mp3, .m4a, .ogg)</span>
+            <input type="file" id="asr-file" accept="audio/*">
+          </label>
+          <div class="form-row">
+            <label class="form-label form-label--inline">
+              Dil <span class="form-hint">(boş = otomatik)</span>
+              <select id="asr-language">
+                <option value="">Otomatik tespit</option>
+                <option value="tr" selected>Türkçe</option>
+                <option value="en">İngilizce</option>
+                <option value="ar">Arapça</option>
+                <option value="fr">Fransızca</option>
+              </select>
+            </label>
+            <label class="form-label form-label--inline">
+              Görev
+              <select id="asr-task">
+                <option value="transcribe" selected>Çevriyazı</option>
+                <option value="translate">İngilizceye çevir</option>
+              </select>
+            </label>
+          </div>
+          <button class="btn btn--primary btn--large" id="asr-btn">
+            Çevriyazı Yap
+          </button>
+          <div class="image-status" id="asr-status"></div>
+          <div class="asr-result" id="asr-result"></div>
         </div>
       </div>
     </section>
@@ -527,17 +578,17 @@
               <span class="roadmap__num">3</span>
               <div><strong>Faz 3 — LLM Motoru</strong><em>v0.3.x · tamamlandı</em></div>
             </li>
-            <li class="roadmap__item roadmap__item--current">
+            <li class="roadmap__item roadmap__item--done">
               <span class="roadmap__num">4</span>
-              <div><strong>Faz 4 — Görsel Üretim</strong><em>v0.4.0 · şu anda buradasın</em></div>
+              <div><strong>Faz 4 — Görsel Üretim</strong><em>v0.4.0 · tamamlandı</em></div>
             </li>
-            <li class="roadmap__item">
+            <li class="roadmap__item roadmap__item--current">
               <span class="roadmap__num">5</span>
-              <div><strong>Faz 5 — Ses (TTS + ASR)</strong><em>v0.5.0 · sıradaki</em></div>
+              <div><strong>Faz 5 — Ses (TTS + ASR)</strong><em>v0.5.0 · şu anda buradasın</em></div>
             </li>
             <li class="roadmap__item">
               <span class="roadmap__num">6</span>
-              <div><strong>Faz 6 — Video Üretim</strong><em>v0.6.0</em></div>
+              <div><strong>Faz 6 — Video Üretim</strong><em>v0.6.0 · sıradaki</em></div>
             </li>
             <li class="roadmap__item">
               <span class="roadmap__num">7</span>
@@ -579,6 +630,7 @@
   <script src="/js/system.js"></script>
   <script src="/js/models.js"></script>
   <script src="/js/image.js"></script>
+  <script src="/js/audio.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>
