@@ -258,12 +258,34 @@ class MemoryStore:
 # ============================================================
 
 class _CodegaEmbeddingFunction:
-    """ChromaDB'nin embedding callable arayüzünü kendi servisimize yönlendirir."""
+    """
+    ChromaDB embedding fonksiyonu adaptörü.
 
-    def __call__(self, input: list[str]) -> list[list[float]]:
+    ChromaDB sürümleri arasında arayüz değişti — birden fazla protokol
+    desteklenir:
+    - __call__(input)              → eski Chroma + chromadb.utils
+    - embed_documents(texts)       → LangChain-style (yeni Chroma)
+    - embed_query(text)            → LangChain-style sorgular için tek metin
+    Hepsi aynı `EmbeddingService.embed()` altyapısını kullanır.
+    """
+
+    def __call__(self, input):
         from codegaai.core.embeddings import EmbeddingService
         svc = EmbeddingService.get()
-        return svc.embed(input)
+        # ChromaDB bazen tek string, bazen list gönderir
+        if isinstance(input, str):
+            return svc.embed([input])[0]
+        return svc.embed(list(input))
+
+    def embed_documents(self, texts):
+        """LangChain-style — bir liste metni vektörlere çevir."""
+        from codegaai.core.embeddings import EmbeddingService
+        return EmbeddingService.get().embed(list(texts))
+
+    def embed_query(self, text):
+        """LangChain-style — tek metni vektöre çevir."""
+        from codegaai.core.embeddings import EmbeddingService
+        return EmbeddingService.get().embed([text])[0]
 
     @classmethod
     def name(cls) -> str:
