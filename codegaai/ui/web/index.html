@@ -27,7 +27,7 @@
       <div class="brand-mark">C</div>
       <div class="brand-text">
         <span class="brand-name">CODEGA AI</span>
-        <span class="brand-version" id="brand-version">v1.5.0</span>
+        <span class="brand-version" id="brand-version">v1.6.0</span>
         <button class="update-badge" id="update-badge" hidden
                 title="Yeni sürüm mevcut">
           <span id="update-badge-text">Yeni!</span>
@@ -142,6 +142,10 @@
       <button class="nav-item" data-view="vision">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
         <span>Vision</span>
+      </button>
+      <button class="nav-item" data-view="federation">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><path d="m12 8 6.9 9.5M12 8 5.1 17.5M5 16l7-6 7 6"/></svg>
+        <span>Ağ</span>
       </button>
     </nav>
 
@@ -632,6 +636,65 @@
         <h3 class="learning-section__subtitle">Adapter'ler</h3>
         <div class="adapters-list" id="adapters-list">
           <div class="image-gallery__empty">Henüz adapter yok — DPO eğitimi sonrası burada listelenir</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Federe Ağ (Faz 12) ─── -->
+    <section class="view" data-view="federation">
+      <header class="view-header">
+        <div>
+          <h1 class="view-title">Federe Öğrenme Ağı</h1>
+          <p class="view-subtitle">
+            <span class="status-pill status-pill--off" id="fed-pill">
+              <span class="status-pill__dot"></span>
+              Ağ Bağlantısı Kapalı
+            </span>
+          </p>
+        </div>
+      </header>
+
+      <!-- Durum Kartı -->
+      <div class="card" style="margin-bottom:var(--space-4)">
+        <div class="card-title">Ağ Durumu</div>
+        <div class="learn-stats-grid" id="fed-stats">
+          <p class="form-hint">Yükleniyor...</p>
+        </div>
+        <div style="margin-top:var(--space-3);display:flex;gap:var(--space-2)">
+          <button class="btn btn--primary" id="fed-enable-btn">Ağa Katıl</button>
+          <button class="btn btn--ghost" id="fed-disable-btn" hidden>Ağdan Çık</button>
+          <button class="btn btn--ghost" id="fed-sync-btn" hidden>Manuel Sync</button>
+        </div>
+      </div>
+
+      <!-- Açıklama -->
+      <div class="card" style="margin-bottom:var(--space-4)">
+        <div class="card-title">Nasıl Çalışır?</div>
+        <div style="display:grid;gap:var(--space-3);margin-top:var(--space-2)">
+          <div class="feed-item feed-item--on">
+            <div class="feed-item__info">
+              <strong>🔒 Gizlilik Önce</strong>
+              <span class="form-hint">Ham konuşmalar ASLA gönderilmez. Sadece anonim istatistikler ve konu hash'leri.</span>
+            </div>
+          </div>
+          <div class="feed-item feed-item--on">
+            <div class="feed-item__info">
+              <strong>⚡ Dağıtık Güç</strong>
+              <span class="form-hint">Her cihaz öğrendiklerini paylaşır, merkez toplar, tüm node'lar güncellenir.</span>
+            </div>
+          </div>
+          <div class="feed-item feed-item--on">
+            <div class="feed-item__info">
+              <strong>🧠 Federated Averaging</strong>
+              <span class="form-hint">LoRA adapter gradyanları ortalanır → her cihaz topluluğun bilgisinden faydalanır.</span>
+            </div>
+          </div>
+          <div class="feed-item feed-item--off">
+            <div class="feed-item__info">
+              <strong>🌐 Koordinatör: ai.codega.com.tr</strong>
+              <span class="form-hint">Merkez sunucu bilgileri birleştirir ve dağıtır. 7/24 aktif.</span>
+            </div>
+          </div>
         </div>
       </div>
     </section>

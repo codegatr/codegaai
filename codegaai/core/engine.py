@@ -134,16 +134,16 @@ class LLMEngine:
     # ---- yükleme ----
 
     def load(self, model_id: str,
-             n_ctx: int = 8192,
+             n_ctx: int = 0,
              n_gpu_layers: int = -1) -> None:
         """
         Modeli belleğe yükle.
 
         Args:
             model_id: Registry'deki model id'si.
-            n_ctx: Bağlam penceresi token sayısı.
-            n_gpu_layers: -1 = mümkün olan tüm katmanları GPU'ya at.
-                          0 = saf CPU. RTX 3060 12GB için -1 önerilir.
+            n_ctx: 0 = modelin maksimum context_length'ini kullan.
+            n_gpu_layers: -1 = tüm katmanları GPU'ya at.
+                          0 = saf CPU. RTX 3060 6GB → otomatik tespit.
         """
         registry = ModelRegistry.get()
         spec = registry.get_llm_spec(model_id)
@@ -167,14 +167,39 @@ class LLMEngine:
         )
 
         try:
-            # Lazy import — sadece burada
             from llama_cpp import Llama  # type: ignore[import-not-found]
+
+            # n_ctx: 0 verilirse modelin tam context'ini kullan
+            effective_ctx = n_ctx or spec.context_length
+
+            # VRAM otomatik tespiti — 6 GB laptop için smart layer count
+            effective_gpu_layers = n_gpu_layers
+            if effective_gpu_layers == -1:
+                try:
+                    import torch
+                    if torch.cuda.is_available():
+                        vram_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
+                        # Model boyutuna göre tahmini GPU katman sayısı
+                        # Qwen 7B Q4 ~4.68 GB: 6 GB VRAM'da tüm katmanlar sığar
+                        if spec.vram_gb <= vram_gb * 0.85:
+                            effective_gpu_layers = -1  # Tam GPU
+                        else:
+                            # Kısmi GPU: oran bazlı katman sayısı
+                            ratio = (vram_gb * 0.8) / spec.vram_gb
+                            effective_gpu_layers = int(32 * ratio)
+                            log.info("VRAM %.1f GB, model %.1f GB → %d katman GPU",
+                                     vram_gb, spec.vram_gb, effective_gpu_layers)
+                    else:
+                        effective_gpu_layers = 0  # CPU only
+                except Exception:
+                    effective_gpu_layers = 0
 
             self._llm = Llama(
                 model_path=str(path),
-                n_ctx=min(n_ctx, spec.context_length),
-                n_gpu_layers=n_gpu_layers,
-                n_threads=None,         # otomatik
+                n_ctx=effective_ctx,
+                n_gpu_layers=effective_gpu_layers,
+                n_threads=None,         # otomatik CPU thread
+                n_batch=512,            # batch boyutu (performans için)
                 verbose=False,
                 seed=-1,
             )
@@ -186,10 +211,10 @@ class LLMEngine:
                 model_path=str(path),
                 loaded_at=time.time(),
                 backend=backend,
-                context_length=min(n_ctx, spec.context_length),
+                context_length=effective_ctx,
             )
-            log.info("LLM hazır: %s [%s, %d ctx]",
-                     model_id, backend, self._status.context_length)
+            log.info("LLM hazır: %s [%s, %d ctx, %d GPU katman]",
+                     model_id, backend, effective_ctx, effective_gpu_layers)
 
         except Exception as exc:
             log.exception("LLM yüklemesi başarısız: %s", exc)

@@ -48,3 +48,55 @@
     }
   }
 })();
+
+    // Federe ağ UI (basit inline init)
+    (function() {
+      const statEl = document.getElementById("fed-stats");
+      const pillEl = document.getElementById("fed-pill");
+      const enableBtn = document.getElementById("fed-enable-btn");
+      const disableBtn = document.getElementById("fed-disable-btn");
+      const syncBtn = document.getElementById("fed-sync-btn");
+      if (!statEl) return;
+
+      async function load() {
+        try {
+          const r = await fetch("/api/federation/status");
+          const d = await r.json();
+          const enabled = d.enabled;
+
+          if (pillEl) {
+            pillEl.className = `status-pill ${enabled ? "status-pill--ok" : "status-pill--off"}`;
+            pillEl.innerHTML = `<span class="status-pill__dot"></span>${enabled ? d.state : "Ağ Bağlantısı Kapalı"}`;
+          }
+          if (enableBtn) enableBtn.hidden = enabled;
+          if (disableBtn) disableBtn.hidden = !enabled;
+          if (syncBtn) syncBtn.hidden = !enabled;
+
+          statEl.innerHTML = `
+            <div class="learn-stat"><span class="learn-stat__label">Durum</span><span class="learn-stat__val">${d.state}</span></div>
+            <div class="learn-stat"><span class="learn-stat__label">Node ID</span><span class="learn-stat__val" style="font-family:monospace;font-size:11px">${d.node_id}</span></div>
+            <div class="learn-stat"><span class="learn-stat__label">Komşu Node</span><span class="learn-stat__val">${d.peers_count}</span></div>
+            <div class="learn-stat"><span class="learn-stat__label">Alınan Bilgi</span><span class="learn-stat__val">${d.knowledge_received} öğe</span></div>
+            <div class="learn-stat"><span class="learn-stat__label">Son Sync</span><span class="learn-stat__val">${d.last_sync ? new Date(d.last_sync*1000).toLocaleString("tr-TR") : "—"}</span></div>`;
+        } catch (e) {}
+      }
+
+      if (enableBtn) enableBtn.addEventListener("click", async () => {
+        await fetch("/api/federation/enable", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({coordinator:"https://ai.codega.com.tr/api/federation"})});
+        load();
+      });
+      if (disableBtn) disableBtn.addEventListener("click", async () => {
+        await fetch("/api/federation/disable", {method:"POST"});
+        load();
+      });
+      if (syncBtn) syncBtn.addEventListener("click", async () => {
+        syncBtn.textContent = "Sync...";
+        syncBtn.disabled = true;
+        await fetch("/api/federation/sync", {method:"POST"});
+        load();
+        syncBtn.textContent = "Manuel Sync";
+        syncBtn.disabled = false;
+      });
+
+      load();
+    })();

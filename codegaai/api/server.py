@@ -191,10 +191,12 @@ def create_app() -> FastAPI:
     # Streaming chat (SSE)
     from codegaai.api.routes import stream as stream_routes
     from codegaai.api.routes import vision as vision_routes
+    from codegaai.api.routes import federation as federation_routes
     app.include_router(stream_routes.router, prefix="/api/chat", tags=["stream"])
     app.include_router(vision_routes.router, prefix="/api/vision", tags=["vision"])
+    app.include_router(federation_routes.router, prefix="/api/federation", tags=["federation"])
 
-    # Zamanlayıcıyı başlat (web öğrenme, RSS, otomatik güncelleme kontrolü)
+    # Zamanlayıcıyı başlat + modelleri otomatik yükle
     @app.on_event("startup")
     async def _start_scheduler():
         try:
@@ -203,6 +205,52 @@ def create_app() -> FastAPI:
             log.info("Zamanlayıcı başlatıldı (Faz 10)")
         except Exception as exc:
             log.warning("Zamanlayıcı başlatılamadı: %s", exc)
+
+        # Otomatik model yükleme
+        cfg = get_config()
+        server_cfg = cfg.get("server", {})
+        if server_cfg.get("auto_load_model", True):
+            import threading
+            def _auto_load():
+                import time
+                time.sleep(2)  # UI hazır olsun
+                try:
+                    from codegaai.core.models_registry import ModelRegistry
+                    from codegaai.core.engine import LLMEngine
+                    from codegaai.core.embeddings import EmbeddingService
+
+                    reg = ModelRegistry.get()
+                    engine = LLMEngine.get()
+
+                    # Son kullanılan modeli bul (indirilmiş olanlardan)
+                    downloaded = [
+                        m for m in reg.list_llm_models()
+                        if reg.is_llm_downloaded(m["id"])
+                    ]
+
+                    if downloaded and not engine.is_ready:
+                        # Önce varsayılan, yoksa ilk indirilen
+                        default = next(
+                            (m for m in downloaded if m.get("default")),
+                            downloaded[0],
+                        )
+                        log.info("Otomatik model yükleme: %s", default["id"])
+                        engine.load(default["id"])
+
+                    # BGE-M3 otomatik yükle
+                    if server_cfg.get("auto_load_embedding", True):
+                        emb = EmbeddingService.get()
+                        if not emb.is_ready:
+                            emb_downloaded = reg.is_embedding_downloaded("bge-m3")
+                            if emb_downloaded:
+                                log.info("Otomatik embedding yükleme: bge-m3")
+                                emb.load("bge-m3")
+
+                except Exception as exc:
+                    log.warning("Otomatik model yükleme başarısız: %s", exc)
+
+            threading.Thread(target=_auto_load, daemon=True,
+                             name="auto-loader").start()
 
     # ---- Statik UI dosyaları ----
     if UI_ROOT.exists():

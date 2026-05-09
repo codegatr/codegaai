@@ -258,5 +258,24 @@ def setup_scheduler() -> Scheduler:
         enabled=True,
     )
 
+    # 4. Federe ağ senkronizasyonu (6 saatte bir)
+    def _federation_sync():
+        try:
+            from codegaai.core.federation import FederationManager
+            fm = FederationManager.get()
+            if fm.is_enabled:
+                result = fm.sync()
+                log.info("Federe sync: %s", result)
+        except Exception as exc:
+            log.debug("Federation sync hatası: %s", exc)
+
+    sched.register(
+        "federation_sync",
+        "Federe Ağ Senkronizasyonu",
+        _federation_sync,
+        interval_seconds=6 * 3600,
+        enabled=True,
+    )
+
     sched.start()
     return sched

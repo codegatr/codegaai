@@ -269,28 +269,24 @@ class _CodegaEmbeddingFunction:
     Hepsi aynı `EmbeddingService.embed()` altyapısını kullanır.
     """
 
-    def __call__(self, input=None, texts=None, **kwargs):
+    def __call__(self, input):
+        """ChromaDB EmbeddingFunction protokolü — signature tam olarak (self, input) olmalı."""
         from codegaai.core.embeddings import EmbeddingService
         svc = EmbeddingService.get()
-        data = input or texts
-        if isinstance(data, str):
-            return svc.embed([data])
-        return svc.embed(list(data))
+        if isinstance(input, str):
+            return svc.embed([input])
+        return svc.embed(list(input))
 
-    def embed_documents(self, texts=None, input=None, **kwargs):
+    def embed_documents(self, texts):
         """LangChain-style — liste metni vektörlere çevir."""
         from codegaai.core.embeddings import EmbeddingService
-        data = texts or input or []
-        return EmbeddingService.get().embed(list(data))
+        return EmbeddingService.get().embed(list(texts))
 
-    def embed_query(self, text=None, input=None, **kwargs):
-        """LangChain-style — tek metni vektöre çevir.
-        ChromaDB bazen text=, bazen input= ile çağırır."""
+    def embed_query(self, text):
+        """LangChain-style — tek metni vektöre çevir."""
         from codegaai.core.embeddings import EmbeddingService
-        t = text or input
-        if isinstance(t, list):
-            t = t[0]
-        return EmbeddingService.get().embed([str(t)])[0]
+        t = text if isinstance(text, str) else str(text)
+        return EmbeddingService.get().embed([t])[0]
 
     @classmethod
     def name(cls) -> str:

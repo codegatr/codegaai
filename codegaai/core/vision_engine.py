@@ -193,17 +193,33 @@ class VisionEngine:
             kwargs["device_map"] = "auto"
 
         if spec.id == "moondream2":
-            # moondream2: özel yükleme (revision sabit)
-            self._model = AutoModelForCausalLM.from_pretrained(
-                spec.hf_repo,
-                revision="2025-01-09",
-                **kwargs,
-            ).eval()
-            self._tokenizer = AutoTokenizer.from_pretrained(
-                spec.hf_repo,
-                revision="2025-01-09",
-                cache_dir=cache_dir,
-            )
+            # moondream2: pyvips gerektirmeyen kararlı revision
+            # 2024-08-26 revision'ı pyvips bağımlılığı içermiyor
+            MOONDREAM_REVISION = "2024-08-26"
+            try:
+                self._model = AutoModelForCausalLM.from_pretrained(
+                    spec.hf_repo,
+                    revision=MOONDREAM_REVISION,
+                    **kwargs,
+                ).eval()
+                self._tokenizer = AutoTokenizer.from_pretrained(
+                    spec.hf_repo,
+                    revision=MOONDREAM_REVISION,
+                    cache_dir=cache_dir,
+                )
+            except Exception as e:
+                # Revision başarısız → pyvips'siz en son deneme
+                log.warning("moondream2 revision %s başarısız: %s, "
+                            "pyvips olmadan denenecek", MOONDREAM_REVISION, e)
+                # pyvips import'unu engelle
+                import sys
+                sys.modules["pyvips"] = type(sys)("pyvips_stub")
+                self._model = AutoModelForCausalLM.from_pretrained(
+                    spec.hf_repo, **kwargs,
+                ).eval()
+                self._tokenizer = AutoTokenizer.from_pretrained(
+                    spec.hf_repo, cache_dir=cache_dir,
+                )
             self._processor = None
 
         elif "Qwen2-VL" in spec.hf_repo:
