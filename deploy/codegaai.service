@@ -1,0 +1,46 @@
+[Unit]
+Description=CODEGA AI - Yerel Çok-Modlu Yapay Zeka Asistanı
+Documentation=https://github.com/codegatr/codegaai
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=codegaai
+Group=codegaai
+WorkingDirectory=/opt/codegaai
+
+# Yapılandırma — install.sh tarafından üretilen auth + server env'leri
+EnvironmentFile=/etc/codegaai/auth.env
+
+# Python venv'in PATH'i
+Environment="PATH=/opt/codegaai/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+
+# Başlatma
+ExecStart=/opt/codegaai/venv/bin/python /opt/codegaai/launcher.py --serve
+
+# Yeniden başlatma politikası
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Güvenlik (sandboxing)
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=false  # GPU erişimi gerekebilir
+ReadWritePaths=/var/lib/codegaai /opt/codegaai/data
+
+# Kaynak limitleri
+LimitNOFILE=65536
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=codegaai
+
+[Install]
+WantedBy=multi-user.target

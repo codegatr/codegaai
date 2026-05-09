@@ -104,10 +104,35 @@ def cmd_serve() -> int:
 
     cfg = get_config()
     server_cfg = cfg["server"]
+    auth_cfg = cfg.get("auth", {})
 
-    log.info("CODEGA AI sunucusu başlatılıyor (sadece backend modu).")
-    log.info("UI'a tarayıcıdan erişmek için: http://%s:%d/",
-             server_cfg["host"], server_cfg["port"])
+    is_server_mode = server_cfg.get("mode") == "server"
+    auth_enabled = bool((auth_cfg.get("token") or "").strip())
+    host = server_cfg["host"]
+    port = server_cfg["port"]
+
+    if is_server_mode:
+        log.info("=" * 60)
+        log.info("CODEGA AI - SERVER MODU (production)")
+        log.info("=" * 60)
+        log.info("Bind:  %s:%d", host, port)
+        log.info("Auth:  %s", "AKTIF" if auth_enabled else
+                 "!!! KAPALI - SERVER MODUNDA TOKEN ZORUNLU !!!")
+        log.info("Veri:  %s", get_paths()["data"])
+
+        if not auth_enabled:
+            log.error("Server modunda auth.token boş olamaz.")
+            log.error("Token oluştur: openssl rand -hex 32")
+            log.error("Set: export CODEGAAI_AUTH__TOKEN=<token>")
+            log.error("Veya /etc/codegaai/auth.env içine yaz.")
+            return 2
+
+        if host == "127.0.0.1":
+            log.warning("host=127.0.0.1 — sadece yerel erişim.")
+            log.warning("Public deployment için CODEGAAI_SERVER__HOST=0.0.0.0")
+    else:
+        log.info("CODEGA AI sunucusu başlatılıyor (backend-only).")
+        log.info("UI: http://%s:%d/", host, port)
 
     try:
         from codegaai.api.server import run_server

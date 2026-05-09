@@ -115,6 +115,22 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "port": 8765,
         "log_level": "info",
         "auto_open_ui": True,
+        # Server modu (Linux sunucu, headless): UI başlatmaz, public bind
+        # CODEGAAI_SERVER__MODE=true env veya --server flag ile aktif
+        "mode": "desktop",  # desktop | server
+        # Public deployment için CORS allowed origins
+        "cors_origins": [],  # boş = same-origin only
+    },
+    "auth": {
+        # Token boş ise auth devre dışı (tek-kullanıcı masaüstü modu).
+        # Server modu için MUTLAKA ayarlanmalı (env: CODEGAAI_AUTH__TOKEN
+        # veya /etc/codegaai/auth.env üzerinden).
+        # Üretmek için: openssl rand -hex 32
+        "token": "",
+        "session_cookie": "codegaai_session",
+        "session_max_age": 30 * 24 * 3600,  # 30 gün
+        # HTTPS arkasında ise secure=true (cookie sadece HTTPS'te gönderilir)
+        "cookie_secure": False,
     },
     "models": {
         # Faz 2+ ile aktive olacak; isimler manifest.json ile senkron

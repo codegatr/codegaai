@@ -78,19 +78,84 @@ def create_app() -> FastAPI:
         openapi_url="/api/openapi.json",
     )
 
-    # CORS - sadece localhost
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[
-            "http://127.0.0.1",
-            "http://localhost",
-            "null",  # PyWebView'in file:// kontekstinde origin null olabilir
-        ],
-        allow_origin_regex=r"^https?://(127\.0\.0\.1|localhost)(:\d+)?$",
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+    # ---- CORS — masaüstü modunda lokal, server modunda config'e göre ----
+    cfg = get_config()
+    server_cfg = cfg.get("server", {})
+    is_server_mode = server_cfg.get("mode") == "server"
+    cors_origins = list(server_cfg.get("cors_origins") or [])
+
+    if is_server_mode and cors_origins:
+        # Public deployment — sadece izin verilen origin'ler
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+        log.info("CORS: server modu, izin verilen origin'ler: %s", cors_origins)
+    else:
+        # Masaüstü modu — sadece localhost
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[
+                "http://127.0.0.1",
+                "http://localhost",
+                "null",
+            ],
+            allow_origin_regex=r"^https?://(127\.0\.0\.1|localhost)(:\d+)?$",
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
+    # ---- Auth middleware (yetkisiz isteği login sayfasına yönlendirir) ----
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.responses import RedirectResponse
+    from codegaai.api.auth import (
+        is_auth_enabled, get_token, get_session_cookie_name,
+        constant_time_compare,
     )
+
+    # Auth istemeyen yollar (login akışı + statikler + sağlık)
+    PUBLIC_PATHS = {
+        "/login", "/api/auth/login", "/api/auth/logout",
+        "/api/auth/status", "/api", "/api/system/health",
+        "/api/docs", "/api/redoc", "/api/openapi.json",
+        "/favicon.ico",
+    }
+    PUBLIC_PREFIXES = ("/css/", "/js/", "/img/", "/ui/static/")
+
+    class AuthRedirectMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request, call_next):
+            if not is_auth_enabled():
+                return await call_next(request)
+
+            path = request.url.path
+            if path in PUBLIC_PATHS or any(
+                path.startswith(p) for p in PUBLIC_PREFIXES
+            ):
+                return await call_next(request)
+
+            # Cookie kontrolü
+            cookie_val = request.cookies.get(get_session_cookie_name(), "")
+            expected = get_token()
+            if cookie_val and constant_time_compare(cookie_val, expected):
+                return await call_next(request)
+
+            # Bearer header kontrolü (API çağrıları)
+            auth_header = request.headers.get("authorization", "")
+            if auth_header.lower().startswith("bearer "):
+                token = auth_header[7:].strip()
+                if constant_time_compare(token, expected):
+                    return await call_next(request)
+
+            # API ise 401, sayfa ise login redirect
+            if path.startswith("/api/"):
+                return JSONResponse({"detail": "Yetkisiz"}, status_code=401)
+            return RedirectResponse(url="/login", status_code=302)
+
+    app.add_middleware(AuthRedirectMiddleware)
 
     # ---- API rotaları ----
     from codegaai.api.routes import system as system_routes
@@ -103,6 +168,10 @@ def create_app() -> FastAPI:
     from codegaai.api.routes import memory as memory_routes
     from codegaai.api.routes import learning as learning_routes
     from codegaai.api.routes import updater as updater_routes
+    from codegaai.api.routes import auth as auth_routes
+
+    # Auth rotaları (prefix YOK — /login direk olmalı)
+    app.include_router(auth_routes.router, tags=["auth"])
 
     app.include_router(system_routes.router, prefix="/api/system", tags=["system"])
     app.include_router(models_routes.router, prefix="/api/models", tags=["models"])

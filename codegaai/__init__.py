@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Demirhan
 Lisans: MIT
 """
 
-__version__ = "0.8.7"
-__phase__ = "Faz 8 - Akıllı Güncelleme [scipy excludes bug fix - KÖKLÜ ÇÖZÜM]"
+__version__ = "1.0.0"
+__phase__ = "v1.0.0 - Production: Masaüstü + Linux Sunucu + Auth"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

@@ -1,8 +1,8 @@
 {
   "name": "CODEGA AI",
   "slug": "codegaai",
-  "version": "0.8.1",
-  "phase": "Faz 8 + Windows rename hotfix (Path.rename → os.replace)",
+  "version": "1.0.0",
+  "phase": "v1.0.0 - Production: Masaüstü + Linux Sunucu + Auth",
   "description": "Yerelde çalışan, kendi kendine öğrenen, çok modlu yapay zeka platformu. RTX 3060+ ve 16GB+ RAM için optimize edilmiştir.",
   "author": "CODEGA",
   "license": "MIT",
@@ -13,7 +13,11 @@
   "requires": {
     "python": ">=3.10,<3.13",
     "python_note": "3.13+ desteklenmiyor (pywebview pythonnet bağımlılığı henüz wheel yayınlamadı)",
-    "os": ["windows", "linux", "macos"],
+    "os": [
+      "windows",
+      "linux",
+      "macos"
+    ],
     "ram_gb_min": 16,
     "ram_gb_recommended": 24,
     "vram_gb_min": 6,
@@ -45,16 +49,34 @@
   "models": {
     "llm": {
       "default": "qwen2.5-7b-instruct-q4_k_m",
-      "alternatives": ["qwen2.5-coder-7b-instruct-q4_k_m", "llama-3.1-8b-instruct-q4_k_m", "aya-expanse-8b-q4_k_m"]
+      "alternatives": [
+        "qwen2.5-coder-7b-instruct-q4_k_m",
+        "llama-3.1-8b-instruct-q4_k_m",
+        "aya-expanse-8b-q4_k_m"
+      ]
     },
-    "embedding": {"default": "bge-m3"},
+    "embedding": {
+      "default": "bge-m3"
+    },
     "image": {
       "default": "stable-diffusion-xl-base-1.0",
-      "alternatives": ["flux.1-schnell", "sdxl-turbo"]
+      "alternatives": [
+        "flux.1-schnell",
+        "sdxl-turbo"
+      ]
     },
-    "video": {"default": "cogvideox-2b"},
-    "tts": {"default": "xtts-v2", "alternatives": ["piper-tr"]},
-    "asr": {"default": "faster-whisper-large-v3"}
+    "video": {
+      "default": "cogvideox-2b"
+    },
+    "tts": {
+      "default": "xtts-v2",
+      "alternatives": [
+        "piper-tr"
+      ]
+    },
+    "asr": {
+      "default": "faster-whisper-large-v3"
+    }
   },
   "phases_complete": [
     "Faz 1 - Temel İskelet",
@@ -66,7 +88,8 @@
     "Faz 5 - Ses (XTTS v2 TTS 17 dil + Piper TR + faster-whisper Large v3 ASR + segmentli çevriyazı + ses kopyalama)",
     "Faz 6 - Video Üretim (CogVideoX-2B/5B text-to-video + Stable Video Diffusion image-to-video + diffusers wrapper + MP4 export)",
     "Faz 7 - Self-Learning (mesajlara 👍/👎 feedback + SQLite FeedbackStore + DPO tercih çiftleri + LoRA AdapterManager + DPOTrainer wrapper)",
-    "Faz 8 - Akıllı Güncelleme (GitHub Releases API + version compare + async ZIP indirme + self-replace batch script + UI banner/modal)"
+    "Faz 8 - Akıllı Güncelleme (GitHub Releases API + version compare + async ZIP indirme + self-replace batch script + UI banner/modal)",
+    "Faz 9 - Linux Sunucu Deploy + Token Auth (systemd + nginx + Let's Encrypt)"
   ],
   "phases_pending": []
 }
