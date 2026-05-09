@@ -54,7 +54,20 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-          python -m pip install llama-cpp-python sentence-transformers chromadb huggingface_hub
+          # llama-cpp-python: CPU universal build (AVX2 YOK = tüm CPU'larda çalışır)
+          # 0xC000001D hatası: AVX2 desteklemeyen CPU'da AVX2 build çalışmaz
+          # Çözüm: özel pre-built wheel index + no-AVX cmake flags
+          $env:CMAKE_ARGS = "-DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_F16C=OFF -DLLAMA_FMA=OFF"
+          $env:FORCE_CMAKE = "1"
+          python -m pip install llama-cpp-python `
+            --prefer-binary `
+            --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu `
+            --no-cache-dir
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Pre-built wheel yok, kaynaktan derleniyor (yavaş)..."
+            python -m pip install llama-cpp-python --no-cache-dir
+          }
+          python -m pip install sentence-transformers chromadb huggingface_hub
           # sentence-transformers transitive: scipy + scikit-learn bazen
           # otomatik gelmiyor (özellikle PyInstaller bundle'da). Acik koy:
           python -m pip install scipy scikit-learn

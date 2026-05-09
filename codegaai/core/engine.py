@@ -216,6 +216,30 @@ class LLMEngine:
             log.info("LLM hazır: %s [%s, %d ctx, %d GPU katman]",
                      model_id, backend, effective_ctx, effective_gpu_layers)
 
+        except OSError as exc:
+            err_str = str(exc)
+            if "0xc000001d" in err_str.lower() or "-1073741795" in err_str:
+                fix_msg = (
+                    "CPU'nuz AVX2 desteği içermeyen llama-cpp-python build'i gerektiriyor.\n"
+                    "Otomatik düzeltme için uygulama dizinindeki 'fix_llama.bat' dosyasını çalıştırın.\n"
+                    "Ya da terminalde: pip install llama-cpp-python --prefer-binary "
+                    "--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu"
+                )
+                log.error("CPU UYUMSUZLUĞU (0xC000001D): %s", fix_msg)
+                self._write_fix_script()
+                self._status = EngineStatus(
+                    state="error", model_id=model_id,
+                    model_path=str(path),
+                    error=f"CPU uyumsuzluğu (AVX2). fix_llama.bat'ı çalıştırın.\n{fix_msg}",
+                )
+            else:
+                log.exception("LLM yüklemesi başarısız: %s", exc)
+                self._status = EngineStatus(
+                    state="error", model_id=model_id,
+                    model_path=str(path), error=str(exc),
+                )
+            raise
+
         except Exception as exc:
             log.exception("LLM yüklemesi başarısız: %s", exc)
             self._status = EngineStatus(
@@ -235,6 +259,33 @@ class LLMEngine:
             return "cpu"
         except Exception:
             return "unknown"
+
+    def _write_fix_script(self) -> None:
+        """AVX2 uyumsuzluğu için fix_llama.bat oluştur."""
+        import sys
+        try:
+            if getattr(sys, "frozen", False):
+                bat_dir = Path(sys.executable).parent
+            else:
+                from codegaai.config import DATA_DIR
+                bat_dir = DATA_DIR
+
+            python_exe = sys.executable
+            bat = bat_dir / "fix_llama.bat"
+            bat.write_text(
+                f'@echo off\nchcp 65001 > nul\n'
+                f'echo CODEGA AI - llama-cpp-python AVX2 onarimi\n'
+                f'"{python_exe}" -m pip uninstall llama-cpp-python -y\n'
+                f'"{python_exe}" -m pip install llama-cpp-python '
+                f'--prefer-binary '
+                f'--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu '
+                f'--no-cache-dir\n'
+                f'echo Tamamlandi! CODEGA AI yeniden baslatilabilir.\npause\n',
+                encoding="utf-8",
+            )
+            log.info("fix_llama.bat oluşturuldu: %s", bat)
+        except Exception as e:
+            log.warning("fix_llama.bat yazılamadı: %s", e)
 
     def unload(self) -> None:
         """Modeli bellekten çıkar."""

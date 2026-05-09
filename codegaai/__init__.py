@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Demirhan
 Lisans: MIT
 """
 
-__version__ = "1.7.1"
-__phase__ = "v1.5.0 - v1.7.0 - RAG Fix + Disk Secici + Tum Eksikler: Vision + OCR + Video Analiz"
+__version__ = "1.7.2"
+__phase__ = "v1.5.0 - v1.7.0 - v1.7.2 - AVX2 Fix + fix_llama.bat: Vision + OCR + Video Analiz"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

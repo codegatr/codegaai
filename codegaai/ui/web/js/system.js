@@ -143,8 +143,21 @@ const System = (() => {
       if (statusText) statusText.textContent = "Motor: yükleniyor";
     } else if (llmEngine.state === "error") {
       pill.classList.add("status-pill--err");
-      text.textContent = "Yükleme hatası";
-      if (statusText) statusText.textContent = "Motor: hata";
+      const isAvx = llmEngine.error && llmEngine.error.toLowerCase().includes("avx2");
+      text.textContent = isAvx ? "CPU uyumsuzluğu (AVX2)" : "Yükleme hatası";
+      if (statusText) statusText.textContent = isAvx
+        ? "Motor: CPU AVX2 desteklemiyor — fix_llama.bat çalıştır"
+        : "Motor: hata";
+      // Hata kutusunu göster
+      const errBox = document.getElementById("llm-error-box");
+      if (errBox) {
+        errBox.hidden = false;
+        errBox.innerHTML = isAvx
+          ? `<strong>⚠️ CPU Uyumsuzluğu</strong><br>
+             llama-cpp-python AVX2 gerektiriyor, işlemcinizde bu özellik yok.<br>
+             <strong>Çözüm:</strong> CODEGA AI kurulum klasöründeki <code>fix_llama.bat</code> dosyasını yönetici olarak çalıştırın.`
+          : `<strong>Hata:</strong> ${llmEngine.error || "Bilinmeyen hata"}`;
+      }
     } else {
       pill.classList.add("status-pill--scheduled");
       text.textContent = "model yüklü değil — Sistem'den indir";
