@@ -323,8 +323,10 @@ class Updater:
                                 100.0 * downloaded / total if total else 0
                             )
 
-            # Atomik rename
-            partial.rename(zip_path)
+            # Atomik rename — Windows-safe
+            if zip_path.exists():
+                zip_path.unlink()
+            os.replace(partial, zip_path)
 
             # Doğrulama: ZIP geçerli mi?
             if not zipfile.is_zipfile(str(zip_path)):

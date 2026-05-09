@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Demirhan
 Lisans: MIT
 """
 
-__version__ = "0.8.0"
-__phase__ = "Faz 8 - Akıllı Güncelleme"
+__version__ = "0.8.1"
+__phase__ = "Faz 8 - Akıllı Güncelleme [Windows rename hotfix]"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

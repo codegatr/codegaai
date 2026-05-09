@@ -1,8 +1,8 @@
 {
   "name": "CODEGA AI",
   "slug": "codegaai",
-  "version": "0.8.0",
-  "phase": "Faz 8 - Akıllı Güncelleme (GitHub Releases + self-replace)",
+  "version": "0.8.1",
+  "phase": "Faz 8 + Windows rename hotfix (Path.rename → os.replace)",
   "description": "Yerelde çalışan, kendi kendine öğrenen, çok modlu yapay zeka platformu. RTX 3060+ ve 16GB+ RAM için optimize edilmiştir.",
   "author": "CODEGA",
   "license": "MIT",

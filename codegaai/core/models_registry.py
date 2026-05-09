@@ -21,6 +21,7 @@ Kullanım:
 
 from __future__ import annotations
 
+import os
 import shutil
 import threading
 from dataclasses import dataclass, field
@@ -785,7 +786,12 @@ class ModelRegistry:
                                 last_bytes = downloaded
 
             # Tamamlandı — partial -> final
-            partial.rename(target)
+            # Windows'ta Path.rename hedef dosya varsa WinError 183 atar.
+            # os.replace cross-platform atomik overwrite yapar.
+            if target.exists():
+                log.warning("Hedef dosya mevcut, üzerine yazılıyor: %s",
+                            target.name)
+            os.replace(partial, target)
             self._set_progress(
                 spec.id, status="completed",
                 downloaded=target.stat().st_size,
