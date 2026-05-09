@@ -32,24 +32,16 @@ from codegaai.core.learning import (
 from codegaai.core.updater import Updater
 from codegaai.core.web_learner import WebLearner
 from codegaai.core.scheduler import Scheduler, setup_scheduler
+from codegaai.core.vision_engine import VisionEngine
+from codegaai.core.ocr_engine import OCREngine
+from codegaai.core.video_analyzer import VideoAnalyzer
 
 __all__ = [
-    "ChatStore",
-    "ModelRegistry",
-    "LLMEngine",
-    "GenerationConfig",
-    "DEFAULT_SYSTEM_PROMPT",
-    "EmbeddingService",
-    "MemoryStore",
-    "ImageEngine",
-    "TTSEngine",
-    "ASREngine",
-    "VideoEngine",
-    "AdapterManager",
-    "FeedbackStore",
-    "TrainingEngine",
-    "Updater",
-    "WebLearner",
-    "Scheduler",
-    "setup_scheduler",
+    "ChatStore", "ModelRegistry",
+    "LLMEngine", "GenerationConfig", "DEFAULT_SYSTEM_PROMPT",
+    "EmbeddingService", "MemoryStore",
+    "ImageEngine", "TTSEngine", "ASREngine", "VideoEngine",
+    "AdapterManager", "FeedbackStore", "TrainingEngine",
+    "Updater", "WebLearner", "Scheduler", "setup_scheduler",
+    "VisionEngine", "OCREngine", "VideoAnalyzer",
 ]

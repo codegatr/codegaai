@@ -362,15 +362,49 @@ def _tool_weather(city: str) -> str:
 # Tool Registry
 # ============================================================
 
+def _tool_analyze_image(question: str = "Ne var burada?",
+                         image_b64: str = "") -> str:
+    """Yüklenmiş görüntüyü analiz et."""
+    if not image_b64:
+        return "⚠️ Görüntü verisi gerekli (image_b64)"
+    try:
+        from codegaai.core.vision_engine import VisionEngine
+        engine = VisionEngine.get()
+        if not engine.is_ready:
+            engine.load("moondream2")
+        result = engine.analyze(question=question, image_b64=image_b64,
+                                max_tokens=300)
+        return f"🖼️ **Görüntü Analizi**: {result}"
+    except Exception as exc:
+        return f"⚠️ Görüntü analiz hatası: {exc}"
+
+
+def _tool_extract_text_image(image_b64: str = "") -> str:
+    """Görüntüden metin çıkar (OCR)."""
+    if not image_b64:
+        return "⚠️ Görüntü verisi gerekli"
+    try:
+        from codegaai.core.ocr_engine import OCREngine
+        engine = OCREngine.get()
+        if not engine.available:
+            return "⚠️ OCR kullanılamıyor. pip install easyocr"
+        text = engine.extract_text(image_b64=image_b64, languages=["tr", "en"])
+        return f"📝 **OCR Sonucu**:\n{text}"
+    except Exception as exc:
+        return f"⚠️ OCR hatası: {exc}"
+
+
 TOOLS: dict[str, ToolDef] = {
-    "web_search": ToolDef("web_search", "DuckDuckGo web araması", _tool_web_search, timeout=15),
-    "calculate":  ToolDef("calculate", "Matematik hesabı", _tool_calculate, timeout=5),
-    "run_python": ToolDef("run_python", "Python sandbox", _tool_run_python, timeout=6),
-    "read_url":   ToolDef("read_url", "URL içeriği oku", _tool_read_url, timeout=15),
-    "remember":   ToolDef("remember", "RAG belleğine kaydet", _tool_remember, timeout=5),
-    "recall":     ToolDef("recall", "RAG'da ara", _tool_recall, timeout=5),
+    "web_search":   ToolDef("web_search", "DuckDuckGo web araması", _tool_web_search, timeout=15),
+    "calculate":    ToolDef("calculate", "Matematik hesabı", _tool_calculate, timeout=5),
+    "run_python":   ToolDef("run_python", "Python sandbox", _tool_run_python, timeout=6),
+    "read_url":     ToolDef("read_url", "URL içeriği oku", _tool_read_url, timeout=15),
+    "remember":     ToolDef("remember", "RAG belleğine kaydet", _tool_remember, timeout=5),
+    "recall":       ToolDef("recall", "RAG'da ara", _tool_recall, timeout=5),
     "current_time": ToolDef("current_time", "Tarih/saat", _tool_current_time, timeout=2),
-    "weather":    ToolDef("weather", "Hava durumu", _tool_weather, timeout=15),
+    "weather":      ToolDef("weather", "Hava durumu", _tool_weather, timeout=15),
+    "analyze_image":     ToolDef("analyze_image", "Görüntü analizi (vision)", _tool_analyze_image, timeout=30),
+    "extract_text_image": ToolDef("extract_text_image", "Görüntüden metin (OCR)", _tool_extract_text_image, timeout=30),
 }
 
 

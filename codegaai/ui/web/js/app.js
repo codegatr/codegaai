@@ -34,6 +34,7 @@
     Learning.init();
     Updater.init();
     WebLearn.init();
+    Vision.init();
   }
 
   function setStatus(key, type, text) {

@@ -190,7 +190,9 @@ def create_app() -> FastAPI:
 
     # Streaming chat (SSE)
     from codegaai.api.routes import stream as stream_routes
+    from codegaai.api.routes import vision as vision_routes
     app.include_router(stream_routes.router, prefix="/api/chat", tags=["stream"])
+    app.include_router(vision_routes.router, prefix="/api/vision", tags=["vision"])
 
     # Zamanlayıcıyı başlat (web öğrenme, RSS, otomatik güncelleme kontrolü)
     @app.on_event("startup")
