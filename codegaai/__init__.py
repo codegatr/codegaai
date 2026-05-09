@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Demirhan
 Lisans: MIT
 """
 
-__version__ = "0.6.0"
-__phase__ = "Faz 6 - Video Üretim"
+__version__ = "0.7.0"
+__phase__ = "Faz 7 - Self-Learning"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

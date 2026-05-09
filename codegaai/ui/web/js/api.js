@@ -91,6 +91,19 @@ const API = (() => {
     imageDelete:   (id) => request(`/api/image/${id}`, {method:"DELETE"}),
     imageStatus:   () => request("/api/image/status"),
 
+    // ---- learning (Faz 7) ----
+    learningStats:     () => request("/api/learning/stats"),
+    learningDataset:   () => request("/api/learning/dataset?min_pairs=4"),
+    learningFeedback:  (limit=50) => request(`/api/learning/feedback?limit=${limit}`),
+    feedbackAdd:       (body) => request("/api/learning/feedback", {method:"POST", body: JSON.stringify(body)}),
+    feedbackRemove:    (chatId, msgId) => request(`/api/learning/feedback/${chatId}/${msgId}`, {method:"DELETE"}),
+    adaptersList:      () => request("/api/learning/adapters"),
+    adapterActivate:   (id) => request("/api/learning/adapters/activate", {method:"POST", body: JSON.stringify({adapter_id: id})}),
+    adapterDelete:     (id) => request(`/api/learning/adapters/${id}`, {method:"DELETE"}),
+    learningTrain:     (body) => request("/api/learning/train", {method:"POST", body: JSON.stringify(body)}),
+    learningStatus:    () => request("/api/learning/status"),
+    learningDeps:      () => request("/api/learning/dependencies"),
+
     // ---- video (Faz 6) ----
     videoGenerate:  (body) => request("/api/video/generate", {method:"POST", body: JSON.stringify(body)}),
     videoList:      () => request("/api/video/list?limit=30"),

@@ -101,6 +101,7 @@ def create_app() -> FastAPI:
     from codegaai.api.routes import video as video_routes
     from codegaai.api.routes import audio as audio_routes
     from codegaai.api.routes import memory as memory_routes
+    from codegaai.api.routes import learning as learning_routes
 
     app.include_router(system_routes.router, prefix="/api/system", tags=["system"])
     app.include_router(models_routes.router, prefix="/api/models", tags=["models"])
@@ -110,6 +111,7 @@ def create_app() -> FastAPI:
     app.include_router(video_routes.router,  prefix="/api/video",  tags=["video"])
     app.include_router(audio_routes.router,  prefix="/api/audio",  tags=["audio"])
     app.include_router(memory_routes.router, prefix="/api/memory", tags=["memory"])
+    app.include_router(learning_routes.router, prefix="/api/learning", tags=["learning"])
 
     # ---- Statik UI dosyaları ----
     if UI_ROOT.exists():

@@ -1011,3 +1011,189 @@
 .video-card__actions {
   display: flex; gap: var(--space-1);
 }
+
+/* ============================================================
+   SOHBET MESAJLARINA FEEDBACK BUTONLARI (Faz 7)
+   ============================================================ */
+
+.message__feedback {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  opacity: 0.5;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.message:hover .message__feedback,
+.message--assistant:has(.feedback-btn--active) .message__feedback {
+  opacity: 1;
+}
+
+.feedback-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.feedback-btn:hover { background: var(--color-bg-elevated); }
+
+.feedback-btn--active.feedback-btn--up {
+  background: rgb(20 184 166 / 0.15);
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.feedback-btn--active.feedback-btn--down {
+  background: rgb(239 68 68 / 0.1);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+/* ============================================================
+   SELF-LEARNING PANELİ (Faz 7)
+   ============================================================ */
+
+.learning-section {
+  padding: var(--space-6) var(--space-8);
+  max-width: var(--max-content);
+  margin: 0 auto var(--space-7);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.learning-section__title {
+  margin: 0 0 var(--space-2) 0;
+  font-size: var(--fs-lg);
+  color: var(--color-text);
+}
+
+.learning-section__subtitle {
+  margin: var(--space-5) 0 var(--space-3) 0;
+  font-size: var(--fs-md);
+  color: var(--color-text);
+}
+
+.learning-section__hint {
+  color: var(--color-text-muted);
+  font-size: var(--fs-base);
+  line-height: var(--lh-loose);
+  margin: 0 0 var(--space-4) 0;
+}
+
+.learning-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.learning-stat {
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  text-align: center;
+}
+
+.learning-stat__value {
+  display: block;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+}
+
+.learning-stat__label {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+.learning-actions {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.learning-deps {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}
+
+.learning-deps--err { color: var(--color-warning); }
+.learning-deps--ok { color: var(--color-success); }
+.learning-deps code {
+  background: var(--color-bg-base);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: var(--fs-xs);
+}
+
+.adapters-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-3);
+}
+
+.adapter-card {
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.adapter-card--active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-glow);
+}
+
+.adapter-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.adapter-card__name {
+  font-weight: var(--fw-semibold);
+  color: var(--color-text);
+}
+
+.adapter-card__id {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--color-text-dim);
+}
+
+.adapter-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+.adapter-card__desc {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+}
+
+.adapter-card__actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: auto;
+}

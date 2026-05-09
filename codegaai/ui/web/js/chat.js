@@ -54,7 +54,7 @@ const Chat = (() => {
 
   function renderMessage(msg) {
     const isUser = msg.role === "user";
-    return el("div", { class: `message message--${msg.role}` },
+    const children = [
       el("div", { class: "message__avatar" }, isUser ? "Y" : "C"),
       el("div", { class: "message__body" },
         el("div", { class: "message__role" }, isUser ? "Sen" : "CODEGA AI"),
@@ -62,8 +62,80 @@ const Chat = (() => {
           class: "message__content",
           html: renderMarkdown(msg.content),
         }),
+        // Faz 7: asistan mesajlarına 👍/👎
+        !isUser && msg.id && state.chatId
+          ? renderFeedbackBar(msg)
+          : null,
       ),
+    ].filter(Boolean);
+
+    return el("div", { class: `message message--${msg.role}` }, ...children);
+  }
+
+  function renderFeedbackBar(msg) {
+    const rating = msg.rating || 0;
+    const upClass = rating === 1
+      ? "feedback-btn feedback-btn--active feedback-btn--up"
+      : "feedback-btn";
+    const downClass = rating === -1
+      ? "feedback-btn feedback-btn--active feedback-btn--down"
+      : "feedback-btn";
+
+    return el("div", { class: "message__feedback" },
+      el("button", {
+        class: upClass,
+        title: "Beğendim",
+        onclick: () => giveFeedback(msg, 1),
+      }, "👍"),
+      el("button", {
+        class: downClass,
+        title: "Beğenmedim",
+        onclick: () => giveFeedback(msg, -1),
+      }, "👎"),
     );
+  }
+
+  async function giveFeedback(msg, rating) {
+    if (!state.chatId || !msg.id) return;
+
+    const newRating = msg.rating === rating ? 0 : rating;
+
+    try {
+      const idx = state.messages.findIndex(m => m.id === msg.id);
+      let userMessage = "";
+      for (let i = idx - 1; i >= 0; i--) {
+        if (state.messages[i].role === "user") {
+          userMessage = state.messages[i].content;
+          break;
+        }
+      }
+
+      if (newRating === 0) {
+        await fetch(
+          `/api/learning/feedback/${state.chatId}/${msg.id}`,
+          { method: "DELETE" }
+        );
+      } else {
+        await fetch("/api/learning/feedback", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            chat_id: state.chatId,
+            message_id: msg.id,
+            rating: newRating,
+            user_message: userMessage,
+            assistant_message: msg.content,
+            model_id: msg.model || null,
+          }),
+        });
+      }
+
+      msg.rating = newRating;
+      renderAll();
+    } catch (err) {
+      console.error("feedback error:", err);
+      alert("Geri bildirim kaydedilemedi: " + err.message);
+    }
   }
 
   function renderTyping() {
@@ -173,10 +245,42 @@ const Chat = (() => {
     state.chatId = chatData.id;
     state.chatTitle = chatData.title || "Yeni sohbet";
     state.messages = (messages || []).map((m) => ({
+      id: m.id,
       role: m.role,
       content: m.content,
+      model: m.model,
+      rating: 0,
     }));
     renderAll();
+
+    // Faz 7: bu sohbete ait feedback'leri yükle
+    loadFeedbackForChat();
+  }
+
+  async function loadFeedbackForChat() {
+    if (!state.chatId) return;
+    try {
+      const data = await fetch(
+        `/api/learning/feedback?limit=200`
+      ).then(r => r.json());
+
+      if (!data.feedback) return;
+      const byMsgId = {};
+      for (const f of data.feedback) {
+        if (f.chat_id === state.chatId) {
+          byMsgId[f.message_id] = f.rating;
+        }
+      }
+
+      for (const m of state.messages) {
+        if (m.id != null && byMsgId[m.id] !== undefined) {
+          m.rating = byMsgId[m.id];
+        }
+      }
+      renderAll();
+    } catch (err) {
+      console.error("Feedback yüklenemedi:", err);
+    }
   }
 
   function clearActive() {
@@ -225,6 +329,11 @@ const Chat = (() => {
         role: "assistant",
         content: "(boş yanıt)",
       };
+      // Faz 7: backend'den dönen message_id'yi sakla, feedback için
+      if (resp.message_id) assistantMsg.id = resp.message_id;
+      if (resp.model) assistantMsg.model = resp.model;
+      assistantMsg.rating = 0;
+
       state.messages.push(assistantMsg);
       appendMessage(assistantMsg);
 

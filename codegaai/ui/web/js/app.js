@@ -31,6 +31,7 @@
     ImageView.init();
     AudioView.init();
     VideoView.init();
+    Learning.init();
   }
 
   function setStatus(key, type, text) {

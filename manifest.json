@@ -1,8 +1,8 @@
 {
   "name": "CODEGA AI",
   "slug": "codegaai",
-  "version": "0.6.0",
-  "phase": "Faz 6 - Video Üretim (CogVideoX-2B + SVD)",
+  "version": "0.7.0",
+  "phase": "Faz 7 - Self-Learning (👍/👎 feedback + DPO + LoRA hot-swap)",
   "description": "Yerelde çalışan, kendi kendine öğrenen, çok modlu yapay zeka platformu. RTX 3060+ ve 16GB+ RAM için optimize edilmiştir.",
   "author": "CODEGA",
   "license": "MIT",
@@ -40,7 +40,7 @@
     "video_generation": true,
     "tts": true,
     "asr": true,
-    "self_learning": false
+    "self_learning": true
   },
   "models": {
     "llm": {
@@ -64,10 +64,10 @@
     "Faz 3.1 - GitHub Actions Windows .exe build pipeline (PyInstaller --onedir)",
     "Faz 4 - Görsel Üretim (SDXL Base 1.0 + SDXL-Turbo + FLUX.1-schnell + diffusers wrapper + EXIF metadata + galeri)",
     "Faz 5 - Ses (XTTS v2 TTS 17 dil + Piper TR + faster-whisper Large v3 ASR + segmentli çevriyazı + ses kopyalama)",
-    "Faz 6 - Video Üretim (CogVideoX-2B/5B text-to-video + Stable Video Diffusion image-to-video + diffusers wrapper + MP4 export)"
+    "Faz 6 - Video Üretim (CogVideoX-2B/5B text-to-video + Stable Video Diffusion image-to-video + diffusers wrapper + MP4 export)",
+    "Faz 7 - Self-Learning (mesajlara 👍/👎 feedback + SQLite FeedbackStore + DPO tercih çiftleri + LoRA AdapterManager + DPOTrainer wrapper)"
   ],
   "phases_pending": [
-    "Faz 7 - Self-Learning (DPO + LoRA hot-swap)",
     "Faz 8 - Tek .exe paket (DONE) + Akıllı Güncelle"
   ]
 }

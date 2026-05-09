@@ -27,7 +27,7 @@
       <div class="brand-mark">C</div>
       <div class="brand-text">
         <span class="brand-name">CODEGA AI</span>
-        <span class="brand-version" id="brand-version">v0.6.0</span>
+        <span class="brand-version" id="brand-version">v0.7.0</span>
       </div>
     </div>
 
@@ -87,7 +87,7 @@
     <div class="sidebar__footer">
       <div class="phase-indicator" id="phase-indicator">
         <span class="phase-dot"></span>
-        <span class="phase-text">Faz 6 / 8</span>
+        <span class="phase-text">Faz 7 / 8</span>
       </div>
     </div>
   </aside>
@@ -454,11 +454,11 @@
     <section class="view" data-view="memory">
       <header class="view-header">
         <div>
-          <h1 class="view-title">Bellek</h1>
+          <h1 class="view-title">Bellek &amp; Öğrenme</h1>
           <p class="view-subtitle">
-            <span class="status-pill status-pill--scheduled">
+            <span class="status-pill status-pill--ok">
               <span class="status-pill__dot"></span>
-              RAG belleği Faz 3'te aktif olacak (v0.3.0)
+              3 katmanlı RAG + Self-Learning aktif
             </span>
           </p>
         </div>
@@ -503,6 +503,48 @@
               <span class="memory-stat__label">çekirdek olgu</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Faz 7: Self-Learning paneli -->
+      <div class="learning-section">
+        <h2 class="learning-section__title">Self-Learning (Faz 7)</h2>
+        <p class="learning-section__hint">
+          Sohbette beğendiğin/beğenmediğin yanıtlara 👍/👎 ver. Yeterli veri
+          birikince DPO ile LoRA adapter eğitilir, model senin tercihlerine
+          göre kişileşir.
+        </p>
+
+        <div class="learning-stats" id="learning-stats">
+          <div class="learning-stat">
+            <span class="learning-stat__value" id="lstat-likes">—</span>
+            <span class="learning-stat__label">👍 beğeni</span>
+          </div>
+          <div class="learning-stat">
+            <span class="learning-stat__value" id="lstat-dislikes">—</span>
+            <span class="learning-stat__label">👎 beğenmeme</span>
+          </div>
+          <div class="learning-stat">
+            <span class="learning-stat__value" id="lstat-pairs">—</span>
+            <span class="learning-stat__label">tercih çifti</span>
+          </div>
+          <div class="learning-stat">
+            <span class="learning-stat__value" id="lstat-adapters">—</span>
+            <span class="learning-stat__label">adapter</span>
+          </div>
+        </div>
+
+        <div class="learning-actions">
+          <button class="btn btn--primary" id="learning-train-btn">
+            DPO Eğitimi Başlat
+          </button>
+          <span class="learning-deps" id="learning-deps"></span>
+        </div>
+        <div class="image-status" id="learning-status"></div>
+
+        <h3 class="learning-section__subtitle">Adapter'ler</h3>
+        <div class="adapters-list" id="adapters-list">
+          <div class="image-gallery__empty">Henüz adapter yok — DPO eğitimi sonrası burada listelenir</div>
         </div>
       </div>
     </section>
@@ -648,17 +690,17 @@
               <span class="roadmap__num">5</span>
               <div><strong>Faz 5 — Ses (TTS + ASR)</strong><em>v0.5.x · tamamlandı</em></div>
             </li>
-            <li class="roadmap__item roadmap__item--current">
+            <li class="roadmap__item roadmap__item--done">
               <span class="roadmap__num">6</span>
-              <div><strong>Faz 6 — Video Üretim</strong><em>v0.6.0 · şu anda buradasın</em></div>
+              <div><strong>Faz 6 — Video Üretim</strong><em>v0.6.0 · tamamlandı</em></div>
             </li>
-            <li class="roadmap__item">
+            <li class="roadmap__item roadmap__item--current">
               <span class="roadmap__num">7</span>
-              <div><strong>Faz 7 — Self-Learning</strong><em>v0.7.0 · sıradaki</em></div>
+              <div><strong>Faz 7 — Self-Learning</strong><em>v0.7.0 · şu anda buradasın</em></div>
             </li>
-            <li class="roadmap__item">
+            <li class="roadmap__item roadmap__item--done">
               <span class="roadmap__num">8</span>
-              <div><strong>Faz 8 — Tek .exe + Akıllı Güncelle</strong><em>v1.0.0</em></div>
+              <div><strong>Faz 8 — Tek .exe + Akıllı Güncelle</strong><em>v0.3.1 · build pipeline aktif</em></div>
             </li>
           </ol>
         </div>
@@ -694,6 +736,7 @@
   <script src="/js/image.js"></script>
   <script src="/js/audio.js"></script>
   <script src="/js/video.js"></script>
+  <script src="/js/learning.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>

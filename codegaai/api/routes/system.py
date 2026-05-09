@@ -90,6 +90,20 @@ async def engines() -> dict[str, Any]:
     except Exception:
         pass
 
+    # Self-Learning (Faz 7)
+    learning_active = False
+    feedback_count = 0
+    deps_ok = False
+    try:
+        from codegaai.core.learning import (
+            FeedbackStore, TrainingEngine, AdapterManager,
+        )
+        feedback_count = FeedbackStore.open().stats().get("total", 0)
+        deps_ok = all(TrainingEngine.check_dependencies().values())
+        learning_active = TrainingEngine.get().is_training
+    except Exception:
+        pass
+
     return {
         "llm": {
             "active": llm.is_ready,
@@ -133,7 +147,10 @@ async def engines() -> dict[str, Any]:
             "phase": "Faz 6",
         },
         "learning": {
-            "active": False, "state": "unloaded",
-            "reason": "Faz 7'de gelecek (v0.7.0)",
+            "active": learning_active or feedback_count > 0,
+            "state": "training" if learning_active else "idle",
+            "feedback_count": feedback_count,
+            "training_deps_ok": deps_ok,
+            "phase": "Faz 7",
         },
     }

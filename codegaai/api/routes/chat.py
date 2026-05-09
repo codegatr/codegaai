@@ -55,6 +55,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     message: Message
+    message_id: Optional[int] = None      # asistan mesaj ID'si (Faz 7 feedback için)
     model: str
     finish_reason: str
     timing_ms: int
@@ -162,13 +163,15 @@ async def chat(req: ChatRequest) -> ChatResponse:
     # Motor yüklü değilse: stub yanıt
     if not engine.is_ready:
         response_msg = Message(role="assistant", content=_STUB_NOT_LOADED)
+        stub_msg_id: Optional[int] = None
         if req.chat_id is not None:
-            store.add_message(
+            stub_msg_id = store.add_message(
                 req.chat_id, "assistant", response_msg.content,
                 model="not-loaded",
             )
         return ChatResponse(
             message=response_msg,
+            message_id=stub_msg_id,
             model="not-loaded",
             finish_reason="stop",
             timing_ms=0,
@@ -214,8 +217,9 @@ async def chat(req: ChatRequest) -> ChatResponse:
     response_msg = Message(role="assistant", content=result["content"])
 
     # Asistan yanıtını DB'ye + arşive yaz
+    asst_msg_id: Optional[int] = None
     if req.chat_id is not None:
-        msg_id = store.add_message(
+        asst_msg_id = store.add_message(
             req.chat_id, "assistant", result["content"],
             model=result.get("model"),
         )
@@ -223,13 +227,14 @@ async def chat(req: ChatRequest) -> ChatResponse:
             from codegaai.core.memory import MemoryStore
             mem = MemoryStore.open()
             mem.archive_message(
-                req.chat_id, msg_id, "assistant", result["content"]
+                req.chat_id, asst_msg_id, "assistant", result["content"]
             )
         except Exception as exc:
             log.warning("Asistan arşivleme hatası: %s", exc)
 
     return ChatResponse(
         message=response_msg,
+        message_id=asst_msg_id,
         model=result["model"],
         finish_reason=result["finish_reason"],
         timing_ms=result["timing_ms"],

@@ -26,6 +26,9 @@ from codegaai.core.memory import MemoryStore
 from codegaai.core.image_engine import ImageEngine
 from codegaai.core.audio_engine import TTSEngine, ASREngine
 from codegaai.core.video_engine import VideoEngine
+from codegaai.core.learning import (
+    AdapterManager, FeedbackStore, TrainingEngine,
+)
 
 __all__ = [
     "ChatStore",
@@ -39,4 +42,7 @@ __all__ = [
     "TTSEngine",
     "ASREngine",
     "VideoEngine",
+    "AdapterManager",
+    "FeedbackStore",
+    "TrainingEngine",
 ]
