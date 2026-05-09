@@ -160,6 +160,22 @@ async def chat(req: ChatRequest) -> ChatResponse:
             except Exception as exc:
                 log.warning("Arşive yazma başarısız: %s", exc)
 
+    # ── AKILLI MODEL SEÇİMİ ─────────────────────────────────────
+    try:
+        from codegaai.core.model_router import ModelRouter
+        router_model = ModelRouter.get().select_model(
+            last_user, history_dicts if 'history_dicts' in dir() else []
+        )
+        if router_model and (not engine.is_ready or
+                              engine._status.model_id != router_model):
+            log.info("Model router: %s seçildi", router_model)
+            try:
+                engine.load(router_model)
+            except Exception as route_err:
+                log.warning("Router model yükleme hatası: %s", route_err)
+    except Exception:
+        pass
+
     # Motor yüklü değilse: stub yanıt
     if not engine.is_ready:
         response_msg = Message(role="assistant", content=_STUB_NOT_LOADED)

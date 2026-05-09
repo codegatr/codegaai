@@ -49,6 +49,17 @@ async def stream_chat(
         from codegaai.core.tools import parse_and_run_tools
 
         engine = LLMEngine.get()
+
+        # Akıllı model seçimi
+        try:
+            from codegaai.core.model_router import ModelRouter
+            suggested = ModelRouter.get().select_model(message, [])
+            if suggested and (not engine.is_ready or
+                               engine._status.model_id != suggested):
+                engine.load(suggested)
+        except Exception:
+            pass
+
         if not engine.is_ready:
             yield await _sse_event({"type": "error", "message": "Model yüklü değil"})
             return

@@ -171,13 +171,29 @@ class Updater:
     def install_dir() -> Optional[Path]:
         """
         Kullanıcının .exe'yi çıkardığı dizin.
-        Frozen modda olmayan sürümlerde None döner — bu durumda apply
-        edilemez, sadece bilgilendirme amaçlıdır.
+        Frozen modda olmayan sürümlerde None döner.
         """
         if not Updater.is_frozen():
             return None
-        # PyInstaller --onedir modunda exe burada
-        return Path(sys.executable).parent
+
+        # PyInstaller --onedir: exe parent
+        candidate = Path(sys.executable).parent
+
+        # codegaai.exe burada mı?
+        exe_name = "codegaai.exe"
+        if (candidate / exe_name).exists():
+            return candidate
+
+        # Bir üst dizinde mi?
+        parent = candidate.parent
+        if (parent / exe_name).exists():
+            return parent
+
+        # _internal klasörü varsa PyInstaller --onedir
+        if (candidate / "_internal").is_dir():
+            return candidate
+
+        return candidate
 
     @property
     def status(self) -> dict[str, Any]:
@@ -376,41 +392,82 @@ class Updater:
     # ============================================================
 
     APPLY_BAT_TEMPLATE = r"""@echo off
-REM CODEGA AI - Akilli Guncelleme uygulayici
-REM Mevcut .exe surecinin kapanmasini bekle, sonra yeni dosyalari kopyala
+REM CODEGA AI - Akilli Guncelleme v2
 chcp 65001 > nul
-echo.
-echo ============================================
-echo   CODEGA AI - Guncelleme uygulaniyor
-echo ============================================
-echo.
-echo   Yeni surum: {version}
-echo   Hedef     : {install_dir}
-echo.
-echo   3 saniye bekleniyor (eski surec kapansin)...
-timeout /t 3 /nobreak > nul
+setlocal EnableDelayedExpansion
 
-REM Eski dosyalari sil (config disinda — frozen modda zaten DATA_DIR ayri)
-echo   Eski dosyalar temizleniyor...
-robocopy "{new_dir}" "{install_dir}" /MIR /NJH /NJS /NP /NS /NC /NDL > nul
+echo.
+echo =============================================
+echo   CODEGA AI - Guncelleme Uygulanıyor
+echo =============================================
+echo   Surum  : {version}
+echo   Kaynak : {new_dir}
+echo   Hedef  : {install_dir}
+echo   Log    : {log_file}
+echo.
 
-REM Hata kontrolu
-if %ERRORLEVEL% GEQ 8 (
-    echo   HATA: Dosya kopyalama basarisiz. Manuel yedekten kurtarin.
+REM Kaynak ve hedefi dogrula
+if not exist "{new_dir}" (
+    echo HATA: Kaynak klasor bulunamadi: {new_dir}
+    echo HATA: Kaynak bulunamadi >> "{log_file}"
     pause
     exit /b 1
 )
 
-echo   Tamam.
-echo.
-echo   Yeni surum baslatiliyor...
-start "" "{install_dir}\codegaai.exe"
+REM Exe'nin kapanmasini bekle (maks 15 sn)
+echo Eski surecin kapanmasi bekleniyor...
+set /a WAITED=0
+:wait_loop
+timeout /t 1 /nobreak > nul
+set /a WAITED+=1
+tasklist /FI "IMAGENAME eq codegaai.exe" 2>nul | find /I "codegaai.exe" > nul
+if not errorlevel 1 (
+    if !WAITED! LSS 15 goto wait_loop
+    echo Surecin kapanmasi bekleniyor... (zorla devam)
+) else (
+    echo Surecin kapandigi dogrulandi (%WAITED%s)
+)
 
-REM Update klasorunu temizle (kendi dosyamizi silemez ama new/ silinebilir)
-timeout /t 2 /nobreak > nul
-rmdir /S /Q "{new_dir}" 2> nul
+echo Kaynak dosyalari kopyalanıyor...
+echo %date% %time% - Kopyalama basliyor >> "{log_file}"
 
-REM Bu .bat dosyasi kendini silsin
+REM PowerShell ile kopyala (robocopy'den daha guvenilir)
+powershell -NoProfile -Command ^
+    "Copy-Item -Path '{new_dir}\*' -Destination '{install_dir}' -Recurse -Force -ErrorAction Stop; Write-Host 'OK'"
+set PSCOPY_ERR=%ERRORLEVEL%
+
+if %PSCOPY_ERR% NEQ 0 (
+    echo PowerShell basarisiz, robocopy deneniyor...
+    robocopy "{new_dir}" "{install_dir}" /E /IS /IT /IM /NJH /NJS /NP 2>> "{log_file}"
+    set RCOPY_ERR=%ERRORLEVEL%
+    if !RCOPY_ERR! GEQ 8 (
+        echo HATA: Kopyalama tamamen basarisiz. >> "{log_file}"
+        echo HATA: Kopyalama basarisiz (ERRORLEVEL=!RCOPY_ERR!)
+        pause
+        exit /b 1
+    )
+)
+
+echo %date% %time% - Kopyalama tamamlandi >> "{log_file}"
+echo Kopyalama tamamlandi.
+
+REM Yeni surumu baslat
+echo Yeni surum baslatiliyor...
+if exist "{install_dir}\codegaai.exe" (
+    start "" "{install_dir}\codegaai.exe"
+    echo %date% %time% - Yeni surum baslatildi >> "{log_file}"
+) else (
+    echo HATA: codegaai.exe bulunamadi: {install_dir}
+    echo HATA: codegaai.exe bulunamadi >> "{log_file}"
+)
+
+REM Temizlik
+timeout /t 3 /nobreak > nul
+if exist "{new_dir}" rmdir /S /Q "{new_dir}" 2> nul
+
+REM Kendi kendini sil
+echo Tamamlandi. Bu pencere kapanıyor...
+echo %date% %time% - Guncelleme tamamlandi >> "{log_file}"
 (goto) 2>nul & del "%~f0"
 """
 
@@ -438,17 +495,45 @@ REM Bu .bat dosyasi kendini silsin
         if not install_dir:
             raise RuntimeError("Kurulum dizini tespit edilemedi")
 
+        # new_dir içinde gerçek kaynak bul — ZIP yapısına göre değişir
+        # Örn: new/codegaai-v1.6.0-windows-cpu/ → içine gir
+        # İçinde codegaai.exe varsa doğru yer
+        effective_new_dir = Path(new_dir)
+        if not (effective_new_dir / "codegaai.exe").exists():
+            # Bir seviye daha in
+            for child in effective_new_dir.iterdir():
+                if child.is_dir():
+                    if (child / "codegaai.exe").exists():
+                        effective_new_dir = child
+                        log.info("Kaynak klasör düzeltildi: %s", effective_new_dir)
+                        break
+                    # İki seviye
+                    for grandchild in child.iterdir():
+                        if grandchild.is_dir() and (grandchild / "codegaai.exe").exists():
+                            effective_new_dir = grandchild
+                            log.info("Kaynak klasör (2. seviye) düzeltildi: %s",
+                                     effective_new_dir)
+                            break
+
+        if not (effective_new_dir / "codegaai.exe").exists():
+            log.warning("codegaai.exe bulunamadı: %s — tüm içerik kopyalanacak",
+                        effective_new_dir)
+
+        log_file = UPDATES_DIR / f"apply_{self._download.version}.log"
+
         # Batch script oluştur
         bat_path = UPDATES_DIR / f"apply_{self._download.version}.bat"
         bat_path.write_text(
             self.APPLY_BAT_TEMPLATE.format(
                 version=self._download.version,
                 install_dir=str(install_dir),
-                new_dir=str(new_dir),
+                new_dir=str(effective_new_dir),
+                log_file=str(log_file),
             ),
-            encoding="cp1254",  # Windows TR encoding
+            encoding="utf-8",  # UTF-8 (chcp 65001 aktif)
         )
-        log.info("Apply batch script yazıldı: %s", bat_path)
+        log.info("Apply batch script: %s", bat_path)
+        log.info("Kaynak: %s → Hedef: %s", effective_new_dir, install_dir)
 
         self._download.state = "applying"
 
