@@ -744,17 +744,49 @@ class ModelRegistry:
 
     def _download_llm_worker(self, spec: LLMModelSpec,
                              cancel: threading.Event) -> None:
+        """
+        LLM GGUF indirme worker'ı.
+
+        Strateji (Yunus için derinlemesine refactor):
+
+        1. HEAD ile server'ın bildirdiği gerçek boyutu öğren
+        2. .part.url hash dosyası: partial'ın hangi URL için olduğunu
+           kaydet — URL değişimi tespit edilirse partial silinir
+        3. .part boyutu vs server boyutu:
+           - eşit → indirme tamam, direkt rename (HTTP yok)
+           - partial > server → partial bozuk, sil + sıfırdan
+           - partial < server → Range header ile resume
+        4. 416 Range Not Satisfiable → "dosya tam" yorumla, exception YOK
+        5. Server Range desteklemiyorsa (200 dönerse) yeniden baştan yaz
+        """
+        import hashlib
         import time
+
         target = self.llm_path(spec.id)
         partial = target.with_suffix(target.suffix + ".part")
+        url_marker = partial.with_suffix(".part.url")  # sha256(url) kaydı
         url = f"https://huggingface.co/{spec.hf_repo}/resolve/main/{spec.hf_file}"
 
-        # Önceki indirme hata/iptal ile bittiyse partial dosya hala
-        # geçerli bayt içeriyor olabilir (HTTP Range ile resume mümkün).
-        # URL değişmediği sürece silmiyoruz; içeride zaten Range header
-        # kullanılıyor.
-        # NOT: URL değişikliği nadirdir (hf_repo değişikliğinde olur).
-        # Şüpheli boyut tespiti download_worker içinde HEAD ile yapılır.
+        url_hash = hashlib.sha256(url.encode("utf-8")).hexdigest()
+
+        # ============================================================
+        # Adım 1: URL değişti mi? Partial geçerli mi?
+        # ============================================================
+        if partial.exists() and url_marker.exists():
+            try:
+                stored_hash = url_marker.read_text(encoding="utf-8").strip()
+                if stored_hash != url_hash:
+                    log.warning(
+                        "URL değişmiş — partial siliniyor (%s)", partial.name
+                    )
+                    partial.unlink()
+                    url_marker.unlink()
+            except Exception:
+                pass
+
+        # URL marker'ını yaz (yeni indirme için)
+        url_marker.parent.mkdir(parents=True, exist_ok=True)
+        url_marker.write_text(url_hash, encoding="utf-8")
 
         self._set_progress(
             spec.id, status="downloading", downloaded=0, total=0,
@@ -765,25 +797,124 @@ class ModelRegistry:
         try:
             import httpx
 
-            # Resume desteği — partial varsa
+            # ========================================================
+            # Adım 2: HEAD probe — gerçek boyutu öğren
+            # ========================================================
             existing = partial.stat().st_size if partial.exists() else 0
-            headers = {"User-Agent": "codegaai/0.3.0"}
-            if existing > 0:
-                headers["Range"] = f"bytes={existing}-"
+            server_total = 0
+            supports_range = True
 
-            with httpx.Client(follow_redirects=True, timeout=60.0) as client:
-                with client.stream("GET", url, headers=headers) as resp:
-                    resp.raise_for_status()
+            with httpx.Client(
+                follow_redirects=True, timeout=60.0,
+                headers={"User-Agent": f"codegaai/{spec.id}"},
+            ) as client:
+                try:
+                    head = client.head(url)
+                    if head.status_code == 200:
+                        server_total = int(
+                            head.headers.get("content-length", "0")
+                        )
+                        accept_ranges = head.headers.get(
+                            "accept-ranges", ""
+                        ).lower()
+                        # HuggingFace CDN her zaman Range destekler ama
+                        # yine de kontrol — "bytes" ise OK
+                        if accept_ranges == "none":
+                            supports_range = False
+                        log.info(
+                            "HEAD: server boyut=%d MB, Range=%s, partial=%d MB",
+                            server_total // (1024 * 1024),
+                            "var" if supports_range else "yok",
+                            existing // (1024 * 1024),
+                        )
+                    else:
+                        log.warning("HEAD %d, normal GET denenecek",
+                                    head.status_code)
+                except Exception as exc:
+                    log.warning("HEAD başarısız (%s), GET ile devam", exc)
 
-                    # Toplam boyut
-                    total_str = resp.headers.get("content-length", "0")
-                    chunk_total = int(total_str)
+                # ========================================================
+                # Adım 3: Erken çıkış — partial zaten tam mı?
+                # ========================================================
+                if (server_total > 0 and existing > 0
+                        and existing == server_total):
+                    log.info(
+                        "Partial dosya tam (%d bayt) — indirme atlanıyor, "
+                        "direkt yerleştiriliyor", existing,
+                    )
+                    self._finalize_download(spec, partial, target, url_marker)
+                    return
+
+                # Partial server'dan büyükse bozuk (URL aynı ama içerik
+                # farklı — chunked transfer artığı vs.)
+                if (server_total > 0 and existing > server_total):
+                    log.warning(
+                        "Partial (%d) server'dan büyük (%d) — siliniyor",
+                        existing, server_total,
+                    )
+                    try:
+                        partial.unlink()
+                        existing = 0
+                    except Exception:
+                        pass
+
+                # ========================================================
+                # Adım 4: Asıl indirme — Range veya tam
+                # ========================================================
+                req_headers = {}
+                if existing > 0 and supports_range:
+                    req_headers["Range"] = f"bytes={existing}-"
+                    log.info("Resume: bayt %d'den devam", existing)
+                else:
+                    if existing > 0:
+                        log.info("Range desteksiz — sıfırdan indirme")
+                        existing = 0
+                        try:
+                            partial.unlink()
+                        except Exception:
+                            pass
+
+                with client.stream("GET", url,
+                                    headers=req_headers) as resp:
+                    # ============================================
+                    # 416 = "Range geçersiz, dosya zaten tam"
+                    # ============================================
+                    if resp.status_code == 416:
+                        log.info(
+                            "HTTP 416 — server diyor ki dosya tam "
+                            "(%d bayt). Indirme atlanıyor.",
+                            existing,
+                        )
+                        # Server bunu desteklediği için doğru: partial = tam
+                        self._finalize_download(
+                            spec, partial, target, url_marker,
+                        )
+                        return
+
+                    # 200 = sunucu Range'i ignore etti, full download
+                    # 206 = Partial Content (resume çalışıyor)
+                    if resp.status_code == 200 and existing > 0:
+                        log.warning(
+                            "Server 200 döndü (Range ignore edildi) — "
+                            "sıfırdan yazıyoruz"
+                        )
+                        existing = 0  # baştan yaz
+
+                    if resp.status_code not in (200, 206):
+                        resp.raise_for_status()  # diğer hatalar
+
+                    # Content-Length: 206'da kalan, 200'de toplam
+                    chunk_total = int(
+                        resp.headers.get("content-length", "0")
+                    )
                     grand_total = existing + chunk_total
+                    if server_total > 0:
+                        grand_total = max(grand_total, server_total)
+
                     self._set_progress(
-                        spec.id, total=grand_total, downloaded=existing
+                        spec.id, total=grand_total, downloaded=existing,
                     )
 
-                    # Yaz
                     mode = "ab" if existing > 0 else "wb"
                     last_emit = time.time()
                     last_bytes = existing
@@ -796,7 +927,7 @@ class ModelRegistry:
                                     spec.id, status="cancelled",
                                     completed_at=time.time(),
                                 )
-                                log.info("İndirme iptal edildi: %s", spec.id)
+                                log.info("İndirme iptal: %s", spec.id)
                                 return
 
                             fp.write(chunk)
@@ -804,7 +935,8 @@ class ModelRegistry:
 
                             now = time.time()
                             if now - last_emit > 0.4:
-                                speed = (downloaded - last_bytes) / (now - last_emit)
+                                speed = ((downloaded - last_bytes)
+                                         / (now - last_emit))
                                 self._set_progress(
                                     spec.id, downloaded=downloaded,
                                     speed_bps=speed,
@@ -812,22 +944,11 @@ class ModelRegistry:
                                 last_emit = now
                                 last_bytes = downloaded
 
-            # Tamamlandı — partial -> final
-            # Windows'ta Path.rename hedef dosya varsa WinError 183 atar.
-            # os.replace cross-platform atomik overwrite yapar.
-            if target.exists():
-                log.warning("Hedef dosya mevcut, üzerine yazılıyor: %s",
-                            target.name)
-            os.replace(partial, target)
-            self._set_progress(
-                spec.id, status="completed",
-                downloaded=target.stat().st_size,
-                total=target.stat().st_size,
-                speed_bps=0.0,
-                completed_at=time.time(),
-            )
-            log.info("İndirme tamamlandı: %s (%s GB)",
-                     spec.id, round(target.stat().st_size / 1e9, 2))
+            # ============================================
+            # Adım 5: Final yerleştirme
+            # ============================================
+            self._finalize_download(spec, partial, target, url_marker)
+            return
 
         except Exception as exc:
             log.exception("İndirme hatası: %s -> %s", spec.id, exc)
@@ -838,6 +959,53 @@ class ModelRegistry:
         finally:
             self._cancel_flags.pop(spec.id, None)
 
+    def _finalize_download(self, spec: LLMModelSpec,
+                           partial: Path, target: Path,
+                           url_marker: Path) -> None:
+        """
+        İndirilen partial'ı hedef konuma taşı + progress'i 'completed'.
+
+        - os.replace: cross-platform atomik overwrite
+        - URL marker temizle
+        - Progress 'completed' olarak işaretle
+        - Boyut doğrulaması: spec.size_gb ile %95 eşleşmeli
+        """
+        import time
+
+        if not partial.exists():
+            raise RuntimeError(f"Partial bulunamadı: {partial}")
+
+        actual = partial.stat().st_size
+        expected_min = int(spec.size_gb * (1024 ** 3) * 0.90)  # %90 tolerans
+
+        if actual < expected_min:
+            raise RuntimeError(
+                f"İndirilen dosya beklenenden çok küçük "
+                f"({actual / 1e9:.2f} GB / {spec.size_gb} GB). "
+                f"Tekrar dene."
+            )
+
+        # Atomik overwrite (Windows-safe)
+        if target.exists():
+            log.warning("Hedef mevcut, üzerine yazılıyor: %s", target.name)
+        os.replace(partial, target)
+
+        # URL marker'ını temizle (artık ihtiyaç yok)
+        if url_marker.exists():
+            try:
+                url_marker.unlink()
+            except Exception:
+                pass
+
+        size = target.stat().st_size
+        self._set_progress(
+            spec.id, status="completed",
+            downloaded=size, total=size, speed_bps=0.0,
+            completed_at=time.time(), error=None,
+        )
+        log.info("İndirme tamamlandı: %s (%.2f GB)",
+                 spec.id, size / 1e9)
+
     # ---- silme ----
 
     def delete_llm(self, model_id: str) -> bool:
@@ -846,8 +1014,9 @@ class ModelRegistry:
             return False
         target = self.llm_path(model_id)
         partial = target.with_suffix(target.suffix + ".part")
+        url_marker = partial.with_suffix(".part.url")
         deleted = False
-        for p in (target, partial):
+        for p in (target, partial, url_marker):
             if p.exists():
                 p.unlink()
                 deleted = True

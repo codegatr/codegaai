@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Demirhan
 Lisans: MIT
 """
 
-__version__ = "1.0.0"
-__phase__ = "v1.0.0 - Production: Masaüstü + Linux Sunucu + Auth"
+__version__ = "1.0.1"
+__phase__ = "v1.0.1 - 416 hatası kökten çözüldü, akıllı resume"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"
