@@ -30,6 +30,8 @@ from codegaai.core.learning import (
     AdapterManager, FeedbackStore, TrainingEngine,
 )
 from codegaai.core.updater import Updater
+from codegaai.core.web_learner import WebLearner
+from codegaai.core.scheduler import Scheduler, setup_scheduler
 
 __all__ = [
     "ChatStore",
@@ -47,4 +49,7 @@ __all__ = [
     "FeedbackStore",
     "TrainingEngine",
     "Updater",
+    "WebLearner",
+    "Scheduler",
+    "setup_scheduler",
 ]

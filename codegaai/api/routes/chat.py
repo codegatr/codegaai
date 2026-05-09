@@ -232,7 +232,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
         except Exception as exc:
             log.warning("Asistan arşivleme hatası: %s", exc)
 
-    return ChatResponse(
+    resp = ChatResponse(
         message=response_msg,
         message_id=asst_msg_id,
         model=result["model"],
@@ -243,6 +243,38 @@ async def chat(req: ChatRequest) -> ChatResponse:
         tokens_out=result.get("tokens_out", 0),
         rag_hits=rag_hits,
     )
+
+    # Faz 10: Her başarılı yanıt sonrası arka planda web öğrenmesi
+    # (state=idle ise — aktif öğrenme varsa atla)
+    if req.chat_id:
+        def _bg_learn():
+            try:
+                from codegaai.core.web_learner import WebLearner
+                lrn = WebLearner.get()
+                if lrn.status["state"] == "idle":
+                    # Mesaj history'den konu çıkar
+                    history_dicts = [
+                        {"role": m.role, "content": m.content}
+                        for m in history
+                    ]
+                    history_dicts.append(
+                        {"role": "user", "content": req.message}
+                    )
+                    history_dicts.append(
+                        {"role": "assistant", "content": response_msg}
+                    )
+                    topics = lrn.extract_topics_from_chat(history_dicts)
+                    if topics:
+                        log.debug("Sohbet öğrenmesi: %s", topics)
+                        lrn.learn_async(topics=topics)
+            except Exception:
+                pass  # Öğrenme hatası ana akışı engellemesin
+
+        import threading as _th
+        _th.Thread(target=_bg_learn, daemon=True,
+                   name="bg-learn").start()
+
+    return resp
 
 
 @router.get("/models")

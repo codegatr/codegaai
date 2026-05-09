@@ -33,6 +33,7 @@
     VideoView.init();
     Learning.init();
     Updater.init();
+    WebLearn.init();
   }
 
   function setStatus(key, type, text) {

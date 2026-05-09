@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Demirhan
 Lisans: MIT
 """
 
-__version__ = "1.0.3"
-__phase__ = "v1.0.3 - ChromaDB embed_query API uyumu"
+__version__ = "1.1.0"
+__phase__ = "v1.1.0 - Faz 10: İnternet Öğrenmesi + Zamanlayıcı"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

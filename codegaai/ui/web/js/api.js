@@ -91,6 +91,22 @@ const API = (() => {
     imageDelete:   (id) => request(`/api/image/${id}`, {method:"DELETE"}),
     imageStatus:   () => request("/api/image/status"),
 
+    // ---- internet öğrenmesi (Faz 10) ----
+    learnStatus:   () => request("/api/learn/status"),
+    learnSearch:   (q, opts={}) => request("/api/learn/search", {method:"POST", body: JSON.stringify({query:q, ...opts})}),
+    learnTopics:   (topics) => request("/api/learn/topics", {method:"POST", body: JSON.stringify({topics})}),
+    learnFeeds:    () => request("/api/learn/feeds", {method:"POST"}),
+    learnFromChat: (chatId) => request(`/api/learn/chat/${chatId}`, {method:"POST"}),
+    learnCancel:   () => request("/api/learn/cancel", {method:"POST"}),
+    learnLog:      (limit=50) => request(`/api/learn/log?limit=${limit}`),
+    learnFeedList: () => request("/api/learn/feeds"),
+    learnFeedAdd:  (data) => request("/api/learn/feeds/add", {method:"POST", body: JSON.stringify(data)}),
+    learnFeedToggle: (i, enabled) => request(`/api/learn/feeds/${i}/toggle`, {method:"PATCH", body: JSON.stringify({enabled})}),
+    learnFeedDel:  (i) => request(`/api/learn/feeds/${i}`, {method:"DELETE"}),
+    schedulerStatus: () => request("/api/learn/scheduler"),
+    schedulerRun:  (id) => request(`/api/learn/scheduler/${id}/run`, {method:"POST"}),
+    schedulerToggle: (id, enabled) => request(`/api/learn/scheduler/${id}/toggle`, {method:"POST", body: JSON.stringify({enabled})}),
+
     // ---- updater (Faz 8) ----
     updaterCheck:    (force=false) => request(`/api/updater/check?force=${force}`),
     updaterStatus:   () => request("/api/updater/status"),
