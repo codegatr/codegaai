@@ -41,13 +41,21 @@ log = get_logger(__name__)
 # Sistem mesajı (Türkçe varsayılan)
 # ============================================================
 
+def _get_system_prompt() -> str:
+    """Dinamik sistem promptu — profil + araçlarla birleşir."""
+    try:
+        from codegaai.core.system_prompt import build_system_prompt
+        return build_system_prompt(include_tools=True, include_profile=True)
+    except Exception:
+        return (
+            "Sen CODEGA AI'sın — yerel yapay zeka asistanı. "
+            "Türkçe iletişim kur. Dürüst, yardımsever ve doğrudan ol."
+        )
+
+
 DEFAULT_SYSTEM_PROMPT = (
-    "Sen CODEGA AI'sın — Türkiye'de Yunus için tasarlanmış, yerel "
-    "olarak çalışan, hiçbir buluta veri sızdırmayan kişisel yapay "
-    "zeka asistanı. Türkçe iletişim kur. Doğrudan, dürüst ve "
-    "yardımsever ol. Kod örnekleri istendiğinde temiz, modern PHP/"
-    "Python/JavaScript yaz. Bilmediğin bir şeyi bildiğin gibi "
-    "söyleme — eksik bilgiyi açıkça belirt."
+    "Sen CODEGA AI'sın — yerel yapay zeka asistanı. "
+    "Türkçe iletişim kur. Dürüst, yardımsever ve doğrudan ol."
 )
 
 
@@ -226,7 +234,8 @@ class LLMEngine:
     # ---- üretim ----
 
     def generate(self, messages: list[dict[str, str]],
-                 cfg: Optional[GenerationConfig] = None) -> dict[str, Any]:
+                 cfg: Optional[GenerationConfig] = None,
+                 use_tools: bool = True) -> dict[str, Any]:
         """Tam yanıt üret (bloklayıcı). messages: [{role, content}, ...]"""
         if not self.is_ready or self._llm is None:
             raise RuntimeError("LLM yüklü değil.")
@@ -249,16 +258,31 @@ class LLMEngine:
 
         choice = result["choices"][0]
         msg = choice["message"]
+        content = msg.get("content", "")
+
+        # Tool use — <tool>...</tool> bloklarını işle
+        tool_calls = []
+        if use_tools:
+            try:
+                from codegaai.core.tools import parse_and_run_tools
+                content, tool_calls = parse_and_run_tools(content)
+            except Exception as exc:
+                log.warning("Tool işleme hatası: %s", exc)
+
         usage = result.get("usage", {})
 
         return {
-            "content": msg.get("content", ""),
+            "content": content,
             "role": msg.get("role", "assistant"),
             "finish_reason": choice.get("finish_reason", "stop"),
             "model": self._status.model_id,
             "timing_ms": elapsed_ms,
             "tokens_in": usage.get("prompt_tokens", 0),
             "tokens_out": usage.get("completion_tokens", 0),
+            "tool_calls": [
+                {"name": tc.name, "result": tc.result, "elapsed_ms": tc.elapsed_ms}
+                for tc in tool_calls
+            ],
         }
 
     def stream(self, messages: list[dict[str, str]],

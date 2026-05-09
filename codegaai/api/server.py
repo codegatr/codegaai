@@ -170,6 +170,7 @@ def create_app() -> FastAPI:
     from codegaai.api.routes import updater as updater_routes
     from codegaai.api.routes import auth as auth_routes
     from codegaai.api.routes import learn as learn_routes
+    from codegaai.api.routes import profile as profile_routes
 
     # Auth rotaları (prefix YOK — /login direk olmalı)
     app.include_router(auth_routes.router, tags=["auth"])
@@ -185,6 +186,7 @@ def create_app() -> FastAPI:
     app.include_router(learning_routes.router, prefix="/api/learning", tags=["learning"])
     app.include_router(updater_routes.router, prefix="/api/updater", tags=["updater"])
     app.include_router(learn_routes.router,  prefix="/api/learn",  tags=["learn"])
+    app.include_router(profile_routes.router, prefix="/api/profile", tags=["profile"])
 
     # Zamanlayıcıyı başlat (web öğrenme, RSS, otomatik güncelleme kontrolü)
     @app.on_event("startup")

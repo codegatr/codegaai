@@ -192,11 +192,20 @@ async def chat(req: ChatRequest) -> ChatResponse:
             last_user, exclude_chat_id=req.chat_id, k=4,
         )
 
-    # Mesaj listesi: sistem + (varsa RAG) + kullanıcı geçmişi
+    # Dinamik sistem promptu — profil + araçlar + RAG bağlamı
     final_messages: list[dict[str, str]] = []
-    sys_prompt = DEFAULT_SYSTEM_PROMPT
-    if rag_text:
-        sys_prompt = f"{sys_prompt}\n\n## Bağlam\n{rag_text}"
+    try:
+        from codegaai.core.system_prompt import build_system_prompt
+        sys_prompt = build_system_prompt(
+            include_tools=True,
+            include_profile=True,
+            rag_context=rag_text,
+        )
+    except Exception:
+        sys_prompt = DEFAULT_SYSTEM_PROMPT
+        if rag_text:
+            sys_prompt = f"{sys_prompt}\n\n## Bağlam\n{rag_text}"
+
     final_messages.append({"role": "system", "content": sys_prompt})
     for m in req.messages:
         final_messages.append({"role": m.role, "content": m.content})
@@ -249,26 +258,23 @@ async def chat(req: ChatRequest) -> ChatResponse:
     if req.chat_id:
         def _bg_learn():
             try:
+                # Kullanıcı profili çıkarımı
+                from codegaai.core.user_profile import ProfileManager
+                history_dicts = [{"role": m.role, "content": m.content} for m in history]
+                history_dicts.append({"role": "user", "content": req.message})
+                history_dicts.append({"role": "assistant", "content": response_msg})
+                ProfileManager.get().extract_async(history_dicts)
+
+                # Web öğrenmesi
                 from codegaai.core.web_learner import WebLearner
                 lrn = WebLearner.get()
                 if lrn.status["state"] == "idle":
-                    # Mesaj history'den konu çıkar
-                    history_dicts = [
-                        {"role": m.role, "content": m.content}
-                        for m in history
-                    ]
-                    history_dicts.append(
-                        {"role": "user", "content": req.message}
-                    )
-                    history_dicts.append(
-                        {"role": "assistant", "content": response_msg}
-                    )
                     topics = lrn.extract_topics_from_chat(history_dicts)
                     if topics:
                         log.debug("Sohbet öğrenmesi: %s", topics)
                         lrn.learn_async(topics=topics)
             except Exception:
-                pass  # Öğrenme hatası ana akışı engellemesin
+                pass
 
         import threading as _th
         _th.Thread(target=_bg_learn, daemon=True,
