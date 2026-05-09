@@ -185,6 +185,28 @@ async def chat(req: ChatRequest) -> ChatResponse:
         "",
     )
 
+    # ── GÜVENLİK KONTROLÜ ──────────────────────────────────────
+    try:
+        from codegaai.core.safety import SafetyEngine
+        safety = SafetyEngine.get()
+        safety_result = safety.check_input(last_user)
+        if not safety_result.safe:
+            refusal_msg = safety.format_refusal(safety_result)
+            response_msg = Message(role="assistant", content=refusal_msg)
+            msg_id = None
+            if req.chat_id is not None:
+                store.add_message(req.chat_id, "user", last_user)
+                msg_id = store.add_message(
+                    req.chat_id, "assistant", refusal_msg, model="safety"
+                )
+            return ChatResponse(
+                message=response_msg, message_id=msg_id,
+                model="safety-filter", finish_reason="safety",
+                timing_ms=0, chat_id=req.chat_id,
+            )
+    except ImportError:
+        pass
+
     rag_text = ""
     rag_hits: list[dict] = []
     if req.use_rag and last_user:
@@ -192,23 +214,44 @@ async def chat(req: ChatRequest) -> ChatResponse:
             last_user, exclude_chat_id=req.chat_id, k=4,
         )
 
-    # Dinamik sistem promptu — profil + araçlar + RAG bağlamı
-    final_messages: list[dict[str, str]] = []
+    # ── DİNAMİK SİSTEM PROMPTU ──────────────────────────────────
     try:
         from codegaai.core.system_prompt import build_system_prompt
+        from codegaai.core.safety import SafetyEngine
         sys_prompt = build_system_prompt(
             include_tools=True,
             include_profile=True,
             rag_context=rag_text,
-        )
+        ) + SafetyEngine.get().build_safety_prompt()
     except Exception:
         sys_prompt = DEFAULT_SYSTEM_PROMPT
         if rag_text:
             sys_prompt = f"{sys_prompt}\n\n## Bağlam\n{rag_text}"
 
-    final_messages.append({"role": "system", "content": sys_prompt})
-    for m in req.messages:
-        final_messages.append({"role": m.role, "content": m.content})
+    # ── CHAIN OF THOUGHT + BAĞLAM YÖNETİMİ ─────────────────────
+    history_dicts = [{"role": m.role, "content": m.content}
+                     for m in req.messages[:-1]]  # son mesaj hariç
+
+    try:
+        from codegaai.core.reasoning import ReasoningEngine
+        from codegaai.core.context_manager import ContextManager
+
+        # Uzun bağlamı sıkıştır
+        ctx_result = ContextManager.get().prepare_context(
+            history_dicts, system_prompt=sys_prompt,
+        )
+        compressed_history = ctx_result.messages
+
+        # CoT + mesaj listesi oluştur
+        final_messages, reasoning = ReasoningEngine.get().build_messages(
+            question=last_user,
+            history=compressed_history,
+            system_prompt=sys_prompt,
+        )
+    except Exception:
+        final_messages = [{"role": "system", "content": sys_prompt}]
+        for m in req.messages:
+            final_messages.append({"role": m.role, "content": m.content})
 
     cfg = GenerationConfig(
         temperature=req.temperature,
@@ -222,6 +265,27 @@ async def chat(req: ChatRequest) -> ChatResponse:
     except Exception as exc:
         log.exception("Üretim hatası: %s", exc)
         raise HTTPException(500, f"Üretim hatası: {exc}")
+
+    # ── ÇIKTI GÜVENLİK KONTROLÜ ─────────────────────────────────
+    try:
+        from codegaai.core.safety import SafetyEngine
+        from codegaai.core.reasoning import ReasoningEngine
+        out_safety = SafetyEngine.get().check_output(result["content"])
+        if not out_safety.safe:
+            result["content"] = SafetyEngine.get().format_refusal(out_safety)
+    except Exception:
+        pass
+
+    # <thinking> bloğunu ayır (UI'da gizli göster)
+    try:
+        from codegaai.core.reasoning import ReasoningEngine
+        thought, clean_content = ReasoningEngine.get().extract_thought(
+            result["content"]
+        )
+        if clean_content:
+            result["content"] = clean_content
+    except Exception:
+        pass
 
     response_msg = Message(role="assistant", content=result["content"])
 

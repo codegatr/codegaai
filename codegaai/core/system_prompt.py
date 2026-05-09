@@ -109,6 +109,12 @@ def build_system_prompt(
         except Exception:
             pass
 
+    try:
+        from codegaai.core.safety import SafetyEngine
+        parts.append(SafetyEngine.get().build_safety_prompt())
+    except Exception:
+        pass
+
     if rag_context:
         parts.append(f"""
 ## Bağlamsal Bilgi (RAG)

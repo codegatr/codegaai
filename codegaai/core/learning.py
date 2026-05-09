@@ -539,32 +539,40 @@ class TrainingEngine:
             self._status.progress = 0.2
             self._status.message = f"{len(pairs)} çiftle eğitime başlanıyor..."
 
-            # Bu kısım gerçek bir HF modeli ile çalışır. GGUF için ayrı
-            # bir akış gerekir (llama-factory veya benzeri).
-            adapter_id = f"adapter-{int(time.time())}-{uuid.uuid4().hex[:6]}"
+            deps = self.check_dependencies()
+            all_ok = all(deps.values())
 
-            log.info("DPO training prototip: %s pairs=%d", adapter_id, len(pairs))
-
-            # Mock: gerçek training koşmuyoruz çünkü GGUF -> HF dönüşümü
-            # ve tam DPO pipeline burada kapsam dışı. Adapter klasörünü
-            # placeholder olarak yarat.
-            mgr = AdapterManager.get()
-            mgr.register(
-                adapter_id=adapter_id,
-                name=adapter_name,
-                base_model=base_model_id,
-                description=(f"DPO ile {len(pairs)} tercih çifti üzerinde "
-                             f"eğitildi, {epochs} epoch."),
-            )
+            if all_ok:
+                # GERÇEK DPO TRAINING
+                log.info("Gerçek DPO training başlıyor: %s pairs, %s epochs",
+                         len(pairs), epochs)
+                adapter_id = self._run_real_training(
+                    pairs, adapter_name, base_model_id, epochs, batch_size,
+                )
+            else:
+                # Bağımlılık eksik → feedback'i kaydet, eğitim atla
+                missing = [k for k, v in deps.items() if not v]
+                log.warning("Training atlandı — eksik bağımlılıklar: %s", missing)
+                adapter_id = f"adapter-{int(time.time())}-{uuid.uuid4().hex[:6]}"
+                mgr = AdapterManager.get()
+                mgr.register(
+                    adapter_id=adapter_id,
+                    name=adapter_name,
+                    base_model=base_model_id,
+                    description=(
+                        f"{len(pairs)} çift kaydedildi (eğitim atlandı: "
+                        f"eksik {missing}). Gerçek eğitim için: "
+                        "pip install peft trl bitsandbytes"
+                    ),
+                )
 
             self._status = TrainingStatus(
                 state="completed", job_id=job_id,
                 started_at=self._status.started_at,
                 completed_at=time.time(),
                 progress=1.0,
-                message=(f"Tamamlandı (prototip). Adapter: {adapter_id}. "
-                         f"NOT: bu sürüm placeholder, gerçek eğitim için "
-                         f"safetensors taban model gerekli."),
+                message=(f"Tamamlandı. Adapter: {adapter_id}. "
+                         f"{'Gerçek LoRA eğitimi çalıştırıldı.' if all_ok else 'Veri kaydedildi.'}"),
             )
 
         except Exception as exc:
@@ -575,3 +583,139 @@ class TrainingEngine:
                 completed_at=time.time(),
                 error=str(exc),
             )
+
+    def _run_real_training(
+        self,
+        pairs: list[dict],
+        adapter_name: str,
+        base_model_id: str,
+        epochs: int,
+        batch_size: int,
+    ) -> str:
+        """
+        Gerçek LoRA/DPO eğitimi — peft + trl kullanır.
+
+        Akış:
+        1. DPO dataset oluştur (chosen/rejected çiftleri)
+        2. Taban modeli 4-bit quantization ile yükle (bitsandbytes)
+        3. LoRA config ayarla
+        4. DPOTrainer ile eğit
+        5. Adapter'ı kaydet
+        """
+        import uuid
+
+        from peft import LoraConfig, get_peft_model, TaskType  # type: ignore
+        from trl import DPOTrainer, DPOConfig  # type: ignore
+        from transformers import (  # type: ignore
+            AutoModelForCausalLM,
+            AutoTokenizer,
+            BitsAndBytesConfig,
+        )
+        from datasets import Dataset  # type: ignore
+        import torch
+
+        # Model ID → HF repo adı
+        from codegaai.core.models_registry import ModelRegistry
+        reg = ModelRegistry.get()
+        spec = reg.get_llm_spec(base_model_id)
+        hf_repo = spec.hf_repo if spec else "Qwen/Qwen2.5-7B-Instruct"
+
+        adapter_id = f"adapter-{int(time.time())}-{uuid.uuid4().hex[:6]}"
+        adapter_dir = AdapterManager.get().adapters_dir / adapter_id
+        adapter_dir.mkdir(parents=True, exist_ok=True)
+
+        log.info("LoRA eğitimi: model=%s, adapter=%s, pairs=%d",
+                 hf_repo, adapter_id, len(pairs))
+
+        # 4-bit quantization config
+        bnb_config = None
+        if torch.cuda.is_available():
+            bnb_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=torch.float16,
+                bnb_4bit_use_double_quant=True,
+            )
+
+        cache_dir = str(DATA_DIR / "cache" / "huggingface")
+
+        # Taban modeli yükle (sadece adapter eğitimi için safetensors)
+        self._status.message = "Taban model yükleniyor (safetensors)..."
+        self._status.progress = 0.1
+        tokenizer = AutoTokenizer.from_pretrained(hf_repo, cache_dir=cache_dir)
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+
+        model = AutoModelForCausalLM.from_pretrained(
+            hf_repo,
+            quantization_config=bnb_config,
+            device_map="auto" if torch.cuda.is_available() else "cpu",
+            cache_dir=cache_dir,
+            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+        )
+
+        # LoRA config
+        lora_config = LoraConfig(
+            task_type=TaskType.CAUSAL_LM,
+            r=8,                     # rank (küçük = hızlı, büyük = daha iyi)
+            lora_alpha=16,
+            target_modules=["q_proj", "v_proj", "k_proj", "o_proj"],
+            lora_dropout=0.1,
+            bias="none",
+        )
+
+        # DPO Dataset hazırla
+        dataset_dict = {
+            "prompt":   [p.get("prompt", "")   for p in pairs],
+            "chosen":   [p.get("chosen", "")   for p in pairs],
+            "rejected": [p.get("rejected", "") for p in pairs],
+        }
+        dataset = Dataset.from_dict(dataset_dict)
+
+        self._status.message = f"DPO eğitimi ({len(pairs)} çift, {epochs} epoch)..."
+        self._status.progress = 0.3
+
+        # DPO Training argümanları
+        training_args = DPOConfig(
+            output_dir=str(adapter_dir),
+            num_train_epochs=epochs,
+            per_device_train_batch_size=max(1, batch_size),
+            gradient_accumulation_steps=4,
+            learning_rate=5e-5,
+            fp16=torch.cuda.is_available(),
+            logging_steps=10,
+            save_strategy="epoch",
+            report_to="none",         # wandb vs. kapatıyoruz
+            remove_unused_columns=False,
+            beta=0.1,                 # DPO beta (preference strength)
+        )
+
+        trainer = DPOTrainer(
+            model=model,
+            ref_model=None,           # ref_model=None → implicit ref
+            args=training_args,
+            train_dataset=dataset,
+            tokenizer=tokenizer,
+            peft_config=lora_config,
+        )
+
+        # Eğit
+        trainer.train()
+        self._status.progress = 0.9
+
+        # Kaydet
+        trainer.save_model(str(adapter_dir))
+        log.info("LoRA adapter kaydedildi: %s", adapter_dir)
+
+        # Adapter kaydı
+        AdapterManager.get().register(
+            adapter_id=adapter_id,
+            name=adapter_name,
+            base_model=base_model_id,
+            description=(
+                f"DPO ile {len(pairs)} tercih çifti üzerinde eğitildi "
+                f"({epochs} epoch). LoRA r=8, bitsandbytes 4-bit."
+            ),
+        )
+
+        return adapter_id
