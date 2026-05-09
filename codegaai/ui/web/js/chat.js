@@ -321,42 +321,148 @@ const Chat = (() => {
     autoResize();
     showTyping();
 
+    // Streaming ile gönder (SSE)
     try {
-      const resp = await API.chat(state.messages, { chat_id: state.chatId });
-      hideTyping();
-
-      const assistantMsg = resp.message || {
-        role: "assistant",
-        content: "(boş yanıt)",
-      };
-      // Faz 7: backend'den dönen message_id'yi sakla, feedback için
-      if (resp.message_id) assistantMsg.id = resp.message_id;
-      if (resp.model) assistantMsg.model = resp.model;
-      assistantMsg.rating = 0;
-
-      state.messages.push(assistantMsg);
-      appendMessage(assistantMsg);
-
-      // Model etiketi
-      const lbl = document.getElementById("chat-model-label");
-      if (lbl && resp.model) {
-        lbl.innerHTML = `Model: <code>${escapeHTML(resp.model)}</code>`;
+      await sendStreaming(text);
+    } catch (streamErr) {
+      // Streaming başarısız → fallback: klasik POST
+      console.warn("Streaming başarısız, klasik mod:", streamErr);
+      try {
+        await sendClassic(text);
+      } catch (err) {
+        hideTyping();
+        appendMessage({
+          role: "assistant",
+          content: `**Hata:** ${err.message || "Bilinmeyen hata"}`,
+        });
       }
-
-      // Sidebar listesini tazele (başlık ilk mesajdan otomatik üretildi olabilir)
-      Chats.reload();
-    } catch (err) {
-      hideTyping();
-      console.error(err);
-      appendMessage({
-        role: "assistant",
-        content: `**Hata:** ${err.message || "Bilinmeyen hata"}`,
-      });
     } finally {
       state.sending = false;
       elSend.disabled = false;
       elInput.focus();
     }
+  }
+
+  async function sendStreaming(text) {
+    const params = new URLSearchParams({
+      message: text,
+      chat_id: String(state.chatId),
+      max_tokens: "2048",
+    });
+
+    const url = `/api/chat/stream?${params}`;
+    const es = new EventSource(url);
+
+    hideTyping();
+
+    // Yanıt balonunu oluştur (boş)
+    const assistantMsg = {
+      role: "assistant", content: "", id: null,
+      rating: 0, streaming: true,
+    };
+    state.messages.push(assistantMsg);
+    const msgEl = appendMessage(assistantMsg);
+    const contentEl = msgEl ? msgEl.querySelector(".msg__content") : null;
+
+    return new Promise((resolve, reject) => {
+      let accumulated = "";
+
+      es.addEventListener("message", (e) => {
+        try {
+          const data = JSON.parse(e.data);
+
+          if (data.type === "token") {
+            accumulated += data.content;
+            assistantMsg.content = accumulated;
+            if (contentEl) {
+              contentEl.innerHTML = renderMarkdown(accumulated);
+              contentEl.scrollIntoView({ block: "end", behavior: "smooth" });
+            }
+
+          } else if (data.type === "tool_result") {
+            // Araç sonucunu küçük badge olarak ekle
+            if (contentEl) {
+              const badge = document.createElement("div");
+              badge.className = "tool-badge";
+              badge.textContent = `🔧 ${data.name}`;
+              badge.title = data.result || "";
+              contentEl.parentElement.appendChild(badge);
+            }
+
+          } else if (data.type === "done") {
+            es.close();
+            assistantMsg.streaming = false;
+            if (data.full_content) {
+              assistantMsg.content = data.full_content;
+              if (contentEl) contentEl.innerHTML = renderMarkdown(data.full_content);
+            }
+            // Timing
+            const lbl = document.getElementById("chat-model-label");
+            if (lbl && data.timing_ms) {
+              lbl.textContent = `${data.timing_ms}ms`;
+            }
+            Chats.reload();
+            resolve();
+
+          } else if (data.type === "error") {
+            es.close();
+            reject(new Error(data.message || "Streaming hatası"));
+          }
+
+        } catch (parseErr) {
+          console.warn("SSE parse error:", parseErr);
+        }
+      });
+
+      es.onerror = (err) => {
+        es.close();
+        reject(new Error("SSE bağlantı hatası"));
+      };
+
+      // 3 dakika timeout
+      setTimeout(() => {
+        es.close();
+        reject(new Error("Streaming zaman aşımı (3dk)"));
+      }, 180_000);
+    });
+  }
+
+  async function sendClassic(text) {
+    const resp = await API.chat(state.messages, { chat_id: state.chatId });
+    hideTyping();
+
+    const assistantMsg = resp.message || {
+      role: "assistant",
+      content: "(boş yanıt)",
+    };
+    if (resp.message_id) assistantMsg.id = resp.message_id;
+    if (resp.model) assistantMsg.model = resp.model;
+    assistantMsg.rating = 0;
+
+    state.messages.push(assistantMsg);
+    appendMessage(assistantMsg);
+
+    const lbl = document.getElementById("chat-model-label");
+    if (lbl && resp.model) {
+      lbl.innerHTML = `Model: <code>${escapeHTML(resp.model)}</code>`;
+    }
+
+    Chats.reload();
+  }
+
+  // Basit Markdown render (sonraki sürümde marked.js ile)
+  function renderMarkdown(text) {
+    return text
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>")
+      .replace(/`(.+?)`/g, "<code>$1</code>")
+      .replace(/```([\s\S]+?)```/g, "<pre><code>$1</code></pre>")
+      .replace(/^## (.+)$/gm, "<h3>$1</h3>")
+      .replace(/^### (.+)$/gm, "<h4>$1</h4>")
+      .replace(/^[•\-] (.+)$/gm, "<li>$1</li>")
+      .replace(/\n\n/g, "<br><br>")
+      .replace(/\n/g, "<br>");
   }
 
   // ---------- Sil / Yeniden adlandır ----------
