@@ -706,6 +706,22 @@ class ModelRegistry:
             t.start()
             return t
 
+        # Eksik .gguf varsa (önceki yarım rename'den), .part'a çevir.
+        # Resume için download_worker .part'tan devam edebilir.
+        target = self.llm_path(model_id)
+        partial = target.with_suffix(target.suffix + ".part")
+        if target.exists() and not partial.exists():
+            actual_gb = target.stat().st_size / (1024 ** 3)
+            log.info(
+                "Eksik %s (%.2f GB / %.2f GB beklenen) → resume için "
+                ".part'a çevriliyor",
+                target.name, actual_gb, spec.size_gb,
+            )
+            try:
+                os.replace(target, partial)
+            except Exception as exc:
+                log.warning("Eksik dosyayı .part'a çevirme başarısız: %s", exc)
+
         # Aynı model halen indiriliyor mu?
         cur = self.get_progress(model_id)
         if cur.status == "downloading":
@@ -733,15 +749,12 @@ class ModelRegistry:
         partial = target.with_suffix(target.suffix + ".part")
         url = f"https://huggingface.co/{spec.hf_repo}/resolve/main/{spec.hf_file}"
 
-        # Önceki indirme hata/iptal ile bittiyse partial dosyayı temizle
-        prev = self.get_progress(spec.id)
-        if prev.status in ("error", "cancelled") and partial.exists():
-            log.info("Önceki başarısız indirmeden kalan .part siliniyor: %s",
-                     partial.name)
-            try:
-                partial.unlink()
-            except Exception:
-                pass
+        # Önceki indirme hata/iptal ile bittiyse partial dosya hala
+        # geçerli bayt içeriyor olabilir (HTTP Range ile resume mümkün).
+        # URL değişmediği sürece silmiyoruz; içeride zaten Range header
+        # kullanılıyor.
+        # NOT: URL değişikliği nadirdir (hf_repo değişikliğinde olur).
+        # Şüpheli boyut tespiti download_worker içinde HEAD ile yapılır.
 
         self._set_progress(
             spec.id, status="downloading", downloaded=0, total=0,
