@@ -83,8 +83,40 @@ def _resolve_data_dir() -> Path:
 # Veri dizini (tüm runtime verileri buraya yazılır, repoda yok)
 DATA_DIR: Path = _resolve_data_dir()
 
+# Model dizini — kullanıcı farklı disk seçebilir
+# Öncelik: config.toml > env > DATA_DIR/models
+def _resolve_models_dir() -> Path:
+    """
+    Model dosyaları için dizin seç.
+    D:/CODEGA_Models gibi farklı bir disk seçilebilir.
+    Öncelik: USER_CONFIG > CODEGAAI_MODELS_DIR env > DATA_DIR/models
+    """
+    # Env override
+    env_models = os.environ.get("CODEGAAI_MODELS_DIR")
+    if env_models:
+        p = Path(env_models).expanduser().resolve()
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+
+    # Config dosyasından oku
+    _cfg_file = DATA_DIR / "codegaai_config.json"
+    if _cfg_file.exists():
+        try:
+            import json as _json
+            _cfg = _json.loads(_cfg_file.read_text(encoding="utf-8"))
+            custom = _cfg.get("models_dir")
+            if custom:
+                p = Path(custom).expanduser().resolve()
+                p.mkdir(parents=True, exist_ok=True)
+                return p
+        except Exception:
+            pass
+
+    return DATA_DIR / "models"
+
+
 # Alt dizinler
-MODELS_DIR: Path = DATA_DIR / "models"
+MODELS_DIR: Path = _resolve_models_dir()
 MEMORY_DIR: Path = DATA_DIR / "memory"
 OUTPUTS_DIR: Path = DATA_DIR / "outputs"
 LOGS_DIR: Path = DATA_DIR / "logs"

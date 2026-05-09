@@ -1601,3 +1601,49 @@ body.modal-open { overflow: hidden; }
   max-height: 400px;
   overflow-y: auto;
 }
+
+/* ============================================================
+   DİSK SEÇİCİ
+   ============================================================ */
+
+.disk-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.disk-item {
+  display: grid;
+  grid-template-columns: 140px 1fr auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3);
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--duration-fast);
+}
+
+.disk-item--active {
+  border-color: var(--color-accent);
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.disk-item__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.disk-bar-wrap {
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.disk-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s;
+}

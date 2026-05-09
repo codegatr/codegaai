@@ -202,17 +202,102 @@ const System = (() => {
 
   // ---------- Init ----------
 
+  // ============================================================
+  // Disk Yönetimi
+  // ============================================================
+
+  async function loadDisks() {
+    const diskList = document.getElementById("disk-list");
+    const currentEl = document.getElementById("models-dir-current");
+    if (!diskList) return;
+
+    try {
+      const r = await fetch("/api/system/disks");
+      const d = await r.json();
+
+      if (currentEl) currentEl.textContent = d.current_models_dir || "—";
+
+      if (!d.disks || !d.disks.length) {
+        diskList.innerHTML = '<p class="form-hint">Disk listesi alınamadı</p>';
+        return;
+      }
+
+      diskList.innerHTML = d.disks.map(disk => {
+        const isCurrent = d.current_models_dir?.startsWith(disk.path);
+        const pct = disk.used_pct;
+        const barColor = pct > 85 ? "var(--color-danger)" :
+                         pct > 60 ? "var(--color-accent)" : "var(--color-success)";
+        return `
+          <div class="disk-item ${isCurrent ? "disk-item--active" : ""}">
+            <div class="disk-item__info">
+              <strong>${disk.label}</strong>
+              <span class="form-hint">${disk.free_gb} GB boş / ${disk.total_gb} GB</span>
+            </div>
+            <div class="disk-bar-wrap">
+              <div class="disk-bar" style="width:${pct}%;background:${barColor}"></div>
+            </div>
+            <button class="btn btn--ghost disk-select-btn"
+                    data-path="${disk.path}CODEGA_Models"
+                    ${isCurrent ? "disabled" : ""}>
+              ${isCurrent ? "✓ Seçili" : "Bu Diski Seç"}
+            </button>
+          </div>`;
+      }).join("");
+
+      // Disk seç butonları
+      diskList.querySelectorAll(".disk-select-btn:not([disabled])").forEach(btn => {
+        btn.addEventListener("click", () => setModelsDir(btn.dataset.path));
+      });
+
+    } catch (e) {
+      diskList.innerHTML = `<p class="form-hint">Hata: ${e.message}</p>`;
+    }
+  }
+
+  async function setModelsDir(path) {
+    const resultEl = document.getElementById("models-dir-result");
+    if (resultEl) resultEl.textContent = "Değiştiriliyor...";
+
+    try {
+      const r = await fetch("/api/system/models-dir", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({path}),
+      });
+      const d = await r.json();
+
+      if (d.ok) {
+        if (resultEl) resultEl.innerHTML =
+          `✅ Değiştirildi: <code>${d.new_path}</code> — ${d.message}`;
+        loadDisks(); // yenile
+      } else {
+        if (resultEl) resultEl.textContent = `❌ ${d.error}`;
+      }
+    } catch (e) {
+      if (resultEl) resultEl.textContent = `❌ ${e.message}`;
+    }
+  }
+
   function init() {
     document.getElementById("system-refresh")
-      ?.addEventListener("click", () => {
+      ?.addEventListener(\"click\", () => {
         loadSystemCheck();
         loadEngines();
+        loadDisks();
+      });
+
+    // Özel yol butonu
+    document.getElementById("set-models-dir-btn")
+      ?.addEventListener("click", () => {
+        const path = document.getElementById("custom-models-dir")?.value?.trim();
+        if (path) setModelsDir(path);
       });
 
     Views.on((name) => {
       if (name === "system") {
         loadSystemCheck();
         loadEngines();
+        loadDisks();
       }
     });
 

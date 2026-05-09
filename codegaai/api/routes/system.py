@@ -172,3 +172,136 @@ async def engines() -> dict[str, Any]:
             "phase": "Faz 8",
         },
     }
+
+
+# ============================================================
+# Disk ve Model Dizini Yönetimi
+# ============================================================
+
+@router.get("/disks")
+async def list_disks() -> dict:
+    """
+    Kullanılabilir diskler + boş alan.
+    Windows'ta C:, D:, E: vb. — Linux'ta mount noktaları.
+    """
+    import shutil
+    disks = []
+
+    if __import__("sys").platform == "win32":
+        # Windows: tüm logical sürücüler
+        try:
+            import ctypes
+            bitmask = ctypes.windll.kernel32.GetLogicalDrives()
+            for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+                if bitmask & 1:
+                    path = f"{letter}:\\"
+                    try:
+                        total, used, free = shutil.disk_usage(path)
+                        disks.append({
+                            "path": path,
+                            "label": letter,
+                            "total_gb": round(total / 1e9, 1),
+                            "free_gb": round(free / 1e9, 1),
+                            "used_pct": round(used / total * 100),
+                        })
+                    except Exception:
+                        pass
+                bitmask >>= 1
+        except Exception:
+            # Fallback: sadece C
+            try:
+                total, used, free = shutil.disk_usage("C:\\")
+                disks.append({"path": "C:\\", "label": "C",
+                              "total_gb": round(total/1e9,1),
+                              "free_gb": round(free/1e9,1),
+                              "used_pct": round(used/total*100)})
+            except Exception:
+                pass
+    else:
+        # Linux/macOS: /home ve /
+        for mount in ["/", str(__import__("pathlib").Path.home())]:
+            try:
+                total, used, free = shutil.disk_usage(mount)
+                disks.append({
+                    "path": mount,
+                    "label": mount,
+                    "total_gb": round(total / 1e9, 1),
+                    "free_gb": round(free / 1e9, 1),
+                    "used_pct": round(used / total * 100),
+                })
+            except Exception:
+                pass
+
+    from codegaai.config import MODELS_DIR, DATA_DIR
+    return {
+        "disks": disks,
+        "current_models_dir": str(MODELS_DIR),
+        "current_data_dir": str(DATA_DIR),
+    }
+
+
+@router.post("/models-dir")
+async def set_models_dir(body: dict) -> dict:
+    """
+    Model indirme dizinini değiştir.
+    body: {"path": "D:\\CODEGA_Models"}
+    Yeniden başlatma gerektirir.
+    """
+    import json
+    from codegaai.config import DATA_DIR
+
+    new_path = body.get("path", "").strip()
+    if not new_path:
+        return {"error": "path boş olamaz"}
+
+    from pathlib import Path
+    try:
+        p = Path(new_path).expanduser().resolve()
+        p.mkdir(parents=True, exist_ok=True)
+    except Exception as exc:
+        return {"error": f"Dizin oluşturulamadı: {exc}"}
+
+    # Config dosyasına yaz
+    cfg_file = DATA_DIR / "codegaai_config.json"
+    cfg = {}
+    if cfg_file.exists():
+        try:
+            cfg = json.loads(cfg_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    cfg["models_dir"] = str(p)
+    cfg_file.write_text(json.dumps(cfg, ensure_ascii=False, indent=2),
+                        encoding="utf-8")
+
+    return {
+        "ok": True,
+        "new_path": str(p),
+        "message": "Değişiklik uygulandı. Model indirme işlemleri bu dizini kullanacak.",
+        "restart_needed": False,  # Runtime'da da geçerli
+    }
+
+
+@router.get("/models-dir")
+async def get_models_dir() -> dict:
+    from codegaai.config import MODELS_DIR
+    import shutil
+    try:
+        total, used, free = shutil.disk_usage(str(MODELS_DIR.anchor))
+        disk_free_gb = round(free / 1e9, 1)
+    except Exception:
+        disk_free_gb = 0
+
+    # Mevcut model boyutları
+    model_size_gb = 0.0
+    try:
+        model_size_gb = sum(
+            f.stat().st_size for f in MODELS_DIR.rglob("*") if f.is_file()
+        ) / 1e9
+    except Exception:
+        pass
+
+    return {
+        "models_dir": str(MODELS_DIR),
+        "model_size_gb": round(model_size_gb, 2),
+        "disk_free_gb": disk_free_gb,
+    }

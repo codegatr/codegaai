@@ -514,6 +514,39 @@ const Chat = (() => {
 
     if (!elInput || !elMessages || !elForm) return;
 
+    // RAG + Model durumunu periyodik güncelle
+    async function updateStatusBar() {
+      try {
+        // Model durumu
+        const sysR = await fetch("/api/system/info");
+        const sysD = await sysR.json();
+        const modelCode = document.getElementById("chat-model-code");
+        if (modelCode && sysD.engine) {
+          const m = sysD.engine;
+          modelCode.textContent = m.model_id || "—";
+          modelCode.style.color = m.state === "ready"
+            ? "var(--color-success)" : "var(--color-text-muted)";
+        }
+
+        // RAG durumu
+        const memR = await fetch("/api/memory/status");
+        const memD = await memR.json();
+        const ragLbl = document.getElementById("rag-status-label");
+        if (ragLbl) {
+          if (memD.active) {
+            ragLbl.innerHTML = 'RAG bellek: <span style="color:var(--color-success)">✓ aktif</span>';
+          } else if (memD.chromadb_installed) {
+            ragLbl.innerHTML = 'RAG bellek: <span class="muted">embedding yüklenmedi</span>';
+          } else {
+            ragLbl.innerHTML = 'RAG bellek: <span class="muted">chromadb eksik</span>';
+          }
+        }
+      } catch (e) {}
+    }
+
+    updateStatusBar();
+    setInterval(updateStatusBar, 8000); // 8 sn'de bir güncelle
+
     // Form submit
     elForm.addEventListener("submit", (e) => {
       e.preventDefault();

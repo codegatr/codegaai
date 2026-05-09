@@ -397,12 +397,21 @@ class ModelRegistry:
     _instance: Optional["ModelRegistry"] = None
     _instance_lock = threading.Lock()
 
+    def _refresh_dirs(self) -> None:
+        """Model dizinlerini config'den yeniden yükle (disk değişimi için)."""
+        # Her seferinde config'den oku — kullanıcı disk değiştirmiş olabilir
+        import importlib
+        import codegaai.config as cfg_mod
+        importlib.reload(cfg_mod)
+        models_dir = cfg_mod.MODELS_DIR
+        self.llm_dir = models_dir / "llm"
+        self.embedding_dir = models_dir / "embedding"
+        self.image_dir = models_dir / "image"
+        self.video_dir = models_dir / "video"
+        self.audio_dir = models_dir / "audio"
+
     def __init__(self) -> None:
-        self.llm_dir = MODELS_DIR / "llm"
-        self.embedding_dir = MODELS_DIR / "embedding"
-        self.image_dir = MODELS_DIR / "image"
-        self.video_dir = MODELS_DIR / "video"
-        self.audio_dir = MODELS_DIR / "audio"
+        self._refresh_dirs()
         for d in (self.llm_dir, self.embedding_dir, self.image_dir,
                   self.video_dir, self.audio_dir):
             d.mkdir(parents=True, exist_ok=True)
