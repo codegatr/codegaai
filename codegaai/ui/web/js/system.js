@@ -49,7 +49,7 @@ const System = (() => {
     tableEl.innerHTML = '<div class="system-row system-row--loading">Yükleniyor...</div>';
 
     try {
-      const r = await fetchWithTimeout("/api/system/check", {}, 6000);
+      const r = await fetchWithTimeout("/api/system/check", {}, 4000);
       const data = await r.json();
 
       // Overall pill
@@ -95,7 +95,7 @@ const System = (() => {
     listEl.innerHTML = '<div class="engine-row engine-row--loading">Yükleniyor...</div>';
 
     try {
-      const r = await fetchWithTimeout("/api/system/engines", {}, 6000);
+      const r = await fetchWithTimeout("/api/system/engines", {}, 4000);
       const data = await r.json();
 
       // Sohbet header'ındaki motor pill'ini güncelle

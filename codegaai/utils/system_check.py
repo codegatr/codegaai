@@ -149,24 +149,38 @@ def check_ram() -> CheckResult:
 
 
 def check_disk() -> CheckResult:
-    """Disk boş alan kontrolü (kurulum dizini)."""
+    """Disk boş alan kontrolü (model dizini)."""
     try:
-        from codegaai.config import PROJECT_ROOT
-        usage = shutil.disk_usage(PROJECT_ROOT)
+        import signal, sys
+        from codegaai.config import DATA_DIR
+
+        # Model dizinini config'den oku
+        import json
+        cfg_file = DATA_DIR / "codegaai_config.json"
+        check_path = DATA_DIR
+        if cfg_file.exists():
+            try:
+                d = json.loads(cfg_file.read_text(encoding="utf-8"))
+                p = d.get("models_dir")
+                if p:
+                    from pathlib import Path
+                    check_path = Path(p).parent  # Disk root
+            except Exception:
+                pass
+
+        usage = shutil.disk_usage(str(check_path.anchor))
         free_gb = usage.free / (1024 ** 3)
+        total_gb = usage.total / (1024 ** 3)
 
-        msg = f"{free_gb:.1f} GB boş"
+        msg = f"{free_gb:.1f} GB boş / {total_gb:.1f} GB"
 
-        if free_gb < 30:
-            return CheckResult("Disk", "fail",
-                               f"{msg} - en az 60 GB önerilir (modeller için)")
-        if free_gb < 60:
-            return CheckResult("Disk", "warn",
-                               f"{msg} - 60+ GB önerilir")
+        if free_gb < 5:
+            return CheckResult("Disk", "fail", f"{msg} — kritik az yer!")
+        if free_gb < 15:
+            return CheckResult("Disk", "warn", f"{msg} — modeller için az")
         return CheckResult("Disk", "ok", msg)
     except Exception as exc:
-        return CheckResult("Disk", "warn",
-                           f"Tespit edilemedi: {exc}")
+        return CheckResult("Disk", "warn", f"Tespit edilemedi: {exc}")
 
 
 def check_gpu() -> CheckResult:
@@ -188,7 +202,7 @@ def check_gpu() -> CheckResult:
                  "--query-gpu=name,memory.total,driver_version",
                  "--format=csv,noheader,nounits"],
                 stderr=subprocess.STDOUT,
-                timeout=10,
+                timeout=3,
             ).decode("utf-8", errors="replace").strip()
 
             if output:
@@ -270,17 +284,33 @@ def check_cuda() -> CheckResult:
 # ============================================================
 
 def run_all_checks() -> SystemReport:
-    """Tüm sistem kontrollerini çalıştırır ve birleşik rapor döndürür."""
+    """Tüm sistem kontrollerini PARALEL çalıştırır (her biri 3 sn timeout)."""
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
+
+    checks = [
+        check_python, check_os, check_cpu,
+        check_ram,    check_disk, check_gpu, check_cuda,
+    ]
+
     report = SystemReport()
-    report.results.extend([
-        check_python(),
-        check_os(),
-        check_cpu(),
-        check_ram(),
-        check_disk(),
-        check_gpu(),
-        check_cuda(),
-    ])
+
+    with ThreadPoolExecutor(max_workers=len(checks)) as exe:
+        futures = {exe.submit(fn): fn.__name__ for fn in checks}
+        for future, name in futures.items():
+            try:
+                result = future.result(timeout=3.0)
+                report.results.append(result)
+            except FutureTimeout:
+                report.results.append(CheckResult(
+                    name.replace("check_", "").capitalize(),
+                    "warn", "Kontrol zaman aşımına uğradı (3s)",
+                ))
+            except Exception as exc:
+                report.results.append(CheckResult(
+                    name.replace("check_", "").capitalize(),
+                    "warn", f"Hata: {exc}",
+                ))
+
     return report
 
 
