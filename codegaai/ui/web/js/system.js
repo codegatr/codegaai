@@ -1,486 +1,290 @@
 /* ============================================================
-   CODEGA AI - Sistem & Ayarlar
+   CODEGA AI - Sistem sayfası (sifirdan)
    ============================================================ */
-
 const System = (() => {
-
-  const STATUS_LABELS = {
-    ok:    { sym: "✓", cls: "ok",   text: "Hazır" },
-    warn:  { sym: "!", cls: "warn", text: "Uyarı" },
-    fail:  { sym: "✗", cls: "fail", text: "Hata" },
-    info:  { sym: "i", cls: "info", text: "Bilgi" },
-  };
-
-  const OVERALL_PILL = {
-    ok:   { cls: "status-pill--ok",      text: "Sistem hazır" },
-    warn: { cls: "status-pill--warn",    text: "Uyarılar var" },
-    fail: { cls: "status-pill--err",     text: "Sistem hazır değil" },
-  };
-
-  function escapeHTML(s) {
-    return String(s).replace(/[&<>"']/g, (m) => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;",
-      '"': "&quot;", "'": "&#39;"
-    }[m]));
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, c =>
+      ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   }
+  function el(id) { return document.getElementById(id); }
+  function setText(id, v) { const e=el(id); if(e) e.textContent=v; }
 
-  // ---------- Sistem kontrolü tablosu ----------
-
-  // Timeout'lu fetch yardımcısı
-  async function fetchWithTimeout(url, options = {}, timeoutMs = 6000) {
+  async function get(path) {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    const t = setTimeout(() => ctrl.abort(), 8000);
     try {
-      const r = await fetch(url, { ...options, signal: ctrl.signal });
-      clearTimeout(timer);
-      return r;
-    } catch (e) {
-      clearTimeout(timer);
-      if (e.name === "AbortError") throw new Error(`Zaman aşımı (${timeoutMs/1000}s)`);
-      throw e;
+      const r = await fetch(path, {signal: ctrl.signal});
+      clearTimeout(t);
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
+    } catch(e) { clearTimeout(t); throw e; }
+  }
+
+  async function post(path, body) {
+    const r = await fetch(path, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(body ?? {})
+    });
+    return r.json();
+  }
+
+  // ── Donanım ──
+  async function loadHardware() {
+    const box = el("system-table");
+    if (!box) return;
+    box.innerHTML = "Kontrol ediliyor...";
+    try {
+      const d = await get("/api/system/check");
+      const pill = el("system-overall");
+      if (pill) {
+        const m = {ok:"status-pill--ok", warn:"status-pill--warn", fail:"status-pill--err"};
+        pill.className = "status-pill " + (m[d.overall]||"");
+        pill.innerHTML = `<span class="status-pill__dot"></span>${
+          d.overall==="ok"?"Sistem hazır":d.overall==="warn"?"Uyarı var":"Sorun var"}`;
+      }
+      box.innerHTML = (d.results||[]).map(r=>`
+        <div class="system-row">
+          <span class="system-row__icon">${r.status==="ok"?"✓":r.status==="warn"?"⚠":"✗"}</span>
+          <span class="system-row__name">${esc(r.name)}</span>
+          <span class="system-row__msg">${esc(r.message)}</span>
+        </div>`).join("") || "Sonuç yok";
+    } catch(e) {
+      box.innerHTML = `<span style="color:#ef4444">Hata: ${esc(e.message)}</span>`;
     }
   }
 
-  async function loadSystemCheck() {
-    const tableEl = document.getElementById("system-table");
-    const overallEl = document.getElementById("system-overall");
-    if (!tableEl) return;
-
-    tableEl.innerHTML = '<div class="system-row system-row--loading">Yükleniyor...</div>';
-
-    try {
-      const r = await fetchWithTimeout("/api/system/check", {}, 4000);
-      const data = await r.json();
-
-      // Overall pill
-      if (overallEl) {
-        const o = OVERALL_PILL[data.overall] || OVERALL_PILL.warn;
-        overallEl.className = `status-pill ${o.cls}`;
-        overallEl.innerHTML = `
-          <span class="status-pill__dot"></span>
-          <span>${escapeHTML(o.text)}</span>
-        `;
-      }
-
-      // Sistem satırları
-      tableEl.innerHTML = "";
-      for (const r of (data.results || [])) {
-        const meta = STATUS_LABELS[r.status] || STATUS_LABELS.info;
-        const row = document.createElement("div");
-        row.className = `system-row system-row--${meta.cls}`;
-        row.innerHTML = `
-          <span class="system-row__icon">${meta.sym}</span>
-          <span class="system-row__name">${escapeHTML(r.name)}</span>
-          <span class="system-row__msg">${escapeHTML(r.message || "")}</span>
-        `;
-        tableEl.appendChild(row);
-      }
-    } catch (err) {
-      tableEl.innerHTML = `
-        <div class="system-row system-row--fail">
-          <span class="system-row__icon">✗</span>
-          <span class="system-row__name">Hata</span>
-          <span class="system-row__msg">${escapeHTML(err.message)}</span>
-        </div>
-      `;
-    }
-  }
-
-  // ---------- Motor durumu ----------
-
+  // ── Motor Durumu ──
   async function loadEngines() {
-    const listEl = document.getElementById("engines-list");
-    if (!listEl) return;
-
-    listEl.innerHTML = '<div class="engine-row engine-row--loading">Yükleniyor...</div>';
-
+    const box = el("engines-list");
+    if (!box) return;
+    box.innerHTML = "Yükleniyor...";
     try {
-      const r = await fetchWithTimeout("/api/system/engines", {}, 4000);
-      const data = await r.json();
-
-      // Sohbet header'ındaki motor pill'ini güncelle
-      updateChatPill(data.llm);
-
-      listEl.innerHTML = "";
-
-      const ENGINE_LABELS = {
-        llm:      "LLM (Sohbet + Kod)",
-        image:    "Görsel Üretimi",
-        audio:    "Ses (TTS + ASR)",
-        video:    "Video Üretimi",
-        memory:   "RAG Bellek",
-        learning: "Self-Learning Loop",
+      const d = await get("/api/system/engines");
+      const lbls = {
+        llm:"LLM (Sohbet + Kod)", embedding:"Embedding", memory:"RAG Bellek",
+        image:"Görsel Üretimi", audio:"Ses (TTS + ASR)", video:"Video Üretimi",
+        learning:"Self-Learning", updater:"Güncelleme"
       };
-
-      for (const [key, info] of Object.entries(data)) {
+      box.innerHTML = "";
+      for (const [k,lbl] of Object.entries(lbls)) {
+        const v = d[k]||{};
+        const active = v.active||v.ready;
         const row = document.createElement("div");
         row.className = "engine-row";
-
-        const pillClass = info.active ? "status-pill--ok" : "status-pill--scheduled";
-        const pillText = info.active ? "Aktif" : "Beklemede";
-
         row.innerHTML = `
-          <div class="engine-row__name">
-            <span>${escapeHTML(ENGINE_LABELS[key] || key)}</span>
-            <span class="engine-row__reason">${escapeHTML(info.reason || "")}</span>
-          </div>
-          <span class="status-pill ${pillClass}">
-            <span class="status-pill__dot"></span>
-            ${escapeHTML(pillText)}
-          </span>
-        `;
-        listEl.appendChild(row);
+          <div class="engine-row__name">${esc(lbl)}</div>
+          <div class="engine-row__status">
+            <span class="status-pill ${active?"status-pill--ok":""}">
+              <span class="status-pill__dot"></span>
+              ${active?(v.model_id||"Aktif"):v.state==="loading"?"Yükleniyor...":"Beklemede"}
+            </span>
+          </div>`;
+        box.appendChild(row);
       }
-    } catch (err) {
-      listEl.innerHTML = `
-        <div class="engine-row">
-          <div class="engine-row__name">Hata: ${escapeHTML(err.message)}</div>
-        </div>
-      `;
-    }
-  }
-
-  function updateChatPill(llmEngine) {
-    const pill = document.getElementById("chat-engine-pill");
-    const text = document.getElementById("chat-engine-status");
-    const statusText = document.getElementById("status-engine");
-    if (!pill || !text) return;
-
-    pill.classList.remove("status-pill--pending", "status-pill--ok",
-                          "status-pill--scheduled", "status-pill--err");
-
-    if (llmEngine.active) {
-      pill.classList.add("status-pill--ok");
-      const backend = llmEngine.backend || "?";
-      text.textContent = `${llmEngine.model_id} · ${backend.toUpperCase()}`;
-      if (statusText) statusText.textContent = `Motor: ${llmEngine.model_id} (${backend})`;
-    } else if (llmEngine.state === "loading") {
-      pill.classList.add("status-pill--pending");
-      text.textContent = "Model yükleniyor...";
-      if (statusText) statusText.textContent = "Motor: yükleniyor";
-    } else if (llmEngine.state === "error") {
-      pill.classList.add("status-pill--err");
-      const isAvx = llmEngine.error && llmEngine.error.toLowerCase().includes("avx2");
-      text.textContent = isAvx ? "CPU uyumsuzluğu (AVX2)" : "Yükleme hatası";
-      if (statusText) statusText.textContent = isAvx
-        ? "Motor: CPU AVX2 desteklemiyor — fix_llama.bat çalıştır"
-        : "Motor: hata";
-      // Hata kutusunu göster
-      const errBox = document.getElementById("llm-error-box");
-      if (errBox) {
+      const errBox = el("llm-error-box");
+      if (errBox && d.llm?.error?.includes("AVX2")) {
         errBox.hidden = false;
-        errBox.innerHTML = isAvx
-          ? `<strong>⚠️ CPU Uyumsuzluğu</strong><br>
-             llama-cpp-python AVX2 gerektiriyor, işlemcinizde bu özellik yok.<br>
-             <strong>Çözüm:</strong> CODEGA AI kurulum klasöründeki <code>fix_llama.bat</code> dosyasını yönetici olarak çalıştırın.`
-          : `<strong>Hata:</strong> ${llmEngine.error || "Bilinmeyen hata"}`;
+        errBox.innerHTML = `<strong>⚠️ CPU AVX2 Uyumsuzluğu</strong><br>
+          <code>fix_llama.bat</code> dosyasını çalıştırın.`;
       }
-    } else {
-      pill.classList.add("status-pill--scheduled");
-      text.textContent = "model yüklü değil — Sistem'den indir";
-      if (statusText) statusText.textContent = "Motor: bekleniyor";
+      // Chat altbar
+      const st = el("status-engine");
+      if (st) st.textContent = d.llm?.active ? `Motor: ${d.llm.model_id||""}` : "Motor: bekleniyor";
+      const pill = el("chat-engine-pill");
+      if (pill) {
+        pill.className = "status-pill " + (d.llm?.active ? "status-pill--ok" : "");
+        const sp = pill.querySelector("span:last-child");
+        if (sp) sp.textContent = d.llm?.active ? (d.llm.model_id||"Hazır") : "Bekleniyor";
+      }
+    } catch(e) {
+      box.innerHTML = `<span style="color:#ef4444">Hata: ${esc(e.message)}</span>`;
     }
   }
 
-
-  async function loadSettings() {
+  // ── Diskler ──
+  async function loadDisks() {
+    const box = el("disk-list"); const cur = el("models-dir-current");
+    if (!box) return;
+    box.innerHTML = "Diskler taranıyor...";
     try {
-      const info = await API.info();
-
-      setText("settings-version", `v${info.version}`);
-      setText("settings-phase", info.phase);
-      setText("brand-version", `v${info.version}`);
-
-      if (info.models) {
-        setText("settings-llm",       info.models.llm);
-        setText("settings-embedding", info.models.embedding);
-        setText("settings-image",     info.models.image);
-        setText("settings-video",     info.models.video);
-        setText("settings-tts",       info.models.tts);
-        setText("settings-asr",       info.models.asr);
-      }
-
-      // Status bar
-      setText("status-engine", `Motor: stub (Faz 2)`);
-    } catch (err) {
-      console.error("Ayarlar yüklenemedi:", err);
-    }
+      const d = await get("/api/system/disks");
+      if (cur) cur.textContent = d.current_models_dir||"—";
+      if (!d.disks?.length) { box.innerHTML='<p class="form-hint">Disk bulunamadı.</p>'; return; }
+      box.innerHTML = d.disks.map(dk=>{
+        const pct=dk.used_pct||0;
+        const color=pct>85?"#ef4444":pct>60?"#f59e0b":"#10b981";
+        const active=(d.current_models_dir||"").startsWith(dk.path);
+        return `<div class="disk-item ${active?"disk-item--active":""}">
+          <div class="disk-item__info">
+            <strong>${esc(dk.label)}:</strong>
+            <span class="form-hint">${dk.free_gb} GB boş / ${dk.total_gb} GB</span>
+          </div>
+          <div class="disk-bar-wrap"><div class="disk-bar" style="width:${pct}%;background:${color}"></div></div>
+          <button class="btn btn--ghost" ${active?"disabled":""} onclick="System.setDisk('${dk.path}CODEGA_Models')">
+            ${active?"✓ Mevcut":"Seç"}
+          </button>
+        </div>`;
+      }).join("");
+    } catch(e) { box.innerHTML=`<span style="color:#ef4444">Hata: ${esc(e.message)}</span>`; }
   }
 
-  function setText(id, value) {
-    const node = document.getElementById(id);
-    if (node && value !== undefined && value !== null) {
-      node.textContent = value;
-    }
+  async function setDisk(path) {
+    const res = el("models-dir-result");
+    if (res) res.textContent = "Kaydediliyor...";
+    try {
+      const d = await post("/api/system/models-dir", {path});
+      if (d.ok) { if(res) res.innerHTML=`✅ <code>${esc(d.new_path)}</code>`; loadDisks(); }
+      else if(res) res.textContent="❌ "+(d.error||"Hata");
+    } catch(e) { if(res) res.textContent="❌ "+e.message; }
   }
 
-  // ---------- Saat ----------
-
-  function startClock() {
-    const node = document.getElementById("status-time");
-    if (!node) return;
-    const tick = () => {
-      const d = new Date();
-      const hh = String(d.getHours()).padStart(2, "0");
-      const mm = String(d.getMinutes()).padStart(2, "0");
-      const ss = String(d.getSeconds()).padStart(2, "0");
-      node.textContent = `${hh}:${mm}:${ss}`;
-    };
-    tick();
-    setInterval(tick, 1000);
-  }
-
-  // ---------- Init ----------
-
-  // ============================================================
-  // LLM Model Listesi
-  // ============================================================
+  // ── LLM Modeller ──
+  const polls = {};
 
   async function loadModels() {
-    const gridEl = document.getElementById("models-grid");
-    if (!gridEl) return;
-
-    gridEl.innerHTML = '<div class="engine-row engine-row--loading">Yükleniyor...</div>';
-
+    const box = el("models-grid");
+    if (!box) return;
+    box.innerHTML = '<div style="padding:8px;color:var(--color-text-muted)">Modeller yükleniyor...</div>';
     try {
-      const r = await fetchWithTimeout("/api/models/llm", {}, 8000);
-      const data = await r.json();
-      const models = data.models || [];
-
+      const d = await get("/api/models/llm");
+      const models = d.models || [];
       if (!models.length) {
-        gridEl.innerHTML = '<p style="color:var(--color-text-muted);padding:12px">Model listesi alınamadı.</p>';
+        box.innerHTML = '<div style="padding:8px;color:var(--color-text-muted)">Model listesi boş.</div>';
         return;
       }
-
-      gridEl.innerHTML = models.map(m => {
-        const isDownloaded = m.downloaded;
-        const isLoaded = m.loaded;
-        const progress = m.download_progress || 0;
-        const isDownloading = m.state === "downloading";
-
-        let actionBtn = "";
-        if (isLoaded) {
-          actionBtn = `<button class="btn btn--ghost" style="font-size:12px" onclick="unloadModel('${m.id}')">Bellekten Çıkar</button>`;
-        } else if (isDownloaded) {
-          actionBtn = `<button class="btn btn--primary" style="font-size:12px" onclick="loadModel('${m.id}')">Yükle</button>`;
-        } else if (isDownloading) {
-          actionBtn = `<div style="font-size:12px;color:var(--color-accent)">İndiriliyor... %${Math.round(progress * 100)}</div>`;
+      box.innerHTML = models.map(m => {
+        const dl=m.downloaded, ld=m.loaded;
+        const prog=m.download||{}, pct=Math.round((prog.progress||0)*100);
+        let badge, btn;
+        if (ld) {
+          badge = `<span class="status-pill status-pill--ok" style="font-size:11px"><span class="status-pill__dot"></span>Yüklü</span>`;
+          btn = `<button class="btn btn--ghost" style="font-size:12px" onclick="System.unloadModel('${m.id}')">Bellekten Çıkar</button>`;
+        } else if (prog.status==="downloading") {
+          badge = `<span class="status-pill" style="font-size:11px;border-color:#f59e0b"><span class="status-pill__dot" style="background:#f59e0b"></span>İndiriliyor %${pct}</span>`;
+          btn = `<div style="margin-top:6px;height:4px;background:var(--color-border);border-radius:2px">
+            <div style="height:4px;width:${pct}%;background:#f59e0b;border-radius:2px"></div></div>
+            <div style="font-size:11px;color:var(--color-text-muted);margin-top:3px">${(prog.downloaded_gb||0).toFixed(2)} / ${m.size_gb} GB</div>`;
+        } else if (dl) {
+          badge = `<span class="status-pill" style="font-size:11px"><span class="status-pill__dot"></span>İndirildi</span>`;
+          btn = `<button class="btn btn--primary" style="font-size:12px" onclick="System.loadModel('${m.id}')">Yükle</button>`;
         } else {
-          actionBtn = `<button class="btn btn--ghost" style="font-size:12px" onclick="downloadModel('${m.id}')">İndir (~${m.size_gb} GB)</button>`;
+          badge = `<span class="status-pill status-pill--off" style="font-size:11px"><span class="status-pill__dot"></span>İndirilmedi</span>`;
+          btn = `<button class="btn btn--ghost" style="font-size:12px" onclick="System.downloadModel('${m.id}')">İndir (~${m.size_gb} GB)</button>`;
         }
-
-        const statusDot = isLoaded
-          ? `<span class="status-pill status-pill--ok" style="font-size:11px"><span class="status-pill__dot"></span>Yüklü</span>`
-          : isDownloaded
-          ? `<span class="status-pill" style="font-size:11px;border-color:var(--color-border)"><span class="status-pill__dot"></span>İndirildi</span>`
-          : `<span class="status-pill status-pill--off" style="font-size:11px"><span class="status-pill__dot"></span>Yok</span>`;
-
-        return `
-          <div class="model-card" id="model-card-${m.id}">
-            <div class="model-card__header">
-              <div>
-                <div class="model-card__name">${escapeHTML(m.name || m.id)}</div>
-                <div class="model-card__id">${m.id} · ${m.size_gb || "?"} GB · ${m.vram_gb || "?"} GB VRAM</div>
-              </div>
-              ${statusDot}
-            </div>
-            ${m.description ? `<p class="model-card__desc">${escapeHTML(m.description)}</p>` : ""}
-            <div class="model-card__actions">
-              ${actionBtn}
-              ${m.default ? `<span style="font-size:11px;color:var(--color-text-muted)">⭐ Önerilen</span>` : ""}
-            </div>
-          </div>`;
+        return `<div class="model-card" id="mc-${m.id}">
+          <div class="model-card__header">
+            <div>
+              <div class="model-card__name">${esc(m.name||m.id)}</div>
+              <div class="model-card__id">${esc(m.id)} · ${m.size_gb} GB VRAM: ${m.vram_gb} GB</div>
+            </div>${badge}
+          </div>
+          ${m.description?`<p class="model-card__desc">${esc(m.description)}</p>`:""}
+          <div class="model-card__actions" id="ma-${m.id}">${btn}
+            ${m.default?'<span style="font-size:11px;color:var(--color-text-muted)">⭐ Önerilen</span>':""}
+          </div>
+        </div>`;
       }).join("");
-
-    } catch (err) {
-      gridEl.innerHTML = `<div style="color:var(--color-danger);padding:12px;font-size:13px">
-        ❌ Model listesi yüklenemedi: ${escapeHTML(err.message)}
-        <br><button class="btn btn--ghost" style="margin-top:8px;font-size:12px" onclick="loadModels()">Tekrar Dene</button>
+    } catch(e) {
+      box.innerHTML = `<div style="color:#ef4444;padding:8px">
+        Modeller yüklenemedi: ${esc(e.message)}<br>
+        <button class="btn btn--ghost" style="margin-top:8px;font-size:12px" onclick="System.loadModels()">Tekrar Dene</button>
       </div>`;
     }
   }
 
-  // Model İndirme
-  async function downloadModel(modelId) {
-    const card = document.getElementById(`model-card-${modelId}`);
-    if (card) {
-      const btn = card.querySelector("button");
-      if (btn) { btn.disabled = true; btn.textContent = "Başlatılıyor..."; }
-    }
+  async function downloadModel(id) {
+    const ma = el("ma-"+id);
+    if (ma) ma.innerHTML = '<span style="font-size:12px;color:#f59e0b">Başlatılıyor...</span>';
     try {
-      await fetch(`/api/models/${modelId}/download`, { method: "POST" });
-      // Poll progress
-      const pollTimer = setInterval(async () => {
+      await post(`/api/models/${id}/download`);
+      if (polls[id]) clearInterval(polls[id]);
+      polls[id] = setInterval(async()=>{
         try {
-          const r = await fetch(`/api/models/${modelId}/status`);
-          const d = await r.json();
-          const pct = Math.round((d.download_progress || 0) * 100);
-          const cardEl = document.getElementById(`model-card-${modelId}`);
-          if (cardEl) {
-            const actEl = cardEl.querySelector(".model-card__actions");
-            if (actEl && d.state === "downloading") {
-              actEl.innerHTML = `
-                <div style="width:100%">
-                  <div style="font-size:12px;color:var(--color-accent);margin-bottom:6px">
-                    İndiriliyor: %${pct} (${d.downloaded_gb?.toFixed(2) || "?"}/${d.size_gb || "?"} GB)
-                  </div>
-                  <div style="height:4px;background:var(--color-border);border-radius:2px">
-                    <div style="height:4px;width:${pct}%;background:var(--color-accent);border-radius:2px;transition:width .5s"></div>
-                  </div>
-                </div>`;
-            } else if (d.state === "ready" || d.downloaded) {
-              clearInterval(pollTimer);
-              loadModels();
-            } else if (d.state === "error") {
-              clearInterval(pollTimer);
-              loadModels();
-            }
+          const s = await get(`/api/models/${id}/status`);
+          const pct = Math.round((s.download_progress||0)*100);
+          const ma2 = el("ma-"+id);
+          if (!ma2) { clearInterval(polls[id]); return; }
+          if (s.state==="downloading") {
+            ma2.innerHTML = `<div style="font-size:12px;color:#f59e0b">İndiriliyor: %${pct}</div>
+              <div style="margin-top:4px;height:4px;background:var(--color-border);border-radius:2px">
+              <div style="height:4px;width:${pct}%;background:#f59e0b;border-radius:2px;transition:width .5s"></div></div>
+              <div style="font-size:11px;color:var(--color-text-muted)">${(s.downloaded_gb||0).toFixed(2)} / ${s.size_gb||"?"} GB</div>`;
+          } else if (s.downloaded||s.state==="ready") {
+            clearInterval(polls[id]); delete polls[id]; loadModels();
+          } else if (s.state==="error") {
+            clearInterval(polls[id]); delete polls[id];
+            if(ma2) ma2.innerHTML=`<span style="color:#ef4444">Hata</span>
+              <button class="btn btn--ghost" style="font-size:12px;margin-left:8px" onclick="System.downloadModel('${id}')">Tekrar</button>`;
           }
-        } catch (e) { clearInterval(pollTimer); }
+        } catch(e) { clearInterval(polls[id]); delete polls[id]; }
       }, 1500);
-    } catch (err) {
-      loadModels();
+    } catch(e) {
+      if (ma) ma.innerHTML=`<button class="btn btn--ghost" style="font-size:12px" onclick="System.downloadModel('${id}')">İndir</button>`;
     }
   }
 
-  // Model Yükle
-  async function loadModel(modelId) {
-    const card = document.getElementById(`model-card-${modelId}`);
-    if (card) {
-      const btn = card.querySelector("button");
-      if (btn) { btn.disabled = true; btn.textContent = "Yükleniyor..."; }
-    }
-    try {
-      await fetch(`/api/models/${modelId}/load`, { method: "POST" });
-      setTimeout(loadModels, 2000);
-      setTimeout(loadEngines, 2000);
-    } catch (err) { loadModels(); }
+  async function loadModel(id) {
+    const ma = el("ma-"+id);
+    if (ma) ma.innerHTML = '<span style="font-size:12px;color:#f59e0b">Yükleniyor...</span>';
+    try { await post(`/api/models/${id}/load`); setTimeout(()=>{loadModels();loadEngines();},2000); }
+    catch(e) { loadModels(); }
   }
 
-  // Model Bellekten Çıkar
-  async function unloadModel(modelId) {
-    try {
-      await fetch("/api/models/unload", { method: "POST" });
-      setTimeout(() => { loadModels(); loadEngines(); }, 1000);
-    } catch (err) { loadModels(); }
+  async function unloadModel(id) {
+    try { await post("/api/models/unload"); setTimeout(()=>{loadModels();loadEngines();},1000); }
+    catch(e) { loadModels(); }
   }
 
-  async function loadDisks() {
-    const diskList = document.getElementById("disk-list");
-    const currentEl = document.getElementById("models-dir-current");
-    if (!diskList) return;
-
-    diskList.innerHTML = '<p class="form-hint">Diskler taranıyor...</p>';
-
+  // ── Ayarlar ──
+  async function loadSettings() {
     try {
-      const r = await fetchWithTimeout("/api/system/disks", {}, 8000);
-      const d = await r.json();
-
-      if (currentEl) currentEl.textContent = d.current_models_dir || "—";
-
-      if (!d.disks || !d.disks.length) {
-        diskList.innerHTML = '<p class="form-hint">Disk listesi alınamadı</p>';
-        return;
-      }
-
-      diskList.innerHTML = d.disks.map(disk => {
-        const isCurrent = d.current_models_dir?.startsWith(disk.path);
-        const pct = disk.used_pct;
-        const barColor = pct > 85 ? "var(--color-danger)" :
-                         pct > 60 ? "var(--color-accent)" : "var(--color-success)";
-        return `
-          <div class="disk-item ${isCurrent ? "disk-item--active" : ""}">
-            <div class="disk-item__info">
-              <strong>${disk.label}</strong>
-              <span class="form-hint">${disk.free_gb} GB boş / ${disk.total_gb} GB</span>
-            </div>
-            <div class="disk-bar-wrap">
-              <div class="disk-bar" style="width:${pct}%;background:${barColor}"></div>
-            </div>
-            <button class="btn btn--ghost disk-select-btn"
-                    data-path="${disk.path}CODEGA_Models"
-                    ${isCurrent ? "disabled" : ""}>
-              ${isCurrent ? "✓ Seçili" : "Bu Diski Seç"}
-            </button>
-          </div>`;
-      }).join("");
-
-      // Disk seç butonları
-      diskList.querySelectorAll(".disk-select-btn:not([disabled])").forEach(btn => {
-        btn.addEventListener("click", () => setModelsDir(btn.dataset.path));
-      });
-
-    } catch (e) {
-      diskList.innerHTML = `<p class="form-hint">Hata: ${e.message}</p>`;
-    }
+      const d = await get("/api/system/info");
+      setText("settings-version", `v${d.version||"?"}`);
+      setText("settings-phase", d.phase||"");
+      setText("brand-version", `v${d.version||"?"}`);
+      const llm = el("settings-llm");
+      if (llm) llm.textContent = d.models?.llm||"—";
+    } catch(e) {}
   }
 
-  async function setModelsDir(path) {
-    const resultEl = document.getElementById("models-dir-result");
-    if (resultEl) resultEl.textContent = "Değiştiriliyor...";
+  // ── Init ──
+  function loadAll() {
+    loadHardware();
+    loadEngines();
+    loadDisks();
+    loadModels();
+  }
 
-    try {
-      const r = await fetch("/api/system/models-dir", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({path}),
-      });
-      const d = await r.json();
-
-      if (d.ok) {
-        if (resultEl) resultEl.innerHTML =
-          `✅ Değiştirildi: <code>${d.new_path}</code> — ${d.message}`;
-        loadDisks(); // yenile
-      } else {
-        if (resultEl) resultEl.textContent = `❌ ${d.error}`;
-      }
-    } catch (e) {
-      if (resultEl) resultEl.textContent = `❌ ${e.message}`;
-    }
+  function startClock() {
+    const e = el("status-time"); if(!e) return;
+    const tick=()=>{ e.textContent=new Date().toLocaleTimeString("tr-TR",{hour12:false}); };
+    tick(); setInterval(tick,1000);
   }
 
   function init() {
-    document.getElementById("system-refresh")
-      ?.addEventListener(\"click\", () => {
-        loadSystemCheck();
-        loadEngines();
-        loadDisks();
-        loadModels();
-      });
-
-    // Özel yol butonu
-    document.getElementById("set-models-dir-btn")
-      ?.addEventListener("click", () => {
-        const path = document.getElementById("custom-models-dir")?.value?.trim();
-        if (path) setModelsDir(path);
-      });
-
-    Views.on((name) => {
-      if (name === "system") {
-        loadSystemCheck();
-        loadEngines();
-        loadDisks();
-        loadModels();
-      }
+    el("system-refresh")?.addEventListener("click", loadAll);
+    el("set-models-dir-btn")?.addEventListener("click", ()=>{
+      const v=el("custom-models-dir")?.value?.trim(); if(v) setDisk(v);
     });
 
-    // Başlangıçta arka planda yükle
+    if (typeof Views !== "undefined") {
+      Views.on(name => { if (name==="system") loadAll(); });
+    }
+
     loadSettings();
-    loadEngines();         // chat header pill için
-    loadModels();          // model listesi hemen yükle
+    loadEngines();  // chat pill
+
+    // İlk açılışta sistem sekmesi zaten açıksa veya 1sn sonra kontrol
+    setTimeout(()=>{
+      if (typeof Views!=="undefined" && Views.current()==="system") loadAll();
+    }, 800);
+
     startClock();
   }
 
-  return {
-    init,
-    refresh: () => { loadSystemCheck(); loadEngines(); loadSettings(); loadModels(); },
-    loadModels,
-  };
+  return { init, loadModels, loadEngines, loadAll,
+           downloadModel, loadModel, unloadModel, setDisk,
+           refresh: loadAll };
 })();
 
 window.System = System;
-
-// onclick handler'ları için global fonksiyonlar
-window.downloadModel = (id) => System.loadModels && downloadModel && downloadModel(id);
-window.loadModel     = (id) => System.loadModels && loadModel && loadModel(id);
-window.unloadModel   = (id) => System.loadModels && unloadModel && unloadModel(id);
