@@ -361,9 +361,15 @@ class Updater:
             # PyInstaller --onedir genelde tek alt klasör çıkarır:
             # codegaai-vX.Y.Z-windows-cpu/codegaai/...
             # Eğer öyleyse içeri girip o klasörü kullan
-            children = [p for p in extract_dir.iterdir() if p.is_dir()]
-            if len(children) == 1 and children[0].name.startswith("codegaai"):
-                extract_dir = children[0]
+            # codegaai.exe'yi bul, onun klasörünü kullan
+            found_exe = list(extract_dir.rglob("codegaai.exe"))
+            if found_exe:
+                extract_dir = found_exe[0].parent
+                log.info("Güncelleme klasörü bulundu: %s", extract_dir)
+            else:
+                children = [p for p in extract_dir.iterdir() if p.is_dir()]
+                if len(children) == 1:
+                    extract_dir = children[0]
 
             self._download.state = "ready"
             self._download.completed_at = time.time()

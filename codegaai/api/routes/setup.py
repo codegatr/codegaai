@@ -120,13 +120,15 @@ async def setup_disks() -> dict:
 
 class SetupCompleteRequest(BaseModel):
     models_dir: str
-    install_dir: str = ""  # İleride kullanım için
+    install_dir: str = ""
+    download_default: bool = True  # Önerilen modeli otomatik indir
 
 
 @router.post("/complete")
 async def complete_setup(req: SetupCompleteRequest) -> dict:
     """
-    Kurulum dizinini kaydet ve kurulumu tamamlandı olarak işaretle.
+    Kurulum dizinini kaydet, kurulumu tamamlandı olarak işaretle.
+    Önerilen model otomatik indirilmeye başlar.
     """
     from codegaai.config import DATA_DIR
 
@@ -134,6 +136,8 @@ async def complete_setup(req: SetupCompleteRequest) -> dict:
     models_path = Path(req.models_dir).expanduser().resolve()
     try:
         models_path.mkdir(parents=True, exist_ok=True)
+        (models_path / "llm").mkdir(exist_ok=True)
+        (models_path / "embedding").mkdir(exist_ok=True)
     except Exception as exc:
         return {"ok": False, "error": f"Dizin oluşturulamadı: {exc}"}
 
@@ -163,11 +167,38 @@ async def complete_setup(req: SetupCompleteRequest) -> dict:
         encoding="utf-8",
     )
 
+    # Registry'yi sıfırla → yeni dizini görsün
+    try:
+        from codegaai.core.models_registry import ModelRegistry
+        ModelRegistry._instance = None
+    except Exception:
+        pass
+
     log.info("Kurulum tamamlandı: models_dir=%s", models_path)
+
+    # Önerilen modeli arka planda indir
+    if req.download_default:
+        import threading
+        def _download_default():
+            import time as _time
+            _time.sleep(1)
+            try:
+                from codegaai.core.models_registry import ModelRegistry
+                reg = ModelRegistry.get()
+                defaults = [m for m in reg.list_llm_models() if m.get("default")]
+                if defaults:
+                    model_id = defaults[0]["id"]
+                    log.info("Önerilen model indiriliyor: %s", model_id)
+                    reg.download_llm_async(model_id)
+            except Exception as e:
+                log.warning("Otomatik model indirme başlatılamadı: %s", e)
+        threading.Thread(target=_download_default, daemon=True, name="setup-download").start()
+
     return {
         "ok": True,
         "models_dir": str(models_path),
-        "message": "Kurulum tamamlandı. CODEGA AI hazır!",
+        "message": "Kurulum tamamlandı!",
+        "downloading": req.download_default,
     }
 
 

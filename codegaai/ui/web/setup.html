@@ -312,17 +312,23 @@
     <div class="card" style="text-align:center;padding:40px">
       <div class="done-icon">✓</div>
       <div class="done-title">Kurulum Tamamlandı!</div>
-      <p class="done-desc">
+      <p class="done-desc" id="done-desc">
         Model dizini oluşturuldu.<br>
-        Şimdi bir model indirip yükleyebilirsiniz.
+        Önerilen model <strong>arka planda indiriliyor</strong> (~5 GB).<br>
+        Uygulama açıkken devam eder.
       </p>
       <p class="done-desc" style="margin-top:12px;font-size:12px">
-        Seçilen dizin: <code id="done-path" style="color:var(--accent)"></code>
+        Dizin: <code id="done-path" style="color:var(--accent)"></code>
       </p>
+      <div id="dl-wrap" style="margin-top:16px;display:none">
+        <div id="dl-label" style="font-size:13px;color:var(--accent);margin-bottom:6px">İndiriliyor: %0</div>
+        <div style="height:6px;background:#1e2128;border-radius:3px">
+          <div id="dl-bar" style="height:6px;width:0%;background:var(--accent);border-radius:3px;transition:width .5s"></div>
+        </div>
+      </div>
     </div>
-
     <div class="actions" style="justify-content:center">
-      <button class="btn btn-primary" onclick="launch()">
+      <button class="btn btn-primary" id="btn-launch" onclick="launch()">
         CODEGA AI'yi Başlat 🚀
       </button>
     </div>
@@ -433,13 +439,14 @@ async function doSetup() {
     const r = await fetch("/api/setup/complete", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ models_dir: path }),
+      body: JSON.stringify({ models_dir: path, download_default: true }),
     });
     const d = await r.json();
 
     if (d.ok) {
       document.getElementById("done-path").textContent = d.models_dir;
       goStep(3);
+      if (d.downloading) startDownloadPoll();
     } else {
       showMsg("disk-msg", "err", d.error || "Kayıt başarısız");
       btn.disabled = false;
@@ -452,8 +459,33 @@ async function doSetup() {
   }
 }
 
+// İndirme poll
+let _pollTimer = null;
+async function startDownloadPoll() {
+  const wrap = document.getElementById("dl-wrap");
+  if (wrap) wrap.style.display = "block";
+  _pollTimer = setInterval(async () => {
+    try {
+      const r = await fetch("/api/models/qwen2.5-7b-instruct-q4_k_m/status");
+      const d = await r.json();
+      const dl = d.download || {};
+      const pct = Math.round(dl.percent || 0);
+      const lbl = document.getElementById("dl-label");
+      const bar = document.getElementById("dl-bar");
+      if (lbl) lbl.textContent = `İndiriliyor: %${pct} (${((dl.downloaded||0)/1e9).toFixed(2)} / ${d.size_gb||5} GB)`;
+      if (bar) bar.style.width = pct + "%";
+      if (dl.status === "completed" || d.downloaded) {
+        clearInterval(_pollTimer);
+        if (lbl) lbl.textContent = "✓ İndirme tamamlandı!";
+        if (bar) { bar.style.width = "100%"; bar.style.background = "#10b981"; }
+      }
+    } catch(e) {}
+  }, 2000);
+}
+
 // Ana uygulamaya geç
 function launch() {
+  if (_pollTimer) clearInterval(_pollTimer);
   window.location.href = "/";
 }
 
