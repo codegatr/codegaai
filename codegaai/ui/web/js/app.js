@@ -34,6 +34,7 @@
     Learning.init();
     Updater.init();
     WebLearn.init();
+    AutoLearn.init();
     Vision.init();
   }
 

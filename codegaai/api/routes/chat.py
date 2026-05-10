@@ -201,6 +201,13 @@ async def chat(req: ChatRequest) -> ChatResponse:
         "",
     )
 
+    # Kullanıcı aktif — otonom öğrenmeyi duraklat
+    try:
+        from codegaai.core.autonomous_learner import AutonomousLearner
+        AutonomousLearner.get().mark_activity()
+    except Exception:
+        pass
+
     # ── GÜVENLİK KONTROLÜ ──────────────────────────────────────
     try:
         from codegaai.core.safety import SafetyEngine

@@ -196,6 +196,9 @@ def create_app() -> FastAPI:
     app.include_router(vision_routes.router, prefix="/api/vision", tags=["vision"])
     app.include_router(federation_routes.router, prefix="/api/federation", tags=["federation"])
 
+    from codegaai.api.routes import autolearn as autolearn_routes
+    app.include_router(autolearn_routes.router, prefix="/api/autolearn", tags=["autolearn"])
+
     # Zamanlayıcıyı başlat + modelleri otomatik yükle
     @app.on_event("startup")
     async def _start_scheduler():
@@ -206,7 +209,19 @@ def create_app() -> FastAPI:
         except Exception as exc:
             log.warning("Zamanlayıcı başlatılamadı: %s", exc)
 
-        # Otomatik model yükleme
+        # Otomatik öğrenme — idle'da arka planda çalışır
+        def _start_auto_learn():
+            import time
+            time.sleep(5)  # Sistem tamamen hazır olsun
+            try:
+                from codegaai.core.autonomous_learner import AutonomousLearner
+                AutonomousLearner.get().start()
+                log.info("Otonom öğrenme başlatıldı (idle'da çalışacak)")
+            except Exception as exc:
+                log.warning("Otonom öğrenme başlatılamadı: %s", exc)
+
+        threading.Thread(target=_start_auto_learn, daemon=True,
+                         name="auto-learn-starter").start()
         cfg = get_config()
         server_cfg = cfg.get("server", {})
         if server_cfg.get("auto_load_model", True):
