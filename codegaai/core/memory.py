@@ -147,8 +147,10 @@ class MemoryStore:
             where = {"chat_id": {"$ne": exclude_chat_id}}
 
         try:
+            from codegaai.core.embeddings import EmbeddingService
+            qvec = EmbeddingService.get().embed([query])
             results = self._archive.query(
-                query_texts=[query],
+                query_embeddings=qvec,
                 n_results=k,
                 where=where,
             )
@@ -180,6 +182,53 @@ class MemoryStore:
 
     # ---- çekirdek (katman 3) ----
 
+    def add(self, text: str, metadata: dict | None = None,
+            collection: str = "core") -> str:
+        """
+        Evrensel bellek ekleme metodu.
+        collection: 'core' veya 'archive'
+        """
+        self._ensure_initialized()
+        fact_id = f"mem_{int(time.time() * 1000)}_{hash(text[:50]) % 10000}"
+        meta = {
+            "ts": time.time(),
+            "source": (metadata or {}).get("source", "unknown"),
+            **(metadata or {}),
+        }
+        # Metadata değerleri string/int/float/bool olmalı
+        clean_meta: dict[str, Any] = {}
+        for k, v in meta.items():
+            if isinstance(v, (str, int, float, bool)):
+                clean_meta[k] = v
+            else:
+                clean_meta[k] = str(v)
+
+        try:
+            col = self._archive if collection == "archive" else self._core
+            col.add(ids=[fact_id], documents=[text], metadatas=[clean_meta])
+        except Exception as exc:
+            log.warning("Bellek kayıt hatası (%s): %s", collection, exc)
+            # Fallback: core'a ekle
+            try:
+                self._core.add(ids=[fact_id], documents=[text], metadatas=[clean_meta])
+            except Exception:
+                pass
+        return fact_id
+
+    def search(self, query: str, n_results: int = 5,
+               collections: list[str] | None = None) -> list[dict]:
+        """Evrensel arama — core ve archive koleksiyonlarında."""
+        self._ensure_initialized()
+        cols = collections or ["core", "archive"]
+        hits = []
+        if "core" in cols:
+            for h in self.search_core_facts(query, k=n_results):
+                hits.append({"text": h.get("content", ""), **h})
+        if "archive" in cols:
+            for h in self.search_archive(query, k=n_results):
+                hits.append({"text": h.get("content", ""), **h})
+        return hits[:n_results]
+
     def add_core_fact(self, content: str,
                       tags: list[str] | None = None) -> str:
         """Çekirdek belleğe gerçek ekle."""
@@ -198,7 +247,9 @@ class MemoryStore:
     def search_core_facts(self, query: str, k: int = 5) -> list[dict[str, Any]]:
         self._ensure_initialized()
         try:
-            results = self._core.query(query_texts=[query], n_results=k)
+            from codegaai.core.embeddings import EmbeddingService
+            qvec = EmbeddingService.get().embed([query])
+            results = self._core.query(query_embeddings=qvec, n_results=k)
         except Exception as exc:
             log.error("Çekirdek araması hatası: %s", exc)
             return []

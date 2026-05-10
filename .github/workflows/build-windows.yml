@@ -54,19 +54,31 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-          # llama-cpp-python: CPU universal build (AVX2 YOK = tüm CPU'larda çalışır)
-          # 0xC000001D hatası: AVX2 desteklemeyen CPU'da AVX2 build çalışmaz
-          # Çözüm: özel pre-built wheel index + no-AVX cmake flags
-          $env:CMAKE_ARGS = "-DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_F16C=OFF -DLLAMA_FMA=OFF"
+          # llama-cpp-python: CUDA 12.x build (GPU) + CPU fallback
+          # RTX 3060 için CUDA 12.x build önce dene, başarısız olursa CPU
           $env:FORCE_CMAKE = "1"
+          Write-Host "CUDA build deneniyor..."
           python -m pip install llama-cpp-python `
             --prefer-binary `
-            --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu `
+            --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu122 `
             --no-cache-dir
           if ($LASTEXITCODE -ne 0) {
-            Write-Host "Pre-built wheel yok, kaynaktan derleniyor (yavaş)..."
-            python -m pip install llama-cpp-python --no-cache-dir
+            Write-Host "CUDA 12.2 build yok, CUDA 12.1 deneniyor..."
+            python -m pip install llama-cpp-python `
+              --prefer-binary `
+              --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121 `
+              --no-cache-dir
           }
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "CUDA build yok, CPU (no-AVX) build kuruluyor..."
+            $env:CMAKE_ARGS = "-DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_F16C=OFF -DLLAMA_FMA=OFF"
+            python -m pip install llama-cpp-python `
+              --prefer-binary `
+              --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu `
+              --no-cache-dir
+          }
+          # Hangi build yüklendiğini kontrol et
+          python -c "from llama_cpp import Llama; print('llama-cpp-python OK')"
           python -m pip install sentence-transformers chromadb huggingface_hub
           # sentence-transformers transitive: scipy + scikit-learn bazen
           # otomatik gelmiyor (özellikle PyInstaller bundle'da). Acik koy:
