@@ -53,8 +53,32 @@ def _setup_root_logger() -> None:
         root.removeHandler(h)
 
     # ---- Konsol ----
-    if _HAS_RICH:
-        console_handler: logging.Handler = RichHandler(
+    import sys
+    frozen = getattr(sys, "frozen", False)
+
+    if frozen:
+        # PyInstaller frozen modda Rich konsolunu KULLANMA
+        # [WinError 6] İşleyici geçersiz hatasını önler
+        import os
+        os.environ.setdefault("TQDM_DISABLE", "1")
+        os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+        # transformers tqdm progress bar kapat
+        try:
+            import transformers.utils.logging as _tf_log
+            _tf_log.disable_progress_bar()
+        except Exception:
+            pass
+
+        console_handler: logging.Handler = logging.StreamHandler(sys.stderr)
+        console_handler.setLevel(level)
+        console_handler.setFormatter(
+            logging.Formatter(
+                "[%(asctime)s] %(levelname)-8s %(message)s",
+                datefmt="%H:%M:%S",
+            )
+        )
+    elif _HAS_RICH:
+        console_handler = RichHandler(
             level=level,
             show_time=True,
             show_path=False,

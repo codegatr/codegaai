@@ -114,6 +114,17 @@ class EmbeddingService:
                 log.info("Embedding modeli yükleniyor (transformers): %s",
                          model_source)
 
+                # tqdm ve progress bar — PyInstaller frozen modda hata verir
+                import sys, os
+                os.environ["TQDM_DISABLE"] = "1"
+                if getattr(sys, "frozen", False):
+                    try:
+                        import transformers.utils.logging as _tfl
+                        _tfl.disable_progress_bar()
+                        _tfl.set_verbosity_error()
+                    except Exception:
+                        pass
+
                 tokenizer = AutoTokenizer.from_pretrained(
                     model_source, cache_dir=cache_root,
                 )
