@@ -288,6 +288,11 @@ async def get_status(model_id: str) -> dict[str, Any]:
 
 @router.post("/{model_id}/download")
 async def start_download(model_id: str) -> dict[str, Any]:
+    # Registry'yi tazele — disk değişmiş olabilir
+    try:
+        ModelRegistry._instance = None
+    except Exception:
+        pass
     registry = ModelRegistry.get()
 
     # LLM (single GGUF file)

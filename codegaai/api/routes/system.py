@@ -292,11 +292,7 @@ async def list_disks() -> dict:
 
 @router.post("/models-dir")
 async def set_models_dir(body: dict) -> dict:
-    """
-    Model indirme dizinini değiştir.
-    body: {"path": "D:\\CODEGA_Models"}
-    Yeniden başlatma gerektirir.
-    """
+    """Model indirme dizinini değiştir — anında etkin olur."""
     import json
     from codegaai.config import DATA_DIR
 
@@ -308,6 +304,8 @@ async def set_models_dir(body: dict) -> dict:
     try:
         p = Path(new_path).expanduser().resolve()
         p.mkdir(parents=True, exist_ok=True)
+        (p / "llm").mkdir(exist_ok=True)
+        (p / "embedding").mkdir(exist_ok=True)
     except Exception as exc:
         return {"error": f"Dizin oluşturulamadı: {exc}"}
 
@@ -323,11 +321,19 @@ async def set_models_dir(body: dict) -> dict:
     cfg_file.write_text(json.dumps(cfg, ensure_ascii=False, indent=2),
                         encoding="utf-8")
 
+    # ModelRegistry singleton'ını sıfırla → yeni dizini görsün
+    try:
+        from codegaai.core.models_registry import ModelRegistry
+        ModelRegistry._instance = None
+        log.info("ModelRegistry sıfırlandı: yeni models_dir=%s", p)
+    except Exception as exc:
+        log.warning("Registry sıfırlama hatası: %s", exc)
+
     return {
         "ok": True,
         "new_path": str(p),
-        "message": "Değişiklik uygulandı. Model indirme işlemleri bu dizini kullanacak.",
-        "restart_needed": False,  # Runtime'da da geçerli
+        "message": "Model dizini güncellendi. Bir sonraki indirme buraya gidecek.",
+        "restart_needed": False,
     }
 
 

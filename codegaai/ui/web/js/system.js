@@ -154,7 +154,7 @@ const System = (() => {
       }
       box.innerHTML = models.map(m => {
         const dl=m.downloaded, ld=m.loaded;
-        const prog=m.download||{}, pct=Math.round((prog.progress||0)*100);
+        const prog=m.download||{}, pct=Math.round(prog.percent||0);
         let badge, btn;
         if (ld) {
           badge = `<span class="status-pill status-pill--ok" style="font-size:11px"><span class="status-pill__dot"></span>Yüklü</span>`;
@@ -201,17 +201,17 @@ const System = (() => {
       polls[id] = setInterval(async()=>{
         try {
           const s = await get(`/api/models/${id}/status`);
-          const pct = Math.round((s.download_progress||0)*100);
+          const dl=s.download||{}; const pct=Math.round(dl.percent||0);
           const ma2 = el("ma-"+id);
           if (!ma2) { clearInterval(polls[id]); return; }
-          if (s.state==="downloading") {
+          if (dl.status==="downloading") {
             ma2.innerHTML = `<div style="font-size:12px;color:#f59e0b">İndiriliyor: %${pct}</div>
               <div style="margin-top:4px;height:4px;background:var(--color-border);border-radius:2px">
               <div style="height:4px;width:${pct}%;background:#f59e0b;border-radius:2px;transition:width .5s"></div></div>
-              <div style="font-size:11px;color:var(--color-text-muted)">${(s.downloaded_gb||0).toFixed(2)} / ${s.size_gb||"?"} GB</div>`;
-          } else if (s.downloaded||s.state==="ready") {
+              <div style="font-size:11px;color:var(--color-text-muted)">${((dl.downloaded||0)/1e9).toFixed(2)} / ${s.size_gb||"?"} GB</div>`;
+          } else if (s.downloaded||dl.status==="completed") {
             clearInterval(polls[id]); delete polls[id]; loadModels();
-          } else if (s.state==="error") {
+          } else if (dl.status==="error") {
             clearInterval(polls[id]); delete polls[id];
             if(ma2) ma2.innerHTML=`<span style="color:#ef4444">Hata</span>
               <button class="btn btn--ghost" style="font-size:12px;margin-left:8px" onclick="System.downloadModel('${id}')">Tekrar</button>`;
