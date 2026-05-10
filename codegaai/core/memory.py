@@ -73,6 +73,11 @@ class MemoryStore:
                     cls._instance = cls()
         return cls._instance
 
+    # get() = open() takma adı (autonomous_learner uyumu)
+    @classmethod
+    def get(cls) -> "MemoryStore":
+        return cls.open()
+
     # ---- lazy init ----
 
     def _ensure_initialized(self) -> None:
@@ -270,7 +275,7 @@ class _CodegaEmbeddingFunction:
     """
 
     def __call__(self, input):
-        """ChromaDB EmbeddingFunction protokolü — signature tam olarak (self, input) olmalı."""
+        """ChromaDB EmbeddingFunction — signature kesinlikle (self, input)."""
         from codegaai.core.embeddings import EmbeddingService
         svc = EmbeddingService.get()
         if isinstance(input, str):
@@ -280,13 +285,16 @@ class _CodegaEmbeddingFunction:
     def embed_documents(self, texts):
         """LangChain-style — liste metni vektörlere çevir."""
         from codegaai.core.embeddings import EmbeddingService
-        return EmbeddingService.get().embed(list(texts))
+        data = texts if not isinstance(texts, str) else [texts]
+        return EmbeddingService.get().embed(list(data))
 
-    def embed_query(self, text):
-        """LangChain-style — tek metni vektöre çevir."""
+    def embed_query(self, text=None, **kwargs):
+        """LangChain-style — hem text= hem input= kabul eder."""
         from codegaai.core.embeddings import EmbeddingService
-        t = text if isinstance(text, str) else str(text)
-        return EmbeddingService.get().embed([t])[0]
+        t = text or kwargs.get("input") or ""
+        if isinstance(t, list):
+            t = t[0] if t else ""
+        return EmbeddingService.get().embed([str(t)])[0]
 
     @classmethod
     def name(cls) -> str:

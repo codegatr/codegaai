@@ -1647,3 +1647,16 @@ body.modal-open { overflow: hidden; }
   border-radius: 3px;
   transition: width 0.3s;
 }
+
+/* Streaming cursor animasyonu */
+.stream-cursor {
+  display: inline-block;
+  color: var(--color-accent);
+  animation: blink-cursor 0.8s step-end infinite;
+  font-weight: normal;
+  margin-left: 1px;
+}
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}

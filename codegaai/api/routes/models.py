@@ -352,7 +352,7 @@ async def cancel_download(model_id: str) -> dict[str, Any]:
 
 @router.post("/{model_id}/load")
 async def load_model(model_id: str,
-                     n_ctx: int = 8192,
+                     n_ctx: int = 0,
                      n_gpu_layers: int = -1,
                      force_cpu_offload: bool = False) -> dict[str, Any]:
     """LLM, embedding veya image modelini belleğe yükle."""

@@ -397,14 +397,19 @@ class ModelRegistry:
     _instance: Optional["ModelRegistry"] = None
     _instance_lock = threading.Lock()
 
-    def _refresh_dirs(self) -> None:
-        """Model dizinlerini config'den oku (importlib.reload KULLANMA)."""
+    def _get_models_dir(self) -> "Path":
+        """Her çağrıda config'den taze oku — singleton'a bağlı değil."""
         import json as _json
         from codegaai.config import DATA_DIR
+        import os
 
-        # codegaai_config.json'dan models_dir oku
+        # 1. Env override
+        env_models = os.environ.get("CODEGAAI_MODELS_DIR")
+        if env_models:
+            return Path(env_models).expanduser().resolve()
+
+        # 2. Config dosyası
         cfg_file = DATA_DIR / "codegaai_config.json"
-        models_dir_override = None
         if cfg_file.exists():
             try:
                 d = _json.loads(cfg_file.read_text(encoding="utf-8"))
@@ -412,18 +417,16 @@ class ModelRegistry:
                 if custom:
                     p = Path(custom)
                     if p.is_absolute():
-                        models_dir_override = p
+                        return p
             except Exception:
                 pass
 
-        # Env override
-        import os
-        env_models = os.environ.get("CODEGAAI_MODELS_DIR")
-        if env_models:
-            models_dir_override = Path(env_models)
+        # 3. Varsayılan
+        return DATA_DIR / "models"
 
-        models_dir = models_dir_override or (DATA_DIR / "models")
-
+    def _refresh_dirs(self) -> None:
+        """Model dizinlerini taze config'den oku."""
+        models_dir = self._get_models_dir()
         self.llm_dir       = models_dir / "llm"
         self.embedding_dir = models_dir / "embedding"
         self.image_dir     = models_dir / "image"

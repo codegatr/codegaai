@@ -353,9 +353,10 @@ const Chat = (() => {
     const url = `/api/chat/stream?${params}`;
     const es = new EventSource(url);
 
-    hideTyping();
+    // Typing indicator açık kalır — ilk token gelince kapanır
+    // (hideTyping() burada çağrılmıyor)
 
-    // Yanıt balonunu oluştur (boş)
+    // Yanıt balonunu oluştur (başta typing göster)
     const assistantMsg = {
       role: "assistant", content: "", id: null,
       rating: 0, streaming: true,
@@ -364,18 +365,29 @@ const Chat = (() => {
     const msgEl = appendMessage(assistantMsg);
     const contentEl = msgEl ? msgEl.querySelector(".msg__content") : null;
 
+    // İlk token gelene kadar cursor animasyonu
+    if (contentEl) {
+      contentEl.innerHTML = '<span class="stream-cursor">▊</span>';
+    }
+
     return new Promise((resolve, reject) => {
       let accumulated = "";
+      let firstToken = true;
 
       es.addEventListener("message", (e) => {
         try {
           const data = JSON.parse(e.data);
 
           if (data.type === "token") {
+            if (firstToken) {
+              firstToken = false;
+              hideTyping(); // İlk token gelince typing indicator kapat
+            }
             accumulated += data.content;
             assistantMsg.content = accumulated;
             if (contentEl) {
-              contentEl.innerHTML = renderMarkdown(accumulated);
+              contentEl.innerHTML = renderMarkdown(accumulated) +
+                '<span class="stream-cursor">▊</span>';
               contentEl.scrollIntoView({ block: "end", behavior: "smooth" });
             }
 
@@ -391,10 +403,14 @@ const Chat = (() => {
 
           } else if (data.type === "done") {
             es.close();
+            hideTyping();
             assistantMsg.streaming = false;
             if (data.full_content) {
               assistantMsg.content = data.full_content;
-              if (contentEl) contentEl.innerHTML = renderMarkdown(data.full_content);
+              if (contentEl) contentEl.innerHTML = renderMarkdown(data.full_content); // cursor yok
+            } else if (contentEl) {
+              // Cursor'ı kaldır
+              contentEl.innerHTML = contentEl.innerHTML.replace(/<span class="stream-cursor">.*?<\/span>/g, "");
             }
             // Timing
             const lbl = document.getElementById("chat-model-label");

@@ -131,7 +131,7 @@ async def stream_chat(
                     break
 
                 try:
-                    item = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    item = await asyncio.wait_for(queue.get(), timeout=120.0)
                 except asyncio.TimeoutError:
                     yield await _sse_event({"type": "error", "message": "Zaman aşımı"})
                     break

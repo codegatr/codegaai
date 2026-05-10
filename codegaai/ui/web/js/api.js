@@ -11,7 +11,9 @@ const API = (() => {
   async function request(path, opts = {}) {
     const url = BASE + path;
     const ctrl = new AbortController();
-    const TIMEOUT_MS = opts.timeout || 8000;
+    // Chat için uzun timeout (CPU'da Qwen 7B = 60-120sn)
+    const isChatEndpoint = path.includes("/api/chat");
+    const TIMEOUT_MS = opts.timeout || (isChatEndpoint ? 180000 : 10000);
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
 
     const init = {
