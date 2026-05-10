@@ -245,11 +245,25 @@ class LLMEngine:
             raise
 
         except Exception as exc:
-            log.exception("LLM yüklemesi başarısız: %s", exc)
-            self._status = EngineStatus(
-                state="error", model_id=model_id,
-                model_path=str(path), error=str(exc),
-            )
+            err_str = str(exc)
+            if "llama.dll" in err_str or "dynlib" in err_str or "shared library" in err_str:
+                dll_msg = (
+                    "llama.dll yüklenemedi.\n"
+                    "Çözüm: fix_llama.bat dosyasını çalıştırın veya\n"
+                    "Visual C++ Redistributable kurun:\n"
+                    "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+                )
+                log.error("LLM DLL hatası: %s", dll_msg)
+                self._status = EngineStatus(
+                    state="error", model_id=model_id,
+                    model_path=str(path), error=dll_msg,
+                )
+            else:
+                log.exception("LLM yüklemesi başarısız: %s", exc)
+                self._status = EngineStatus(
+                    state="error", model_id=model_id,
+                    model_path=str(path), error=err_str,
+                )
             raise
 
     def _detect_backend(self) -> str:

@@ -50,44 +50,31 @@ jobs:
           python -m pip install fastapi "uvicorn[standard]" pydantic python-multipart psutil rich httpx packaging
           python -m pip install pywebview
 
-      - name: Install ML deps (CPU only)
+      - name: Install ML deps
         shell: pwsh
         run: |
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-          # llama-cpp-python: CUDA 12.x build (GPU) + CPU fallback
-          # RTX 3060 için CUDA 12.x build önce dene, başarısız olursa CPU
+
+          # llama-cpp-python: CPU no-AVX build (en geniş uyumluluk)
+          # AVX2 olmayan CPU'larda 0xC000001D hatası oluşmaz
+          # CUDA desteği için kullanıcı ayrı CUDA build ZIP'ini indirir
+          Write-Host "llama-cpp-python CPU (no-AVX) build kuruluyor..."
+          $env:CMAKE_ARGS = "-DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_F16C=OFF -DLLAMA_FMA=OFF"
           $env:FORCE_CMAKE = "1"
-          Write-Host "CUDA build deneniyor..."
           python -m pip install llama-cpp-python `
             --prefer-binary `
-            --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu122 `
+            --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu `
             --no-cache-dir
           if ($LASTEXITCODE -ne 0) {
-            Write-Host "CUDA 12.2 build yok, CUDA 12.1 deneniyor..."
-            python -m pip install llama-cpp-python `
-              --prefer-binary `
-              --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121 `
-              --no-cache-dir
+            Write-Host "Pre-built wheel yok, kaynaktan derleniyor..."
+            python -m pip install llama-cpp-python --no-cache-dir
           }
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "CUDA build yok, CPU (no-AVX) build kuruluyor..."
-            $env:CMAKE_ARGS = "-DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_F16C=OFF -DLLAMA_FMA=OFF"
-            python -m pip install llama-cpp-python `
-              --prefer-binary `
-              --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu `
-              --no-cache-dir
-          }
-          # Hangi build yüklendiğini kontrol et
-          python -c "from llama_cpp import Llama; print('llama-cpp-python OK')"
+          python -c "from llama_cpp import Llama; print('llama-cpp-python CPU OK')"
+
           python -m pip install sentence-transformers chromadb huggingface_hub
-          # sentence-transformers transitive: scipy + scikit-learn bazen
-          # otomatik gelmiyor (özellikle PyInstaller bundle'da). Acik koy:
           python -m pip install scipy scikit-learn
-          # Faz 4: diffusion image generation
           python -m pip install diffusers accelerate transformers Pillow safetensors
-          # Faz 5: ASR (faster-whisper) + soundfile
           python -m pip install faster-whisper soundfile
-          # Faz 6: video export (imageio for diffusers export_to_video)
           python -m pip install imageio imageio-ffmpeg
 
       - name: Install TTS (Coqui XTTS) [opsiyonel]
@@ -141,6 +128,31 @@ jobs:
         run: |
           $tag = "${{ steps.version.outputs.tag }}"
           $zipName = "codegaai-$tag-windows-cpu.zip"
+
+          # fix_llama.bat: llama.dll yüklenemezse kullanıcı bu bat'ı çalıştırır
+          $fixBat = @"
+@echo off
+chcp 65001 > nul
+echo ===============================================
+echo   CODEGA AI - llama.dll Sorun Giderme
+echo ===============================================
+echo.
+echo Bu script llama.dll yukleme sorununu cozer.
+echo.
+echo Secenekler:
+echo   1) pip ile llama-cpp-python (CPU, no-AVX) kurun:
+echo      pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+echo.
+echo   2) CUDA 12.2 GPU hizi icin:
+echo      pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu122
+echo.
+echo   3) Visual C++ Redistributable kurun (gerekli):
+echo      https://aka.ms/vs/17/release/vc_redist.x64.exe
+echo.
+pause
+"@
+          $fixBat | Out-File -FilePath "dist/codegaai/fix_llama.bat" -Encoding utf8
+
           Write-Host "Zipleniyor: $zipName"
           Compress-Archive -Path "dist/codegaai/*" -DestinationPath $zipName -CompressionLevel Optimal
           $zipSize = (Get-Item $zipName).Length / 1MB

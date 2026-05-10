@@ -103,6 +103,15 @@ class SelfHealing:
             if engine.is_ready:
                 return True  # Zaten çalışıyor
 
+            # DLL hatası varsa tekrar deneme anlamsız
+            err = str(engine.status.get("error", ""))
+            if "llama.dll" in err or "dynlib" in err or "fix_llama" in err:
+                log.warning(
+                    "[Kendini Onarma] DLL hatası — tekrar deneme yok. "
+                    "fix_llama.bat dosyasini calistirin."
+                )
+                return False
+
             reg = ModelRegistry.get()
             for m in reg.list_llm_models():
                 if reg.is_llm_downloaded(m["id"]):
