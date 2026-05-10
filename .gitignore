@@ -41,6 +41,7 @@ data/temp/
 data/codegaai_config.json
 data/learning/
 data/adapters/
+data/federation/
 data/updates/
 data/web_learning/
 

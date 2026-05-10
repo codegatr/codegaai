@@ -666,7 +666,12 @@
         <div class="learn-stats-grid" id="fed-stats">
           <p class="form-hint">Yükleniyor...</p>
         </div>
-        <div style="margin-top:var(--space-3);display:flex;gap:var(--space-2)">
+        <label class="form-label" style="margin-top:var(--space-3)">
+          Koordinator
+          <input id="fed-coordinator" type="text" value="https://ai.codega.com.tr/api/federation">
+        </label>
+        <div class="form-hint" id="fed-error" style="margin-top:var(--space-2)"></div>
+        <div style="margin-top:var(--space-3);display:flex;gap:var(--space-2);flex-wrap:wrap">
           <button class="btn btn--primary" id="fed-enable-btn">Ağa Katıl</button>
           <button class="btn btn--ghost" id="fed-disable-btn" hidden>Ağdan Çık</button>
           <button class="btn btn--ghost" id="fed-sync-btn" hidden>Manuel Sync</button>
