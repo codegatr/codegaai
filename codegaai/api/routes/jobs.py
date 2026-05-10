@@ -25,6 +25,78 @@ log = get_logger(__name__)
 router = APIRouter()
 
 
+# ── Web Araması ──────────────────────────────────────────────────────────
+
+_WEB_KEYWORDS = [
+    "ara", "bul", "ziyaret et", "internet", "sitesi", "haber", "güncel",
+    "search", "find", "visit", "website", "news", "latest", "2024", "2025",
+    "http://", "https://", ".com", ".tr", ".net", ".org",
+]
+
+def _needs_web_search(message: str) -> bool:
+    msg = message.lower()
+    return any(kw in msg for kw in _WEB_KEYWORDS)
+
+async def _maybe_web_search(message: str) -> str:
+    """
+    Mesaj web araması gerektiriyorsa DuckDuckGo'dan sonuç getir.
+    URL varsa sayfayı direkt oku.
+    """
+    if not _needs_web_search(message):
+        return ""
+
+    import httpx, re
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+
+    # URL varsa sayfayı oku
+    url_match = re.search(r'https?://[^\s]+', message)
+    if url_match:
+        url = url_match.group(0).rstrip(".,;")
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                r = await client.get(url, headers=headers, follow_redirects=True)
+                text = r.text[:3000]
+                # HTML etiketlerini temizle
+                text = re.sub(r'<[^>]+>', ' ', text)
+                text = re.sub(r'\s+', ' ', text).strip()
+                return f"[{url}]\n{text[:2000]}"
+        except Exception as e:
+            log.debug("URL okuma hatası: %s", e)
+
+    # DuckDuckGo Lite araması
+    try:
+        # Soru kısmını çıkar
+        query = message.strip()
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.get(
+                "https://lite.duckduckgo.com/lite/",
+                params={"q": query},
+                headers=headers,
+            )
+            # Sonuçları basit parse et
+            import re
+            snippets = re.findall(r'class="result-snippet"[^>]*>(.*?)</td>', r.text, re.DOTALL)
+            titles = re.findall(r'class="result-link"[^>]*>(.*?)</a>', r.text, re.DOTALL)
+            if not snippets:
+                # Ham metin al
+                text = re.sub(r'<[^>]+>', ' ', r.text)
+                text = re.sub(r'\s+', ' ', text).strip()
+                return f"[Web Araması: {query}]\n{text[:1500]}"
+
+            results = []
+            for i, (title, snippet) in enumerate(zip(titles, snippets)):
+                title_clean = re.sub(r'<[^>]+>', '', title).strip()
+                snippet_clean = re.sub(r'<[^>]+>', '', snippet).strip()
+                results.append(f"{i+1}. {title_clean}: {snippet_clean}")
+                if i >= 4:
+                    break
+
+            return f"[Web Araması: {query}]\n" + "\n".join(results)
+    except Exception as e:
+        log.debug("Web araması hatası: %s", e)
+        return ""
+
+
 # ── İş deposu (bellekte) ────────────────────────────────────────────────
 
 class ChatJob:
@@ -85,11 +157,11 @@ def _get_job(job_id: str) -> Optional[ChatJob]:
 
 # ── İş çalıştırıcı ───────────────────────────────────────────────────────
 
-def _run_chat_job(job: ChatJob) -> None:
-    """Arka thread'de LLM çalıştır, tokenleri job.content'e ekle."""
+async def _run_chat_job(job: ChatJob) -> None:
+    """Arka thread'de LLM çalıştır (async)."""
     job.status = "running"
     try:
-        from codegaai.core.engine import LLMEngine
+        from codegaai.core.engine import LLMEngine, GenerationConfig
         from codegaai.core.system_prompt import build_system_prompt
         from codegaai.core.chat_store import ChatStore
 
@@ -97,6 +169,13 @@ def _run_chat_job(job: ChatJob) -> None:
         if not engine.is_ready:
             job.finish(error="Model yüklü değil. Sistem → model yükle.")
             return
+
+        # Web araması gerekiyor mu?
+        web_context = ""
+        try:
+            web_context = await _maybe_web_search(job.message)
+        except Exception:
+            pass
 
         # RAG bağlamı
         rag_text = ""
@@ -111,15 +190,22 @@ def _run_chat_job(job: ChatJob) -> None:
         except Exception:
             pass
 
-        system_prompt = build_system_prompt(rag_context=rag_text)
+        # Bağlam birleştir
+        full_context = ""
+        if web_context:
+            full_context += f"\n## İnternet Araması Sonuçları\n{web_context}"
+        if rag_text:
+            full_context += f"\n## İlgili Bellek\n{rag_text}"
 
-        # Sohbet geçmişi
+        system_prompt = build_system_prompt(rag_context=full_context)
+
+        # Sohbet geçmişi — TÜM geçmişi al
         history = []
         if job.chat_id:
             try:
                 store = ChatStore.open()
-                msgs = store.get_messages(job.chat_id, limit=10)
-                for m in msgs[:-1]:  # Son mesaj (kullanıcının) hariç
+                msgs = store.get_messages(job.chat_id, limit=20)
+                for m in msgs:
                     history.append({"role": m["role"], "content": m["content"]})
             except Exception:
                 pass
@@ -128,17 +214,23 @@ def _run_chat_job(job: ChatJob) -> None:
         messages.extend(history)
         messages.append({"role": "user", "content": job.message})
 
+        # Kaydet — ÖNCE kaydet (model yanıt üretmeden)
+        if job.chat_id:
+            try:
+                store = ChatStore.open()
+                store.add_message(job.chat_id, "user", job.message)
+            except Exception:
+                pass
+
         # Streaming üret
-        from codegaai.core.engine import GenerationConfig
         cfg = GenerationConfig(max_tokens=job.max_tokens, temperature=0.7)
         for token in engine.stream(messages, cfg=cfg):
             job.append(token)
 
-        # Sohbet geçmişine kaydet
+        # Asistan cevabını kaydet
         if job.chat_id and job.content:
             try:
                 store = ChatStore.open()
-                store.add_message(job.chat_id, "user", job.message)
                 store.add_message(job.chat_id, "assistant", job.content)
             except Exception:
                 pass
@@ -175,8 +267,18 @@ async def start_chat_job(req: ChatJobRequest) -> dict:
     )
     _store_job(job)
 
-    # Arka thread'de çalıştır
-    t = threading.Thread(target=_run_chat_job, args=(job,),
+    # Async iş arka thread'de çalıştır
+    import asyncio
+
+    def _run_in_thread():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(_run_chat_job(job))
+        finally:
+            loop.close()
+
+    t = threading.Thread(target=_run_in_thread,
                          daemon=True, name=f"chat-job-{job_id}")
     t.start()
 

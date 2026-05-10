@@ -314,6 +314,7 @@ window.saveHfToken = async function() {
   if (!token) { if (status) status.textContent = "Token girin"; return; }
   try {
     const r = await fetch("/api/system/hf-token", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token})});
+    if (!r.ok) { throw new Error("Sunucu hatası: " + r.status); }
     const d = await r.json();
     if (d.ok) {
       if (status) { status.textContent = "✓ Token kaydedildi"; status.style.color = "var(--color-success)"; }
