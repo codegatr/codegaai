@@ -95,6 +95,10 @@ hiddenimports += [
     "uvicorn.protocols.websockets", "uvicorn.protocols.websockets.auto",
     "uvicorn.protocols.websockets.wsproto_impl",
     "uvicorn.lifespan", "uvicorn.lifespan.on", "uvicorn.lifespan.off",
+    # Yeni modüller
+    "codegaai.api.routes.jobs",
+    "codegaai.core.self_healing",
+    "codegaai.core.system_prompt",
 ]
 
 # ---- PyWebView (platform-specific binaries: pythonnet, edgechromium) ----
