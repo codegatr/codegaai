@@ -233,8 +233,137 @@ const System = (() => {
   // ---------- Init ----------
 
   // ============================================================
-  // Disk Yönetimi
+  // LLM Model Listesi
   // ============================================================
+
+  async function loadModels() {
+    const gridEl = document.getElementById("models-grid");
+    if (!gridEl) return;
+
+    gridEl.innerHTML = '<div class="engine-row engine-row--loading">Yükleniyor...</div>';
+
+    try {
+      const r = await fetchWithTimeout("/api/models/llm", {}, 8000);
+      const data = await r.json();
+      const models = data.models || [];
+
+      if (!models.length) {
+        gridEl.innerHTML = '<p style="color:var(--color-text-muted);padding:12px">Model listesi alınamadı.</p>';
+        return;
+      }
+
+      gridEl.innerHTML = models.map(m => {
+        const isDownloaded = m.downloaded;
+        const isLoaded = m.loaded;
+        const progress = m.download_progress || 0;
+        const isDownloading = m.state === "downloading";
+
+        let actionBtn = "";
+        if (isLoaded) {
+          actionBtn = `<button class="btn btn--ghost" style="font-size:12px" onclick="unloadModel('${m.id}')">Bellekten Çıkar</button>`;
+        } else if (isDownloaded) {
+          actionBtn = `<button class="btn btn--primary" style="font-size:12px" onclick="loadModel('${m.id}')">Yükle</button>`;
+        } else if (isDownloading) {
+          actionBtn = `<div style="font-size:12px;color:var(--color-accent)">İndiriliyor... %${Math.round(progress * 100)}</div>`;
+        } else {
+          actionBtn = `<button class="btn btn--ghost" style="font-size:12px" onclick="downloadModel('${m.id}')">İndir (~${m.size_gb} GB)</button>`;
+        }
+
+        const statusDot = isLoaded
+          ? `<span class="status-pill status-pill--ok" style="font-size:11px"><span class="status-pill__dot"></span>Yüklü</span>`
+          : isDownloaded
+          ? `<span class="status-pill" style="font-size:11px;border-color:var(--color-border)"><span class="status-pill__dot"></span>İndirildi</span>`
+          : `<span class="status-pill status-pill--off" style="font-size:11px"><span class="status-pill__dot"></span>Yok</span>`;
+
+        return `
+          <div class="model-card" id="model-card-${m.id}">
+            <div class="model-card__header">
+              <div>
+                <div class="model-card__name">${escapeHTML(m.name || m.id)}</div>
+                <div class="model-card__id">${m.id} · ${m.size_gb || "?"} GB · ${m.vram_gb || "?"} GB VRAM</div>
+              </div>
+              ${statusDot}
+            </div>
+            ${m.description ? `<p class="model-card__desc">${escapeHTML(m.description)}</p>` : ""}
+            <div class="model-card__actions">
+              ${actionBtn}
+              ${m.default ? `<span style="font-size:11px;color:var(--color-text-muted)">⭐ Önerilen</span>` : ""}
+            </div>
+          </div>`;
+      }).join("");
+
+    } catch (err) {
+      gridEl.innerHTML = `<div style="color:var(--color-danger);padding:12px;font-size:13px">
+        ❌ Model listesi yüklenemedi: ${escapeHTML(err.message)}
+        <br><button class="btn btn--ghost" style="margin-top:8px;font-size:12px" onclick="loadModels()">Tekrar Dene</button>
+      </div>`;
+    }
+  }
+
+  // Model İndirme
+  async function downloadModel(modelId) {
+    const card = document.getElementById(`model-card-${modelId}`);
+    if (card) {
+      const btn = card.querySelector("button");
+      if (btn) { btn.disabled = true; btn.textContent = "Başlatılıyor..."; }
+    }
+    try {
+      await fetch(`/api/models/${modelId}/download`, { method: "POST" });
+      // Poll progress
+      const pollTimer = setInterval(async () => {
+        try {
+          const r = await fetch(`/api/models/${modelId}/status`);
+          const d = await r.json();
+          const pct = Math.round((d.download_progress || 0) * 100);
+          const cardEl = document.getElementById(`model-card-${modelId}`);
+          if (cardEl) {
+            const actEl = cardEl.querySelector(".model-card__actions");
+            if (actEl && d.state === "downloading") {
+              actEl.innerHTML = `
+                <div style="width:100%">
+                  <div style="font-size:12px;color:var(--color-accent);margin-bottom:6px">
+                    İndiriliyor: %${pct} (${d.downloaded_gb?.toFixed(2) || "?"}/${d.size_gb || "?"} GB)
+                  </div>
+                  <div style="height:4px;background:var(--color-border);border-radius:2px">
+                    <div style="height:4px;width:${pct}%;background:var(--color-accent);border-radius:2px;transition:width .5s"></div>
+                  </div>
+                </div>`;
+            } else if (d.state === "ready" || d.downloaded) {
+              clearInterval(pollTimer);
+              loadModels();
+            } else if (d.state === "error") {
+              clearInterval(pollTimer);
+              loadModels();
+            }
+          }
+        } catch (e) { clearInterval(pollTimer); }
+      }, 1500);
+    } catch (err) {
+      loadModels();
+    }
+  }
+
+  // Model Yükle
+  async function loadModel(modelId) {
+    const card = document.getElementById(`model-card-${modelId}`);
+    if (card) {
+      const btn = card.querySelector("button");
+      if (btn) { btn.disabled = true; btn.textContent = "Yükleniyor..."; }
+    }
+    try {
+      await fetch(`/api/models/${modelId}/load`, { method: "POST" });
+      setTimeout(loadModels, 2000);
+      setTimeout(loadEngines, 2000);
+    } catch (err) { loadModels(); }
+  }
+
+  // Model Bellekten Çıkar
+  async function unloadModel(modelId) {
+    try {
+      await fetch("/api/models/unload", { method: "POST" });
+      setTimeout(() => { loadModels(); loadEngines(); }, 1000);
+    } catch (err) { loadModels(); }
+  }
 
   async function loadDisks() {
     const diskList = document.getElementById("disk-list");
@@ -316,6 +445,7 @@ const System = (() => {
         loadSystemCheck();
         loadEngines();
         loadDisks();
+        loadModels();
       });
 
     // Özel yol butonu
@@ -330,19 +460,27 @@ const System = (() => {
         loadSystemCheck();
         loadEngines();
         loadDisks();
+        loadModels();
       }
     });
 
     // Başlangıçta arka planda yükle
     loadSettings();
     loadEngines();         // chat header pill için
+    loadModels();          // model listesi hemen yükle
     startClock();
   }
 
   return {
     init,
-    refresh: () => { loadSystemCheck(); loadEngines(); loadSettings(); },
+    refresh: () => { loadSystemCheck(); loadEngines(); loadSettings(); loadModels(); },
+    loadModels,
   };
 })();
 
 window.System = System;
+
+// onclick handler'ları için global fonksiyonlar
+window.downloadModel = (id) => System.loadModels && downloadModel && downloadModel(id);
+window.loadModel     = (id) => System.loadModels && loadModel && loadModel(id);
+window.unloadModel   = (id) => System.loadModels && unloadModel && unloadModel(id);
