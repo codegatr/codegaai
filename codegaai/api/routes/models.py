@@ -41,108 +41,123 @@ def _enrich_llm(model: dict[str, Any], registry: ModelRegistry,
 
 @router.get("")
 async def list_all_models() -> dict[str, Any]:
-    """Tüm modeller (LLM + embedding + image) — durumlarıyla birlikte."""
-    registry = ModelRegistry.get()
-    engine = LLMEngine.get()
-    embedding = EmbeddingService.get()
+    """Tüm modeller — async, 6 sn timeout."""
+    import asyncio
+    loop = asyncio.get_event_loop()
 
-    engine_status = engine.status
+    def _collect():
+        registry = ModelRegistry.get()
+        engine = LLMEngine.get()
+        embedding = EmbeddingService.get()
+        engine_status = engine.status
 
-    llm_models = [
-        _enrich_llm(m, registry, engine_status)
-        for m in registry.list_llm_models()
-    ]
-    emb_models = [
-        {
-            **m,
-            "downloaded": registry.is_embedding_downloaded(m["id"]),
-            "loaded": (embedding.status.get("model_id") == m["id"]
-                       and embedding.status.get("ready", False)),
-            "download": registry.get_progress(m["id"]).to_dict(),
-        }
-        for m in registry.list_embedding_models()
-    ]
+        llm_models = [
+            _enrich_llm(m, registry, engine_status)
+            for m in registry.list_llm_models()
+        ]
+        emb_models = [
+            {
+                **m,
+                "downloaded": registry.is_embedding_downloaded(m["id"]),
+                "loaded": (embedding.status.get("model_id") == m["id"]
+                           and embedding.status.get("ready", False)),
+                "download": registry.get_progress(m["id"]).to_dict(),
+            }
+            for m in registry.list_embedding_models()
+        ]
 
-    # Image motoru — lazy import (Faz 4'te eklendi)
-    img_status = {}
-    try:
-        from codegaai.core.image_engine import ImageEngine
-        img_engine = ImageEngine.get()
-        img_status = img_engine.status
-    except Exception:
         img_status = {"state": "unloaded", "ready": False}
+        try:
+            from codegaai.core.image_engine import ImageEngine
+            img_status = ImageEngine.get().status
+        except Exception:
+            pass
 
-    image_models = [
-        {
-            **m,
-            "downloaded": registry.is_image_downloaded(m["id"]),
-            "loaded": (img_status.get("model_id") == m["id"]
-                       and img_status.get("ready", False)),
-            "download": registry.get_progress(m["id"]).to_dict(),
+        image_models = [
+            {
+                **m,
+                "downloaded": registry.is_image_downloaded(m["id"]),
+                "loaded": (img_status.get("model_id") == m["id"]
+                           and img_status.get("ready", False)),
+                "download": registry.get_progress(m["id"]).to_dict(),
+            }
+            for m in registry.list_image_models()
+        ]
+
+        tts_status = {"state": "unloaded", "ready": False}
+        asr_status = {"state": "unloaded", "ready": False}
+        try:
+            from codegaai.core.audio_engine import TTSEngine, ASREngine
+            tts_status = TTSEngine.get().status
+            asr_status = ASREngine.get().status
+        except Exception:
+            pass
+
+        audio_models = [
+            {
+                **m,
+                "downloaded": registry.is_audio_downloaded(m["id"]),
+                "loaded": (
+                    (m["kind"] == "tts" and tts_status.get("model_id") == m["id"]
+                     and tts_status.get("ready", False)) or
+                    (m["kind"] == "asr" and asr_status.get("model_id") == m["id"]
+                     and asr_status.get("ready", False))
+                ),
+                "download": registry.get_progress(m["id"]).to_dict(),
+            }
+            for m in registry.list_audio_models()
+        ]
+
+        video_status = {"state": "unloaded", "ready": False}
+        try:
+            from codegaai.core.video_engine import VideoEngine
+            video_status = VideoEngine.get().status
+        except Exception:
+            pass
+
+        video_models = [
+            {
+                **m,
+                "downloaded": registry.is_video_downloaded(m["id"]),
+                "loaded": (video_status.get("model_id") == m["id"]
+                           and video_status.get("ready", False)),
+                "download": registry.get_progress(m["id"]).to_dict(),
+            }
+            for m in registry.list_video_models()
+        ]
+
+        return {
+            "llm": llm_models,
+            "embedding": emb_models,
+            "image": image_models,
+            "audio": audio_models,
+            "video": video_models,
+            "disk_usage": registry.disk_usage(),
+            "engines": {
+                "llm": engine_status,
+                "embedding": embedding.status,
+                "image": img_status,
+                "tts": tts_status,
+                "asr": asr_status,
+                "video": video_status,
+            },
         }
-        for m in registry.list_image_models()
-    ]
 
-    # Audio motorları (Faz 5'te eklendi)
-    tts_status = {"state": "unloaded", "ready": False}
-    asr_status = {"state": "unloaded", "ready": False}
     try:
-        from codegaai.core.audio_engine import TTSEngine, ASREngine
-        tts_status = TTSEngine.get().status
-        asr_status = ASREngine.get().status
-    except Exception:
-        pass
-
-    audio_models = [
-        {
-            **m,
-            "downloaded": registry.is_audio_downloaded(m["id"]),
-            "loaded": (
-                (m["kind"] == "tts" and tts_status.get("model_id") == m["id"]
-                 and tts_status.get("ready", False)) or
-                (m["kind"] == "asr" and asr_status.get("model_id") == m["id"]
-                 and asr_status.get("ready", False))
-            ),
-            "download": registry.get_progress(m["id"]).to_dict(),
+        return await asyncio.wait_for(
+            loop.run_in_executor(None, _collect),
+            timeout=6.0,
+        )
+    except asyncio.TimeoutError:
+        # En azından LLM listesini döndür
+        registry = ModelRegistry.get()
+        engine = LLMEngine.get()
+        return {
+            "llm": [_enrich_llm(m, registry, engine.status)
+                    for m in registry.list_llm_models()],
+            "embedding": [], "image": [], "audio": [], "video": [],
+            "disk_usage": {}, "engines": {}, "_timeout": True,
         }
-        for m in registry.list_audio_models()
-    ]
-
-    # Video motor (Faz 6'da eklendi)
-    video_status = {"state": "unloaded", "ready": False}
-    try:
-        from codegaai.core.video_engine import VideoEngine
-        video_status = VideoEngine.get().status
-    except Exception:
-        pass
-
-    video_models = [
-        {
-            **m,
-            "downloaded": registry.is_video_downloaded(m["id"]),
-            "loaded": (video_status.get("model_id") == m["id"]
-                       and video_status.get("ready", False)),
-            "download": registry.get_progress(m["id"]).to_dict(),
-        }
-        for m in registry.list_video_models()
-    ]
-
-    return {
-        "llm": llm_models,
-        "embedding": emb_models,
-        "image": image_models,
-        "audio": audio_models,
-        "video": video_models,
-        "disk_usage": registry.disk_usage(),
-        "engines": {
-            "llm": engine_status,
-            "embedding": embedding.status,
-            "image": img_status,
-            "tts": tts_status,
-            "asr": asr_status,
-            "video": video_status,
-        },
-    }
 
 
 @router.get("/llm")
