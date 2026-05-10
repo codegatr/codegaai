@@ -206,7 +206,9 @@ def create_app() -> FastAPI:
 
     @app.get("/setup")
     async def setup_page():
-        setup_html = ui_dir / "setup.html"
+        from pathlib import Path
+        _ui_dir = Path(__file__).parent.parent / "ui" / "web"
+        setup_html = _ui_dir / "setup.html"
         if setup_html.exists():
             return FileResponse(str(setup_html))
         return {"error": "setup.html bulunamadı"}
