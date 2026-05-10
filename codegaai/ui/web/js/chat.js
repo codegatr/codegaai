@@ -213,8 +213,10 @@ const Chat = (() => {
     // Welcome'ı temizle
     const w = elMessages.querySelector(".welcome");
     if (w) w.remove();
-    elMessages.appendChild(renderMessage(msg));
+    const el = renderMessage(msg);
+    elMessages.appendChild(el);
     scrollToBottom();
+    return el;  // ← Polling için DOM elementi döndür
   }
 
   function showTyping() {
@@ -343,7 +345,7 @@ const Chat = (() => {
     const assistantMsg = { role: "assistant", content: "", id: null, rating: 0 };
     state.messages.push(assistantMsg);
     const msgEl = appendMessage(assistantMsg);
-    const contentEl = msgEl ? msgEl.querySelector(".msg__content") : null;
+    const contentEl = msgEl ? msgEl.querySelector(".message__content") : null;
     if (contentEl) contentEl.innerHTML = '<span class="stream-cursor">▊</span>';
 
     // İşi başlat
@@ -431,7 +433,7 @@ const Chat = (() => {
     };
     state.messages.push(assistantMsg);
     const msgEl = appendMessage(assistantMsg);
-    const contentEl = msgEl ? msgEl.querySelector(".msg__content") : null;
+    const contentEl = msgEl ? msgEl.querySelector(".message__content") : null;
 
     // İlk token gelene kadar cursor animasyonu
     if (contentEl) {

@@ -313,7 +313,8 @@ window.saveHfToken = async function() {
   const token = inp?.value?.trim();
   if (!token) { if (status) status.textContent = "Token girin"; return; }
   try {
-    const d = await post("/api/system/hf-token", {token});
+    const r = await fetch("/api/system/hf-token", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token})});
+    const d = await r.json();
     if (d.ok) {
       if (status) { status.textContent = "✓ Token kaydedildi"; status.style.color = "var(--color-success)"; }
       if (inp) inp.value = "";
@@ -325,7 +326,7 @@ window.saveHfToken = async function() {
 window.clearHfToken = async function() {
   const status = document.getElementById("hf-token-status");
   try {
-    await post("/api/system/hf-token", {token: ""});
+    await fetch("/api/system/hf-token", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:""})});
     if (status) { status.textContent = "Token silindi"; status.style.color = "var(--color-text-muted)"; }
   } catch(e) {}
 };
