@@ -40,6 +40,8 @@ data/cache/
 data/temp/
 data/learning/
 data/adapters/
+data/updates/
+data/web_learning/
 
 # Yapılandırma dosyası kullanıcıya özel olabilir; örnek korunur
 config.toml
