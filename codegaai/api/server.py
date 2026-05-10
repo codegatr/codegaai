@@ -277,16 +277,23 @@ def create_app() -> FastAPI:
                         log.info("Otomatik yükleme tamamlandı: %s",
                                  default["id"])
 
-                    # BGE-M3 otomatik yükle
+                    # BGE-M3 otomatik yükle — embedding şart
                     if server_cfg.get("auto_load_embedding", True):
                         emb = EmbeddingService.get()
                         if not emb.is_ready:
                             is_dl = reg.is_embedding_downloaded("bge-m3")
                             log.info("BGE-M3 kontrol: %s",
-                                     "✓ indirilmiş" if is_dl else "✗ yok")
+                                     "✓ indirilmiş" if is_dl else "✗ indirilmemiş")
                             if is_dl:
                                 log.info("Otomatik embedding yükleme: bge-m3")
-                                emb.load("bge-m3")
+                                try:
+                                    emb.load("bge-m3")
+                                    log.info("BGE-M3 yüklendi ✓")
+                                except Exception as emb_err:
+                                    log.warning("BGE-M3 yüklenemedi: %s", emb_err)
+                            else:
+                                log.info("BGE-M3 indirilmemiş — RAG devre dışı")
+                                log.info("Sistem → Bellek → BGE-M3 İndir adımını takip edin")
 
                 except OSError as exc:
                     if "0xc000001d" in str(exc).lower() or "-1073741795" in str(exc):

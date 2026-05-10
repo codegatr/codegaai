@@ -172,27 +172,31 @@ class LLMEngine:
             # n_ctx: 0 verilirse modelin tam context'ini kullan
             effective_ctx = n_ctx or spec.context_length
 
-            # VRAM otomatik tespiti — 6 GB laptop için smart layer count
+            # VRAM otomatik tespiti
             effective_gpu_layers = n_gpu_layers
             if effective_gpu_layers == -1:
                 try:
                     import torch
                     if torch.cuda.is_available():
-                        vram_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
-                        # Model boyutuna göre tahmini GPU katman sayısı
-                        # Qwen 7B Q4 ~4.68 GB: 6 GB VRAM'da tüm katmanlar sığar
-                        if spec.vram_gb <= vram_gb * 0.85:
-                            effective_gpu_layers = -1  # Tam GPU
+                        props = torch.cuda.get_device_properties(0)
+                        vram_gb = props.total_memory / 1e9
+                        free_vram = (props.total_memory - torch.cuda.memory_allocated(0)) / 1e9
+                        log.info("GPU: %s, Toplam VRAM: %.1f GB, Boş: %.1f GB",
+                                 props.name, vram_gb, free_vram)
+                        if spec.vram_gb <= free_vram * 0.9:
+                            effective_gpu_layers = -1  # Tüm katmanlar GPU
+                            log.info("GPU mod: tüm katmanlar GPU'da")
                         else:
-                            # Kısmi GPU: oran bazlı katman sayısı
-                            ratio = (vram_gb * 0.8) / spec.vram_gb
-                            effective_gpu_layers = int(32 * ratio)
-                            log.info("VRAM %.1f GB, model %.1f GB → %d katman GPU",
-                                     vram_gb, spec.vram_gb, effective_gpu_layers)
+                            ratio = (free_vram * 0.85) / spec.vram_gb
+                            effective_gpu_layers = max(1, int(32 * ratio))
+                            log.info("Kısmi GPU: %d katman (%.1f GB model, %.1f GB boş)",
+                                     effective_gpu_layers, spec.vram_gb, free_vram)
                     else:
-                        effective_gpu_layers = 0  # CPU only
-                except Exception:
+                        effective_gpu_layers = 0
+                        log.info("CUDA yok, CPU mod kullanılıyor")
+                except Exception as e:
                     effective_gpu_layers = 0
+                    log.warning("GPU tespiti başarısız: %s → CPU mod", e)
 
             self._llm = Llama(
                 model_path=str(path),

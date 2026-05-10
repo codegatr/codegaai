@@ -322,11 +322,19 @@ const Chat = (() => {
     showTyping();
 
     // Streaming ile gönder (SSE)
+    let streamingMsgAdded = false;
     try {
+      streamingMsgAdded = true;
       await sendStreaming(text);
     } catch (streamErr) {
-      // Streaming başarısız → fallback: klasik POST
+      // Streaming başarısız → boş balonu kaldır, classic'e geç
       console.warn("Streaming başarısız, klasik mod:", streamErr);
+      // Eklenen boş streaming balonunu sil
+      const lastMsg = state.messages[state.messages.length - 1];
+      if (lastMsg && lastMsg.role === "assistant" && !lastMsg.content) {
+        state.messages.pop();
+        elMessages?.lastElementChild?.remove();
+      }
       try {
         await sendClassic(text);
       } catch (err) {
@@ -544,7 +552,7 @@ const Chat = (() => {
             ? "var(--color-success)" : "var(--color-text-muted)";
         }
 
-        // RAG durumu
+        // RAG durumu + embedding yükleme butonu
         const memR = await fetch("/api/memory/status");
         const memD = await memR.json();
         const ragLbl = document.getElementById("rag-status-label");
@@ -552,7 +560,10 @@ const Chat = (() => {
           if (memD.active) {
             ragLbl.innerHTML = 'RAG bellek: <span style="color:var(--color-success)">✓ aktif</span>';
           } else if (memD.chromadb_installed) {
-            ragLbl.innerHTML = 'RAG bellek: <span class="muted">embedding yüklenmedi</span>';
+            ragLbl.innerHTML = 'RAG bellek: <span class="muted">embedding yüklenmedi</span> '
+              + '<button style="font-size:11px;padding:1px 6px;border:1px solid var(--color-border);'
+              + 'border-radius:4px;background:none;color:var(--color-accent);cursor:pointer" '
+              + 'onclick="loadEmbedding()">Yükle</button>';
           } else {
             ragLbl.innerHTML = 'RAG bellek: <span class="muted">chromadb eksik</span>';
           }
@@ -623,3 +634,23 @@ const Chat = (() => {
 })();
 
 window.Chat = Chat;
+
+// Alt çubuktan embedding yükleme
+window.loadEmbedding = async function() {
+  const ragLbl = document.getElementById("rag-status-label");
+  if (ragLbl) ragLbl.innerHTML = 'RAG bellek: <span class="muted">BGE-M3 yükleniyor...</span>';
+  try {
+    await fetch("/api/models/bge-m3/load", { method: "POST" });
+    setTimeout(async () => {
+      const r = await fetch("/api/memory/status");
+      const d = await r.json();
+      if (ragLbl) {
+        ragLbl.innerHTML = d.active
+          ? 'RAG bellek: <span style="color:var(--color-success)">✓ aktif</span>'
+          : 'RAG bellek: <span class="muted">yükleme başarısız — Sistem → İndir</span>';
+      }
+    }, 3000);
+  } catch(e) {
+    if (ragLbl) ragLbl.innerHTML = 'RAG bellek: <span class="muted">hata: ' + e.message + '</span>';
+  }
+};
