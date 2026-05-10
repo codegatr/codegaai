@@ -8,9 +8,10 @@ const Chat = (() => {
     chatTitle: "Yeni sohbet",
     messages: [],
     sending: false,
+    queue: [],
   };
 
-  let elInput, elMessages, elForm, elSend, elTitle, elDelete, elRename;
+  let elInput, elMessages, elForm, elSend, elTitle, elDelete, elRename, elQueueStatus;
 
   // ---------- DOM yardımcıları ----------
 
@@ -234,6 +235,51 @@ const Chat = (() => {
     });
   }
 
+  function isNearBottom() {
+    if (!elMessages) return true;
+    return elMessages.scrollHeight - elMessages.scrollTop - elMessages.clientHeight < 96;
+  }
+
+  function keepBottomIfNeeded(wasNearBottom) {
+    if (!wasNearBottom) return;
+    requestAnimationFrame(() => {
+      elMessages.scrollTop = elMessages.scrollHeight;
+    });
+  }
+
+  function updateQueueStatus() {
+    if (!elQueueStatus) return;
+    const count = state.queue.length;
+    if (!state.sending && count === 0) {
+      elQueueStatus.hidden = true;
+      elQueueStatus.textContent = "";
+      if (elSend) elSend.title = "Gonder (Enter)";
+      return;
+    }
+
+    elQueueStatus.hidden = false;
+    const next = count > 0 ? ` Siradaki: "${state.queue[0].slice(0, 80)}${state.queue[0].length > 80 ? "..." : ""}"` : "";
+    elQueueStatus.textContent = count > 0
+      ? `Cevap uretiliyor. ${count} mesaj sirada.${next}`
+      : "Cevap uretiliyor. Yeni mesaj yazip Enter'a basarsan siraya eklenir.";
+    if (elSend) elSend.title = state.sending ? "Siraya ekle (Enter)" : "Gonder (Enter)";
+  }
+
+  function enqueue(text) {
+    state.queue.push(text);
+    updateQueueStatus();
+  }
+
+  function processNextQueued() {
+    if (state.sending || state.queue.length === 0) {
+      updateQueueStatus();
+      return;
+    }
+    const next = state.queue.shift();
+    updateQueueStatus();
+    send(next);
+  }
+
   function updateHeader() {
     if (elTitle) elTitle.textContent = state.chatTitle || "Yeni sohbet";
     const hasChat = state.chatId !== null;
@@ -244,6 +290,7 @@ const Chat = (() => {
   // ---------- Sohbet yükleme/yönetimi ----------
 
   function loadChat(chatData, messages) {
+    if (!state.sending) state.queue = [];
     state.chatId = chatData.id;
     state.chatTitle = chatData.title || "Yeni sohbet";
     state.messages = (messages || []).map((m) => ({
@@ -254,6 +301,7 @@ const Chat = (() => {
       rating: 0,
     }));
     renderAll();
+    updateQueueStatus();
 
     // Faz 7: bu sohbete ait feedback'leri yükle
     loadFeedbackForChat();
@@ -286,27 +334,38 @@ const Chat = (() => {
   }
 
   function clearActive() {
+    if (!state.sending) state.queue = [];
     state.chatId = null;
     state.chatTitle = "Yeni sohbet";
     state.messages = [];
     renderAll();
+    updateQueueStatus();
   }
 
   // ---------- Gönder ----------
 
   async function send(text) {
     text = String(text || "").trim();
-    if (!text || state.sending) return;
+    if (!text) return;
+    if (state.sending) {
+      enqueue(text);
+      elInput.value = "";
+      autoResize();
+      elInput.focus();
+      return;
+    }
 
     state.sending = true;
-    elSend.disabled = true;
+    if (elSend) elSend.disabled = false;
+    updateQueueStatus();
 
     // Aktif sohbet yoksa, otomatik yeni oluştur
     if (state.chatId === null) {
       const newChat = await Chats.createNew();
       if (!newChat) {
         state.sending = false;
-        elSend.disabled = false;
+        if (elSend) elSend.disabled = false;
+        updateQueueStatus();
         return;
       }
       state.chatId = newChat.id;
@@ -334,8 +393,10 @@ const Chat = (() => {
       });
     } finally {
       state.sending = false;
-      elSend.disabled = false;
+      if (elSend) elSend.disabled = false;
+      updateQueueStatus();
       elInput.focus();
+      processNextQueued();
     }
   }
 
@@ -377,12 +438,13 @@ const Chat = (() => {
 
           // Yeni token'lar varsa göster
           if (d.content && d.content.length > lastLen) {
+            const shouldStick = isNearBottom();
             lastLen = d.content.length;
             assistantMsg.content = d.content;
             if (contentEl) {
               contentEl.innerHTML = renderMarkdown(d.content) +
                 (d.done ? "" : '<span class="stream-cursor">▊</span>');
-              contentEl.scrollIntoView({ block: "end", behavior: "smooth" });
+              keepBottomIfNeeded(shouldStick);
             }
           }
 
@@ -456,9 +518,10 @@ const Chat = (() => {
             accumulated += data.content;
             assistantMsg.content = accumulated;
             if (contentEl) {
+              const shouldStick = isNearBottom();
               contentEl.innerHTML = renderMarkdown(accumulated) +
                 '<span class="stream-cursor">▊</span>';
-              contentEl.scrollIntoView({ block: "end", behavior: "smooth" });
+              keepBottomIfNeeded(shouldStick);
             }
 
           } else if (data.type === "tool_result") {
@@ -597,6 +660,7 @@ const Chat = (() => {
     elTitle = document.getElementById("chat-title");
     elDelete = document.getElementById("chat-delete");
     elRename = document.getElementById("chat-rename");
+    elQueueStatus = document.getElementById("chat-queue-status");
 
     if (!elInput || !elMessages || !elForm) return;
 
@@ -690,6 +754,7 @@ const Chat = (() => {
 
     autoResize();
     updateHeader();
+    updateQueueStatus();
   }
 
   return { init, send, rename, deleteCurrent };
