@@ -8,9 +8,11 @@ from fastapi import APIRouter
 
 from codegaai import __version__, __phase__
 from codegaai.config import get_config
+from codegaai.utils.logger import get_logger
 from codegaai.utils.system_check import run_all_checks
 
 router = APIRouter()
+log = get_logger(__name__)
 
 
 @router.get("/info")
@@ -320,6 +322,7 @@ async def set_models_dir(body: dict) -> dict:
         return {"error": f"Dizin oluşturulamadı: {exc}"}
 
     # Config dosyasına yaz
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     cfg_file = DATA_DIR / "codegaai_config.json"
     cfg = {}
     if cfg_file.exists():
@@ -383,6 +386,7 @@ async def save_hf_token(body: dict) -> dict:
 
     token = body.get("token", "").strip()
 
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     cfg_file = DATA_DIR / "codegaai_config.json"
     cfg = {}
     if cfg_file.exists():
@@ -395,7 +399,7 @@ async def save_hf_token(body: dict) -> dict:
         cfg["hf_token"] = token
         import os
         os.environ["HF_TOKEN"] = token
-        log.info("HuggingFace token kaydedildi ✓")
+        log.info("HuggingFace token kaydedildi")
     else:
         cfg.pop("hf_token", None)
         import os

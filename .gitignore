@@ -38,6 +38,7 @@ data/outputs/
 data/logs/
 data/cache/
 data/temp/
+data/codegaai_config.json
 data/learning/
 data/adapters/
 data/updates/

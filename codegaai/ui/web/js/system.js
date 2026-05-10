@@ -296,7 +296,9 @@ window.System = System;
 // HuggingFace Token
 async function loadHfTokenStatus() {
   try {
-    const d = await get("/api/system/hf-token");
+    const r = await fetch("/api/system/hf-token");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
     const status = document.getElementById("hf-token-status");
     if (status) {
       status.textContent = d.has_token
