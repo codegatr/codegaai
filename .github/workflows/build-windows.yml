@@ -129,29 +129,8 @@ jobs:
           $tag = "${{ steps.version.outputs.tag }}"
           $zipName = "codegaai-$tag-windows-cpu.zip"
 
-          # fix_llama.bat: llama.dll yüklenemezse kullanıcı bu bat'ı çalıştırır
-          $fixBat = @"
-@echo off
-chcp 65001 > nul
-echo ===============================================
-echo   CODEGA AI - llama.dll Sorun Giderme
-echo ===============================================
-echo.
-echo Bu script llama.dll yukleme sorununu cozer.
-echo.
-echo Secenekler:
-echo   1) pip ile llama-cpp-python (CPU, no-AVX) kurun:
-echo      pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
-echo.
-echo   2) CUDA 12.2 GPU hizi icin:
-echo      pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu122
-echo.
-echo   3) Visual C++ Redistributable kurun (gerekli):
-echo      https://aka.ms/vs/17/release/vc_redist.x64.exe
-echo.
-pause
-"@
-          $fixBat | Out-File -FilePath "dist/codegaai/fix_llama.bat" -Encoding utf8
+          # fix_llama.bat'i dist klasorune kopyala
+          Copy-Item "build\fix_llama.bat" "dist\codegaai\fix_llama.bat"
 
           Write-Host "Zipleniyor: $zipName"
           Compress-Archive -Path "dist/codegaai/*" -DestinationPath $zipName -CompressionLevel Optimal
