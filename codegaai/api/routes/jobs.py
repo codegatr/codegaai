@@ -129,8 +129,9 @@ def _run_chat_job(job: ChatJob) -> None:
         messages.append({"role": "user", "content": job.message})
 
         # Streaming üret
-        for token in engine.stream(messages, cfg={"max_tokens": job.max_tokens,
-                                                   "temperature": 0.7}):
+        from codegaai.core.engine import GenerationConfig
+        cfg = GenerationConfig(max_tokens=job.max_tokens, temperature=0.7)
+        for token in engine.stream(messages, cfg=cfg):
             job.append(token)
 
         # Sohbet geçmişine kaydet
