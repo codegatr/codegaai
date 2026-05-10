@@ -47,7 +47,7 @@ class ChatRequest(BaseModel):
     chat_id: Optional[int] = None
     messages: list[Message] = Field(..., min_length=1)
     model: Optional[str] = None
-    temperature: float = Field(0.7, ge=0.0, le=2.0)
+    temperature: float = Field(0.35, ge=0.0, le=2.0)
     max_tokens: int = Field(2048, ge=1, le=32768)
     use_rag: bool = True
     stream: bool = False         # Faz 3.1'de gerçek streaming
@@ -104,7 +104,7 @@ def _build_rag_context(query: str, exclude_chat_id: int | None = None,
             query, k=k, exclude_chat_id=exclude_chat_id,
         )
         # Mesafe filtresi — gerçekten alakalılar
-        relevant = [h for h in archive_hits if h.get("distance", 99) < 1.2]
+        relevant = [h for h in archive_hits if h.get("distance", 99) < 0.75]
         if relevant:
             snippets = "\n".join(
                 f"- ({h['metadata'].get('role', '?')}) {h['content']}"
@@ -347,23 +347,19 @@ async def chat(req: ChatRequest) -> ChatResponse:
     if req.chat_id:
         def _bg_learn():
             try:
-                # Kullanıcı profili çıkarımı
+                # Kullanıcı profili çıkarımı. Eski sürümde burada undefined
+                # history/req.message kullanıldığı için arka plan öğrenmesi sessizce
+                # çöküyordu.
+                history_dicts = [{"role": m.role, "content": m.content} for m in req.messages]
+                history_dicts.append({"role": "assistant", "content": result.get("content", "")})
+
                 from codegaai.core.user_profile import ProfileManager
-                history_dicts = [{"role": m.role, "content": m.content} for m in history]
-                history_dicts.append({"role": "user", "content": req.message})
-                history_dicts.append({"role": "assistant", "content": response_msg})
                 ProfileManager.get().extract_async(history_dicts)
 
-                # Web öğrenmesi
-                from codegaai.core.web_learner import WebLearner
-                lrn = WebLearner.get()
-                if lrn.status["state"] == "idle":
-                    topics = lrn.extract_topics_from_chat(history_dicts)
-                    if topics:
-                        log.debug("Sohbet öğrenmesi: %s", topics)
-                        lrn.learn_async(topics=topics)
-            except Exception:
-                pass
+                # Otomatik web öğrenmesi varsayılan olarak kapalı; kontrolsüz RAG
+                # kirlenmesini engeller. UI'dan explicit başlatılmalı.
+            except Exception as exc:
+                log.debug("Arka plan profil çıkarımı atlandı: %s", exc)
 
         import threading as _th
         _th.Thread(target=_bg_learn, daemon=True,

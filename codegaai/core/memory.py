@@ -46,6 +46,7 @@ log = get_logger(__name__)
 
 ARCHIVE_COLLECTION = "archive_messages"
 CORE_COLLECTION = "core_facts"
+MAX_HIT_DISTANCE = 0.75
 
 
 # ============================================================
@@ -131,6 +132,9 @@ class MemoryStore:
                     "message_id": message_id,
                     "role": role,
                     "ts": time.time(),
+                    "source": "conversation",
+                    "confidence": 0.75,
+                    "importance": 0.5,
                 }],
             )
         except Exception as exc:
@@ -165,11 +169,15 @@ class MemoryStore:
         dists = results.get("distances", [[]])[0]
 
         for i, doc_id in enumerate(ids):
+            dist = float(dists[i]) if i < len(dists) else 0.0
+            if dist > MAX_HIT_DISTANCE:
+                continue
             hits.append({
                 "id": doc_id,
                 "content": docs[i] if i < len(docs) else "",
                 "metadata": metas[i] if i < len(metas) else {},
-                "distance": float(dists[i]) if i < len(dists) else 0.0,
+                "distance": dist,
+                "relevance": round(max(0.0, 1.0 - dist), 4),
             })
         return hits
 
@@ -193,6 +201,10 @@ class MemoryStore:
         meta = {
             "ts": time.time(),
             "source": (metadata or {}).get("source", "unknown"),
+            "confidence": float((metadata or {}).get("confidence", 0.7)),
+            "importance": float((metadata or {}).get("importance", 0.5)),
+            "last_used": time.time(),
+            "contradicted": False,
             **(metadata or {}),
         }
         # Metadata değerleri string/int/float/bool olmalı
@@ -240,6 +252,11 @@ class MemoryStore:
             metadatas=[{
                 "ts": time.time(),
                 "tags": ",".join(tags or []),
+                "source": "core_fact",
+                "confidence": 0.8,
+                "importance": 0.8,
+                "last_used": time.time(),
+                "contradicted": False,
             }],
         )
         return fact_id
@@ -259,10 +276,14 @@ class MemoryStore:
         docs = results.get("documents", [[]])[0]
         dists = results.get("distances", [[]])[0]
         for i, doc_id in enumerate(ids):
+            dist = float(dists[i]) if i < len(dists) else 0.0
+            if dist > MAX_HIT_DISTANCE:
+                continue
             hits.append({
                 "id": doc_id,
                 "content": docs[i] if i < len(docs) else "",
-                "distance": float(dists[i]) if i < len(dists) else 0.0,
+                "distance": dist,
+                "relevance": round(max(0.0, 1.0 - dist), 4),
             })
         return hits
 

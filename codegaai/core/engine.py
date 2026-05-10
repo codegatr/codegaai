@@ -61,11 +61,11 @@ DEFAULT_SYSTEM_PROMPT = (
 
 @dataclass
 class GenerationConfig:
-    temperature: float = 0.7
-    top_p: float = 0.9
+    temperature: float = 0.35
+    top_p: float = 0.85
     top_k: int = 40
     max_tokens: int = 2048
-    repeat_penalty: float = 1.05
+    repeat_penalty: float = 1.12
     stop: list[str] = field(default_factory=list)
 
 
