@@ -398,17 +398,37 @@ class ModelRegistry:
     _instance_lock = threading.Lock()
 
     def _refresh_dirs(self) -> None:
-        """Model dizinlerini config'den yeniden yükle (disk değişimi için)."""
-        # Her seferinde config'den oku — kullanıcı disk değiştirmiş olabilir
-        import importlib
-        import codegaai.config as cfg_mod
-        importlib.reload(cfg_mod)
-        models_dir = cfg_mod.MODELS_DIR
-        self.llm_dir = models_dir / "llm"
+        """Model dizinlerini config'den oku (importlib.reload KULLANMA)."""
+        import json as _json
+        from codegaai.config import DATA_DIR
+
+        # codegaai_config.json'dan models_dir oku
+        cfg_file = DATA_DIR / "codegaai_config.json"
+        models_dir_override = None
+        if cfg_file.exists():
+            try:
+                d = _json.loads(cfg_file.read_text(encoding="utf-8"))
+                custom = d.get("models_dir")
+                if custom:
+                    p = Path(custom)
+                    if p.is_absolute():
+                        models_dir_override = p
+            except Exception:
+                pass
+
+        # Env override
+        import os
+        env_models = os.environ.get("CODEGAAI_MODELS_DIR")
+        if env_models:
+            models_dir_override = Path(env_models)
+
+        models_dir = models_dir_override or (DATA_DIR / "models")
+
+        self.llm_dir       = models_dir / "llm"
         self.embedding_dir = models_dir / "embedding"
-        self.image_dir = models_dir / "image"
-        self.video_dir = models_dir / "video"
-        self.audio_dir = models_dir / "audio"
+        self.image_dir     = models_dir / "image"
+        self.video_dir     = models_dir / "video"
+        self.audio_dir     = models_dir / "audio"
 
     def __init__(self) -> None:
         self._refresh_dirs()

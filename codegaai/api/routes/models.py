@@ -147,31 +147,53 @@ async def list_all_models() -> dict[str, Any]:
 
 @router.get("/llm")
 async def list_llm() -> dict[str, Any]:
-    registry = ModelRegistry.get()
-    engine = LLMEngine.get()
-    return {
-        "models": [
-            _enrich_llm(m, registry, engine.status)
-            for m in registry.list_llm_models()
-        ],
-    }
+    import asyncio
+    loop = asyncio.get_event_loop()
+
+    def _get():
+        registry = ModelRegistry.get()
+        engine = LLMEngine.get()
+        return {
+            "models": [
+                _enrich_llm(m, registry, engine.status)
+                for m in registry.list_llm_models()
+            ],
+        }
+
+    try:
+        return await asyncio.wait_for(
+            loop.run_in_executor(None, _get), timeout=5.0
+        )
+    except asyncio.TimeoutError:
+        return {"models": [], "_timeout": True}
 
 
 @router.get("/embedding")
 async def list_embedding() -> dict[str, Any]:
-    registry = ModelRegistry.get()
-    embedding = EmbeddingService.get()
-    return {
-        "models": [
-            {
-                **m,
-                "downloaded": registry.is_embedding_downloaded(m["id"]),
-                "loaded": (embedding.status.get("model_id") == m["id"]
-                           and embedding.status.get("ready", False)),
-            }
-            for m in registry.list_embedding_models()
-        ],
-    }
+    import asyncio
+    loop = asyncio.get_event_loop()
+
+    def _get():
+        registry = ModelRegistry.get()
+        embedding = EmbeddingService.get()
+        return {
+            "models": [
+                {
+                    **m,
+                    "downloaded": registry.is_embedding_downloaded(m["id"]),
+                    "loaded": (embedding.status.get("model_id") == m["id"]
+                               and embedding.status.get("ready", False)),
+                }
+                for m in registry.list_embedding_models()
+            ],
+        }
+
+    try:
+        return await asyncio.wait_for(
+            loop.run_in_executor(None, _get), timeout=5.0
+        )
+    except asyncio.TimeoutError:
+        return {"models": [], "_timeout": True}
 
 
 @router.get("/{model_id}/status")

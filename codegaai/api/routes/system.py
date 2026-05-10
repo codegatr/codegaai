@@ -33,17 +33,29 @@ async def health() -> dict[str, str]:
 
 @router.get("/check")
 async def check() -> dict[str, Any]:
-    report = run_all_checks()
-    return {
-        "overall": report.overall_status,
-        "results": [
-            {
-                "name": r.name, "status": r.status,
-                "message": r.message, "detail": r.detail,
-            }
-            for r in report.results
-        ],
-    }
+    import asyncio
+    loop = asyncio.get_event_loop()
+    try:
+        report = await asyncio.wait_for(
+            loop.run_in_executor(None, run_all_checks),
+            timeout=5.0,
+        )
+        return {
+            "overall": report.overall_status,
+            "results": [
+                {
+                    "name": r.name, "status": r.status,
+                    "message": r.message, "detail": r.detail,
+                }
+                for r in report.results
+            ],
+        }
+    except asyncio.TimeoutError:
+        return {
+            "overall": "warning",
+            "results": [{"name": "Donanım", "status": "warning",
+                         "message": "Kontrol zaman aşımına uğradı", "detail": ""}],
+        }
 
 
 @router.get("/engines")
