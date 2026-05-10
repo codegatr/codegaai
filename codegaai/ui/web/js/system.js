@@ -26,6 +26,21 @@ const System = (() => {
 
   // ---------- Sistem kontrolü tablosu ----------
 
+  // Timeout'lu fetch yardımcısı
+  async function fetchWithTimeout(url, options = {}, timeoutMs = 6000) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const r = await fetch(url, { ...options, signal: ctrl.signal });
+      clearTimeout(timer);
+      return r;
+    } catch (e) {
+      clearTimeout(timer);
+      if (e.name === "AbortError") throw new Error(`Zaman aşımı (${timeoutMs/1000}s)`);
+      throw e;
+    }
+  }
+
   async function loadSystemCheck() {
     const tableEl = document.getElementById("system-table");
     const overallEl = document.getElementById("system-overall");
@@ -34,7 +49,8 @@ const System = (() => {
     tableEl.innerHTML = '<div class="system-row system-row--loading">Yükleniyor...</div>';
 
     try {
-      const data = await API.check();
+      const r = await fetchWithTimeout("/api/system/check", {}, 6000);
+      const data = await r.json();
 
       // Overall pill
       if (overallEl) {
@@ -79,7 +95,8 @@ const System = (() => {
     listEl.innerHTML = '<div class="engine-row engine-row--loading">Yükleniyor...</div>';
 
     try {
-      const data = await API.engines();
+      const r = await fetchWithTimeout("/api/system/engines", {}, 6000);
+      const data = await r.json();
 
       // Sohbet header'ındaki motor pill'ini güncelle
       updateChatPill(data.llm);
@@ -224,8 +241,10 @@ const System = (() => {
     const currentEl = document.getElementById("models-dir-current");
     if (!diskList) return;
 
+    diskList.innerHTML = '<p class="form-hint">Diskler taranıyor...</p>';
+
     try {
-      const r = await fetch("/api/system/disks");
+      const r = await fetchWithTimeout("/api/system/disks", {}, 8000);
       const d = await r.json();
 
       if (currentEl) currentEl.textContent = d.current_models_dir || "—";

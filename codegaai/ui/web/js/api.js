@@ -10,8 +10,13 @@ const API = (() => {
 
   async function request(path, opts = {}) {
     const url = BASE + path;
+    const ctrl = new AbortController();
+    const TIMEOUT_MS = opts.timeout || 8000;
+    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+
     const init = {
       method: opts.method || "GET",
+      signal: ctrl.signal,
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
@@ -27,7 +32,12 @@ const API = (() => {
     let resp;
     try {
       resp = await fetch(url, init);
+      clearTimeout(timer);
     } catch (err) {
+      clearTimeout(timer);
+      if (err.name === "AbortError") {
+        throw new Error(`İstek zaman aşımı: ${path}`);
+      }
       throw new ApiError("Bağlantı hatası", 0, err.message);
     }
 

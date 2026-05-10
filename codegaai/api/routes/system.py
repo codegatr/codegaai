@@ -48,130 +48,151 @@ async def check() -> dict[str, Any]:
 
 @router.get("/engines")
 async def engines() -> dict[str, Any]:
-    """Tüm motorların gerçek durumu."""
-    from codegaai.core.engine import LLMEngine
-    from codegaai.core.embeddings import EmbeddingService
+    """Tüm motorların gerçek durumu — her biri 2 sn timeout."""
+    import asyncio
 
-    llm = LLMEngine.get()
-    emb = EmbeddingService.get()
+    loop = asyncio.get_event_loop()
 
-    # ChromaDB hazır mı?
-    chromadb_ok = False
-    try:
-        import chromadb  # type: ignore[import-not-found]
-        chromadb_ok = True
-    except ImportError:
-        pass
+    def _collect() -> dict:
+        from codegaai.core.engine import LLMEngine
+        from codegaai.core.embeddings import EmbeddingService
 
-    # Image motor (Faz 4)
-    img_status = {"state": "unloaded", "ready": False}
-    try:
-        from codegaai.core.image_engine import ImageEngine
-        img = ImageEngine.get()
-        img_status = img.status
-    except Exception:
-        pass
+        llm = LLMEngine.get()
+        emb = EmbeddingService.get()
 
-    # Audio motorları (Faz 5)
-    tts_status = {"state": "unloaded", "ready": False}
-    asr_status = {"state": "unloaded", "ready": False}
-    try:
-        from codegaai.core.audio_engine import TTSEngine, ASREngine
-        tts_status = TTSEngine.get().status
-        asr_status = ASREngine.get().status
-    except Exception:
-        pass
+        chromadb_ok = False
+        try:
+            import chromadb  # type: ignore
+            chromadb_ok = True
+        except ImportError:
+            pass
 
-    # Video motoru (Faz 6)
-    video_status = {"state": "unloaded", "ready": False}
-    try:
-        from codegaai.core.video_engine import VideoEngine
-        video_status = VideoEngine.get().status
-    except Exception:
-        pass
+        img_status: dict = {"state": "unloaded", "ready": False}
+        try:
+            from codegaai.core.image_engine import ImageEngine
+            img_status = ImageEngine.get().status
+        except Exception:
+            pass
 
-    # Self-Learning (Faz 7)
-    learning_active = False
-    feedback_count = 0
-    deps_ok = False
-    try:
-        from codegaai.core.learning import (
-            FeedbackStore, TrainingEngine, AdapterManager,
-        )
-        feedback_count = FeedbackStore.open().stats().get("total", 0)
-        deps_ok = all(TrainingEngine.check_dependencies().values())
-        learning_active = TrainingEngine.get().is_training
-    except Exception:
-        pass
+        tts_status: dict = {"state": "unloaded", "ready": False}
+        asr_status: dict = {"state": "unloaded", "ready": False}
+        try:
+            from codegaai.core.audio_engine import TTSEngine, ASREngine
+            tts_status = TTSEngine.get().status
+            asr_status = ASREngine.get().status
+        except Exception:
+            pass
 
-    # Updater (Faz 8)
-    updater_status = {"frozen_mode": False, "state": "idle"}
-    try:
-        from codegaai.core.updater import Updater
-        upd = Updater.get()
-        updater_status = {
-            "frozen_mode": upd.is_frozen(),
-            "state": upd.status.get("state", "idle"),
+        video_status: dict = {"state": "unloaded", "ready": False}
+        try:
+            from codegaai.core.video_engine import VideoEngine
+            video_status = VideoEngine.get().status
+        except Exception:
+            pass
+
+        learning_active = False
+        feedback_count = 0
+        deps_ok = False
+        try:
+            from codegaai.core.learning import (
+                FeedbackStore, TrainingEngine,
+            )
+            feedback_count = FeedbackStore.open().stats().get("total", 0)
+            deps_ok = all(TrainingEngine.check_dependencies().values())
+            learning_active = TrainingEngine.get().is_training
+        except Exception:
+            pass
+
+        updater_status: dict = {"frozen_mode": False, "state": "idle"}
+        try:
+            from codegaai.core.updater import Updater
+            upd = Updater.get()
+            updater_status = {
+                "frozen_mode": upd.is_frozen(),
+                "state": upd.status.get("state", "idle"),
+            }
+        except Exception:
+            pass
+
+        llm_st = llm.status
+        emb_st = emb.status
+
+        return {
+            "llm": {
+                "active": llm.is_ready,
+                "state": llm_st["state"],
+                "model_id": llm_st.get("model_id"),
+                "backend": llm_st.get("backend"),
+                "error": llm_st.get("error"),
+                "context_length": llm_st.get("context_length"),
+                "phase": "Faz 3",
+            },
+            "embedding": {
+                "active": emb.is_ready,
+                "state": emb_st["state"],
+                "model_id": emb_st.get("model_id"),
+                "phase": "Faz 3",
+            },
+            "memory": {
+                "active": chromadb_ok,
+                "state": "ready" if chromadb_ok else "unloaded",
+                "reason": ("ChromaDB hazır" if chromadb_ok
+                           else "ChromaDB yüklü değil"),
+                "phase": "Faz 3",
+            },
+            "image": {
+                "active": img_status.get("ready", False),
+                "state": img_status.get("state", "unloaded"),
+                "model_id": img_status.get("model_id"),
+                "phase": "Faz 4",
+            },
+            "audio": {
+                "active": tts_status.get("ready", False) or asr_status.get("ready", False),
+                "tts": tts_status,
+                "asr": asr_status,
+                "phase": "Faz 5",
+            },
+            "video": {
+                "active": video_status.get("ready", False),
+                "state": video_status.get("state", "unloaded"),
+                "model_id": video_status.get("model_id"),
+                "phase": "Faz 6",
+            },
+            "learning": {
+                "active": learning_active or feedback_count > 0,
+                "state": "training" if learning_active else "idle",
+                "feedback_count": feedback_count,
+                "training_deps_ok": deps_ok,
+                "phase": "Faz 7",
+            },
+            "updater": {
+                "active": updater_status.get("frozen_mode", False),
+                "state": updater_status.get("state", "idle"),
+                "frozen_mode": updater_status.get("frozen_mode", False),
+                "phase": "Faz 8",
+            },
         }
-    except Exception:
-        pass
 
-    return {
-        "llm": {
-            "active": llm.is_ready,
-            "state": llm.status["state"],
-            "model_id": llm.status.get("model_id"),
-            "backend": llm.status.get("backend"),
-            "phase": "Faz 3",
-        },
-        "embedding": {
-            "active": emb.is_ready,
-            "state": emb.status["state"],
-            "model_id": emb.status.get("model_id"),
-            "phase": "Faz 3",
-        },
-        "memory": {
-            "active": chromadb_ok,
-            "state": "ready" if chromadb_ok else "unloaded",
-            "reason": ("ChromaDB hazır" if chromadb_ok
-                       else "ChromaDB yüklü değil — pip install chromadb"),
-            "phase": "Faz 3",
-        },
-        "image": {
-            "active": img_status.get("ready", False),
-            "state": img_status.get("state", "unloaded"),
-            "model_id": img_status.get("model_id"),
-            "backend": img_status.get("backend"),
-            "phase": "Faz 4",
-        },
-        "audio": {
-            "active": tts_status.get("ready", False) or asr_status.get("ready", False),
-            "tts": tts_status,
-            "asr": asr_status,
-            "phase": "Faz 5",
-        },
-        "video": {
-            "active": video_status.get("ready", False),
-            "state": video_status.get("state", "unloaded"),
-            "model_id": video_status.get("model_id"),
-            "backend": video_status.get("backend"),
-            "pipeline": video_status.get("pipeline"),
-            "phase": "Faz 6",
-        },
-        "learning": {
-            "active": learning_active or feedback_count > 0,
-            "state": "training" if learning_active else "idle",
-            "feedback_count": feedback_count,
-            "training_deps_ok": deps_ok,
-            "phase": "Faz 7",
-        },
-        "updater": {
-            "active": updater_status.get("frozen_mode", False),
-            "state": updater_status.get("state", "idle"),
-            "frozen_mode": updater_status.get("frozen_mode", False),
-            "phase": "Faz 8",
-        },
-    }
+    try:
+        result = await asyncio.wait_for(
+            loop.run_in_executor(None, _collect),
+            timeout=4.0,
+        )
+        return result
+    except asyncio.TimeoutError:
+        # Timeout durumunda en azından LLM durumunu göster
+        from codegaai.core.engine import LLMEngine
+        llm = LLMEngine.get()
+        return {
+            "llm": {
+                "active": llm.is_ready,
+                "state": llm.status["state"],
+                "model_id": llm.status.get("model_id"),
+                "error": llm.status.get("error"),
+                "phase": "Faz 3",
+            },
+            "_timeout": True,
+        }
 
 
 # ============================================================
@@ -182,57 +203,74 @@ async def engines() -> dict[str, Any]:
 async def list_disks() -> dict:
     """
     Kullanılabilir diskler + boş alan.
-    Windows'ta C:, D:, E: vb. — Linux'ta mount noktaları.
+    Her disk için max 1.5 sn timeout — CD/ağ/floppy takılmasın.
     """
+    import asyncio
     import shutil
+    from codegaai.config import MODELS_DIR, DATA_DIR
+
+    async def _safe_disk_usage(path: str) -> tuple | None:
+        """Disk kullanımını 1.5 sn timeout ile al."""
+        loop = asyncio.get_event_loop()
+        try:
+            result = await asyncio.wait_for(
+                loop.run_in_executor(None, shutil.disk_usage, path),
+                timeout=1.5,
+            )
+            return result
+        except Exception:
+            return None
+
     disks = []
 
     if __import__("sys").platform == "win32":
-        # Windows: tüm logical sürücüler
         try:
             import ctypes
+            # GetLogicalDrives → bitmask
             bitmask = ctypes.windll.kernel32.GetLogicalDrives()
-            for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
-                if bitmask & 1:
-                    path = f"{letter}:\\"
-                    try:
-                        total, used, free = shutil.disk_usage(path)
-                        disks.append({
-                            "path": path,
-                            "label": letter,
-                            "total_gb": round(total / 1e9, 1),
-                            "free_gb": round(free / 1e9, 1),
-                            "used_pct": round(used / total * 100),
-                        })
-                    except Exception:
-                        pass
-                bitmask >>= 1
-        except Exception:
-            # Fallback: sadece C
-            try:
-                total, used, free = shutil.disk_usage("C:\\")
-                disks.append({"path": "C:\\", "label": "C",
-                              "total_gb": round(total/1e9,1),
-                              "free_gb": round(free/1e9,1),
-                              "used_pct": round(used/total*100)})
-            except Exception:
-                pass
-    else:
-        # Linux/macOS: /home ve /
-        for mount in ["/", str(__import__("pathlib").Path.home())]:
-            try:
-                total, used, free = shutil.disk_usage(mount)
+            for i, letter in enumerate("ABCDEFGHIJKLMNOPQRSTUVWXYZ"):
+                if not (bitmask >> i & 1):
+                    continue
+
+                path = f"{letter}:\\"
+
+                # GetDriveType: 3=FIXED, 2=REMOVABLE — CD/network/unknown atla
+                drive_type = ctypes.windll.kernel32.GetDriveTypeW(path)
+                if drive_type not in (2, 3):   # 2=removable, 3=fixed
+                    continue
+
+                usage = await _safe_disk_usage(path)
+                if usage is None:
+                    continue
+
+                total, used, free = usage
+                if total == 0:
+                    continue
+
                 disks.append({
-                    "path": mount,
-                    "label": mount,
+                    "path": path,
+                    "label": letter,
+                    "type": "fixed" if drive_type == 3 else "removable",
                     "total_gb": round(total / 1e9, 1),
                     "free_gb": round(free / 1e9, 1),
                     "used_pct": round(used / total * 100),
                 })
-            except Exception:
-                pass
+        except Exception as exc:
+            log.warning("Windows disk listesi hatası: %s", exc)
+    else:
+        for mount in ["/", str(__import__("pathlib").Path.home())]:
+            usage = await _safe_disk_usage(mount)
+            if usage:
+                total, used, free = usage
+                disks.append({
+                    "path": mount,
+                    "label": mount,
+                    "type": "fixed",
+                    "total_gb": round(total / 1e9, 1),
+                    "free_gb": round(free / 1e9, 1),
+                    "used_pct": round(used / total * 100),
+                })
 
-    from codegaai.config import MODELS_DIR, DATA_DIR
     return {
         "disks": disks,
         "current_models_dir": str(MODELS_DIR),

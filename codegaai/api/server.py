@@ -228,7 +228,8 @@ def create_app() -> FastAPI:
             import threading
             def _auto_load():
                 import time
-                time.sleep(2)  # UI hazır olsun
+                time.sleep(3)  # FastAPI tamamen ayağa kalksın
+                log.info("Otomatik model yükleme başlıyor...")
                 try:
                     from codegaai.core.models_registry import ModelRegistry
                     from codegaai.core.engine import LLMEngine
@@ -237,13 +238,21 @@ def create_app() -> FastAPI:
                     reg = ModelRegistry.get()
                     engine = LLMEngine.get()
 
-                    # Son kullanılan modeli bul (indirilmiş olanlardan)
-                    downloaded = [
-                        m for m in reg.list_llm_models()
-                        if reg.is_llm_downloaded(m["id"])
-                    ]
+                    # İndirilmiş modelleri listele — detaylı log
+                    all_models = reg.list_llm_models()
+                    downloaded = []
+                    for m in all_models:
+                        is_dl = reg.is_llm_downloaded(m["id"])
+                        log.info("  Model kontrol: %s → %s",
+                                 m["id"], "✓ indirilmiş" if is_dl else "✗ yok")
+                        if is_dl:
+                            downloaded.append(m)
 
-                    if downloaded and not engine.is_ready:
+                    if not downloaded:
+                        log.info("Otomatik yükleme: İndirilmiş model yok, atlandı")
+                    elif engine.is_ready:
+                        log.info("Motor zaten hazır: %s", engine._status.model_id)
+                    else:
                         # Önce varsayılan, yoksa ilk indirilen
                         default = next(
                             (m for m in downloaded if m.get("default")),
@@ -251,18 +260,31 @@ def create_app() -> FastAPI:
                         )
                         log.info("Otomatik model yükleme: %s", default["id"])
                         engine.load(default["id"])
+                        log.info("Otomatik yükleme tamamlandı: %s",
+                                 default["id"])
 
                     # BGE-M3 otomatik yükle
                     if server_cfg.get("auto_load_embedding", True):
                         emb = EmbeddingService.get()
                         if not emb.is_ready:
-                            emb_downloaded = reg.is_embedding_downloaded("bge-m3")
-                            if emb_downloaded:
+                            is_dl = reg.is_embedding_downloaded("bge-m3")
+                            log.info("BGE-M3 kontrol: %s",
+                                     "✓ indirilmiş" if is_dl else "✗ yok")
+                            if is_dl:
                                 log.info("Otomatik embedding yükleme: bge-m3")
                                 emb.load("bge-m3")
 
+                except OSError as exc:
+                    if "0xc000001d" in str(exc).lower() or "-1073741795" in str(exc):
+                        log.error(
+                            "OTOMATİK YÜKLEME BAŞARISIZ — CPU AVX2 uyumsuzluğu! "
+                            "fix_llama.bat dosyasını çalıştırın."
+                        )
+                    else:
+                        log.error("Otomatik model yükleme OSError: %s", exc)
                 except Exception as exc:
-                    log.warning("Otomatik model yükleme başarısız: %s", exc)
+                    log.error("Otomatik model yükleme başarısız: %s", exc,
+                              exc_info=True)
 
             threading.Thread(target=_auto_load, daemon=True,
                              name="auto-loader").start()
