@@ -197,7 +197,19 @@ def create_app() -> FastAPI:
     app.include_router(federation_routes.router, prefix="/api/federation", tags=["federation"])
 
     from codegaai.api.routes import autolearn as autolearn_routes
+    from codegaai.api.routes import setup as setup_routes
     app.include_router(autolearn_routes.router, prefix="/api/autolearn", tags=["autolearn"])
+    app.include_router(setup_routes.router, prefix="/api/setup", tags=["setup"])
+
+    # Setup.html — ilk kurulum sayfası
+    from fastapi.responses import FileResponse
+
+    @app.get("/setup")
+    async def setup_page():
+        setup_html = ui_dir / "setup.html"
+        if setup_html.exists():
+            return FileResponse(str(setup_html))
+        return {"error": "setup.html bulunamadı"}
 
     # Zamanlayıcıyı başlat + modelleri otomatik yükle
     @app.on_event("startup")

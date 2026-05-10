@@ -50,9 +50,18 @@ def open_window(host: str = "127.0.0.1",
         log.error("Sunucu %s saniye içinde hazır olmadı.", wait_timeout)
         return 1
 
-    url = f"http://{host}:{port}/"
-    log.info("Sunucu hazır: %s", url)
+    # İlk kurulum kontrolü
+    try:
+        from codegaai.api.routes.setup import is_setup_done
+        if not is_setup_done():
+            url = f"http://{host}:{port}/setup"
+            log.info("İlk kurulum gerekli — sihirbaz açılıyor")
+        else:
+            url = f"http://{host}:{port}/"
+    except Exception:
+        url = f"http://{host}:{port}/"
 
+    log.info("Sunucu hazır: http://%s:%s/", host, port)
     log.info("PyWebView penceresi açılıyor...")
     try:
         webview.create_window(
