@@ -27,8 +27,18 @@ async def info() -> dict[str, Any]:
 
 
 @router.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
+async def health() -> dict:
+    from codegaai.core.engine import LLMEngine
+    from codegaai.core.self_healing import SelfHealing
+    engine = LLMEngine.get()
+    sh = SelfHealing.get()
+    if not engine.is_ready:
+        sh.report_error("llm", "health check: model yüklü değil")
+    return {
+        "ok": engine.is_ready,
+        "engine": engine.status,
+        "repairing": sh.is_repairing,
+    }
 
 
 @router.get("/check")

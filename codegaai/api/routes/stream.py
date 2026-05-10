@@ -50,18 +50,27 @@ async def stream_chat(
 
         engine = LLMEngine.get()
 
-        # Akıllı model seçimi
-        try:
-            from codegaai.core.model_router import ModelRouter
-            suggested = ModelRouter.get().select_model(message, [])
-            if suggested and (not engine.is_ready or
-                               engine._status.model_id != suggested):
-                engine.load(suggested)
-        except Exception:
-            pass
+        # Model router: sadece hiç model yüklü değilse yükle
+        # Zaten yüklü modeli asla değiştirme (unload → re-load = sohbet kesilir)
+        if not engine.is_ready:
+            try:
+                from codegaai.core.model_router import ModelRouter
+                from codegaai.core.models_registry import ModelRegistry
+                reg = ModelRegistry.get()
+                # İndirilmiş modelleri bul, ilkini yükle
+                for m in reg.list_llm_models():
+                    if reg.is_llm_downloaded(m["id"]):
+                        engine.load(m["id"])
+                        break
+            except Exception:
+                pass
 
         if not engine.is_ready:
-            yield await _sse_event({"type": "error", "message": "Model yüklü değil"})
+            # Kendini onarma: model yüklemeyi dene
+            from codegaai.core.self_healing import SelfHealing
+            SelfHealing.get().report_error("llm", "Model yüklü değil", auto_fix=True)
+            yield await _sse_event({"type": "error",
+                                    "message": "Model yükleniyor, 5 saniye sonra tekrar dene"})
             return
 
         # RAG

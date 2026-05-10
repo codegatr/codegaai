@@ -160,23 +160,20 @@ async def chat(req: ChatRequest) -> ChatResponse:
             except Exception as exc:
                 log.warning("Arşive yazma başarısız: %s", exc)
 
-    # ── AKILLI MODEL SEÇİMİ ─────────────────────────────────────
-    try:
-        from codegaai.core.model_router import ModelRouter
-        router_model = ModelRouter.get().select_model(
-            last_user, history_dicts if 'history_dicts' in dir() else []
-        )
-        if router_model and (not engine.is_ready or
-                              engine._status.model_id != router_model):
-            log.info("Model router: %s seçildi", router_model)
-            try:
-                engine.load(router_model)
-            except Exception as route_err:
-                log.warning("Router model yükleme hatası: %s", route_err)
-    except Exception:
-        pass
-
-    # Motor yüklü değilse: stub yanıt
+    # ── MODEL HAZIRLIK KONTROLÜ ──────────────────────────────────
+    # Kural: Zaten yüklü model ASLA değiştirilmez.
+    # Model router sadece hiç model yüklü değilse devreye girer.
+    if not engine.is_ready:
+        try:
+            from codegaai.core.models_registry import ModelRegistry
+            reg = ModelRegistry.get()
+            for m in reg.list_llm_models():
+                if reg.is_llm_downloaded(m["id"]):
+                    log.info("Otomatik model yükleme (chat): %s", m["id"])
+                    engine.load(m["id"])
+                    break
+        except Exception as e:
+            log.warning("Otomatik model yükleme başarısız: %s", e)
     if not engine.is_ready:
         response_msg = Message(role="assistant", content=_STUB_NOT_LOADED)
         stub_msg_id: Optional[int] = None
@@ -233,9 +230,14 @@ async def chat(req: ChatRequest) -> ChatResponse:
     rag_text = ""
     rag_hits: list[dict] = []
     if req.use_rag and last_user:
-        rag_text, rag_hits = _build_rag_context(
-            last_user, exclude_chat_id=req.chat_id, k=4,
-        )
+        try:
+            rag_text, rag_hits = _build_rag_context(
+                last_user, exclude_chat_id=req.chat_id, k=4,
+            )
+        except Exception as rag_err:
+            log.warning("RAG hatası, kendini onarıyor: %s", rag_err)
+            from codegaai.core.self_healing import SelfHealing
+            SelfHealing.get().report_error("memory", str(rag_err))
 
     # ── DİNAMİK SİSTEM PROMPTU ──────────────────────────────────
     try:

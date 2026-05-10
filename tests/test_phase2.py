@@ -77,7 +77,8 @@ class TestApiClient(unittest.TestCase):
     def test_system_health(self) -> None:
         r = self.client.get("/api/system/health")
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.json(), {"status": "ok"})
+        d = r.json()
+        self.assertIn("ok", d)
 
     def test_system_check(self) -> None:
         r = self.client.get("/api/system/check")
