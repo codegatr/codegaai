@@ -127,14 +127,15 @@ LLM_MODELS: tuple[LLMModelSpec, ...] = (
     # === 6 GB VRAM (RTX 3060 Laptop) için önerilen ===
     LLMModelSpec(
         id="qwen2.5-3b-instruct-q4_k_m",
-        name="Qwen 2.5 3B Instruct (Q4_K_M) ⚡ Hızlı",
+        name="Qwen 2.5 3B Instruct (Q4_K_M) ⚡ CPU İçin Önerilen",
+        default=True,
         hf_repo="Qwen/Qwen2.5-3B-Instruct-GGUF",
         hf_file="qwen2.5-3b-instruct-q4_k_m.gguf",
         size_gb=2.0,
         vram_gb=2.5,
         languages=("tr", "en", "zh", "ar", "fr", "de"),
         context_length=32768,
-        description="6 GB VRAM laptop için ideal. BGE-M3 ile birlikte rahat çalışır.",
+        description="CPU'da hızlı (~20-30 sn/yanıt). GPU olmadan kullanım için ideal.",
     ),
     LLMModelSpec(
         id="qwen2.5-7b-instruct-q4_k_m",
@@ -145,8 +146,7 @@ LLM_MODELS: tuple[LLMModelSpec, ...] = (
         vram_gb=5.5,
         languages=("tr", "en", "zh", "ar", "fr", "de", "es", "ja"),
         context_length=32768,
-        description="Türkçe başta olmak üzere 30+ dil. RTX 3060 için ideal.",
-        default=True,
+        description="Türkçe başta olmak üzere 30+ dil. GPU (RTX 3060+) ile kullanın.",
     ),
     LLMModelSpec(
         id="qwen2.5-coder-7b-instruct-q4_k_m",

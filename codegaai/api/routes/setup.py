@@ -151,6 +151,7 @@ async def complete_setup(req: SetupCompleteRequest) -> dict:
             pass
 
     cfg["models_dir"] = str(models_path)
+    cfg["data_dir"] = str(models_path.parent / "CODEGA_Data")
     cfg["setup_version"] = "1.0"
     cfg_file.write_text(
         json.dumps(cfg, ensure_ascii=False, indent=2),

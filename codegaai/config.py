@@ -117,7 +117,33 @@ def _resolve_models_dir() -> Path:
 
 # Alt dizinler
 MODELS_DIR: Path = _resolve_models_dir()
-MEMORY_DIR: Path = DATA_DIR / "memory"
+
+# MEMORY_DIR: config'de data_dir varsa oraya, yoksa models_dir sibling'i
+def _resolve_data_base() -> Path:
+    """Data tabanı dizini — modeller hangi diskteyse oraya yakın olsun."""
+    _cfg_file = DATA_DIR / "codegaai_config.json"
+    if _cfg_file.exists():
+        try:
+            import json as _json
+            _cfg = _json.loads(_cfg_file.read_text(encoding="utf-8"))
+            # data_dir açıkça belirtilmişse onu kullan
+            custom_data = _cfg.get("data_dir")
+            if custom_data:
+                p = Path(custom_data).expanduser().resolve()
+                p.mkdir(parents=True, exist_ok=True)
+                return p
+            # models_dir seçilmişse onun yanına CODEGA_Data koy
+            custom_models = _cfg.get("models_dir")
+            if custom_models:
+                p = Path(custom_models).expanduser().resolve().parent / "CODEGA_Data"
+                p.mkdir(parents=True, exist_ok=True)
+                return p
+        except Exception:
+            pass
+    return DATA_DIR
+
+_DATA_BASE: Path = _resolve_data_base()
+MEMORY_DIR: Path = _DATA_BASE / "memory"
 OUTPUTS_DIR: Path = DATA_DIR / "outputs"
 LOGS_DIR: Path = DATA_DIR / "logs"
 CACHE_DIR: Path = DATA_DIR / "cache"

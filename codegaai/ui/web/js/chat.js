@@ -355,7 +355,7 @@ const Chat = (() => {
     const params = new URLSearchParams({
       message: text,
       chat_id: String(state.chatId),
-      max_tokens: "2048",
+      max_tokens: "512",
     });
 
     const url = `/api/chat/stream?${params}`;
