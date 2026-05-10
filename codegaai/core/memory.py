@@ -329,6 +329,10 @@ class _CodegaEmbeddingFunction:
         """ChromaDB EmbeddingFunction — signature kesinlikle (self, input)."""
         from codegaai.core.embeddings import EmbeddingService
         svc = EmbeddingService.get()
+        if not svc.is_ready:
+            # Embedding yüklenmemiş — boş vektör döndür (yazma devam etsin)
+            texts = [input] if isinstance(input, str) else list(input)
+            return [[0.0] * 1024 for _ in texts]
         if isinstance(input, str):
             return svc.embed([input])
         return svc.embed(list(input))

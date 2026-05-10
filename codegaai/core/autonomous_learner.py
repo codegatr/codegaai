@@ -152,7 +152,8 @@ class LearnerStats:
         return {
             "total_articles": self.total_articles,
             "total_topics": self.total_topics,
-            "total_chars_mb": round(self.total_chars / 1e6, 2),
+            "total_chars": self.total_chars,                          # ham değer
+            "total_chars_mb": round(self.total_chars / 1e6, 2),      # MB görüntüleme
             "cycles_completed": self.cycles_completed,
             "last_learn_time": self.last_learn_time,
             "sources": self.sources_breakdown,
@@ -531,7 +532,10 @@ class AutonomousLearner:
                 d = json.loads(STATS_FILE.read_text(encoding="utf-8"))
                 self._stats.total_articles = d.get("total_articles", 0)
                 self._stats.total_topics = d.get("total_topics", 0)
-                self._stats.total_chars = d.get("total_chars", 0)
+                # total_chars → to_dict'te total_chars_mb olarak saklanır
+                saved_mb = d.get("total_chars_mb", 0)
+                self._stats.total_chars = d.get("total_chars",
+                                                 int(saved_mb * 1_000_000))
                 self._stats.cycles_completed = d.get("cycles_completed", 0)
                 self._stats.sources_breakdown = d.get("sources", {})
             if TOPIC_QUEUE_FILE.exists():
@@ -692,7 +696,10 @@ class AutonomousLearner:
         """Makaleyi RAG belleğine kaydet."""
         try:
             from codegaai.core.memory import MemoryStore
+            from codegaai.core.embeddings import EmbeddingService
+
             mem = MemoryStore.get()
+            emb_ready = EmbeddingService.get().is_ready
 
             # Büyük içeriği parçalara böl (chunking)
             chunks = self._chunk_text(article.content, chunk_size=800)
@@ -708,6 +715,7 @@ class AutonomousLearner:
                         "quality": article.quality,
                         "chunk": i,
                         "learned_at": article.learned_at,
+                        "has_embedding": emb_ready,
                     },
                     collection="archive" if i > 0 else "core",
                 )
