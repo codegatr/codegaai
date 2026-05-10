@@ -34,6 +34,33 @@ from codegaai.utils.logger import get_logger
 log = get_logger(__name__)
 
 
+def _get_hf_token() -> str:
+    """
+    HuggingFace token'ını oku.
+    Öncelik: env > config.json > None
+    """
+    # Env'den
+    tok = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+    if tok:
+        return tok
+
+    # config.json'dan
+    try:
+        from codegaai.config import DATA_DIR
+        cfg_file = DATA_DIR / "codegaai_config.json"
+        if cfg_file.exists():
+            import json as _json
+            cfg = _json.loads(cfg_file.read_text(encoding="utf-8"))
+            tok = cfg.get("hf_token", "")
+            if tok:
+                # Env'e de set et — huggingface_hub kütüphanesi okusun
+                os.environ["HF_TOKEN"] = tok
+                return tok
+    except Exception:
+        pass
+    return ""
+
+
 # ============================================================
 # Model tanımları
 # ============================================================
@@ -851,9 +878,15 @@ class ModelRegistry:
             server_total = 0
             supports_range = True
 
+            # HF Token varsa authentication header ekle
+            _hf_headers = {"User-Agent": f"codegaai/{spec.id}"}
+            _hf_token = _get_hf_token()
+            if _hf_token:
+                _hf_headers["Authorization"] = f"Bearer {_hf_token}"
+
             with httpx.Client(
                 follow_redirects=True, timeout=60.0,
-                headers={"User-Agent": f"codegaai/{spec.id}"},
+                headers=_hf_headers,
             ) as client:
                 try:
                     head = client.head(url)
@@ -1204,6 +1237,7 @@ class ModelRegistry:
 
             target_dir.mkdir(parents=True, exist_ok=True)
 
+            _hf_tok = _get_hf_token()
             snapshot_download(
                 repo_id=spec.hf_repo,
                 local_dir=str(target_dir),

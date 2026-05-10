@@ -268,10 +268,14 @@ const System = (() => {
     });
 
     if (typeof Views !== "undefined") {
-      Views.on(name => { if (name==="system") loadAll(); });
+      Views.on(name => {
+        if (name === "system") loadAll();
+        if (name === "settings") loadHfTokenStatus();
+      });
     }
 
     loadSettings();
+    loadHfTokenStatus();
     loadEngines();  // chat pill
 
     // İlk açılışta sistem sekmesi zaten açıksa veya 1sn sonra kontrol
@@ -288,3 +292,40 @@ const System = (() => {
 })();
 
 window.System = System;
+
+// HuggingFace Token
+async function loadHfTokenStatus() {
+  try {
+    const d = await get("/api/system/hf-token");
+    const status = document.getElementById("hf-token-status");
+    if (status) {
+      status.textContent = d.has_token
+        ? `✓ Token aktif: ${d.preview}`
+        : "Token girilmemiş — indirmeler yavaş olabilir";
+      status.style.color = d.has_token ? "var(--color-success)" : "var(--color-text-muted)";
+    }
+  } catch(e) {}
+}
+
+window.saveHfToken = async function() {
+  const inp = document.getElementById("hf-token-input");
+  const status = document.getElementById("hf-token-status");
+  const token = inp?.value?.trim();
+  if (!token) { if (status) status.textContent = "Token girin"; return; }
+  try {
+    const d = await post("/api/system/hf-token", {token});
+    if (d.ok) {
+      if (status) { status.textContent = "✓ Token kaydedildi"; status.style.color = "var(--color-success)"; }
+      if (inp) inp.value = "";
+      loadHfTokenStatus();
+    }
+  } catch(e) { if (status) status.textContent = "Hata: " + e.message; }
+};
+
+window.clearHfToken = async function() {
+  const status = document.getElementById("hf-token-status");
+  try {
+    await post("/api/system/hf-token", {token: ""});
+    if (status) { status.textContent = "Token silindi"; status.style.color = "var(--color-text-muted)"; }
+  } catch(e) {}
+};

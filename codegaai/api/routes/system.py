@@ -371,3 +371,47 @@ async def get_models_dir() -> dict:
         "model_size_gb": round(model_size_gb, 2),
         "disk_free_gb": disk_free_gb,
     }
+
+
+# ── HuggingFace Token ──────────────────────────────────────────────────────
+
+@router.post("/hf-token")
+async def save_hf_token(body: dict) -> dict:
+    """HuggingFace token'ı config.json'a kaydet."""
+    import json
+    from codegaai.config import DATA_DIR
+
+    token = body.get("token", "").strip()
+
+    cfg_file = DATA_DIR / "codegaai_config.json"
+    cfg = {}
+    if cfg_file.exists():
+        try:
+            cfg = json.loads(cfg_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    if token:
+        cfg["hf_token"] = token
+        import os
+        os.environ["HF_TOKEN"] = token
+        log.info("HuggingFace token kaydedildi ✓")
+    else:
+        cfg.pop("hf_token", None)
+        import os
+        os.environ.pop("HF_TOKEN", None)
+        log.info("HuggingFace token silindi")
+
+    cfg_file.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"ok": True, "has_token": bool(token)}
+
+
+@router.get("/hf-token")
+async def get_hf_token_status() -> dict:
+    """HF token var mı?"""
+    from codegaai.core.models_registry import _get_hf_token
+    tok = _get_hf_token()
+    return {
+        "has_token": bool(tok),
+        "preview": (tok[:8] + "..." + tok[-4:]) if len(tok) > 12 else ("***" if tok else ""),
+    }

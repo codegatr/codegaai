@@ -46,6 +46,17 @@ async def _lifespan(app: FastAPI):
     log.info("FastAPI başlatılıyor (CODEGA AI v%s)", __version__)
     log.info("Faz: %s", __phase__)
 
+    # HF Token'ı başlangıçta yükle (indirme uyarısını engelle)
+    try:
+        from codegaai.core.models_registry import _get_hf_token
+        tok = _get_hf_token()
+        if tok:
+            log.info("HuggingFace token yüklendi ✓")
+        else:
+            log.info("HuggingFace token yok — Ayarlar'dan ekleyebilirsiniz")
+    except Exception:
+        pass
+
     # Sohbet veritabanını başlat (gerekirse oluşturur)
     from codegaai.core.chat_store import ChatStore
     ChatStore.open()
@@ -198,8 +209,10 @@ def create_app() -> FastAPI:
 
     from codegaai.api.routes import autolearn as autolearn_routes
     from codegaai.api.routes import setup as setup_routes
+    from codegaai.api.routes import jobs as jobs_routes
     app.include_router(autolearn_routes.router, prefix="/api/autolearn", tags=["autolearn"])
     app.include_router(setup_routes.router, prefix="/api/setup", tags=["setup"])
+    app.include_router(jobs_routes.router, prefix="/api/jobs", tags=["jobs"])
 
     # Setup.html — ilk kurulum sayfası
     from fastapi.responses import FileResponse

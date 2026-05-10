@@ -27,7 +27,7 @@
       <div class="brand-mark">C</div>
       <div class="brand-text">
         <span class="brand-name">CODEGA AI</span>
-        <span class="brand-version" id="brand-version">v2.1.5</span>
+        <span class="brand-version" id="brand-version">v2.2.0</span>
         <button class="update-badge" id="update-badge" hidden
                 title="Yeni sürüm mevcut">
           <span id="update-badge-text">Yeni!</span>
@@ -274,6 +274,8 @@
           <div class="chat-input-hint">
             <span id="chat-model-label">Model: <code id="chat-model-code">—</code></span>
             <span class="separator">·</span>
+            <span id="chat-elapsed-ms" style="color:var(--color-text-muted);font-size:12px"></span>
+            <span class="separator" id="elapsed-sep" style="display:none">·</span>
             <span id="rag-status-label">RAG bellek: <span class="muted">kontrol ediliyor...</span></span>
           </div>
         </form>
@@ -1016,7 +1018,25 @@
         </div>
       </header>
 
-      <div class="settings-content">
+        <div class="settings-group">
+          <h3>HuggingFace Token</h3>
+          <p class="form-hint" style="margin-bottom:12px">
+            Token olmadan indirmeler yavaş ve sınırlı olabilir.
+            <a href="https://huggingface.co/settings/tokens" target="_blank" style="color:var(--color-accent)">
+              huggingface.co/settings/tokens
+            </a> adresinden ücretsiz token alabilirsiniz.
+          </p>
+          <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px">
+            <div style="display:flex;gap:8px;width:100%">
+              <input type="password" id="hf-token-input" class="input" style="flex:1"
+                     placeholder="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+              <button class="btn btn--primary" onclick="saveHfToken()">Kaydet</button>
+              <button class="btn btn--ghost" onclick="clearHfToken()">Sil</button>
+            </div>
+            <span id="hf-token-status" class="form-hint"></span>
+          </div>
+        </div>
+
         <div class="settings-group">
           <h3>Uygulama</h3>
           <div class="setting-row">

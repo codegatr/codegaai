@@ -321,34 +321,94 @@ const Chat = (() => {
     autoResize();
     showTyping();
 
-    // Streaming ile gönder (SSE)
-    let streamingMsgAdded = false;
+    // Job polling ile gönder (SSE yerine — PyWebView'da güvenilir)
     try {
-      streamingMsgAdded = true;
-      await sendStreaming(text);
-    } catch (streamErr) {
-      // Streaming başarısız → boş balonu kaldır, classic'e geç
-      console.warn("Streaming başarısız, klasik mod:", streamErr);
-      // Eklenen boş streaming balonunu sil
-      const lastMsg = state.messages[state.messages.length - 1];
-      if (lastMsg && lastMsg.role === "assistant" && !lastMsg.content) {
-        state.messages.pop();
-        elMessages?.lastElementChild?.remove();
-      }
-      try {
-        await sendClassic(text);
-      } catch (err) {
-        hideTyping();
-        appendMessage({
-          role: "assistant",
-          content: `**Hata:** ${err.message || "Bilinmeyen hata"}`,
-        });
-      }
+      await sendWithPolling(text);
+    } catch (err) {
+      hideTyping();
+      appendMessage({
+        role: "assistant",
+        content: `**Hata:** ${err.message || "Bilinmeyen hata"}`,
+      });
     } finally {
       state.sending = false;
       elSend.disabled = false;
       elInput.focus();
     }
+  }
+
+  // ── Job Polling ile Chat (SSE yerine, her yerde çalışır) ─────────────
+  async function sendWithPolling(text) {
+    // Yanıt balonunu oluştur
+    const assistantMsg = { role: "assistant", content: "", id: null, rating: 0 };
+    state.messages.push(assistantMsg);
+    const msgEl = appendMessage(assistantMsg);
+    const contentEl = msgEl ? msgEl.querySelector(".msg__content") : null;
+    if (contentEl) contentEl.innerHTML = '<span class="stream-cursor">▊</span>';
+
+    // İşi başlat
+    const startResp = await fetch("/api/jobs/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: text,
+        chat_id: state.chatId,
+        max_tokens: 512,
+      }),
+    });
+    const startData = await startResp.json();
+    const jobId = startData.job_id;
+    if (!jobId) throw new Error("İş başlatılamadı");
+
+    hideTyping();
+
+    // Poll — her 300ms job durumunu sorgula
+    return new Promise((resolve, reject) => {
+      const t0 = Date.now();
+      const MAX_MS = 300_000; // 5 dakika maksimum
+      let lastLen = 0;
+
+      const poll = setInterval(async () => {
+        try {
+          const r = await fetch(`/api/jobs/${jobId}`);
+          const d = await r.json();
+
+          // Yeni token'lar varsa göster
+          if (d.content && d.content.length > lastLen) {
+            lastLen = d.content.length;
+            assistantMsg.content = d.content;
+            if (contentEl) {
+              contentEl.innerHTML = renderMarkdown(d.content) +
+                (d.done ? "" : '<span class="stream-cursor">▊</span>');
+              contentEl.scrollIntoView({ block: "end", behavior: "smooth" });
+            }
+          }
+
+          if (d.done) {
+            clearInterval(poll);
+            assistantMsg.streaming = false;
+            // Timing
+            const timeLbl = document.getElementById("status-time-elapsed");
+            if (timeLbl) timeLbl.textContent = `${d.elapsed_ms}ms`;
+            // Alt çubuk
+            const statMs = document.getElementById("chat-elapsed-ms");
+            if (statMs) statMs.textContent = d.elapsed_ms + "ms";
+            Chats.reload();
+            if (d.error) reject(new Error(d.error));
+            else resolve();
+          }
+
+          // Timeout
+          if (Date.now() - t0 > MAX_MS) {
+            clearInterval(poll);
+            reject(new Error("Zaman aşımı (5dk)"));
+          }
+        } catch (e) {
+          clearInterval(poll);
+          reject(e);
+        }
+      }, 300);
+    });
   }
 
   async function sendStreaming(text) {
