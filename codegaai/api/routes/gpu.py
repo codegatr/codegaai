@@ -12,6 +12,8 @@ GET  /api/gpu/vram        — VRAM kullanımı
 
 from __future__ import annotations
 
+import subprocess
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 from codegaai.utils.logger import get_logger
@@ -24,6 +26,9 @@ def _detect_gpu() -> dict:
     """Mevcut GPU ve CUDA durumunu tespit et."""
     result = {
         "cuda_available": False,
+        "torch_cuda_available": False,
+        "driver_cuda_available": False,
+        "nvidia_smi_available": False,
         "cuda_version": None,
         "gpu_name": None,
         "vram_total_mb": 0,
@@ -35,14 +40,13 @@ def _detect_gpu() -> dict:
 
     try:
         import torch
-        result["cuda_available"] = torch.cuda.is_available()
-        if torch.cuda.is_available():
+        result["torch_cuda_available"] = torch.cuda.is_available()
+        if result["torch_cuda_available"]:
             result["cuda_version"] = torch.version.cuda
             result["gpu_name"] = torch.cuda.get_device_name(0)
             mem = torch.cuda.mem_get_info(0)
             result["vram_free_mb"] = int(mem[0] / 1024 / 1024)
             result["vram_total_mb"] = int(mem[1] / 1024 / 1024)
-            result["backend"] = "cuda"
     except Exception:
         pass
 
@@ -56,14 +60,15 @@ def _detect_gpu() -> dict:
 
     # nvidia-smi ile driver versiyon
     try:
-        import subprocess
         r = subprocess.run(
             ["nvidia-smi", "--query-gpu=name,driver_version,memory.total,memory.free",
              "--format=csv,noheader,nounits"],
             capture_output=True, text=True, timeout=3
         )
         if r.returncode == 0:
-            parts = r.stdout.strip().split(",")
+            result["nvidia_smi_available"] = True
+            result["driver_cuda_available"] = True
+            parts = r.stdout.strip().splitlines()[0].split(",")
             if len(parts) >= 4:
                 result["gpu_name"] = parts[0].strip()
                 result["driver_version"] = parts[1].strip()
@@ -74,10 +79,17 @@ def _detect_gpu() -> dict:
 
     # llama.cpp GPU desteği var mı?
     try:
-        from llama_cpp import Llama
-        result["llama_cpp_gpu"] = hasattr(Llama, "n_gpu_layers")
+        import llama_cpp
+        supports = getattr(llama_cpp, "llama_supports_gpu_offload", None)
+        result["llama_cpp_gpu"] = bool(supports and supports())
     except Exception:
         pass
+
+    result["cuda_available"] = bool(
+        result["torch_cuda_available"] or result["driver_cuda_available"]
+    )
+    if result["llama_cpp_gpu"] and result["cuda_available"]:
+        result["backend"] = "cuda"
 
     return result
 
@@ -96,7 +108,12 @@ async def gpu_status() -> dict:
         gpu["current_gpu_layers"] = 0
 
     # Öneri
-    if gpu["cuda_available"] and gpu["vram_total_mb"] >= 4000:
+    if gpu["driver_cuda_available"] and not gpu["llama_cpp_gpu"]:
+        gpu["recommendation"] = (
+            "NVIDIA GPU algilandi; bu paket CPU/no-AVX build. "
+            "LLM hizlandirma icin CUDA destekli llama-cpp build gerekir."
+        )
+    elif gpu["cuda_available"] and gpu["vram_total_mb"] >= 4000:
         vram = gpu["vram_total_mb"]
         if vram >= 8000:
             gpu["recommendation"] = "Qwen 7B tam GPU'da çalışır (n_gpu_layers=99)"
@@ -128,7 +145,10 @@ async def enable_gpu(req: EnableGPURequest) -> dict:
 
     if not gpu["llama_cpp_gpu"]:
         return {
-            "error": "llama-cpp-python CUDA build'i gerekli",
+            "error": (
+                "NVIDIA GPU var ama bu CODEGA paketi CPU/no-AVX llama-cpp ile gelmis. "
+                "GPU'ya yuklemek icin CUDA destekli ayri build gerekir."
+            ),
             "install": "pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu124",
         }
 

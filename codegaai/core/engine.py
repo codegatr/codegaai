@@ -30,6 +30,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+import subprocess
 from typing import Any, Iterator, Optional
 
 from codegaai.core.models_registry import ModelRegistry
@@ -83,6 +84,7 @@ class EngineStatus:
     error: Optional[str] = None
     backend: Optional[str] = None    # cuda | metal | cpu
     context_length: int = 0
+    n_gpu_layers: int = 0
 
 
 # ============================================================
@@ -129,10 +131,56 @@ class LLMEngine:
             "error": s.error,
             "backend": s.backend,
             "context_length": s.context_length,
+            "n_gpu_layers": s.n_gpu_layers,
             "ready": s.state == "ready",
         }
 
     # ---- yükleme ----
+
+    @staticmethod
+    def _llama_supports_gpu_offload() -> bool:
+        try:
+            import llama_cpp  # type: ignore[import-not-found]
+            supports = getattr(llama_cpp, "llama_supports_gpu_offload", None)
+            return bool(supports and supports())
+        except Exception:
+            return False
+
+    @staticmethod
+    def _detect_free_vram_gb() -> tuple[Optional[str], float, float]:
+        """Return GPU name, free VRAM GB, total VRAM GB."""
+        try:
+            import torch
+            if torch.cuda.is_available():
+                props = torch.cuda.get_device_properties(0)
+                free, total = torch.cuda.mem_get_info(0)
+                return props.name, free / 1e9, total / 1e9
+        except Exception:
+            pass
+
+        try:
+            r = subprocess.run(
+                [
+                    "nvidia-smi",
+                    "--query-gpu=name,memory.total,memory.free",
+                    "--format=csv,noheader,nounits",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=3,
+            )
+            if r.returncode == 0 and r.stdout.strip():
+                parts = r.stdout.strip().splitlines()[0].split(",")
+                if len(parts) >= 3:
+                    return (
+                        parts[0].strip(),
+                        int(parts[2].strip()) / 1024,
+                        int(parts[1].strip()) / 1024,
+                    )
+        except Exception:
+            pass
+
+        return None, 0.0, 0.0
 
     def load(self, model_id: str,
              n_ctx: int = 0,
@@ -199,6 +247,19 @@ class LLMEngine:
                     effective_gpu_layers = 0
                     log.warning("GPU tespiti başarısız: %s → CPU mod", e)
 
+            if n_gpu_layers == -1 and self._llama_supports_gpu_offload():
+                gpu_name, free_vram, total_vram = self._detect_free_vram_gb()
+                if free_vram > 0 and effective_gpu_layers == 0:
+                    log.info("GPU offload build tespit edildi: %s, VRAM %.1f/%.1f GB",
+                             gpu_name or "unknown", free_vram, total_vram)
+                    if spec.vram_gb <= free_vram * 0.9:
+                        effective_gpu_layers = -1
+                    else:
+                        ratio = (free_vram * 0.85) / spec.vram_gb
+                        effective_gpu_layers = max(1, int(32 * ratio))
+            elif n_gpu_layers == -1:
+                effective_gpu_layers = 0
+
             self._llm = Llama(
                 model_path=str(path),
                 n_ctx=effective_ctx,
@@ -217,6 +278,7 @@ class LLMEngine:
                 loaded_at=time.time(),
                 backend=backend,
                 context_length=effective_ctx,
+                n_gpu_layers=effective_gpu_layers,
             )
             log.info("LLM hazır: %s [%s, %d ctx, %d GPU katman]",
                      model_id, backend, effective_ctx, effective_gpu_layers)
@@ -227,8 +289,9 @@ class LLMEngine:
                 fix_msg = (
                     "CPU'nuz AVX2 desteği içermeyen llama-cpp-python build'i gerektiriyor.\n"
                     "Otomatik düzeltme için uygulama dizinindeki 'fix_llama.bat' dosyasını çalıştırın.\n"
-                    "Ya da terminalde: pip install llama-cpp-python --prefer-binary "
-                    "--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu"
+                    "Ya da terminalde: set CMAKE_ARGS=-DGGML_AVX=OFF -DGGML_AVX2=OFF "
+                    "-DGGML_F16C=OFF -DGGML_FMA=OFF && pip install llama-cpp-python "
+                    "--no-binary llama-cpp-python --no-cache-dir"
                 )
                 log.error("CPU UYUMSUZLUĞU (0xC000001D): %s", fix_msg)
                 self._write_fix_script()
@@ -294,10 +357,11 @@ class LLMEngine:
             bat.write_text(
                 f'@echo off\nchcp 65001 > nul\n'
                 f'echo CODEGA AI - llama-cpp-python AVX2 onarimi\n'
+                f'set CMAKE_ARGS=-DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_F16C=OFF -DGGML_FMA=OFF -DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_F16C=OFF -DLLAMA_FMA=OFF\n'
+                f'set FORCE_CMAKE=1\n'
                 f'"{python_exe}" -m pip uninstall llama-cpp-python -y\n'
                 f'"{python_exe}" -m pip install llama-cpp-python '
-                f'--prefer-binary '
-                f'--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu '
+                f'--no-binary llama-cpp-python '
                 f'--no-cache-dir\n'
                 f'echo Tamamlandi! CODEGA AI yeniden baslatilabilir.\npause\n',
                 encoding="utf-8",
