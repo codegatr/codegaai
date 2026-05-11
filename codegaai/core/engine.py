@@ -354,6 +354,19 @@ class LLMEngine:
 
             python_exe = sys.executable
             bat = bat_dir / "fix_llama.bat"
+            if getattr(sys, "frozen", False):
+                bat.write_text(
+                    '@echo off\nchcp 65001 > nul\n'
+                    'echo CODEGA AI - AVX2 uyumsuzlugu\n'
+                    'echo Bu portable paket codegaai.exe uzerinden pip ile yerinde onarilamaz.\n'
+                    'echo Cozum: v3.6.4 veya sonrasi no-AVX Windows paketini kurun.\n'
+                    'echo Verileriniz CODEGA_Data altinda kaldigi icin etkilenmez.\n'
+                    'pause\n',
+                    encoding="utf-8",
+                )
+                log.info("fix_llama.bat oluşturuldu: %s", bat)
+                return
+
             bat.write_text(
                 f'@echo off\nchcp 65001 > nul\n'
                 f'echo CODEGA AI - llama-cpp-python AVX2 onarimi\n'

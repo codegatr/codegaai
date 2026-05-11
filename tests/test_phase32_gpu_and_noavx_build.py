@@ -35,6 +35,15 @@ class TestGpuAndNoAvxBuild(unittest.TestCase):
         self.assertIn("_detect_free_vram_gb", engine_py)
         self.assertIn("llama_supports_gpu_offload", engine_py)
 
+    def test_frozen_app_does_not_try_codegaai_exe_as_pip(self) -> None:
+        startup_py = (ROOT / "codegaai" / "core" / "startup.py").read_text(encoding="utf-8")
+        engine_py = (ROOT / "codegaai" / "core" / "engine.py").read_text(encoding="utf-8")
+
+        self.assertIn('getattr(sys, "frozen", False)', startup_py)
+        self.assertIn("portable uygulama pip ile yerinde onarilamaz", startup_py)
+        self.assertIn("no-AVX Windows paketini kurun", engine_py)
+        self.assertNotIn("--prefer-binary", startup_py)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -16,6 +16,7 @@ import subprocess
 import sys
 import threading
 import time
+import os
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -252,20 +253,36 @@ class StartupDoctor:
                 self._finish(task, "warning", "auto_repair_llama=false; fix_llama.bat hazırlandı")
                 return
 
+            if getattr(sys, "frozen", False):
+                self._finish(
+                    task,
+                    "warning",
+                    "kurulu portable uygulama pip ile yerinde onarilamaz; no-AVX Windows paketi gerekir",
+                )
+                return
+
             cmd = [
                 sys.executable, "-m", "pip", "install",
                 "llama-cpp-python",
                 "--force-reinstall",
-                "--prefer-binary",
-                "--extra-index-url",
-                "https://abetlen.github.io/llama-cpp-python/whl/cpu",
+                "--no-binary",
+                "llama-cpp-python",
                 "--no-cache-dir",
             ]
+            env = {
+                **os.environ,
+                "CMAKE_ARGS": (
+                    "-DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_F16C=OFF -DGGML_FMA=OFF "
+                    "-DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_F16C=OFF -DLLAMA_FMA=OFF"
+                ),
+                "FORCE_CMAKE": "1",
+            }
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=900,
+                env=env,
             )
             if result.returncode != 0:
                 msg = (result.stderr or result.stdout or "pip repair failed")[-800:]
