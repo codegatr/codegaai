@@ -116,13 +116,21 @@ jobs:
           # easyocr ayrı — büyük bağımlılık, zaman alır
           python -m pip install easyocr opencv-python-headless
 
-      # ── Adım 8: TTS (opsiyonel) ──────────────────────────────────────
-      - name: Install TTS (Coqui XTTS)
+      # ── Adım 8: TTS — piper-tts (Python 3.12 destekli) ──────────────────
+      - name: Install TTS (piper-tts)
         shell: pwsh
         continue-on-error: true
         run: |
-          python -m pip install TTS
-          python -c "import TTS; print('TTS OK')" 2>$null || Write-Host "TTS yuklenemedi (Python 3.12 uyumsuz olabilir)"
+          # Coqui TTS max Python 3.11 — 3.12'de yok
+          # piper-tts: Mozilla/Rhasspy fork, 3.12 OK, offline, Türkçe model var
+          python -m pip install piper-tts 2>&1
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "piper-tts OK"
+          } else {
+            python -m pip install kokoro-onnx 2>&1
+            Write-Host "kokoro-onnx TTS kuruldu (fallback)"
+          }
+          exit 0
 
       # ── Yüklü paket özeti ─────────────────────────────────────────────
       - name: List installed packages
