@@ -243,10 +243,17 @@ async def chat(req: ChatRequest) -> ChatResponse:
     try:
         from codegaai.core.system_prompt import build_system_prompt
         from codegaai.core.safety import SafetyEngine
+        from codegaai.core.agent_brain import decide_response, decision_guidance
+        history_dicts_for_decision = [
+            {"role": m.role, "content": m.content}
+            for m in req.messages[:-1]
+        ]
+        decision = decide_response(last_user, history=history_dicts_for_decision)
         sys_prompt = build_system_prompt(
-            include_tools=True,
+            include_tools=decision.uses_tools,
             include_profile=True,
             rag_context=rag_text,
+            agent_guidance=decision_guidance(decision),
         ) + SafetyEngine.get().build_safety_prompt()
     except Exception:
         sys_prompt = DEFAULT_SYSTEM_PROMPT

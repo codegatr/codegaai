@@ -179,6 +179,7 @@ async def _run_chat_job(job: ChatJob) -> None:
         from codegaai.core.engine import LLMEngine, GenerationConfig
         from codegaai.core.system_prompt import build_system_prompt
         from codegaai.core.chat_store import ChatStore
+        from codegaai.core.agent_brain import decide_response, decision_guidance
 
         engine = LLMEngine.get()
         history = []
@@ -190,6 +191,8 @@ async def _run_chat_job(job: ChatJob) -> None:
                     history.append({"role": m["role"], "content": m["content"]})
             except Exception:
                 pass
+
+        decision = decide_response(job.message, history=history)
 
         try:
             from codegaai.core.model_router import ModelRouter
@@ -214,7 +217,8 @@ async def _run_chat_job(job: ChatJob) -> None:
 
         web_context = ""
         try:
-            web_context = await _maybe_web_search(job.message)
+            if decision.needs_web:
+                web_context = await _maybe_web_search(job.message)
         except Exception:
             pass
 
@@ -236,7 +240,11 @@ async def _run_chat_job(job: ChatJob) -> None:
         if rag_text:
             full_context += f"\n\n## İlgili Bellek\n{rag_text}"
 
-        system_prompt = build_system_prompt(rag_context=full_context)
+        system_prompt = build_system_prompt(
+            include_tools=decision.uses_tools,
+            rag_context=full_context,
+            agent_guidance=decision_guidance(decision),
+        )
         messages = [{"role": "system", "content": system_prompt}]
         messages.extend(history)
         messages.append({"role": "user", "content": job.message})
@@ -249,8 +257,12 @@ async def _run_chat_job(job: ChatJob) -> None:
                 pass
 
         cfg = GenerationConfig(max_tokens=job.max_tokens, temperature=0.55)
-        for token in engine.stream(messages, cfg=cfg):
-            job.append(token)
+        if decision.should_stream:
+            for token in engine.stream(messages, cfg=cfg):
+                job.append(token)
+        else:
+            result = engine.generate(messages, cfg=cfg, use_tools=True)
+            job.append(result.get("content", ""))
 
         if job.chat_id and job.content:
             try:

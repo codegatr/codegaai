@@ -32,8 +32,12 @@ def build_system_prompt(
     include_tools: bool = False,
     include_profile: bool = False,
     rag_context: str = "",
+    agent_guidance: str = "",
 ) -> str:
     parts = [BASE_CHARACTER]
+
+    if agent_guidance:
+        parts.append(agent_guidance[:1600])
 
     if rag_context:
         parts.append(
@@ -41,5 +45,12 @@ def build_system_prompt(
             "\n\nBu bağlam yardımcıdır; son sohbet mesajının niyetini ezmemelidir. "
             "Bağlamla çelişen bir şey üreteceksen emin olmadığını belirt."
         )
+
+    if include_tools:
+        try:
+            from codegaai.core.tools import tools_system_prompt
+            parts.append(tools_system_prompt())
+        except Exception as exc:
+            log.debug("Araç prompt'u eklenemedi: %s", exc)
 
     return "\n".join(parts)
