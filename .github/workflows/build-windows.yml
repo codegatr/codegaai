@@ -77,6 +77,16 @@ jobs:
           python -m pip install faster-whisper soundfile
           python -m pip install imageio imageio-ffmpeg
 
+          # Faz 7: Self-Learning / DPO
+          python -m pip install peft trl datasets
+
+          # Faz 11: Vision (moondream2 / LLaVA için zorunlu)
+          python -m pip install einops torchvision
+
+          # Web araması ve öğrenme
+          python -m pip install duckduckgo-search beautifulsoup4 feedparser lxml
+          python -m pip install easyocr opencv-python-headless
+
       - name: Install TTS (Coqui XTTS) [opsiyonel]
         shell: pwsh
         continue-on-error: true

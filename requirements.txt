@@ -79,13 +79,17 @@ imageio-ffmpeg>=0.5.0,<1.0.0
 # ============================================================
 # Faz 7 (Self-Learning / DPO) - AKTİF
 # ============================================================
-# DPO eğitimi için gerekli. GPU olmadan sadece feedback toplanır,
-# eğitim başlatılamaz. RTX 3060+ önerilir.
 peft>=0.13.0,<1.0.0
 trl>=0.11.0,<1.0.0
 datasets>=2.20.0,<4.0.0
-# bitsandbytes Windows'ta resmi destek yok; opsiyonel:
+# bitsandbytes Windows'ta resmi destek yok — GPU eğitimi için opsiyonel:
 # bitsandbytes>=0.44.0
+
+# ============================================================
+# Faz 11 Vision — Moondream2 / LLaVA için zorunlu
+# ============================================================
+einops>=0.7.0
+torchvision>=0.17.0
 
 # ============================================================
 # Faz 8 (Paketleme) - YORUM SATIRINDA

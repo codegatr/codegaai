@@ -97,8 +97,17 @@ hiddenimports += [
     "uvicorn.lifespan", "uvicorn.lifespan.on", "uvicorn.lifespan.off",
     # Yeni modüller
     "codegaai.api.routes.jobs",
+    "codegaai.api.routes.files",
     "codegaai.core.self_healing",
     "codegaai.core.system_prompt",
+    "codegaai.core.agent_brain",
+    # Faz 7 — DPO
+    "peft",
+    "trl",
+    "datasets",
+    # Faz 11 — Vision
+    "einops",
+    "torchvision",
 ]
 
 # ---- PyWebView (platform-specific binaries: pythonnet, edgechromium) ----

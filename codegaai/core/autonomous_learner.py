@@ -63,10 +63,23 @@ MAX_QUEUE_SIZE = 500          # Konu kuyruğu max boyutu
 MIN_CONTENT_CHARS = 200       # Minimum içerik uzunluğu
 
 GENERIC_TOPIC_STOPLIST = {
+    # İngilizce stopwords
     "change", "changes", "update", "updates", "loading", "watch", "duplicate",
     "query", "planning", "data", "using", "best", "new", "old", "error",
     "errors", "issue", "issues", "problem", "problems", "example", "test",
     "tests", "function", "class", "method", "file", "code",
+    # Bağlaçlar / edatlar / zamirler (Wikipedia konu adı olmamalı)
+    "which", "these", "those", "while", "where", "could", "would", "should",
+    "insert", "storing", "boolean", "connect", "reading", "header", "props",
+    "times", "epoch", "milli", "upstream", "composition", "subtracting",
+    "practices", "versioning", "programming", "stackoverflow", "practices",
+    "pool", "resource", "configuration", "settings", "open", "source",
+    "the", "and", "for", "with", "from", "that", "this", "are", "was",
+    "not", "but", "can", "all", "one", "out", "into", "have", "has",
+    "been", "will", "also", "more", "when", "than", "then", "just",
+    # Türkçe genel kelimeler
+    "birden", "fazla", "gerekli", "olan", "için", "gibi", "ile", "veya",
+    "ama", "ancak", "çünkü", "hem", "hiç", "artık", "nasıl", "neden",
 }
 
 # ============================================================
@@ -614,14 +627,25 @@ class AutonomousLearner:
 
     def _is_good_topic(self, topic: str) -> bool:
         text = self._normalize_topic(topic)
-        if len(text) < 4:
+        if len(text) < 5:
             return False
-        words = re.findall(r"[A-Za-z0-9+#.]+", text.lower())
+        words = re.findall(r"[A-Za-zÇĞİÖŞÜçğışöşü0-9+#.]+", text.lower())
         if not words:
             return False
-        if len(words) == 1 and words[0] in GENERIC_TOPIC_STOPLIST:
+        # Tek kelimeyse stoplist'te olmamalı ve 6+ karakter olmalı
+        if len(words) == 1:
+            if words[0] in GENERIC_TOPIC_STOPLIST:
+                return False
+            if len(words[0]) < 6:
+                return False
+        # Tüm kelimeleri stoplist'te olan konu geçersiz
+        if all(w in GENERIC_TOPIC_STOPLIST for w in words):
             return False
-        if len(words) == 1 and len(words[0]) < 5:
+        # LLM'nin ürettiği uzun saçma konuları filtrele
+        # "öğrenilmesi gereken 5 alt konu..." gibi
+        saçma_belirteçler = ["öğrenilmesi gereken", "alt konu", "fastcgi process manager'ı",
+                              "php sunucusunun", "veri akışını yönetmek", "kullanıcılarla paylaşılabilir"]
+        if any(b in text.lower() for b in saçma_belirteçler):
             return False
         return True
 
