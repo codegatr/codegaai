@@ -78,6 +78,15 @@ async def load_model(req: LoadRequest) -> dict:
     engine = VisionEngine.get()
     if engine.is_ready and engine._status.model_id == req.model_id:
         return {"already_loaded": True, "status": engine.status}
+    if engine.status.get("state") == "loading":
+        return {"loading": True, "model_id": engine.status.get("model_id"), "status": engine.status}
+
+    ok, reason = engine.can_load(req.model_id)
+    if not ok:
+        engine._status.state = "error"
+        engine._status.model_id = req.model_id
+        engine._status.error = reason
+        return {"loading": False, "error": reason, "status": engine.status}
 
     # Arka planda yükle
     import threading

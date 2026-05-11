@@ -116,11 +116,17 @@ const Vision = (() => {
 
   async function loadModel(modelId) {
     statusText.textContent = `⏳ ${modelId} yükleniyor...`;
-    await fetch("/api/vision/load", {
+    const resp = await fetch("/api/vision/load", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({model_id: modelId}),
     });
+    const started = await resp.json().catch(() => ({}));
+    if (started.error) {
+      statusText.textContent = `Hata: ${started.error}`;
+      loadVisionModels();
+      return;
+    }
     loadVisionModels();
     // Poll
     const poll = setInterval(async () => {

@@ -122,6 +122,7 @@ class VisionEngine:
         self._tokenizer = None
         self._status = VisionStatus()
         self._gen_lock = threading.Lock()
+        self._load_lock = threading.Lock()
 
     @classmethod
     def get(cls) -> "VisionEngine":
@@ -143,6 +144,48 @@ class VisionEngine:
     # Yükleme
     # ============================================================
 
+    def can_load(self, model_id: str = "moondream2") -> tuple[bool, str]:
+        spec = VISION_MODEL_MAP.get(model_id)
+        if not spec:
+            return False, f"Bilinmeyen vision modeli: {model_id}"
+
+        try:
+            import torch
+            if torch.cuda.is_available():
+                try:
+                    free_bytes, _ = torch.cuda.mem_get_info()
+                except Exception:
+                    props = torch.cuda.get_device_properties(0)
+                    total_bytes = int(getattr(props, "total_memory", 0) or 0)
+                    reserved = int(torch.cuda.memory_reserved(0) or 0)
+                    free_bytes = max(0, total_bytes - reserved)
+                free_gb = free_bytes / 1024**3
+                required_gb = spec.vram_gb + 0.8
+                if free_gb < required_gb:
+                    return False, (
+                        f"{spec.name} icin en az {required_gb:.1f} GB bos VRAM gerekir; "
+                        f"su an {free_gb:.1f} GB bos."
+                    )
+                return True, "CUDA/VRAM uygun"
+        except Exception as exc:
+            log.debug("Vision CUDA preflight atlandi: %s", exc)
+
+        try:
+            import psutil
+            available_gb = psutil.virtual_memory().available / 1024**3
+        except Exception:
+            available_gb = 0.0
+
+        required_gb = max(8.0, spec.size_gb * 4.0)
+        if available_gb and available_gb < required_gb:
+            return False, (
+                f"{spec.name} CPU modunda guvenli yukleme icin en az {required_gb:.1f} GB bos RAM gerekir; "
+                f"su an {available_gb:.1f} GB bos. Diger uygulamalari kapat veya CUDA destekli paketi kullan."
+            )
+        if not available_gb:
+            return False, "Bos RAM olculemedi; uygulamayi korumak icin vision yuklemesi baslatilmadi."
+        return True, "CPU/RAM uygun"
+
     def load(self, model_id: str = "moondream2") -> None:
         spec = VISION_MODEL_MAP.get(model_id)
         if not spec:
@@ -150,6 +193,13 @@ class VisionEngine:
 
         if self.is_ready and self._status.model_id == model_id:
             return
+        if self._status.state == "loading":
+            return
+
+        ok, reason = self.can_load(model_id)
+        if not ok:
+            self._status = VisionStatus(state="error", model_id=model_id, error=reason)
+            raise RuntimeError(reason)
 
         self._status = VisionStatus(state="loading", model_id=model_id)
         log.info("Vision modeli yükleniyor: %s", model_id)
@@ -170,7 +220,7 @@ class VisionEngine:
 
         except Exception as exc:
             log.exception("Vision yükleme hatası: %s", exc)
-            self._status = VisionStatus(state="error", error=str(exc))
+            self._status = VisionStatus(state="error", model_id=model_id, error=str(exc))
             raise
 
     def _load_transformers(self, spec: VisionModelSpec) -> None:

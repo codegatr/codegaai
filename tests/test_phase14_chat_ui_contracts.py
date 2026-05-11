@@ -57,6 +57,7 @@ class TestChatUiContracts(unittest.TestCase):
         self.assertIn("isCurrentLoading", js)
         self.assertIn("İndir ve Yükle", js)
         self.assertIn("Yükleniyor...", js)
+        self.assertIn("started.error", js)
 
     def test_federation_admin_status_page_contract(self) -> None:
         route = (ROOT / "codegaai" / "api" / "routes" / "federation.py").read_text(encoding="utf-8")

@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "3.7.1"
-__phase__ = "v3.7.1 - Duzenli Sistem UI ve Vision Yukleme"
+__version__ = "3.7.2"
+__phase__ = "v3.7.2 - Vision Crash Guard"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"
