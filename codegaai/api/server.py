@@ -68,6 +68,14 @@ async def _lifespan(app: FastAPI):
     # NOT: LLM ve embedding motorları lazy yüklenir.
     # İlk kullanıma kadar bellekte yer kaplamaz.
 
+    # Zamanlayıcı — on_event("startup") deprecated, buraya taşındı
+    try:
+        from codegaai.core.scheduler import setup_scheduler
+        setup_scheduler()
+        log.info("Zamanlayıcı başlatıldı (Faz 10)")
+    except Exception as exc:
+        log.warning("Zamanlayıcı başlatılamadı: %s", exc)
+
     yield
 
     log.info("FastAPI kapanıyor")
@@ -241,7 +249,7 @@ def create_app() -> FastAPI:
         return {"error": "setup.html bulunamadı"}
 
     # Zamanlayıcıyı başlat + modelleri otomatik yükle
-    @app.on_event("startup")
+    # Startup logic lifespan'e taşındı
     async def _start_scheduler():
         try:
             from codegaai.core.scheduler import setup_scheduler

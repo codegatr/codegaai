@@ -200,13 +200,15 @@ async def engines() -> dict[str, Any]:
     try:
         result = await asyncio.wait_for(
             loop.run_in_executor(None, _collect),
-            timeout=4.0,
+            timeout=8.0,   # 4 → 8 saniye (GitHub Actions daha yavaş)
         )
         return result
     except asyncio.TimeoutError:
-        # Timeout durumunda en azından LLM durumunu göster
+        log.warning("/engines timeout — kısmi yanıt döndürülüyor")
+        # Timeout'ta da tüm key'leri döndür (test'ler için kritik)
         from codegaai.core.engine import LLMEngine
         llm = LLMEngine.get()
+        _empty = {"active": False, "state": "unloaded", "phase": "?"}
         return {
             "llm": {
                 "active": llm.is_ready,
@@ -215,6 +217,13 @@ async def engines() -> dict[str, Any]:
                 "error": llm.status.get("error"),
                 "phase": "Faz 3",
             },
+            "embedding": {**_empty, "phase": "Faz 3"},
+            "memory":    {**_empty, "phase": "Faz 3"},
+            "image":     {**_empty, "phase": "Faz 4"},
+            "audio":     {**_empty, "phase": "Faz 5"},
+            "video":     {**_empty, "phase": "Faz 6"},
+            "learning":  {**_empty, "phase": "Faz 7"},
+            "updater":   {**_empty, "phase": "Faz 8"},
             "_timeout": True,
         }
 

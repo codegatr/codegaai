@@ -25,6 +25,11 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 75   # Artırıldı — tüm ML paketleri için yeterli
 
+    env:
+      PYTHONIOENCODING: "utf-8"        # Türkçe karakter cp1252 hatasını önler
+      PYTHONUTF8: "1"                  # Python 3.7+ UTF-8 modu
+      PYTHONLEGACYWINDOWSSTDIO: "0"    # Legacy Windows stdio devre dışı
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
