@@ -40,6 +40,16 @@ class TestChatUiContracts(unittest.TestCase):
         self.assertIn('display: none;', css)
         self.assertIn('.top-nav .nav-item', css)
 
+    def test_federation_admin_status_page_contract(self) -> None:
+        route = (ROOT / "codegaai" / "api" / "routes" / "federation.py").read_text(encoding="utf-8")
+
+        self.assertIn('@router.get("/admin"', route)
+        self.assertIn('@router.get("/admin/status"', route)
+        self.assertIn("CODEGA AI Federation Status", route)
+        self.assertIn("Component", route)
+        self.assertIn("Recent Nodes", route)
+        self.assertIn("Recent Knowledge", route)
+
 
 if __name__ == "__main__":
     unittest.main()

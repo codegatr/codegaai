@@ -36,6 +36,7 @@ COORDINATOR_KNOWLEDGE_FILE = COORDINATOR_DIR / "knowledge.jsonl"
 
 DEFAULT_COORDINATOR = "https://ai.codega.com.tr/api/federation"
 ACTIVE_PEER_WINDOW_SECONDS = 60 * 60 * 24 * 7
+RECENT_PEER_WINDOW_SECONDS = 60 * 60 * 24
 MAX_TOPIC_SIGNALS = 20
 
 
@@ -189,8 +190,100 @@ class FederationCoordinator:
                     "ts": item.get("ts"),
                 })
                 if len(items) >= 50:
-                    break
+                        break
         return {"items": items, "peer_count": self.active_peer_count()}
+
+    def admin_snapshot(self, limit: int = 30) -> dict:
+        """Return a status-page friendly coordinator snapshot."""
+        now = _now()
+        nodes = _read_json(COORDINATOR_NODES_FILE, {})
+        node_items = []
+        active_cutoff = now - ACTIVE_PEER_WINDOW_SECONDS
+        recent_cutoff = now - RECENT_PEER_WINDOW_SECONDS
+
+        for item in nodes.values():
+            last_seen = float(item.get("last_seen") or 0)
+            stats = item.get("stats") if isinstance(item.get("stats"), dict) else {}
+            feedbacks = stats.get("feedbacks") if isinstance(stats.get("feedbacks"), dict) else {}
+            positive = int(feedbacks.get("positive") or feedbacks.get("up") or 0)
+            negative = int(feedbacks.get("negative") or feedbacks.get("down") or 0)
+            node_items.append({
+                "node_hash": item.get("node_hash", ""),
+                "version": item.get("version", ""),
+                "last_seen": last_seen or None,
+                "age_seconds": max(0, int(now - last_seen)) if last_seen else None,
+                "active": bool(last_seen and last_seen >= active_cutoff),
+                "recent": bool(last_seen and last_seen >= recent_cutoff),
+                "chats": int(stats.get("conversation_count") or 0),
+                "feedback_positive": positive,
+                "feedback_negative": negative,
+                "feedback_total": positive + negative,
+                "adapter_count": int(stats.get("adapter_count") or 0),
+                "topic_signal_count": len(stats.get("topic_hashes") or []),
+            })
+
+        node_items.sort(key=lambda n: n.get("last_seen") or 0, reverse=True)
+
+        knowledge_items = []
+        total_knowledge = 0
+        if COORDINATOR_KNOWLEDGE_FILE.exists():
+            for line in COORDINATOR_KNOWLEDGE_FILE.read_text(encoding="utf-8").splitlines():
+                try:
+                    item = json.loads(line)
+                except Exception:
+                    continue
+                total_knowledge += 1
+                knowledge_items.append({
+                    "id": item.get("id"),
+                    "topic": item.get("topic", ""),
+                    "origin_hash": item.get("origin_hash", ""),
+                    "ts": item.get("ts"),
+                })
+        knowledge_items = list(reversed(knowledge_items[-limit:]))
+
+        active_nodes = sum(1 for n in node_items if n["active"])
+        recent_nodes = sum(1 for n in node_items if n["recent"])
+        stale_nodes = max(0, len(node_items) - active_nodes)
+        degraded = active_nodes == 0 or total_knowledge == 0
+        status = "degraded" if degraded else "operational"
+
+        components = [
+            {
+                "name": "Coordinator API",
+                "status": "operational",
+                "detail": "stats, nodes ve knowledge endpointleri yanit veriyor",
+            },
+            {
+                "name": "Peer Registry",
+                "status": "operational" if active_nodes else "degraded",
+                "detail": f"{active_nodes} aktif / {len(node_items)} toplam node",
+            },
+            {
+                "name": "Knowledge Bus",
+                "status": "operational" if total_knowledge else "degraded",
+                "detail": f"{total_knowledge} federated knowledge signal",
+            },
+            {
+                "name": "Privacy Guard",
+                "status": "operational",
+                "detail": "yalniz anonim node hashleri ve konu sinyalleri tutuluyor",
+            },
+        ]
+
+        return {
+            "generated_at": now,
+            "overall_status": status,
+            "summary": {
+                "active_peers": active_nodes,
+                "recent_peers_24h": recent_nodes,
+                "total_nodes": len(node_items),
+                "stale_nodes": stale_nodes,
+                "knowledge_signals": total_knowledge,
+            },
+            "components": components,
+            "nodes": node_items[:limit],
+            "recent_knowledge": knowledge_items,
+        }
 
     def _store_topic_signals(self, data: dict, node_id: str, ts: float) -> int:
         topics = []

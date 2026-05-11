@@ -55,6 +55,33 @@ class TestFederationCoordinator(unittest.TestCase):
         self.assertEqual(len(other["items"]), 1)
         self.assertIn("FastAPI RAG", other["items"][0]["text"])
 
+    def test_admin_snapshot_reports_status_page_metrics(self) -> None:
+        from codegaai.core.federation import FederationCoordinator
+
+        coordinator = FederationCoordinator()
+        coordinator.submit_stats({
+            "type": "node_stats",
+            "data": {
+                "version": "3.7.0",
+                "conversation_count": 5,
+                "feedbacks": {"positive": 2, "negative": 1},
+                "adapter_count": 1,
+                "topic_hashes": ["abc", "def"],
+                "topic_summaries": ["Federation status page"],
+            },
+        }, "node-admin")
+
+        snapshot = coordinator.admin_snapshot()
+
+        self.assertEqual(snapshot["overall_status"], "operational")
+        self.assertEqual(snapshot["summary"]["active_peers"], 1)
+        self.assertEqual(snapshot["summary"]["total_nodes"], 1)
+        self.assertEqual(snapshot["summary"]["knowledge_signals"], 1)
+        self.assertEqual(snapshot["nodes"][0]["feedback_total"], 3)
+        self.assertEqual(snapshot["nodes"][0]["adapter_count"], 1)
+        self.assertIn("components", snapshot)
+        self.assertEqual(snapshot["recent_knowledge"][0]["topic"], "Federation status page")
+
     def test_manager_persists_opt_in_state(self) -> None:
         from codegaai.core.federation import FederationManager
 
