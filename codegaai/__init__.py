@@ -5,7 +5,7 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "3.0.1"
+__version__ = "3.0.2"
 __phase__ = "v3.0.0 - ZIP Upload/Download + PHP Proje Uretici + GitHub Push + AgentBrain"
 __author__ = "CODEGA"
 __license__ = "MIT"

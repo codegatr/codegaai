@@ -334,27 +334,23 @@ def create_app() -> FastAPI:
                                 except Exception as emb_err:
                                     log.warning("BGE-M3 yüklenemedi: %s", emb_err)
                             elif server_cfg.get("auto_download_embedding", True):
-                                log.info("BGE-M3 indirilmemis - otomatik indirme baslatiliyor")
-                                try:
-                                    thread = reg.download_snapshot_async(
-                                        "bge-m3", spec_kind="embedding",
-                                    )
-                                    thread.join()
-                                    progress = reg.get_progress("bge-m3")
-                                    if progress.status == "completed":
-                                        log.info("BGE-M3 indirildi, bellege yukleniyor")
-                                        emb.load("bge-m3")
-                                        log.info("BGE-M3 yuklendi")
-                                    else:
-                                        log.warning(
-                                            "BGE-M3 otomatik indirme tamamlanamadi: %s %s",
-                                            progress.status, progress.error or "",
-                                        )
-                                except Exception as emb_err:
-                                    log.warning("BGE-M3 otomatik hazirlanamadi: %s", emb_err)
-                            else:
-                                log.info("BGE-M3 indirilmemiş — RAG devre dışı")
-                                log.info("Sistem → Bellek → BGE-M3 İndir adımını takip edin")
+                                log.info("BGE-M3 indirilmemiş — arka planda indiriliyor")
+                                def _dl_and_load_emb():
+                                    try:
+                                        t = reg.download_snapshot_async("bge-m3", spec_kind="embedding")
+                                        t.join()
+                                        progress = reg.get_progress("bge-m3")
+                                        if progress.status == "completed":
+                                            log.info("BGE-M3 indirildi, yükleniyor...")
+                                            EmbeddingService.get().load("bge-m3")
+                                            log.info("BGE-M3 hazır ✓ (arka planda indirildi)")
+                                        else:
+                                            log.warning("BGE-M3 indirme başarısız: %s", progress.error)
+                                    except Exception as e:
+                                        log.warning("BGE-M3 arka plan indirme hatası: %s", e)
+                                import threading as _th
+                                _th.Thread(target=_dl_and_load_emb, daemon=True,
+                                           name="emb-auto-dl").start()
 
                 except OSError as exc:
                     if "0xc000001d" in str(exc).lower() or "-1073741795" in str(exc):

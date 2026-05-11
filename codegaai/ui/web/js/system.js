@@ -88,7 +88,7 @@ const System = (() => {
           <code>fix_llama.bat</code> dosyasını çalıştırın.`;
       }
       // Chat altbar
-      const st = el("status-engine");
+            const st = el("status-engine");
       if (st) st.textContent = d.llm?.active ? `Motor: ${d.llm.model_id||""}` : "Motor: bekleniyor";
       const pill = el("chat-engine-pill");
       if (pill) {
@@ -96,6 +96,9 @@ const System = (() => {
         const sp = pill.querySelector("span:last-child");
         if (sp) sp.textContent = d.llm?.active ? (d.llm.model_id||"Hazır") : "Bekleniyor";
       }
+      // Model: — → model adı göster
+      const mc = el("chat-model-code");
+      if (mc) mc.textContent = d.llm?.active ? (d.llm.model_id||"—") : "—";
     } catch(e) {
       box.innerHTML = `<span style="color:#ef4444">Hata: ${esc(e.message)}</span>`;
     }
