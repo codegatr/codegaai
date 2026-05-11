@@ -1,0 +1,8 @@
+{
+  "id": "calculator",
+  "name": "Hesap Makinesi",
+  "version": "1.0.0",
+  "description": "Matematiksel ifadeleri hesaplar",
+  "commands": ["hesapla", "calculate", "=", "kaç eder"],
+  "author": "CODEGA"
+}

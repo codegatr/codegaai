@@ -1,0 +1,8 @@
+{
+  "id": "weather",
+  "name": "Hava Durumu",
+  "version": "1.0.0",
+  "description": "OpenWeatherMap veya wttr.in ile hava durumu",
+  "commands": ["hava", "hava durumu", "sıcaklık", "weather"],
+  "author": "CODEGA"
+}

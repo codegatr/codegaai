@@ -221,6 +221,18 @@ async def _run_chat_job(job: ChatJob) -> None:
             return
 
         web_context = ""
+        plugin_result = ""
+        # Plugin eşleşmesi — hava/hesap/takvim vb.
+        try:
+            from codegaai.core.plugin_manager import PluginManager
+            pm = PluginManager.get()
+            match = pm.match_command(job.message)
+            if match:
+                pid, meta = match
+                plugin_result = pm.execute(pid, job.message)
+                log.info("Plugin: %s → %s", meta.name, plugin_result[:60])
+        except Exception:
+            pass
         try:
             if decision.needs_web:
                 web_context = await _maybe_web_search(job.message)
@@ -240,6 +252,8 @@ async def _run_chat_job(job: ChatJob) -> None:
             pass
 
         full_context = _build_recent_focus(history, job.message)
+        if plugin_result:
+            full_context += f"\n\n## Plugin Sonucu\n{plugin_result}"
         if job.file_context:
             full_context += f"\n\n## Yüklenen Dosya İçeriği\n{job.file_context[:8000]}"
         if web_context:

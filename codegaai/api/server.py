@@ -223,6 +223,10 @@ def create_app() -> FastAPI:
     app.include_router(finetune_routes.router, prefix="/api/finetune", tags=["finetune"])
     from codegaai.api.routes import orchestrator as orch_routes
     app.include_router(orch_routes.router, prefix="/api/orchestrate", tags=["orchestrate"])
+    from codegaai.api.routes import wakeword as wakeword_routes
+    app.include_router(wakeword_routes.router, prefix="/api/wakeword", tags=["wakeword"])
+    from codegaai.api.routes import plugins as plugins_routes
+    app.include_router(plugins_routes.router, prefix="/api/plugins", tags=["plugins"])
 
     # Setup.html — ilk kurulum sayfası
     from fastapi.responses import FileResponse
