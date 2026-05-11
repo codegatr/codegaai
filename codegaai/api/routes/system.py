@@ -219,6 +219,28 @@ async def engines() -> dict[str, Any]:
         }
 
 
+@router.get("/logs")
+async def logs(limit: int = 80) -> dict[str, Any]:
+    """Son uygulama loglarını UI'da göstermek için döndür."""
+    from codegaai.config import LOGS_DIR, get_config
+
+    log_cfg = get_config().get("logging", {})
+    log_name = str(log_cfg.get("file", "codegaai.log")).split("/")[-1].split("\\")[-1]
+    path = LOGS_DIR / log_name
+    if not path.exists():
+        return {"path": str(path), "lines": [], "exists": False}
+
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        return {
+            "path": str(path),
+            "lines": lines[-max(1, min(limit, 300)):],
+            "exists": True,
+        }
+    except Exception as exc:
+        return {"path": str(path), "lines": [f"Log okunamadı: {exc}"], "exists": True}
+
+
 # ============================================================
 # Disk ve Model Dizini Yönetimi
 # ============================================================

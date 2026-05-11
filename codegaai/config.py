@@ -175,6 +175,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "auto_open_ui": True,
         "auto_load_model": True,      # Açılışta son kullanılan modeli otomatik yükle
         "auto_load_embedding": True,  # BGE-M3'ü de otomatik yükle
+        "auto_download_embedding": True,  # Eksikse BGE-M3'ü arka planda indir
         # Server modu (Linux sunucu, headless): UI başlatmaz, public bind
         # CODEGAAI_SERVER__MODE=true env veya --server flag ile aktif
         "mode": "desktop",  # desktop | server

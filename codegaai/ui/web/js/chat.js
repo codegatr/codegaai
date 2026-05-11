@@ -769,6 +769,14 @@ const Chat = (() => {
         if (ragLbl) {
           if (memD.active) {
             ragLbl.innerHTML = 'RAG bellek: <span style="color:var(--color-success)">✓ aktif</span>';
+          } else if (memD.download?.status === "downloading") {
+            const pct = Math.round(memD.download.percent || 0);
+            ragLbl.innerHTML = `RAG bellek: <span class="muted">BGE-M3 indiriliyor %${pct}</span>`;
+          } else if (memD.embedding?.state === "loading") {
+            ragLbl.innerHTML = 'RAG bellek: <span class="muted">embedding yükleniyor...</span>';
+          } else if (!memD.embedding_downloaded && memD.chromadb_installed) {
+            ragLbl.innerHTML = 'RAG bellek: <span class="muted">BGE-M3 otomatik hazırlanıyor...</span>';
+            fetch("/api/memory/ensure-embedding", { method: "POST" }).catch(() => {});
           } else if (memD.chromadb_installed) {
             ragLbl.innerHTML = 'RAG bellek: <span class="muted">embedding yüklenmedi</span> '
               + '<button style="font-size:11px;padding:1px 6px;border:1px solid var(--color-border);'
@@ -851,7 +859,7 @@ window.loadEmbedding = async function() {
   const ragLbl = document.getElementById("rag-status-label");
   if (ragLbl) ragLbl.innerHTML = 'RAG bellek: <span class="muted">BGE-M3 yükleniyor...</span>';
   try {
-    await fetch("/api/models/bge-m3/load", { method: "POST" });
+    await fetch("/api/memory/ensure-embedding", { method: "POST" });
     setTimeout(async () => {
       const r = await fetch("/api/memory/status");
       const d = await r.json();

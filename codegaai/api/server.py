@@ -331,6 +331,25 @@ def create_app() -> FastAPI:
                                     log.info("BGE-M3 yüklendi ✓")
                                 except Exception as emb_err:
                                     log.warning("BGE-M3 yüklenemedi: %s", emb_err)
+                            elif server_cfg.get("auto_download_embedding", True):
+                                log.info("BGE-M3 indirilmemis - otomatik indirme baslatiliyor")
+                                try:
+                                    thread = reg.download_snapshot_async(
+                                        "bge-m3", spec_kind="embedding",
+                                    )
+                                    thread.join()
+                                    progress = reg.get_progress("bge-m3")
+                                    if progress.status == "completed":
+                                        log.info("BGE-M3 indirildi, bellege yukleniyor")
+                                        emb.load("bge-m3")
+                                        log.info("BGE-M3 yuklendi")
+                                    else:
+                                        log.warning(
+                                            "BGE-M3 otomatik indirme tamamlanamadi: %s %s",
+                                            progress.status, progress.error or "",
+                                        )
+                                except Exception as emb_err:
+                                    log.warning("BGE-M3 otomatik hazirlanamadi: %s", emb_err)
                             else:
                                 log.info("BGE-M3 indirilmemiş — RAG devre dışı")
                                 log.info("Sistem → Bellek → BGE-M3 İndir adımını takip edin")

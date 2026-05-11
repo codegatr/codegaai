@@ -236,6 +236,22 @@ const System = (() => {
   }
 
   // ── Ayarlar ──
+  async function loadLogs() {
+    const pathEl = el("system-log-path");
+    const linesEl = el("system-log-lines");
+    if (!linesEl) return;
+    try {
+      const d = await get("/api/system/logs?limit=100");
+      if (pathEl) pathEl.textContent = d.exists ? d.path : `Log dosyası henüz oluşmadı: ${d.path}`;
+      const lines = d.lines || [];
+      linesEl.textContent = lines.length ? lines.join("\n") : "Henüz log kaydı yok.";
+      linesEl.scrollTop = linesEl.scrollHeight;
+    } catch(e) {
+      if (pathEl) pathEl.textContent = "Loglar okunamadı";
+      linesEl.textContent = "Hata: " + e.message;
+    }
+  }
+
   async function loadSettings() {
     try {
       const d = await get("/api/system/info");
@@ -253,6 +269,7 @@ const System = (() => {
     loadEngines();
     loadDisks();
     loadModels();
+    loadLogs();
   }
 
   function startClock() {
@@ -286,7 +303,7 @@ const System = (() => {
     startClock();
   }
 
-  return { init, loadModels, loadEngines, loadAll,
+  return { init, loadModels, loadEngines, loadAll, loadLogs,
            downloadModel, loadModel, unloadModel, setDisk,
            refresh: loadAll };
 })();

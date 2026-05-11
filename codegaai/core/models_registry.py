@@ -1243,6 +1243,7 @@ class ModelRegistry:
                 local_dir=str(target_dir),
                 local_dir_use_symlinks=False,
                 resume_download=True,
+                token=_hf_tok or None,
                 # max_workers: paralel parça indirme
                 max_workers=4,
             )
