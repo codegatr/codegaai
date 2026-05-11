@@ -500,7 +500,9 @@ const Chat = (() => {
       body: JSON.stringify({
         message: text,
         chat_id: state.chatId,
-        max_tokens: 512,
+        max_tokens: (_thinkMode ? 1024 : 512),
+        file_context: _pendingFileContext || "",
+        deep_think: !!_thinkMode,
       }),
     });
     const startData = await startResp.json();
@@ -527,8 +529,8 @@ const Chat = (() => {
             lastLen = d.content.length;
             assistantMsg.content = d.content;
             if (contentEl) {
-              contentEl.innerHTML = renderMarkdown(d.content) +
-                (d.done ? "" : '<span class="stream-cursor">▊</span>');
+              let thoughtHtml = d.thought ? `<details style="margin-bottom:8px;opacity:.7"><summary style="cursor:pointer;font-size:12px;color:var(--color-accent)">💭 Düşünce (${d.thought.split(' ').length} kelime)</summary><pre style="font-size:11px;padding:8px;background:var(--color-surface-2);border-radius:6px;white-space:pre-wrap">${d.thought}</pre></details>` : '';
+              contentEl.innerHTML = thoughtHtml + renderMarkdown(d.content) + (d.done ? "" : '<span class="stream-cursor">▊</span>');
               keepBottomIfNeeded(shouldStick);
             }
           }
@@ -941,3 +943,40 @@ window.packAndDownload = async function(text, projectName) {
     alert("Hata: " + e.message);
   }
 };
+
+// ── Derin Düşünme & Ajan Modu ────────────────────────────────────────────
+let _thinkMode = false;
+let _agentMode = false;
+
+window.toggleThinkMode = function() {
+  _thinkMode = !_thinkMode;
+  const btn = document.getElementById("think-toggle");
+  if (btn) {
+    btn.style.background = _thinkMode ? "var(--color-accent)" : "none";
+    btn.style.color = _thinkMode ? "#000" : "var(--color-text-muted)";
+    btn.textContent = _thinkMode ? "💭 Düşünüyor" : "💭 Düşün";
+  }
+};
+
+window.toggleAgentMode = function() {
+  _agentMode = !_agentMode;
+  const btn = document.getElementById("agent-toggle");
+  if (btn) {
+    btn.style.background = _agentMode ? "var(--color-accent)" : "none";
+    btn.style.color = _agentMode ? "#000" : "var(--color-text-muted)";
+    btn.textContent = _agentMode ? "🤖 Ajan Aktif" : "🤖 Ajan";
+  }
+  const ta = document.getElementById("chat-input") || document.querySelector(".chat-input textarea");
+  if (_agentMode && ta) ta.placeholder = "Karmaşık görevi yaz — ajan adımlara böler ve uygular...";
+  else if (ta) ta.placeholder = "CODEGA AI'a bir şey sor — Enter göndermek, Shift+Enter yeni satır";
+};
+
+// Polling'de thought göster
+const _origSendWithPolling = window.sendWithPolling;
+
+// chat.js içinde sendWithPolling'e think_mode ve agent_mode enjekte et
+document.addEventListener("DOMContentLoaded", () => {
+  // UI düzeni için input hint alanını genişlet
+  const hint = document.querySelector(".chat-input-hint");
+  if (hint) hint.style.flexWrap = "wrap";
+});

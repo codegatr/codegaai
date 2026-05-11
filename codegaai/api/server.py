@@ -217,6 +217,8 @@ def create_app() -> FastAPI:
     app.include_router(files_routes.router, prefix="/api/files", tags=["files"])
     from codegaai.api.routes import sandbox as sandbox_routes
     app.include_router(sandbox_routes.router, prefix="/api/sandbox", tags=["sandbox"])
+    from codegaai.api.routes import agent as agent_routes
+    app.include_router(agent_routes.router, prefix="/api/agent", tags=["agent"])
 
     # Setup.html — ilk kurulum sayfası
     from fastapi.responses import FileResponse

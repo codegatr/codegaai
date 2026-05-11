@@ -231,3 +231,55 @@ print(df.head().to_string())
         "error": result.get("error", ""),
         "plots": result.get("plots", []),
     }
+
+
+# ── Bağımlılık Analizi (CODEX karşılığı) ─────────────────────────────────
+
+class DepsRequest(BaseModel):
+    content: str     # requirements.txt / package.json / composer.json içeriği
+    file_type: str = "requirements"   # requirements | package | composer
+
+@router.post("/deps")
+async def analyze_deps(req: DepsRequest) -> dict:
+    """
+    Bağımlılık dosyasını analiz et.
+    - Güvenlik açıklarını kontrol et
+    - Güncel sürüm öner
+    - Kullanılmayan / çakışan paketleri bul
+    """
+    from codegaai.core.engine import LLMEngine, GenerationConfig
+    engine = LLMEngine.get()
+    if not engine.is_ready:
+        return {"error": "Model yüklü değil"}
+
+    guides = {
+        "requirements": "Python requirements.txt dosyası. pip, PyPI paketleri.",
+        "package": "Node.js package.json. npm/yarn paketleri.",
+        "composer": "PHP composer.json. Packagist paketleri.",
+    }
+
+    prompt = f"""{guides.get(req.file_type, '')} Analiz et:
+
+```
+{req.content[:3000]}
+```
+
+Şunları kontrol et ve raporla:
+1. **Güvenlik Açıkları** — Bilinen CVE'lere sahip paketler
+2. **Güncel Olmayan Sürümler** — Daha yeni stabil sürümü olan paketler
+3. **Çakışan Bağımlılıklar** — Birbirine çakışan versiyon gereksinimleri
+4. **Kullanılmayan Olabilecekler** — Adından gereksiz görünen paketler
+5. **Öneriler** — Daha güvenli/hızlı alternatifler
+
+Türkçe yanıtla, Markdown formatında."""
+
+    msgs = [
+        {"role": "system", "content": "Sen bir DevSecOps uzmanısın. Bağımlılık güvenliği ve optimizasyonu konusunda uzmansın."},
+        {"role": "user", "content": prompt},
+    ]
+    analysis = ""
+    for tok in engine.stream(msgs, cfg=GenerationConfig(max_tokens=800, temperature=0.3)):
+        analysis += tok
+
+    return {"analysis": analysis, "file_type": req.file_type,
+            "package_count": req.content.count("\n")}

@@ -1,29 +1,33 @@
-# ChatGPT / CODEX vs CODEGA AI — Karşılaştırma
+# Dört Yapay Zeka Karşılaştırması — CODEGA AI v3.2.0
 
-| Özellik | ChatGPT | CODEX | CODEGA |
-|---------|---------|-------|--------|
-| **Sohbet / NLP** | ✅ GPT-4o | ✅ | ✅ Qwen |
-| **Türkçe** | ✅ | ✅ | ✅ Güçlü |
-| **Web araması** | ✅ Bing | ✅ | ✅ DDG |
-| **Görsel üretimi** | ✅ DALL-E 3 | ❌ | ✅ SDXL |
-| **Görüntü anlama** | ✅ GPT-4V | ✅ | ✅ moondream |
-| **PDF/Dosya okuma** | ✅ | ✅ | 🟡 kısmi |
-| **Kod çalıştırma** | ✅ Interpreter | ✅ | ✅ Sandbox |
-| **Grafik üretme** | ✅ matplotlib | ✅ | ✅ matplotlib |
-| **CSV/Excel analizi** | ✅ | ✅ | ✅ pandas |
-| **Canvas/Artifact** | ✅ | ❌ | 🔴 YOK |
-| **Ses sohbeti** | ✅ Voice | ❌ | ✅ ASR+TTS |
-| **Bellek** | ✅ Memory | ❌ | ✅ Profil+RAG |
-| **GitHub entegrasyonu** | ❌ | ✅ | ✅ Push+PR |
-| **ZIP proje üretimi** | ❌ | ✅ | ✅ |
-| **Otonom öğrenme** | ❌ | ❌ | ✅ Benzersiz |
-| **Self-Learning/DPO** | ❌ | ❌ | ✅ Benzersiz |
-| **Yerel/Offline** | ❌ | ❌ | ✅ Benzersiz |
-| **Gizlilik** | ❌ bulut | ❌ bulut | ✅ tamamen yerel |
-| **Derin Düşünme** | ✅ o1/o3 | ❌ | 🔴 YOK |
-| **Çok adımlı ajan** | ✅ | ✅ | 🔴 YOK |
-| **PR oluşturma** | ❌ | ✅ | 🔴 YOK |
-| **Otomatik test yazma** | ❌ | ✅ | 🔴 YOK |
-| **Bağımlılık analizi** | ❌ | ✅ | 🔴 YOK |
-| **Diffusion Fine-tune** | ❌ | ❌ | 🔴 YOK |
-| **Ücret** | $20/ay | $? | ✅ ÜCRETSİZ |
+| Özellik | ChatGPT | Gemini | CODEX | Claude | CODEGA |
+|---------|:-------:|:------:|:-----:|:------:|:------:|
+| Türkçe Sohbet | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Web Araması | ✅ Bing | ✅ Google | ✅ | ✅ | ✅ DDG |
+| Canvas / Artifact | ✅ | ✅ | ❌ | ✅ | ✅ |
+| PDF Okuma | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Kod Çalıştırma | ✅ | ✅ | ✅ | ✅ | ✅ Sandbox |
+| Grafik Üretme | ✅ | ✅ | ✅ | ✅ | ✅ matplotlib |
+| CSV/Excel Analizi | ✅ | ✅ | ✅ | ✅ | ✅ pandas |
+| Görüntü Anlama | ✅ | ✅ | ✅ | ✅ | ✅ moondream |
+| Görsel Üretimi | ✅ DALL-E | ✅ Imagen | ❌ | ❌ | ✅ SDXL |
+| Ses Sohbeti | ✅ | ✅ | ❌ | ❌ | ✅ ASR+TTS |
+| GitHub Push | ❌ | ❌ | ✅ | ❌ | ✅ |
+| GitHub PR | ❌ | ❌ | ✅ | ❌ | ✅ |
+| Otomatik Test | ❌ | ❌ | ✅ | ❌ | ✅ PHPUnit/pytest |
+| ZIP Proje Üretimi | ❌ | ❌ | ✅ | ❌ | ✅ |
+| **Derin Düşünme** | ✅ o1/o3 | ✅ | ❌ | ✅ | ✅ CoT |
+| **Çok Adımlı Ajan** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Bağımlılık Analizi** | ❌ | ❌ | ✅ | ❌ | ✅ |
+| Otonom Öğrenme | ❌ | ❌ | ❌ | ❌ | ✅ Benzersiz |
+| Self-Learning/DPO | ❌ | ❌ | ❌ | ❌ | ✅ Benzersiz |
+| Uzun Dönem Bellek | ✅ | ✅ | ❌ | ✅ | ✅ Profil+RAG |
+| Yerel / Offline | ❌ | ❌ | ❌ | ❌ | ✅ Benzersiz |
+| Gizlilik | ❌ Bulut | ❌ Bulut | ❌ Bulut | ❌ Bulut | ✅ Tam Yerel |
+| Ücret | $20/ay | $20/ay | Kurumsal | $20/ay | ✅ Ücretsiz |
+
+## Hâlâ Geliştirme Haritasında
+- Ekran görüntüsü anlama (Faz 23)
+- Gerçek zamanlı ses akışı (Faz 22)
+- Diffusion Fine-tuning (Faz 24)
+- Çoklu model orkestrasyon (Faz 25)

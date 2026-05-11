@@ -120,11 +120,15 @@ async def _maybe_web_search(message: str) -> str:
 
 
 class ChatJob:
-    def __init__(self, job_id: str, message: str, chat_id: Optional[int], max_tokens: int):
+    def __init__(self, job_id: str, message: str, chat_id: Optional[int],
+                 max_tokens: int, file_context: str = "", deep_think: bool = False):
         self.job_id = job_id
         self.message = message
         self.chat_id = chat_id
         self.max_tokens = max_tokens
+        self.file_context = file_context
+        self.deep_think = deep_think   # o1/o3 tarzı CoT
+        self.thought = ""              # İç düşünce (kullanıcıya gösterilebilir)
         self.status = "pending"
         self.content = ""
         self.error = ""
@@ -149,6 +153,7 @@ class ChatJob:
                 "job_id": self.job_id,
                 "status": self.status,
                 "content": self.content,
+                "thought": self.thought,    # Derin düşünme içeriği
                 "error": self.error,
                 "done": self.status in ("done", "error"),
                 "elapsed_ms": int(elapsed * 1000),
@@ -247,9 +252,45 @@ async def _run_chat_job(job: ChatJob) -> None:
             rag_context=full_context,
             agent_guidance=decision_guidance(decision),
         )
-        messages = [{"role": "system", "content": system_prompt}]
-        messages.extend(history)
-        messages.append({"role": "user", "content": job.message})
+
+        # ── Derin Düşünme (o1/o3 modu) ───────────────────────────────
+        if job.deep_think:
+            think_prompt = system_prompt + """
+
+## Derin Düşünme Modu AKTİF
+
+Yanıt vermeden önce <think> bloğu içinde adım adım düşün:
+<think>
+1. Soruyu analiz et — ne tam olarak soruluyor?
+2. Hangi bilgilere ihtiyacım var?
+3. Çözüm yaklaşımım nedir?
+4. Olası hatalar ve edge case'ler?
+5. En iyi yanıt nasıl olmalı?
+</think>
+
+Düşünce sonrası net ve doğrudan yanıt ver."""
+            messages = [{"role": "system", "content": think_prompt}]
+            messages.extend(history)
+            messages.append({"role": "user", "content": job.message})
+            # Düşünceyi ayır
+            full_out = ""
+            for token in engine.stream(messages, cfg=GenerationConfig(
+                    max_tokens=job.max_tokens + 512, temperature=0.4)):
+                full_out += token
+            # <think>...</think> bloğunu ayıkla
+            import re as _re
+            think_match = _re.search(r'<think>(.*?)</think>', full_out, _re.DOTALL)
+            if think_match:
+                job.thought = think_match.group(1).strip()
+                answer = _re.sub(r'<think>.*?</think>', '', full_out, flags=_re.DOTALL).strip()
+                job.append(answer)
+            else:
+                job.append(full_out)
+        # ── Normal mod ────────────────────────────────────────────────
+        else:
+            messages = [{"role": "system", "content": system_prompt}]
+            messages.extend(history)
+            messages.append({"role": "user", "content": job.message})
 
         if job.chat_id:
             try:
@@ -258,13 +299,14 @@ async def _run_chat_job(job: ChatJob) -> None:
             except Exception:
                 pass
 
-        cfg = GenerationConfig(max_tokens=job.max_tokens, temperature=0.55)
-        if decision.should_stream:
-            for token in engine.stream(messages, cfg=cfg):
-                job.append(token)
-        else:
-            result = engine.generate(messages, cfg=cfg, use_tools=True)
-            job.append(result.get("content", ""))
+        if not job.deep_think:  # deep_think zaten yukarıda üretildi
+            cfg = GenerationConfig(max_tokens=job.max_tokens, temperature=0.55)
+            if decision.should_stream:
+                for token in engine.stream(messages, cfg=cfg):
+                    job.append(token)
+            else:
+                result = engine.generate(messages, cfg=cfg, use_tools=True)
+                job.append(result.get("content", ""))
 
         if job.chat_id and job.content:
             try:
@@ -289,7 +331,8 @@ class ChatJobRequest(BaseModel):
     message: str
     chat_id: Optional[int] = None
     max_tokens: int = 512
-    file_context: str = ""   # ZIP/dosya içeriği bağlamı
+    file_context: str = ""
+    deep_think: bool = False   # o1/o3 modu — yanıt vermeden önce düşün
 
 
 @router.post("/chat")
@@ -300,6 +343,8 @@ async def start_chat_job(req: ChatJobRequest) -> dict:
         message=req.message,
         chat_id=req.chat_id,
         max_tokens=req.max_tokens,
+        file_context=req.file_context,
+        deep_think=req.deep_think,
     )
     _store_job(job)
 
