@@ -110,7 +110,7 @@ lxml>=5.0.0
 Pillow>=10.0.0,<12.0.0          # Görüntü işleme (zaten transformers dep)
 easyocr>=1.7.0                  # OCR - opsiyonel (pip install easyocr)
 opencv-python-headless>=4.9.0   # Video frame çıkarma (headless = no GUI)
--e 
+
 # PDF Okuma
 pymupdf>=1.24.0
 pdfplumber>=0.11.0
