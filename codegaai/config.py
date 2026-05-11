@@ -176,6 +176,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "auto_load_model": True,      # Açılışta son kullanılan modeli otomatik yükle
         "auto_load_embedding": True,  # BGE-M3'ü de otomatik yükle
         "auto_download_embedding": True,  # Eksikse BGE-M3'ü arka planda indir
+        "auto_repair_llama": True,    # AVX2/llama-cpp uyumsuzluğunu açılışta onarmayı dene
         # Server modu (Linux sunucu, headless): UI başlatmaz, public bind
         # CODEGAAI_SERVER__MODE=true env veya --server flag ile aktif
         "mode": "desktop",  # desktop | server

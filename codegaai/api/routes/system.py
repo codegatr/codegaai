@@ -43,6 +43,13 @@ async def health() -> dict:
     }
 
 
+@router.get("/startup")
+async def startup_status() -> dict[str, Any]:
+    """Açılış doktorunun otomatik hazırlık/onarma durumunu döndür."""
+    from codegaai.core.startup import StartupDoctor
+    return StartupDoctor.get().status
+
+
 @router.get("/check")
 async def check() -> dict[str, Any]:
     import asyncio

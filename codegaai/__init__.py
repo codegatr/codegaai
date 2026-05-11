@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "3.4.0"
-__phase__ = "v3.6.0 - Ekran Paylasimi(Faz31) + GPU(Faz32) + Tam Harita"
+__version__ = "3.6.3"
+__phase__ = "v3.6.3 - StartupDoctor + Otonom Ogrenme Onarimi"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

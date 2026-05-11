@@ -76,6 +76,13 @@ async def _lifespan(app: FastAPI):
     except Exception as exc:
         log.warning("Zamanlayıcı başlatılamadı: %s", exc)
 
+    try:
+        from codegaai.core.startup import StartupDoctor
+        StartupDoctor.get().start()
+        log.info("StartupDoctor başlatıldı")
+    except Exception as exc:
+        log.warning("StartupDoctor başlatılamadı: %s", exc)
+
     yield
 
     log.info("FastAPI kapanıyor")

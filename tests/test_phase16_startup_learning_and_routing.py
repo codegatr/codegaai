@@ -20,11 +20,29 @@ class TestStartupLearningAndRouting(unittest.TestCase):
 
     def test_server_starts_web_learning_thread(self) -> None:
         server_py = (ROOT / "codegaai" / "api" / "server.py").read_text(encoding="utf-8")
+        startup_py = (ROOT / "codegaai" / "core" / "startup.py").read_text(encoding="utf-8")
 
-        self.assertIn("_start_web_learning", server_py)
-        self.assertIn("WebLearner", server_py)
-        self.assertIn("learn_async(feeds=True)", server_py)
-        self.assertIn("startup-web-learner", server_py)
+        self.assertIn("StartupDoctor", server_py)
+        self.assertIn("_start_startup_web_learning", startup_py)
+        self.assertIn("WebLearner", startup_py)
+        self.assertIn("learn_async(feeds=True)", startup_py)
+        self.assertIn("startup-web-learner", startup_py)
+
+    def test_startup_doctor_auto_prepares_runtime(self) -> None:
+        startup_py = (ROOT / "codegaai" / "core" / "startup.py").read_text(encoding="utf-8")
+
+        self.assertIn("StartupDoctor", startup_py)
+        self.assertIn("_prepare_llm", startup_py)
+        self.assertIn("_prepare_embedding", startup_py)
+        self.assertIn("_repair_llama_and_retry", startup_py)
+        self.assertIn("AutonomousLearner.get().start()", startup_py)
+
+    def test_feedback_corrections_enter_core_memory(self) -> None:
+        learning_py = (ROOT / "codegaai" / "api" / "routes" / "learning.py").read_text(encoding="utf-8")
+
+        self.assertIn("feedback_correction", learning_py)
+        self.assertIn("preference_rule", learning_py)
+        self.assertIn("Kullanıcı bu soru tipinde", learning_py)
 
     def test_polling_chat_uses_model_router(self) -> None:
         jobs_py = (ROOT / "codegaai" / "api" / "routes" / "jobs.py").read_text(encoding="utf-8")

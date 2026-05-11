@@ -221,14 +221,19 @@ def setup_scheduler() -> Scheduler:
     def _weekly_training():
         try:
             from codegaai.core.learning import FeedbackStore, TrainingEngine
-            stats = FeedbackStore.open().stats()
-            pairs = stats.get("dpo_pairs", 0)
-            if pairs >= 20:
+            store = FeedbackStore.open()
+            dataset = store.export_dpo_dataset()
+            pairs = dataset.get("pair_count", 0)
+            if dataset.get("ready_for_training"):
                 log.info("Haftalık training: %d çift var, başlatılıyor", pairs)
-                TrainingEngine.get().start_training()
+                TrainingEngine.get().start_dpo(
+                    base_model_id="qwen2.5-7b-instruct-q4_k_m",
+                    pairs=dataset.get("pairs", []),
+                    adapter_name="Haftalık CODEGA tercihleri",
+                    epochs=1,
+                )
             else:
-                log.info("Haftalık training: %d çift (min 20 gerek), atlandı",
-                         pairs)
+                log.info("Haftalık training: %d çift var, eşik altı, atlandı", pairs)
         except Exception as exc:
             log.error("Haftalık training hatası: %s", exc)
 

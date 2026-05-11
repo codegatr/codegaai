@@ -60,6 +60,27 @@ async def add_feedback(req: FeedbackRequest) -> dict:
         assistant_message=req.assistant_message,
         model_id=req.model_id,
     )
+    if req.rating == -1 and req.note.strip() and req.user_message.strip():
+        try:
+            from codegaai.core.memory import MemoryStore
+            MemoryStore.open().add(
+                text=(
+                    "Kullanıcı bu soru tipinde şu cevabı tercih ediyor.\n"
+                    f"Soru: {req.user_message.strip()[:1000]}\n"
+                    f"Tercih edilen cevap/düzeltme: {req.note.strip()[:1500]}"
+                ),
+                metadata={
+                    "source": "feedback_correction",
+                    "type": "preference_rule",
+                    "chat_id": req.chat_id,
+                    "message_id": req.message_id,
+                    "importance": 0.9,
+                    "confidence": 0.85,
+                },
+                collection="core",
+            )
+        except Exception as exc:
+            log.warning("Feedback düzeltmesi belleğe yazılamadı: %s", exc)
     return {"id": fb_id, "stored": True}
 
 
