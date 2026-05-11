@@ -130,27 +130,18 @@ jobs:
         shell: pwsh
         continue-on-error: true
         run: |
-          python -c "
-          modules = [
-            'codegaai.api.routes.jobs',
-            'codegaai.api.routes.files',
-            'codegaai.api.routes.sandbox',
-            'codegaai.api.routes.agent',
-            'codegaai.api.routes.finetune',
-            'codegaai.api.routes.orchestrator',
-            'codegaai.api.routes.wakeword',
-            'codegaai.api.routes.plugins',
-            'codegaai.core.wake_word',
-            'codegaai.core.plugin_manager',
-            'codegaai.core.reasoning',
-          ]
-          for m in modules:
-              try:
-                  __import__(m)
-                  print(f'OK: {m}')
-              except Exception as e:
-                  print(f'HATA: {m} — {e}')
-          "
+          python -c "import codegaai.api.routes.jobs; print('jobs OK')"
+          python -c "import codegaai.api.routes.files; print('files OK')"
+          python -c "import codegaai.api.routes.sandbox; print('sandbox OK')"
+          python -c "import codegaai.api.routes.agent; print('agent OK')"
+          python -c "import codegaai.api.routes.finetune; print('finetune OK')"
+          python -c "import codegaai.api.routes.orchestrator; print('orchestrator OK')"
+          python -c "import codegaai.api.routes.wakeword; print('wakeword OK')"
+          python -c "import codegaai.api.routes.plugins; print('plugins OK')"
+          python -c "import codegaai.core.wake_word; print('wake_word OK')"
+          python -c "import codegaai.core.plugin_manager; print('plugin_manager OK')"
+          python -c "import codegaai.core.reasoning; print('reasoning OK')"
+          Write-Host "Import testleri tamamlandi"
 
       # ── Unit testler ──────────────────────────────────────────────────
       - name: Run unit tests

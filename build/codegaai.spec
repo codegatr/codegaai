@@ -95,20 +95,43 @@ hiddenimports += [
     "uvicorn.protocols.websockets", "uvicorn.protocols.websockets.auto",
     "uvicorn.protocols.websockets.wsproto_impl",
     "uvicorn.lifespan", "uvicorn.lifespan.on", "uvicorn.lifespan.off",
-    # Yeni modüller
-    "codegaai.api.routes.jobs",
-    "codegaai.api.routes.files",
-    "codegaai.core.self_healing",
-    "codegaai.core.system_prompt",
-    "codegaai.core.agent_brain",
-    # Faz 7 — DPO
-    "peft",
-    "trl",
-    "datasets",
-    # Faz 11 — Vision
-    "einops",
-    "torchvision",
 ]
+
+# ---- CODEGA AI — TÜM routes ve core modülleri -------------------------
+# collect_submodules kullan: yeni dosya eklense bile otomatik bulur
+hiddenimports += collect_submodules("codegaai.api.routes")
+hiddenimports += collect_submodules("codegaai.core")
+hiddenimports += collect_submodules("codegaai.utils")
+hiddenimports += collect_submodules("codegaai.plugins")
+
+# ---- Faz 7 — DPO -------------------------------------------------------
+for _pkg in ("peft", "trl", "datasets", "accelerate"):
+    try:
+        hiddenimports += collect_submodules(_pkg)
+    except Exception:
+        pass
+
+# ---- Faz 11 — Vision ---------------------------------------------------
+for _pkg in ("einops", "torchvision"):
+    try:
+        hiddenimports += collect_submodules(_pkg)
+    except Exception:
+        pass
+
+# ---- Faz 27 — Plugin dependencies -------------------------------------
+for _pkg in ("sounddevice", "openwakeword"):
+    try:
+        hiddenimports += collect_submodules(_pkg)
+    except Exception:
+        pass
+
+# ---- PDF / OCR ---------------------------------------------------------
+for _pkg in ("fitz", "pdfplumber", "easyocr", "cv2"):
+    try:
+        hiddenimports += collect_submodules(_pkg)
+    except Exception:
+        pass
+
 
 # ---- PyWebView (platform-specific binaries: pythonnet, edgechromium) ----
 try:
@@ -200,12 +223,17 @@ try:
 except Exception as exc:
     print(f"[uyarı] imageio_ffmpeg toplama atlandı: {exc}")
 
-# ---- Statik veriler (UI + manifest) ----
+# ---- Statik veriler (UI + manifest + plugins) ----
 datas += [
     (str(PROJECT_ROOT / "codegaai" / "ui" / "web"), "codegaai/ui/web"),
     (str(PROJECT_ROOT / "manifest.json"),           "."),
     (str(PROJECT_ROOT / "README.md"),               "."),
 ]
+
+# plugins/ dizini varsa ekle
+_plugins_dir = PROJECT_ROOT / "codegaai" / "plugins"
+if _plugins_dir.exists():
+    datas += [(str(_plugins_dir), "codegaai/plugins")]
 
 # ---- codegaai paketinin tüm alt modüllerini garantiye al ----
 hiddenimports += collect_submodules("codegaai")
