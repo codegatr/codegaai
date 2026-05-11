@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "3.2.0"
-__phase__ = "v3.2.0 - Derin Dusunme + Cok Adimli Ajan + Bagimlilik Analizi"
+__version__ = "3.3.0"
+__phase__ = "v3.3.0 - Ses Sohbeti + Ekran Anlama + Diffusion FineTune + Orkestrasyon"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

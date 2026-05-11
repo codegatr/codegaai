@@ -285,3 +285,76 @@ async def transcribe_video(
             os.unlink(tmp_path)
         except Exception:
             pass
+
+
+# ── Ekran Görüntüsü Anlama (Faz 23) ──────────────────────────────────────
+
+@router.post("/screenshot")
+async def analyze_screenshot(
+    image: UploadFile = File(...),
+    question: str = Form("Bu ekran görüntüsünde ne var? Detaylı açıkla.")
+) -> dict:
+    """
+    Ekran görüntüsü/herhangi görsel analiz:
+    - UI analizi ("Bu sayfada ne var?")
+    - Hata tespiti ("Log dosyasındaki hata nedir?")
+    - Kod analizi ("Bu kodda ne yazıyor?")
+    - Belge okuma ("Bu belgede ne yazıyor?")
+    """
+    import io
+    content = await image.read()
+
+    from codegaai.core.vision_engine import VisionEngine
+    eng = VisionEngine.get()
+
+    if not eng.is_ready:
+        return {"error": "Vision modeli yüklü değil. Vision → Yükle butonuna bas."}
+
+    try:
+        result = eng.analyze(image_bytes=content, question=question)
+        return {
+            "analysis": result.get("text", ""),
+            "model": result.get("model", ""),
+            "question": question,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/screenshot/code")
+async def extract_code_from_image(image: UploadFile = File(...)) -> dict:
+    """Görüntüdeki kodu çıkart (OCR + Vision)."""
+    content = await image.read()
+    from codegaai.core.vision_engine import VisionEngine
+    from codegaai.core.ocr_engine import OCREngine
+
+    results = {}
+
+    # Vision ile analiz
+    vision = VisionEngine.get()
+    if vision.is_ready:
+        r = vision.analyze(
+            image_bytes=content,
+            question="Bu görüntüdeki tüm kodu aynen çıkart. Sadece kodu ver, açıklama ekleme."
+        )
+        results["vision"] = r.get("text", "")
+
+    # OCR ile metin çıkar
+    ocr = OCREngine.get()
+    if ocr.available():
+        import tempfile, os
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+        try:
+            ocr_result = ocr.extract(tmp_path)
+            results["ocr"] = ocr_result.get("text", "")
+        finally:
+            os.unlink(tmp_path)
+
+    if not results:
+        return {"error": "Vision veya OCR motoru gerekli"}
+
+    # En iyi sonucu seç
+    best = results.get("vision") or results.get("ocr", "")
+    return {"code": best, "sources": list(results.keys())}

@@ -219,6 +219,10 @@ def create_app() -> FastAPI:
     app.include_router(sandbox_routes.router, prefix="/api/sandbox", tags=["sandbox"])
     from codegaai.api.routes import agent as agent_routes
     app.include_router(agent_routes.router, prefix="/api/agent", tags=["agent"])
+    from codegaai.api.routes import finetune as finetune_routes
+    app.include_router(finetune_routes.router, prefix="/api/finetune", tags=["finetune"])
+    from codegaai.api.routes import orchestrator as orch_routes
+    app.include_router(orch_routes.router, prefix="/api/orchestrate", tags=["orchestrate"])
 
     # Setup.html — ilk kurulum sayfası
     from fastapi.responses import FileResponse

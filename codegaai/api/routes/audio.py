@@ -155,3 +155,143 @@ async def status() -> dict:
         "asr": asr.status,
         "phase": "Faz 5",
     }
+
+
+# ── Streaming Ses Sohbeti (Faz 22) ────────────────────────────────────────
+
+@router.post("/voice-chat")
+async def voice_chat(audio: UploadFile = File(...),
+                     language: Optional[str] = Form("tr"),
+                     chat_id: Optional[int] = Form(None)) -> dict:
+    """
+    Tam döngü ses sohbeti:
+    1. Ses → ASR (Whisper) → metin
+    2. Metin → LLM → cevap
+    3. Cevap → TTS (Piper/XTTS) → ses
+    Döndürür: {transcript, response, audio_b64, audio_url}
+    """
+    import tempfile, shutil, base64
+    from pathlib import Path
+
+    asr_eng = ASREngine.get()
+    tts_eng = TTSEngine.get()
+
+    # 1. ASR — sesi metne çevir
+    suffix = Path(audio.filename or "mic.wav").suffix or ".wav"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        shutil.copyfileobj(audio.file, tmp)
+        tmp_path = tmp.name
+
+    transcript = ""
+    try:
+        if asr_eng.is_ready:
+            asr_result = asr_eng.transcribe(tmp_path, language=language)
+            transcript = asr_result.get("text", "").strip()
+        else:
+            return {"error": "ASR motoru yüklü değil"}
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
+
+    if not transcript:
+        return {"error": "Ses anlaşılamadı", "transcript": ""}
+
+    log.info("Voice chat ASR: %s", transcript[:80])
+
+    # 2. LLM — cevap üret
+    try:
+        from codegaai.core.engine import LLMEngine, GenerationConfig
+        from codegaai.core.system_prompt import build_system_prompt
+        from codegaai.core.chat_store import ChatStore
+
+        engine = LLMEngine.get()
+        if not engine.is_ready:
+            return {"transcript": transcript, "error": "LLM yüklü değil"}
+
+        history = []
+        if chat_id:
+            try:
+                store = ChatStore.open()
+                msgs = store.get_messages(chat_id, limit=10)
+                history = [{"role": m["role"], "content": m["content"]} for m in msgs]
+            except Exception:
+                pass
+
+        # Ses sohbeti için kısa ve öz cevap
+        sys_prompt = build_system_prompt() + "\n\nSes sohbetindesin. KISA ve öz cevap ver (1-3 cümle). Sesli okunacak, markdown kullanma."
+        messages = [{"role": "system", "content": sys_prompt}]
+        messages.extend(history)
+        messages.append({"role": "user", "content": transcript})
+
+        response = ""
+        for tok in engine.stream(messages, cfg=GenerationConfig(max_tokens=150, temperature=0.7)):
+            response += tok
+        response = response.strip()
+    except Exception as e:
+        return {"transcript": transcript, "error": f"LLM hatası: {e}"}
+
+    log.info("Voice chat LLM: %s", response[:80])
+
+    # 3. TTS — cevabı sese çevir
+    audio_b64 = ""
+    audio_url = ""
+    try:
+        if tts_eng.is_ready:
+            tts_result = tts_eng.synthesize(text=response, language=language or "tr")
+            audio_url = tts_result.get("url", "")
+            # Base64 da döndür (UI için)
+            if audio_url:
+                from codegaai.config import DATA_DIR
+                audio_path = DATA_DIR / audio_url.lstrip("/")
+                if audio_path.exists():
+                    audio_b64 = base64.b64encode(audio_path.read_bytes()).decode()
+    except Exception as e:
+        log.warning("TTS hatası: %s", e)
+
+    # Sohbet geçmişine kaydet
+    if chat_id and response:
+        try:
+            store = ChatStore.open()
+            store.add_message(chat_id, "user", f"🎤 {transcript}")
+            store.add_message(chat_id, "assistant", response)
+        except Exception:
+            pass
+
+    return {
+        "transcript": transcript,
+        "response": response,
+        "audio_b64": audio_b64,
+        "audio_url": audio_url,
+    }
+
+
+@router.get("/stream-tts")
+async def stream_tts(text: str, language: str = "tr"):
+    """TTS'i streaming olarak döndür (WAV chunks)."""
+    from fastapi.responses import StreamingResponse
+    from codegaai.core.tts_engine import TTSEngine as _TTS
+    import io
+
+    eng = _TTS.get()
+    if not eng.is_ready:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "TTS hazır değil"}, 409)
+
+    result = eng.synthesize(text=text, language=language)
+    url = result.get("url", "")
+    if not url:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "Ses üretilemedi"}, 500)
+
+    from codegaai.config import DATA_DIR
+    path = DATA_DIR / url.lstrip("/")
+    if not path.exists():
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "Dosya bulunamadı"}, 404)
+
+    def _gen():
+        with open(path, "rb") as f:
+            while chunk := f.read(4096):
+                yield chunk
+
+    return StreamingResponse(_gen(), media_type="audio/wav",
+                             headers={"Accept-Ranges": "bytes"})
