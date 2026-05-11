@@ -335,23 +335,42 @@ class FederationManager:
         except Exception:
             pass
 
+        # Otonom öğrenme konu bilgileri — en değerli veri
         try:
-            from codegaai.core.web_learner import WebLearner
-            recent_logs = WebLearner.get().get_log(limit=10)
-            topic_hashes: list[str] = []
-            topic_summaries: list[str] = []
-            for entry in recent_logs:
-                for topic in entry.get("topics", []):
-                    clean = _sanitize_topic(topic)
-                    if not clean:
-                        continue
-                    topic_hashes.append(_hash_text(clean.lower())[:12])
-                    if clean.lower() not in {t.lower() for t in topic_summaries}:
-                        topic_summaries.append(clean)
-            stats["topic_hashes"] = sorted(set(topic_hashes))[:MAX_TOPIC_SIGNALS]
-            stats["topic_summaries"] = topic_summaries[:MAX_TOPIC_SIGNALS]
+            from codegaai.core.autonomous_learner import AutonomousLearner
+            learner = AutonomousLearner.get()
+            km = learner._knowledge_map  # {konu: [alt_konular]}
+            topic_hashes = []
+            topic_summaries = []
+            for topic in list(km.keys())[:MAX_TOPIC_SIGNALS]:
+                clean = _sanitize_topic(topic)
+                if not clean:
+                    continue
+                topic_hashes.append(_hash_text(clean.lower())[:12])
+                topic_summaries.append(clean)
+            stats["topic_hashes"] = sorted(set(topic_hashes))
+            stats["topic_summaries"] = topic_summaries
+            stats["article_count"] = learner._stats.total_articles
+            stats["knowledge_chars"] = learner._stats.total_chars
         except Exception:
-            pass
+            # Web learner fallback
+            try:
+                from codegaai.core.web_learner import WebLearner
+                recent_logs = WebLearner.get().get_log(limit=10)
+                topic_hashes = []
+                topic_summaries = []
+                for entry in recent_logs:
+                    for topic in entry.get("topics", []):
+                        clean = _sanitize_topic(topic)
+                        if not clean:
+                            continue
+                        topic_hashes.append(_hash_text(clean.lower())[:12])
+                        if clean.lower() not in {t.lower() for t in topic_summaries}:
+                            topic_summaries.append(clean)
+                stats["topic_hashes"] = sorted(set(topic_hashes))[:MAX_TOPIC_SIGNALS]
+                stats["topic_summaries"] = topic_summaries[:MAX_TOPIC_SIGNALS]
+            except Exception:
+                pass
 
         try:
             from codegaai.core.learning import AdapterManager

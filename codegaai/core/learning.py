@@ -38,7 +38,7 @@ log = get_logger(__name__)
 LEARNING_DIR = DATA_DIR / "learning"
 ADAPTERS_DIR = DATA_DIR / "adapters"
 FEEDBACK_DB = LEARNING_DIR / "feedback.db"
-MIN_DPO_PAIRS = 100
+MIN_DPO_PAIRS = 5  # CPU modda 5 çift yeterli (GPU için 100 önerilir)
 
 
 # ============================================================
@@ -471,11 +471,12 @@ class TrainingEngine:
             raise RuntimeError("Zaten bir eğitim çalışıyor")
 
         deps = self.check_dependencies()
-        missing = [k for k, v in deps.items() if not v]
+        # bitsandbytes Windows'ta resmi destek yok — onsuz da çalışır (CPU/float32)
+        missing = [k for k, v in deps.items() if not v and k != "bitsandbytes"]
         if missing:
             raise RuntimeError(
                 f"Eğitim için gerekli kütüphaneler eksik: {missing}. "
-                f"pip install peft trl bitsandbytes datasets"
+                f"pip install peft trl datasets"
             )
 
         if len(pairs) < MIN_DPO_PAIRS:
@@ -607,13 +608,18 @@ class TrainingEngine:
 
         from peft import LoraConfig, get_peft_model, TaskType  # type: ignore
         from trl import DPOTrainer, DPOConfig  # type: ignore
-        from transformers import (  # type: ignore
-            AutoModelForCausalLM,
-            AutoTokenizer,
-            BitsAndBytesConfig,
-        )
+        from transformers import AutoModelForCausalLM, AutoTokenizer  # type: ignore
         from datasets import Dataset  # type: ignore
         import torch
+
+        # bitsandbytes opsiyonel — Windows'ta genellikle yok
+        _bnb_available = False
+        try:
+            from transformers import BitsAndBytesConfig  # type: ignore
+            import bitsandbytes  # noqa
+            _bnb_available = True
+        except ImportError:
+            pass
 
         # Model ID → HF repo adı
         from codegaai.core.models_registry import ModelRegistry
@@ -628,15 +634,17 @@ class TrainingEngine:
         log.info("LoRA eğitimi: model=%s, adapter=%s, pairs=%d",
                  hf_repo, adapter_id, len(pairs))
 
-        # 4-bit quantization config
+        # 4-bit quantization — sadece bitsandbytes + CUDA varsa
         bnb_config = None
-        if torch.cuda.is_available():
+        if _bnb_available and torch.cuda.is_available():
             bnb_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_quant_type="nf4",
                 bnb_4bit_compute_dtype=torch.float16,
                 bnb_4bit_use_double_quant=True,
             )
+        elif not _bnb_available:
+            log.info("bitsandbytes yok — CPU/float32 modda eğitim (yavaş ama çalışır)")
 
         cache_dir = str(DATA_DIR / "cache" / "huggingface")
 

@@ -66,6 +66,35 @@ async def sync() -> dict:
     return {**result, "status": fm.status}
 
 
+@router.post("/sync/full")
+async def sync_full() -> dict:
+    """since=0 ile tüm geçmişi senkronize et."""
+    from codegaai.core.federation import FederationManager
+    fm = FederationManager.get()
+    if not fm.is_enabled:
+        return {"error": "Federe ağ aktif değil"}
+    # since sıfırla → koordinatörden tüm bilgileri al
+    fm._status.last_sync = 0
+    result = fm.sync()
+    return {**result, "message": f"{result.get('received', 0)} öğe alındı", "status": fm.status}
+
+
+@router.get("/received")
+async def received_knowledge(limit: int = 20) -> dict:
+    """Federe ağdan alınan bilgileri listele."""
+    from codegaai.core.federation import RECEIVED_FILE
+    import json
+    items = []
+    if RECEIVED_FILE.exists():
+        lines = RECEIVED_FILE.read_text(encoding="utf-8").strip().splitlines()
+        for line in reversed(lines[-limit:]):
+            try:
+                items.append(json.loads(line))
+            except Exception:
+                pass
+    return {"items": items, "total": len(items)}
+
+
 @router.get("/node-id")
 async def node_id() -> dict:
     from codegaai.core.federation import FederationManager

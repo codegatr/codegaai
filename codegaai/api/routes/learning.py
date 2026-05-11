@@ -208,9 +208,13 @@ async def training_status() -> dict:
 async def dependencies() -> dict:
     eng = TrainingEngine.get()
     deps = eng.check_dependencies()
+    # bitsandbytes opsiyonel — Windows'ta resmi destek yok
+    required = {k: v for k, v in deps.items() if k != "bitsandbytes"}
     return {
         "dependencies": deps,
-        "ready": all(deps.values()),
-        "missing": [k for k, v in deps.items() if not v],
-        "install_command": "pip install peft trl bitsandbytes datasets",
+        "ready": all(required.values()),   # bitsandbytes olmadan da hazır
+        "missing": [k for k, v in required.items() if not v],
+        "optional_missing": [] if deps.get("bitsandbytes") else ["bitsandbytes (opsiyonel, GPU hızlandırma için)"],
+        "install_command": "pip install peft trl datasets",
+        "note": "bitsandbytes Windows'ta çalışmayabilir — CPU modda eğitim yine de yapılır",
     }
