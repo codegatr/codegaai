@@ -204,7 +204,16 @@ class VideoAnalyzer:
         if not vision.is_ready:
             if auto_load_vision:
                 log.info("Vision motoru otomatik yükleniyor (moondream2)...")
-                vision.load("moondream2")
+                try:
+                    vision.load("moondream2")
+                except RuntimeError as exc:
+                    return VideoAnalysisResult(
+                        video_path=video_path,
+                        duration_s=info["duration_s"],
+                        total_frames=info["total_frames"],
+                        analyzed_frames=0,
+                        error=str(exc),
+                    )
             else:
                 return VideoAnalysisResult(
                     video_path=video_path,
@@ -311,7 +320,10 @@ class VideoAnalyzer:
 
         vision = VisionEngine.get()
         if not vision.is_ready and auto_load_vision:
-            vision.load("moondream2")
+            try:
+                vision.load("moondream2")
+            except RuntimeError as exc:
+                return f"Hata: {exc}"
 
         info = self.get_video_info(video_path)
         if "error" in info:

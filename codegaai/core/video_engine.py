@@ -23,6 +23,7 @@ Kullanım:
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 import uuid
@@ -143,6 +144,11 @@ class VideoEngine:
         try:
             import torch  # type: ignore[import-not-found]
             cuda_ok, vram_gb = self._detect_cuda_vram_gb()
+            if not cuda_ok and os.environ.get("CODEGA_ALLOW_CPU_DIFFUSERS", "").strip() != "1":
+                raise RuntimeError(
+                    "Video uretim modeli CPU modunda ana uygulamayi kapatabilecek kadar agir. "
+                    "Guvenlik icin CPU diffusers yuklemesi engellendi. CUDA destekli paket kullanin."
+                )
             backend = "cuda" if cuda_ok else "cpu"
             cpu_offload = force_cpu_offload or (
                 cuda_ok and vram_gb < self.VRAM_OFFLOAD_THRESHOLD_GB

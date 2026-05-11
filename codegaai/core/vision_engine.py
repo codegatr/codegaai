@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import base64
 import io
+import os
 import threading
 import time
 from dataclasses import dataclass, field
@@ -169,6 +170,12 @@ class VisionEngine:
                 return True, "CUDA/VRAM uygun"
         except Exception as exc:
             log.debug("Vision CUDA preflight atlandi: %s", exc)
+
+        if os.environ.get("CODEGA_ALLOW_CPU_VISION", "").strip() != "1":
+            return False, (
+                f"{spec.name} CPU modunda ana uygulamayi kapatabilecek kadar agir. "
+                "Guvenlik icin CPU vision yuklemesi engellendi. OCR kullan veya CUDA destekli CODEGA paketini kur."
+            )
 
         try:
             import psutil

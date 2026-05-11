@@ -27,6 +27,7 @@ Kullanım:
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 import uuid
@@ -124,6 +125,11 @@ class TTSEngine:
 
         try:
             if model_id == "xtts-v2":
+                if not self._has_cuda() and os.environ.get("CODEGA_ALLOW_CPU_XTTS", "").strip() != "1":
+                    raise RuntimeError(
+                        "XTTS CPU modunda ana uygulamayi kapatabilecek kadar agir. "
+                        "Guvenlik icin CPU XTTS yuklemesi engellendi. Piper veya CUDA destekli paket kullanin."
+                    )
                 self._load_xtts(path)
                 self._kind = "xtts"
                 backend = "cuda" if self._has_cuda() else "cpu"

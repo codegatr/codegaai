@@ -133,7 +133,10 @@ async def analyze_image(
     engine = VisionEngine.get()
     if not engine.is_ready:
         if auto_load:
-            engine.load("moondream2")
+            try:
+                engine.load("moondream2")
+            except RuntimeError as exc:
+                raise HTTPException(409, str(exc))
         else:
             raise HTTPException(409, "Vision modeli yüklü değil")
 
@@ -170,7 +173,10 @@ async def analyze_image_b64(body: dict) -> dict:
 
     engine = VisionEngine.get()
     if not engine.is_ready:
-        engine.load("moondream2")
+        try:
+            engine.load("moondream2")
+        except RuntimeError as exc:
+            raise HTTPException(409, str(exc))
 
     t0 = time.time()
     result = engine.analyze(
