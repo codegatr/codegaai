@@ -353,3 +353,66 @@ window.clearHfToken = async function() {
     if (status) { status.textContent = "Token silindi"; status.style.color = "var(--color-text-muted)"; }
   } catch(e) {}
 };
+
+// ── GPU (Faz 32) ──────────────────────────────────────────────────────────
+async function loadGPUStatus() {
+  const box = document.getElementById("gpu-status-box");
+  if (!box) return;
+  try {
+    const r = await fetch("/api/gpu/status");
+    const d = await r.json();
+    const cuda = d.cuda_available;
+    const color = cuda ? "var(--color-success)" : "var(--color-text-muted)";
+    box.innerHTML = `
+      <div><b>GPU:</b> ${d.gpu_name || "Bulunamadı"}</div>
+      <div><b>CUDA:</b> <span style="color:${color}">${cuda ? "✓ " + (d.cuda_version||"") : "✗ Yok"}</span></div>
+      ${d.vram_total_mb ? `<div><b>VRAM:</b> ${d.vram_free_mb} MB boş / ${d.vram_total_mb} MB toplam</div>` : ""}
+      <div><b>Mevcut:</b> ${d.current_gpu_layers || 0} katman GPU'da</div>
+      <div style="color:var(--color-accent);font-size:12px;margin-top:4px">${d.recommendation || ""}</div>`;
+  } catch(e) {
+    if (box) box.innerHTML = '<span class="muted">GPU bilgisi alınamadı</span>';
+  }
+}
+
+window.runGPUBenchmark = async function() {
+  const btn = document.getElementById("gpu-bench-btn");
+  const res = document.getElementById("gpu-bench-result");
+  if (btn) { btn.disabled = true; btn.textContent = "⏳ Test yapılıyor..."; }
+  try {
+    const r = await fetch("/api/gpu/benchmark");
+    const d = await r.json();
+    if (res) res.textContent = d.error ? "❌ " + d.error
+      : `⚡ ${d.tokens_per_second} token/sn (${d.tokens} token, ${d.elapsed_s}s) — ${d.backend}`;
+  } catch(e) {
+    if (res) res.textContent = "❌ " + e.message;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Hız Testi"; }
+  }
+};
+
+window.enableGPU = async function() {
+  const layers = prompt("Kaç katman GPU'ya taşınsın? (RTX 3060 6GB için 20 önerilir)", "20");
+  if (!layers) return;
+  const btn = document.getElementById("gpu-enable-btn");
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch("/api/gpu/enable", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({n_gpu_layers: parseInt(layers)})
+    });
+    const d = await r.json();
+    alert(d.error ? "❌ " + d.error : "✅ " + d.message);
+    loadGPUStatus();
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+};
+
+// Sistem sayfasına geçince GPU yükle
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll('.nav-item[data-view="system"]').forEach(btn => {
+    btn.addEventListener("click", loadGPUStatus);
+  });
+  // İlk yükleme
+  setTimeout(loadGPUStatus, 2000);
+});

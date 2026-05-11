@@ -113,6 +113,8 @@ jobs:
           python -m pip install duckduckgo-search beautifulsoup4 feedparser lxml
           python -m pip install pymupdf pdfplumber
           python -m pip install sounddevice   # Wake word için
+          python -m pip install mss           # Faz 31: Ekran yakalama
+          python -m pip install "qrcode[pil]" # Faz 30: Mobil QR kod
           # easyocr ayrı — büyük bağımlılık, zaman alır
           python -m pip install easyocr opencv-python-headless
 

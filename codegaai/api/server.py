@@ -241,6 +241,10 @@ def create_app() -> FastAPI:
     app.include_router(calendar_routes.router, prefix="/api/calendar", tags=["calendar"])
     from codegaai.api.routes import mobile as mobile_routes
     app.include_router(mobile_routes.router, prefix="/api/mobile", tags=["mobile"])
+    from codegaai.api.routes import screen as screen_routes
+    app.include_router(screen_routes.router, prefix="/api/screen", tags=["screen"])
+    from codegaai.api.routes import gpu as gpu_routes
+    app.include_router(gpu_routes.router, prefix="/api/gpu", tags=["gpu"])
 
     # Setup.html — ilk kurulum sayfası
     from fastapi.responses import FileResponse

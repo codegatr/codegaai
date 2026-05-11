@@ -77,51 +77,38 @@
 
 ## ⏳ Bekleyen Fazlar
 
-### Faz 26: Wake Word — "Hey CODEGA"
-> Bilgisayar açıkken mikrofonu dinler, tetik kelimeyi duyunca aktifleşir.
-- [ ] OpenWakeWord veya Porcupine entegrasyonu
-- [ ] "Hey CODEGA" → sohbet başlat
-- [ ] Arka planda çalışır, sistem tepsisinden yönetilir
+### Faz 26: Wake Word ✅
+- OpenWakeWord / Porcupine / Whisper keyword fallback
+- GET/POST /api/wakeword/start|stop|status|deps
 
-### Faz 27: Plugin / Eklenti Sistemi
-> Üçüncü taraf araçlar CODEGA'ya entegre olabilir.
-- [ ] `plugins/` dizini: her eklenti kendi `manifest.json` + `handler.py`
-- [ ] REST API üzerinden eklenti kaydı
-- [ ] Örnek eklentiler: Takvim, E-posta, Hava durumu, Borsa
-- [ ] UI'da eklenti mağazası
+### Faz 27: Plugin Sistemi ✅
+- plugins/ dizini: manifest.json + handler.py
+- Yerleşik: Hava durumu (wttr.in) + Hesap makinesi
+- POST /api/plugins/install — URL'den kur
 
-### Faz 28: Çeviri Sistemi
-> Otomatik dil algılama ve çeviri.
-- [ ] Helsinki-NLP/opus-mt modelleri
-- [ ] TR↔EN↔DE↔FR↔AR gerçek zamanlı çeviri
-- [ ] Belge çevirisi (PDF/DOCX input → çevrilmiş PDF/DOCX output)
+### Faz 28: Çeviri Sistemi ✅
+- Helsinki-NLP → LLM fallback
+- TR↔EN↔DE↔FR↔AR gerçek zamanlı
+- POST /api/translate/text|document
 
-### Faz 29: Takvim & Görev Entegrasyonu
-> Kişisel asistan özellikleri.
-- [ ] Lokal takvim (SQLite tabanlı)
-- [ ] "Yarın toplantım var, hatırlat" → LLM görev çıkarır
-- [ ] Görev listesi, hatırlatıcılar
-- [ ] Google Calendar sync (opsiyonel, yerel token)
+### Faz 29: Takvim & Görevler ✅
+- Lokal SQLite, etkinlik+görev yönetimi
+- AI ile metinden çıkarma
+- POST /api/calendar/events|tasks|extract
 
-### Faz 30: Mobil API & PWA
-> Telefonda da çalışabilir.
-- [ ] FastAPI üzerinde mobil-uyumlu JSON API
-- [ ] Progressive Web App (PWA) manifest
-- [ ] QR kod ile yerel ağdan bağlan
-- [ ] Push notification desteği
+### Faz 30: Mobil API & QR ✅
+- GET /api/mobile/status — yerel IP
+- GET /api/mobile/qr — QR kod PNG
 
-### Faz 31: Canlı Ekran Paylaşımı
-> "Şu an ekranımda ne görüyorsun?" sorusunu yanıtla.
-- [ ] Periyodik ekran görüntüsü al (PIL/mss)
-- [ ] Vision modeline gönder, analiz et
-- [ ] "Bu hatayı nasıl düzeltirim?" → kodu göster
+### Faz 31: Canlı Ekran Paylaşımı ✅
+- mss + PIL ile ekran yakalama
+- Vision motoru ile analiz
+- POST /api/screen/capture|watch|stop
 
-### Faz 32: GPU Hızlandırma (CUDA)
-> Şu an CPU modda çalışıyor, CUDA ile 15x hız.
-- [ ] CUDA 12.x + llama-cpp-python CUDA wheel
-- [ ] RTX 3060 6GB: Qwen 7B ~5 token/sn (CPU: ~0.3 token/sn)
-- [ ] Otomatik VRAM yönetimi (model bölme)
-- [ ] CUDA yoksa CPU'ya otomatik fallback
+### Faz 32: GPU Hızlandırma ✅
+- CUDA tespit, VRAM bilgisi, hız testi
+- GPU katman sayısı ayarı
+- GET /api/gpu/status|benchmark|vram
 
 ---
 
