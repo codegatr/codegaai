@@ -129,6 +129,7 @@ class ChatJob:
         self.file_context = file_context
         self.deep_think = deep_think   # o1/o3 tarzı CoT
         self.thought = ""              # İç düşünce (kullanıcıya gösterilebilir)
+        self.message_id: Optional[int] = None
         self.status = "pending"
         self.content = ""
         self.error = ""
@@ -154,6 +155,7 @@ class ChatJob:
                 "status": self.status,
                 "content": self.content,
                 "thought": self.thought,    # Derin düşünme içeriği
+                "message_id": self.message_id,
                 "error": self.error,
                 "done": self.status in ("done", "error"),
                 "elapsed_ms": int(elapsed * 1000),
@@ -325,7 +327,9 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
         if job.chat_id and job.content:
             try:
                 store = ChatStore.open()
-                store.add_message(job.chat_id, "assistant", job.content)
+                job.message_id = store.add_message(
+                    job.chat_id, "assistant", job.content
+                )
             except Exception:
                 pass
 

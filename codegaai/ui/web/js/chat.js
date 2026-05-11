@@ -117,6 +117,13 @@ const Chat = (() => {
           { method: "DELETE" }
         );
       } else {
+        let note = "";
+        if (newRating === -1) {
+          note = prompt(
+            "CODEGA nasıl cevap vermeliydi? Kısa bir doğru cevap/düzeltme yazarsan bu doğrudan eğitim çifti olur.",
+            ""
+          ) || "";
+        }
         await fetch("/api/learning/feedback", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
@@ -124,6 +131,7 @@ const Chat = (() => {
             chat_id: state.chatId,
             message_id: msg.id,
             rating: newRating,
+            note,
             user_message: userMessage,
             assistant_message: msg.content,
             model_id: msg.model || null,
@@ -133,6 +141,9 @@ const Chat = (() => {
 
       msg.rating = newRating;
       renderAll();
+      if (window.Learning && typeof window.Learning.refreshStats === "function") {
+        window.Learning.refreshStats();
+      }
     } catch (err) {
       console.error("feedback error:", err);
       alert("Geri bildirim kaydedilemedi: " + err.message);
@@ -538,6 +549,10 @@ const Chat = (() => {
           if (d.done) {
             clearInterval(poll);
             assistantMsg.streaming = false;
+            if (d.message_id) {
+              assistantMsg.id = d.message_id;
+              renderAll();
+            }
             // Timing
             const timeLbl = document.getElementById("status-time-elapsed");
             if (timeLbl) timeLbl.textContent = `${d.elapsed_ms}ms`;

@@ -85,6 +85,30 @@ class TestFeedbackStore(unittest.TestCase):
         self.assertEqual(ds["pairs"][0]["chosen"], "iyi yanit")
         self.assertEqual(ds["pairs"][0]["rejected"], "kotu yanit")
 
+    def test_export_dpo_dataset_uses_negative_correction_note(self) -> None:
+        self.store.add(chat_id=1, message_id=1, rating=-1,
+                       user_message="prompt B",
+                       assistant_message="yanlis yanit",
+                       note="dogru yanit")
+
+        ds = self.store.export_dpo_dataset(min_pairs=1)
+
+        self.assertEqual(ds["pair_count"], 1)
+        self.assertTrue(ds["ready_for_training"])
+        self.assertEqual(ds["pairs"][0]["prompt"], "prompt B")
+        self.assertEqual(ds["pairs"][0]["chosen"], "dogru yanit")
+        self.assertEqual(ds["pairs"][0]["rejected"], "yanlis yanit")
+
+    def test_export_dpo_dataset_negative_without_note_is_not_pair(self) -> None:
+        self.store.add(chat_id=1, message_id=1, rating=-1,
+                       user_message="prompt C",
+                       assistant_message="yanlis yanit")
+
+        ds = self.store.export_dpo_dataset(min_pairs=1)
+
+        self.assertEqual(ds["pair_count"], 0)
+        self.assertFalse(ds["ready_for_training"])
+
 
 class TestAdapterManager(unittest.TestCase):
 

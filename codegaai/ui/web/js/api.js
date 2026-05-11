@@ -129,7 +129,7 @@ const API = (() => {
 
     // ---- learning (Faz 7) ----
     learningStats:     () => request("/api/learning/stats"),
-    learningDataset:   () => request("/api/learning/dataset?min_pairs=4"),
+    learningDataset:   () => request("/api/learning/dataset"),
     learningFeedback:  (limit=50) => request(`/api/learning/feedback?limit=${limit}`),
     feedbackAdd:       (body) => request("/api/learning/feedback", {method:"POST", body: JSON.stringify(body)}),
     feedbackRemove:    (chatId, msgId) => request(`/api/learning/feedback/${chatId}/${msgId}`, {method:"DELETE"}),

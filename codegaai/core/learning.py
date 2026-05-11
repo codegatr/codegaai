@@ -188,13 +188,15 @@ class FeedbackStore:
         DPO için tercih çiftleri üret.
 
         Aynı kullanıcı mesajı için bir 👍 bir 👎 yanıt varsa, bunları
-        eşleştir (chosen=👍, rejected=👎). Bu çiftler eğitim verisi.
+        eşleştir (chosen=👍, rejected=👎). 👎 feedback'te kullanıcı düzeltme
+        notu verdiyse bu not chosen kabul edilir; böylece model sadece
+        negatif sinyal değil, "bunun yerine böyle cevap ver" örneği de öğrenir.
 
         Yetersiz veri varsa (min_pairs altında) uyarı döner.
         """
         with self._conn_lock, self._connect() as conn:
             rows = conn.execute("""
-                SELECT user_message, assistant_message, rating
+                SELECT user_message, assistant_message, rating, note
                 FROM feedback
                 WHERE user_message != ''
                 ORDER BY created_at ASC
@@ -209,6 +211,9 @@ class FeedbackStore:
                 bucket["chosen"].append(r["assistant_message"])
             else:
                 bucket["rejected"].append(r["assistant_message"])
+                correction = str(r["note"] or "").strip()
+                if correction:
+                    bucket["chosen"].append(correction)
 
         pairs: list[dict[str, str]] = []
         for prompt, bucket in by_prompt.items():

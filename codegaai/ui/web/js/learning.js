@@ -38,7 +38,7 @@ const Learning = (() => {
     try {
       // Feedback istatistikleri
       const stats = await fetch("/api/learning/stats").then(r => r.json());
-      const ds = await fetch("/api/learning/dataset?min_pairs=4").then(r => r.json());
+      const ds = await fetch("/api/learning/dataset").then(r => r.json());
       const adapters = await fetch("/api/learning/adapters").then(r => r.json());
       const deps = await fetch("/api/learning/dependencies").then(r => r.json());
 
