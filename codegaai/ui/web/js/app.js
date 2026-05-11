@@ -149,3 +149,107 @@
   load();
   setInterval(load, 15000);
 })();
+
+// ── Çeviri (Faz 28) ──────────────────────────────────────────────────────
+let _trTimer = null;
+function autoTranslate() {
+  clearTimeout(_trTimer);
+  _trTimer = setTimeout(doTranslate, 800);
+}
+async function doTranslate() {
+  const text = document.getElementById("tr-input")?.value?.trim();
+  const out = document.getElementById("tr-output");
+  const method = document.getElementById("tr-method");
+  if (!text || !out) return;
+  out.textContent = "⏳ Çeviriliyor...";
+  const source = document.getElementById("tr-source")?.value || "auto";
+  const target = document.getElementById("tr-target")?.value || "tr";
+  try {
+    const r = await fetch("/api/translate/text", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({text, source, target})
+    });
+    const d = await r.json();
+    out.textContent = d.translated || d.error || "Çeviri başarısız";
+    if (method) method.textContent = d.method ? `Yöntem: ${d.method}` : "";
+  } catch(e) { out.textContent = "❌ " + e.message; }
+}
+window.swapLangs = function() {
+  const s = document.getElementById("tr-source");
+  const t = document.getElementById("tr-target");
+  if (!s || !t) return;
+  const tmp = s.value; s.value = t.value; t.value = tmp;
+  doTranslate();
+};
+
+// ── Takvim (Faz 29) ──────────────────────────────────────────────────────
+async function loadCalendar() {
+  const [evR, tkR] = await Promise.all([
+    fetch("/api/calendar/events?upcoming=true"),
+    fetch("/api/calendar/tasks?done=false")
+  ]);
+  const evData = await evR.json();
+  const tkData = await tkR.json();
+  const evEl = document.getElementById("cal-events");
+  const tkEl = document.getElementById("cal-tasks");
+
+  if (evEl) {
+    evEl.innerHTML = evData.events?.length
+      ? evData.events.map(e => `
+          <div style="background:var(--color-surface-2);border-radius:6px;padding:10px;border-left:3px solid var(--color-accent)">
+            <div style="font-weight:500">${e.title}</div>
+            <div style="font-size:12px;color:var(--color-text-muted)">${e.date} ${e.time}</div>
+          </div>`).join("")
+      : '<div class="muted" style="font-size:13px">Etkinlik yok</div>';
+  }
+  if (tkEl) {
+    tkEl.innerHTML = tkData.tasks?.length
+      ? tkData.tasks.map(t => `
+          <div style="background:var(--color-surface-2);border-radius:6px;padding:10px;display:flex;gap:8px;align-items:center">
+            <button onclick="completeTask('${t.id}')" style="background:none;border:1px solid var(--color-border);border-radius:50%;width:20px;height:20px;cursor:pointer;flex-shrink:0"></button>
+            <div>
+              <div style="font-size:13px">${t.title}</div>
+              ${t.due_date ? `<div style="font-size:11px;color:var(--color-text-muted)">${t.due_date}</div>` : ""}
+            </div>
+          </div>`).join("")
+      : '<div class="muted" style="font-size:13px">Görev yok 🎉</div>';
+  }
+}
+window.completeTask = async function(id) {
+  await fetch(`/api/calendar/tasks/${id}/done`, {method:"POST"});
+  loadCalendar();
+};
+window.showAddEvent = function() {
+  const title = prompt("Etkinlik adı:");
+  if (!title) return;
+  const date = prompt("Tarih (YYYY-MM-DD):", new Date().toISOString().split("T")[0]);
+  if (!date) return;
+  fetch("/api/calendar/events", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({title, date})
+  }).then(() => loadCalendar());
+};
+window.showAddTask = function() {
+  const title = prompt("Görev:");
+  if (!title) return;
+  fetch("/api/calendar/tasks", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({title})
+  }).then(() => loadCalendar());
+};
+window.extractCalendar = async function() {
+  const input = document.getElementById("cal-extract-input");
+  if (!input?.value?.trim()) return;
+  const r = await fetch("/api/calendar/extract", {method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({text: input.value})});
+  const d = await r.json();
+  input.value = "";
+  loadCalendar();
+  alert(`Çıkarıldı: ${d.extracted_events?.length||0} etkinlik, ${d.extracted_tasks?.length||0} görev`);
+};
+
+// Takvim görünümüne geçince yükle
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll('.nav-item[data-view="calendar"]').forEach(btn => {
+    btn.addEventListener("click", loadCalendar);
+  });
+});

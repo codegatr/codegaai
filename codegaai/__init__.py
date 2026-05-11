@@ -6,7 +6,7 @@ Lisans: MIT
 """
 
 __version__ = "3.4.0"
-__phase__ = "v3.4.0 - Wake Word + Plugin Sistemi + README Yapilan/Bekleyen"
+__phase__ = "v3.5.0 - Logo Fix + Ceviri + Takvim + Mobil API"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

@@ -235,6 +235,12 @@ def create_app() -> FastAPI:
     app.include_router(wakeword_routes.router, prefix="/api/wakeword", tags=["wakeword"])
     from codegaai.api.routes import plugins as plugins_routes
     app.include_router(plugins_routes.router, prefix="/api/plugins", tags=["plugins"])
+    from codegaai.api.routes import translate as translate_routes
+    app.include_router(translate_routes.router, prefix="/api/translate", tags=["translate"])
+    from codegaai.api.routes import calendar as calendar_routes
+    app.include_router(calendar_routes.router, prefix="/api/calendar", tags=["calendar"])
+    from codegaai.api.routes import mobile as mobile_routes
+    app.include_router(mobile_routes.router, prefix="/api/mobile", tags=["mobile"])
 
     # Setup.html — ilk kurulum sayfası
     from fastapi.responses import FileResponse
@@ -406,8 +412,8 @@ def create_app() -> FastAPI:
                 status_code=500,
             )
 
-        # CSS, JS, img için kısayollar
-        for sub in ("css", "js", "img"):
+        # CSS, JS, img, assets için kısayollar
+        for sub in ("css", "js", "img", "assets"):
             sub_path = UI_ROOT / sub
             if sub_path.exists():
                 app.mount(
