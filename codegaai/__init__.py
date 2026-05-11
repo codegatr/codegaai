@@ -1,7 +1,7 @@
 """
 CODEGA AI - Yerelde çalışan, kendi kendine öğrenen, çok modlu yapay zeka platformu.
 
-Telif: 2026 CODEGA - Yunus Demirhan
+Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 

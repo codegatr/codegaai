@@ -183,7 +183,7 @@ GET  /api/models/llm          — Model listesi
 
 ## 📜 Lisans
 
-MIT License — © 2026 CODEGA Yazılım Ajansı, Yunus Demirhan
+MIT License — © 2026 CODEGA Yazılım Ajansı, Yunus Aksoy
 
 ---
 
