@@ -28,6 +28,8 @@ from __future__ import annotations
 
 import threading
 import time
+import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 import subprocess
@@ -138,8 +140,37 @@ class LLMEngine:
     # ---- yükleme ----
 
     @staticmethod
+    def _prepare_windows_cuda_dll_paths() -> None:
+        if sys.platform != "win32" or not hasattr(os, "add_dll_directory"):
+            return
+
+        candidates: list[Path] = []
+        if getattr(sys, "frozen", False):
+            base = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+            candidates.extend([
+                base / "torch" / "lib",
+                base / "_internal" / "torch" / "lib",
+                Path(sys.executable).parent / "_internal" / "torch" / "lib",
+            ])
+
+        try:
+            import torch  # type: ignore[import-not-found]
+            candidates.append(Path(torch.__file__).resolve().parent / "lib")
+        except Exception:
+            pass
+
+        for path in candidates:
+            if path.exists():
+                try:
+                    os.add_dll_directory(str(path))
+                    os.environ["PATH"] = f"{path}{os.pathsep}" + os.environ.get("PATH", "")
+                except Exception:
+                    pass
+
+    @staticmethod
     def _llama_supports_gpu_offload() -> bool:
         try:
+            LLMEngine._prepare_windows_cuda_dll_paths()
             import llama_cpp  # type: ignore[import-not-found]
             supports = getattr(llama_cpp, "llama_supports_gpu_offload", None)
             return bool(supports and supports())
@@ -216,6 +247,7 @@ class LLMEngine:
         )
 
         try:
+            self._prepare_windows_cuda_dll_paths()
             from llama_cpp import Llama  # type: ignore[import-not-found]
 
             # n_ctx: 0 verilirse modelin tam context'ini kullan
@@ -333,6 +365,7 @@ class LLMEngine:
     def _detect_backend(self) -> str:
         """llama-cpp-python hangi backend'le derlendi tespit et."""
         try:
+            self._prepare_windows_cuda_dll_paths()
             import llama_cpp  # type: ignore[import-not-found]
             # Heuristik: cuda fonksiyonları varsa CUDA build
             if hasattr(llama_cpp, "llama_supports_gpu_offload"):

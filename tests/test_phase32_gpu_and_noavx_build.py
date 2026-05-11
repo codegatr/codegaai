@@ -61,6 +61,14 @@ class TestGpuAndNoAvxBuild(unittest.TestCase):
         self.assertIn("Windows CUDA Build", cuda_workflow)
         self.assertIn("whl/cu124", cuda_workflow)
         self.assertIn("endsWith(github.ref_name, '-cuda')", cuda_workflow)
+        self.assertIn("torchLib", cuda_workflow)
+
+    def test_engine_adds_windows_cuda_dll_paths(self) -> None:
+        engine_py = (ROOT / "codegaai" / "core" / "engine.py").read_text(encoding="utf-8")
+
+        self.assertIn("_prepare_windows_cuda_dll_paths", engine_py)
+        self.assertIn("os.add_dll_directory", engine_py)
+        self.assertIn('base / "torch" / "lib"', engine_py)
 
 
 if __name__ == "__main__":
