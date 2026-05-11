@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "3.6.7"
-__phase__ = "v3.6.7 - CUDA DLL Yolu ve GPU Paket Ayrimi"
+__version__ = "3.6.8"
+__phase__ = "v3.6.8 - Guncelleyici Release Secimi"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

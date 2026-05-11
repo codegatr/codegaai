@@ -66,6 +66,10 @@ ASSET_PATTERN = re.compile(
     r"codegaai-v[\d\.]+-windows-(?:cpu|cuda)\.zip$",
     re.IGNORECASE,
 )
+CPU_ASSET_PATTERN = re.compile(
+    r"codegaai-v[\d\.]+-windows-cpu\.zip$",
+    re.IGNORECASE,
+)
 
 UPDATES_DIR = DATA_DIR / "updates"
 
@@ -221,7 +225,7 @@ class Updater:
             import httpx  # type: ignore[import-not-found]
 
             url = (f"{GITHUB_API_BASE}/repos/"
-                   f"{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest")
+                   f"{GITHUB_OWNER}/{GITHUB_REPO}/releases?per_page=30")
             headers = {
                 "Accept": "application/vnd.github+json",
                 "User-Agent": f"CODEGA-AI/{__version__}",
@@ -234,7 +238,13 @@ class Updater:
                     self._last_check = info
                     return info
                 r.raise_for_status()
-                data = r.json()
+                releases = r.json()
+
+            data = self._select_latest_release(releases)
+            if not data:
+                info.error = "Uygun Windows CPU release asset'i bulunamadı."
+                self._last_check = info
+                return info
 
             tag = data.get("tag_name", "")
             info.latest_version = tag
@@ -245,7 +255,7 @@ class Updater:
             # Windows ZIP asset'ini bul
             for asset in data.get("assets", []):
                 name = asset.get("name", "")
-                if ASSET_PATTERN.match(name):
+                if CPU_ASSET_PATTERN.match(name):
                     info.asset_name = name
                     info.asset_url = asset.get("browser_download_url")
                     info.asset_size = asset.get("size", 0)
@@ -261,6 +271,23 @@ class Updater:
 
         self._last_check = info
         return info
+
+    @staticmethod
+    def _select_latest_release(releases: list[dict[str, Any]]) -> Optional[dict[str, Any]]:
+        """GitHub latest yerine Windows CPU asset'i olan en yeni semver'i sec."""
+        candidates: list[dict[str, Any]] = []
+        for rel in releases:
+            if rel.get("draft") or rel.get("prerelease"):
+                continue
+            tag = str(rel.get("tag_name") or "")
+            if not tag or "-cuda" in tag.lower():
+                continue
+            assets = rel.get("assets") or []
+            if any(CPU_ASSET_PATTERN.match(str(a.get("name") or "")) for a in assets):
+                candidates.append(rel)
+        if not candidates:
+            return None
+        return max(candidates, key=lambda rel: parse_version(str(rel.get("tag_name") or "")))
 
     # ============================================================
     # Download
