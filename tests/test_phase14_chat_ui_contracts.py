@@ -39,6 +39,24 @@ class TestChatUiContracts(unittest.TestCase):
         self.assertIn('.sidebar > .sidebar__nav', css)
         self.assertIn('display: none;', css)
         self.assertIn('.top-nav .nav-item', css)
+        self.assertIn('scrollbar-width: none', css)
+
+    def test_settings_content_is_wrapped_and_centered(self) -> None:
+        html = (ROOT / "codegaai" / "ui" / "web" / "index.html").read_text(encoding="utf-8")
+        css = (ROOT / "codegaai" / "ui" / "web" / "css" / "views.css").read_text(encoding="utf-8")
+
+        self.assertIn('class="settings-content"', html)
+        self.assertLess(html.index('class="settings-content"'), html.index('class="settings-group"'))
+        self.assertIn(".settings-content", css)
+        self.assertIn("margin: 0 auto", css)
+
+    def test_vision_model_cards_show_loading_lifecycle(self) -> None:
+        js = (ROOT / "codegaai" / "ui" / "web" / "js" / "vision.js").read_text(encoding="utf-8")
+
+        self.assertIn('visionState === "loading"', js)
+        self.assertIn("isCurrentLoading", js)
+        self.assertIn("İndir ve Yükle", js)
+        self.assertIn("Yükleniyor...", js)
 
     def test_federation_admin_status_page_contract(self) -> None:
         route = (ROOT / "codegaai" / "api" / "routes" / "federation.py").read_text(encoding="utf-8")

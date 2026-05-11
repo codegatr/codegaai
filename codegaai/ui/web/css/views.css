@@ -404,18 +404,32 @@
    SİSTEM
    ============================================================ */
 
+.view > .card {
+  width: min(var(--max-content), calc(100% - var(--space-8) * 2));
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .system-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-  gap: var(--space-6);
-  padding: var(--space-7) var(--space-8);
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-8);
   max-width: var(--max-content);
   margin: 0 auto;
   width: 100%;
 }
 
+.system-section {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  min-width: 0;
+}
+
 .system-section h3 {
-  font-size: var(--fs-md);
+  font-size: var(--fs-sm);
   font-weight: var(--fw-semibold);
   text-transform: uppercase;
   letter-spacing: var(--ls-wide);
@@ -428,7 +442,7 @@
 .system-table, .engines-list {
   display: flex;
   flex-direction: column;
-  background: var(--color-bg-elevated);
+  background: var(--color-bg-base);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -436,12 +450,12 @@
 
 .system-row, .engine-row {
   display: grid;
-  grid-template-columns: 24px 140px 1fr;
-  gap: var(--space-3);
+  grid-template-columns: 22px minmax(96px, 132px) minmax(0, 1fr);
+  gap: var(--space-2);
   align-items: center;
-  padding: var(--space-3) var(--space-4);
+  padding: 10px var(--space-3);
   border-bottom: 1px solid var(--color-border-subtle);
-  font-size: var(--fs-base);
+  font-size: var(--fs-sm);
 }
 
 .system-row:last-child, .engine-row:last-child {
@@ -466,7 +480,9 @@
 .system-row__msg {
   color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .system-row--loading,
@@ -497,7 +513,7 @@
 }
 
 .system-section--full {
-  padding: 0 var(--space-8);
+  padding: var(--space-4);
   max-width: var(--max-content);
   margin: 0 auto var(--space-7);
   width: 100%;
@@ -516,8 +532,8 @@
 }
 
 .system-log-lines {
-  min-height: 220px;
-  max-height: 360px;
+  min-height: 160px;
+  max-height: 260px;
   overflow: auto;
   margin: 0;
   padding: var(--space-4);
@@ -533,15 +549,15 @@
 
 .models-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-3);
 }
 
 .model-card {
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: var(--space-5);
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -678,7 +694,9 @@
 
 .settings-content {
   padding: var(--space-7) var(--space-8);
-  max-width: 760px;
+  max-width: 920px;
+  width: 100%;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
@@ -704,7 +722,7 @@
 
 .setting-row {
   display: grid;
-  grid-template-columns: 200px 1fr;
+  grid-template-columns: minmax(140px, 200px) minmax(0, 1fr);
   gap: var(--space-4);
   align-items: center;
   padding: var(--space-3) var(--space-5);
@@ -721,6 +739,8 @@
 
 .setting-value {
   color: var(--color-text);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .setting-value.link {

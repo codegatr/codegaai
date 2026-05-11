@@ -61,10 +61,19 @@ const Vision = (() => {
 
       const statR = await fetch("/api/vision/status");
       const stat = await statR.json();
-      const loadedId = stat.vision?.model_id;
+      const visionState = stat.vision?.state || "idle";
+      const activeId = stat.vision?.model_id;
+      const isAnyLoading = visionState === "loading";
 
       const cards = (d.models || []).map(m => {
-        const isLoaded = loadedId === m.id;
+        const isActive = activeId === m.id;
+        const isLoaded = isActive && visionState === "ready";
+        const isCurrentLoading = isActive && isAnyLoading;
+        const statusClass = isLoaded ? "status-pill--ok" : (isCurrentLoading ? "status-pill--warn" : "status-pill--off");
+        const label = isLoaded ? "Yüklü" : (isCurrentLoading ? "Yükleniyor" : "İndirilebilir");
+        let action = `<button class="btn btn--primary" onclick="Vision.loadModel('${m.id}')" ${isAnyLoading ? "disabled" : ""}>İndir ve Yükle</button>`;
+        if (isLoaded) action = '<button class="btn btn--ghost" onclick="Vision.unload()">Bellekten Çıkar</button>';
+        if (isCurrentLoading) action = '<button class="btn btn--ghost" disabled>Yükleniyor...</button>';
         return `
           <div class="model-card">
             <div class="model-card__header">
@@ -72,17 +81,14 @@ const Vision = (() => {
                 <div class="model-card__name">${escapeHTML(m.name)}</div>
                 <div class="model-card__id">${m.size_gb} GB · ${m.vram_gb} GB VRAM</div>
               </div>
-              <span class="status-pill ${isLoaded ? 'status-pill--ok' : ''}">
+              <span class="status-pill ${statusClass}">
                 <span class="status-pill__dot"></span>
-                ${isLoaded ? "Yüklü" : "Hazır"}
+                ${label}
               </span>
             </div>
             <p class="model-card__desc">${escapeHTML(m.description)}</p>
             <div class="model-card__actions">
-              ${isLoaded
-                ? '<button class="btn btn--ghost" onclick="Vision.unload()">Bellekten Çıkar</button>'
-                : `<button class="btn btn--primary" onclick="Vision.loadModel('${m.id}')">Yükle</button>`
-              }
+              ${action}
             </div>
           </div>`;
       });
@@ -115,14 +121,15 @@ const Vision = (() => {
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({model_id: modelId}),
     });
+    loadVisionModels();
     // Poll
     const poll = setInterval(async () => {
       const r = await fetch("/api/vision/status");
       const d = await r.json();
+      renderStatus(d);
+      loadVisionModels();
       if (d.vision.state === "ready" || d.vision.state === "error") {
         clearInterval(poll);
-        renderStatus(d);
-        loadVisionModels();
       }
     }, 1500);
   }
