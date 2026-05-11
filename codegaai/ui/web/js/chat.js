@@ -258,15 +258,17 @@ const Chat = (() => {
     }
 
     elQueueStatus.hidden = false;
-    const next = count > 0 ? ` Siradaki: "${state.queue[0].slice(0, 80)}${state.queue[0].length > 80 ? "..." : ""}"` : "";
+    const firstQueued = count > 0 ? state.queue[0] : null;
+    const firstText = firstQueued ? (firstQueued.text || "[gorsel]") : "";
+    const next = count > 0 ? ` Siradaki: "${firstText.slice(0, 80)}${firstText.length > 80 ? "..." : ""}"` : "";
     elQueueStatus.textContent = count > 0
       ? `Cevap uretiliyor. ${count} mesaj sirada.${next}`
       : "Cevap uretiliyor. Yeni mesaj yazip Enter'a basarsan siraya eklenir.";
     if (elSend) elSend.title = state.sending ? "Siraya ekle (Enter)" : "Gonder (Enter)";
   }
 
-  function enqueue(text) {
-    state.queue.push(text);
+  function enqueue(payload) {
+    state.queue.push(payload);
     updateQueueStatus();
   }
 
@@ -344,13 +346,71 @@ const Chat = (() => {
 
   // ---------- Gönder ----------
 
-  async function send(text) {
-    text = String(text || "").trim();
-    if (!text) return;
+  function getAttachedImage() {
+    return window._chatAttachedImage || null;
+  }
+
+  function clearAttachedImage() {
+    window._chatAttachedImage = null;
+    const previewDiv = document.getElementById("chat-image-preview");
+    const imgInput = document.getElementById("chat-image-input");
+    const thumb = document.getElementById("chat-image-thumb");
+    if (previewDiv) previewDiv.style.display = "none";
+    if (imgInput) imgInput.value = "";
+    if (thumb) thumb.removeAttribute("src");
+  }
+
+  function makePayload(input) {
+    if (input && typeof input === "object" && "text" in input) {
+      return {
+        text: String(input.text || "").trim(),
+        image: input.image || null,
+      };
+    }
+    const image = getAttachedImage();
+    let text = String(input || "").trim();
+    if (!text && image) text = "Bu gorseli analiz eder misin?";
+    return { text, image };
+  }
+
+  async function analyzeAttachedImage(file, question) {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("question", question || "Bu gorselde ne var? Detayli anlat.");
+    form.append("max_tokens", "512");
+    form.append("auto_load", "true");
+
+    const resp = await fetch("/api/vision/analyze", {
+      method: "POST",
+      body: form,
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      const msg = data.detail || data.error || `HTTP ${resp.status}`;
+      throw new Error(`Gorsel analizi basarisiz: ${msg}`);
+    }
+    if (!data.answer) {
+      throw new Error("Gorsel analizi bos yanit dondu");
+    }
+
+    return [
+      "## Ekli Gorsel Analizi",
+      `Dosya: ${file.name || "gorsel"}`,
+      `Soru: ${question || "Bu gorselde ne var? Detayli anlat."}`,
+      `Model: ${data.model || "vision"}`,
+      "",
+      data.answer,
+    ].join("\n");
+  }
+
+  async function send(input) {
+    const payload = makePayload(input);
+    if (!payload.text && !payload.image) return;
     if (state.sending) {
-      enqueue(text);
+      enqueue(payload);
       elInput.value = "";
       autoResize();
+      clearAttachedImage();
       elInput.focus();
       return;
     }
@@ -374,16 +434,40 @@ const Chat = (() => {
       renderAll();
     }
 
+    let text = payload.text;
+    if (payload.image) {
+      text = [
+        text,
+        "",
+        `[Ekli gorsel: ${payload.image.name || "gorsel"}]`,
+        "Gorsel analizi hazirlaniyor...",
+      ].join("\n");
+    }
+
     const userMsg = { role: "user", content: text };
     state.messages.push(userMsg);
     appendMessage(userMsg);
 
     elInput.value = "";
     autoResize();
+    clearAttachedImage();
     showTyping();
 
     // Job polling ile gönder (SSE yerine — PyWebView'da güvenilir)
     try {
+      if (payload.image) {
+        const visionContext = await analyzeAttachedImage(payload.image, payload.text);
+        text = [
+          payload.text,
+          "",
+          `[Ekli gorsel: ${payload.image.name || "gorsel"}]`,
+          "",
+          visionContext,
+        ].join("\n").trim();
+        userMsg.content = text;
+        renderAll();
+        showTyping();
+      }
       await sendWithPolling(text);
     } catch (err) {
       hideTyping();

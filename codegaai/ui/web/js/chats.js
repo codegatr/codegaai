@@ -111,7 +111,6 @@ const Chats = (() => {
   }
 
   async function setActive(id) {
-    if (state.activeId === id) return;
     state.activeId = id;
     render();
     Views.activate("chat");
