@@ -77,10 +77,12 @@ def _force_bundle_package(pkg_name):
     return extra_datas, extra_binaries
 
 
-# scipy + sklearn + numpy: manuel full-directory bundling
-# (PyInstaller'in scipy hook'undaki kronik C extension eksikligini
-#  kokten cozer)
-for pkg in ("scipy", "sklearn", "numpy"):
+# scipy + sklearn + numpy + sentence_transformers: manuel full-directory bundling
+# sentence_transformers.util collect_submodules/collect_all çalıştırınca
+# PyInstaller isolated subprocess 0xC0000005 (ACCESS VIOLATION) ile crash yapıyor.
+# _force_bundle_package PyInstaller import analizini bypass eder, dosyaları
+# doğrudan kopyalar — crash olmaz.
+for pkg in ("scipy", "sklearn", "numpy", "sentence_transformers"):
     _d, _b = _force_bundle_package(pkg)
     datas += _d
     binaries += _b
@@ -99,10 +101,11 @@ hiddenimports += [
 
 # ---- CODEGA AI — TÜM routes ve core modülleri -------------------------
 # collect_submodules kullan: yeni dosya eklense bile otomatik bulur
-hiddenimports += collect_submodules("codegaai.api.routes")
-hiddenimports += collect_submodules("codegaai.core")
-hiddenimports += collect_submodules("codegaai.utils")
-hiddenimports += collect_submodules("codegaai.plugins")
+for _mod in ("codegaai.api.routes", "codegaai.core", "codegaai.utils", "codegaai.plugins"):
+    try:
+        hiddenimports += collect_submodules(_mod)
+    except Exception as _e:
+        print(f"[uyarı] {_mod} collect_submodules atlandı: {_e}")
 
 # ---- Faz 7 — DPO -------------------------------------------------------
 for _pkg in ("peft", "trl", "datasets", "accelerate"):
@@ -118,7 +121,7 @@ for _pkg in ("einops", "torchvision"):
     except Exception:
         pass
 
-# ---- Faz 27 — Plugin dependencies -------------------------------------
+# ---- Faz 26/27 — Plugin deps ------------------------------------------
 for _pkg in ("sounddevice", "openwakeword"):
     try:
         hiddenimports += collect_submodules(_pkg)
@@ -147,12 +150,8 @@ try:
 except Exception as exc:
     print(f"[uyarı] llama_cpp toplama atlandı: {exc}")
 
-# ---- sentence-transformers + torch (embedding) ----
-try:
-    st_d, st_b, st_h = collect_all("sentence_transformers")
-    datas += st_d; binaries += st_b; hiddenimports += st_h
-except Exception as exc:
-    print(f"[uyarı] sentence_transformers toplama atlandı: {exc}")
+# sentence_transformers yukarida _force_bundle_package ile eklendi
+# collect_all burada KULLANILMAZ — isolated subprocess 0xC0000005 crash yapar
 
 # scipy/sklearn/numpy yukarida _force_bundle_package ile manuel
 # yapildi. Bu yeterli — collect_all/collect_submodules/collect_dynamic_libs
@@ -249,14 +248,17 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        # Boyutu küçültmek için dışlanan paketler
-        # NOT: scipy/sklearn/numpy ÇIKARILDI excludes'tan — transformers
-        # ve sentence-transformers tarafından zorunlu olarak import
-        # ediliyorlar, exclude edilirse runtime'da çöküyor.
-        "matplotlib", "pandas", "IPython", "jupyter",
-        "notebook", "pytest", "tkinter",
+        # Dev/test araçları — runtime'da gerek yok
+        "IPython", "jupyter", "notebook", "pytest", "tkinter",
+        "matplotlib.tests", "numpy.tests", "torch.test",
+        "transformers.testing_utils",
+        # sentence_transformers çakışma önlemi
+        "sentence_transformers.cross_encoder.evaluation",
+        # Büyük torch bileşenleri — kullanılmıyor
+        "torch.distributed", "torch.testing",
+        "torchgen", "functorch",
     ],
-    noarchive=False,
+    noarchive=False,   # True yapılırsa .pyc dosyaları ayrı tutulur (debug için)
 )
 
 pyz = PYZ(a.pure, a.zipped_data)
