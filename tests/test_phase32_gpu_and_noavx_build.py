@@ -52,6 +52,16 @@ class TestGpuAndNoAvxBuild(unittest.TestCase):
         self.assertIn("Sunucu hazirlaniyor", system_js)
         self.assertNotIn("ctrl.abort()", system_js)
 
+    def test_cpu_package_disables_gpu_button_and_cuda_workflow_exists(self) -> None:
+        system_js = (ROOT / "codegaai" / "ui" / "web" / "js" / "system.js").read_text(encoding="utf-8")
+        cuda_workflow = (ROOT / ".github" / "workflows" / "build-windows-cuda.yml").read_text(encoding="utf-8")
+
+        self.assertIn("CUDA paket gerekir", system_js)
+        self.assertIn("windows-cuda paketi", system_js)
+        self.assertIn("Windows CUDA Build", cuda_workflow)
+        self.assertIn("whl/cu124", cuda_workflow)
+        self.assertIn("endsWith(github.ref_name, '-cuda')", cuda_workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

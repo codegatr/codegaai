@@ -1,0 +1,156 @@
+name: Windows CUDA Build
+
+on:
+  push:
+    tags:
+      - "v*-cuda"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Tag adi (orn. v3.6.6-cuda)"
+        required: false
+        default: ""
+
+concurrency:
+  group: windows-cuda-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows-cuda:
+    name: Build Windows CUDA portable
+    if: ${{ github.event_name == 'workflow_dispatch' || endsWith(github.ref_name, '-cuda') }}
+    runs-on: windows-latest
+    timeout-minutes: 120
+
+    env:
+      PYTHONIOENCODING: "utf-8"
+      PYTHONUTF8: "1"
+      PYTHONLEGACYWINDOWSSTDIO: "0"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Upgrade pip + build tools
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          python -m pip install pyinstaller pyinstaller-hooks-contrib
+
+      - name: Install core deps
+        shell: pwsh
+        run: |
+          python -m pip install fastapi "uvicorn[standard]" pydantic python-multipart psutil rich httpx packaging
+          python -m pip install pywebview
+
+      - name: Install PyTorch CUDA runtime
+        shell: pwsh
+        run: |
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cu124
+          python -c "import torch; print('PyTorch', torch.__version__, '| CUDA:', torch.version.cuda, '| available:', torch.cuda.is_available())"
+
+      - name: Install llama-cpp-python CUDA
+        shell: pwsh
+        run: |
+          Write-Host "llama-cpp-python CUDA wheel kuruluyor..."
+          python -m pip uninstall -y llama-cpp-python
+          python -m pip install llama-cpp-python `
+            --prefer-binary `
+            --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu124 `
+            --no-cache-dir
+          python -c "import llama_cpp; from llama_cpp import Llama; print('llama-cpp OK, gpu offload:', bool(getattr(llama_cpp, 'llama_supports_gpu_offload', lambda: False)()))"
+
+      - name: Install ML core
+        shell: pwsh
+        run: |
+          python -m pip install sentence-transformers chromadb huggingface_hub
+          python -m pip install scipy scikit-learn
+          python -m pip install transformers diffusers accelerate Pillow safetensors
+          python -m pip install faster-whisper soundfile
+          python -m pip install imageio imageio-ffmpeg
+
+      - name: Install optional deps
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          python -m pip install peft datasets
+          python -m pip install trl --no-deps
+          python -m pip install einops torchvision
+          python -m pip install duckduckgo-search beautifulsoup4 feedparser lxml
+          python -m pip install pymupdf pdfplumber sounddevice mss "qrcode[pil]"
+          python -m pip install easyocr opencv-python-headless
+          python -m pip install piper-tts
+          exit 0
+
+      - name: Test imports
+        shell: pwsh
+        run: |
+          python -m compileall -q codegaai
+          python -c "import codegaai.api.routes.gpu; print('gpu route OK')"
+
+      - name: Build with PyInstaller
+        shell: pwsh
+        run: |
+          pyinstaller build/codegaai.spec --noconfirm --clean
+
+      - name: Verify build output
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "dist/codegaai/codegaai.exe")) {
+            throw "Build basarisiz: codegaai.exe bulunamadi"
+          }
+          $size = (Get-ChildItem -Path "dist/codegaai" -Recurse | Measure-Object Length -Sum).Sum / 1MB
+          Write-Host "Toplam boyut: $([math]::Round($size, 1)) MB"
+
+      - name: Determine version tag
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like "refs/tags/*") {
+            $tag = $env:GITHUB_REF -replace "refs/tags/", ""
+          } elseif ("${{ github.event.inputs.release_tag }}") {
+            $tag = "${{ github.event.inputs.release_tag }}"
+          } else {
+            $tag = "dev-cuda-$(git rev-parse --short HEAD)"
+          }
+          Write-Host "Tag: $tag"
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Create portable ZIP
+        id: zip
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          $zipName = "codegaai-$tag-windows-cuda.zip"
+          Copy-Item "build\fix_llama.bat" "dist\codegaai\fix_llama.bat" -ErrorAction SilentlyContinue
+          Compress-Archive -Path "dist/codegaai/*" -DestinationPath $zipName -CompressionLevel Optimal
+          $zipSize = (Get-Item $zipName).Length / 1MB
+          Write-Host "ZIP: $zipName ($([math]::Round($zipSize, 1)) MB)"
+          "zip_name=$zipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Upload artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: codegaai-windows-cuda
+          path: ${{ steps.zip.outputs.zip_name }}
+          retention-days: 30
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.zip.outputs.zip_name }}
+          fail_on_unmatched_files: true
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

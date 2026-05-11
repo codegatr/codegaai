@@ -369,12 +369,21 @@ window.clearHfToken = async function() {
 // ── GPU (Faz 32) ──────────────────────────────────────────────────────────
 async function loadGPUStatus() {
   const box = document.getElementById("gpu-status-box");
+  const enableBtn = document.getElementById("gpu-enable-btn");
   if (!box) return;
   try {
     const r = await fetch("/api/gpu/status");
     const d = await r.json();
-    const cuda = d.cuda_available;
+    const driverCuda = !!d.driver_cuda_available;
+    const torchCuda = !!d.torch_cuda_available;
+    const llamaCuda = !!d.llama_cpp_gpu;
+    const cuda = driverCuda || torchCuda;
     const color = cuda ? "var(--color-success)" : "var(--color-text-muted)";
+    if (enableBtn) {
+      enableBtn.disabled = !llamaCuda;
+      enableBtn.title = llamaCuda ? "Modeli GPU ile yukle" : "Bu paket CPU/no-AVX. GPU icin windows-cuda paketi gerekir.";
+      enableBtn.textContent = llamaCuda ? "GPU ile Yükle" : "CUDA paket gerekir";
+    }
     box.innerHTML = `
       <div><b>GPU:</b> ${d.gpu_name || "Bulunamadı"}</div>
       <div><b>CUDA:</b> <span style="color:${color}">${cuda ? "✓ " + (d.cuda_version||"") : "✗ Yok"}</span></div>
@@ -403,6 +412,11 @@ window.runGPUBenchmark = async function() {
 };
 
 window.enableGPU = async function() {
+  const status = await fetch("/api/gpu/status").then(r => r.json()).catch(() => ({}));
+  if (!status.llama_cpp_gpu) {
+    alert("Bu kurulum CPU/no-AVX paketi. GPU kullanmak icin CODEGA AI windows-cuda paketini kurman gerekiyor.");
+    return;
+  }
   const layers = prompt("Kaç katman GPU'ya taşınsın? (RTX 3060 6GB için 20 önerilir)", "20");
   if (!layers) return;
   const btn = document.getElementById("gpu-enable-btn");

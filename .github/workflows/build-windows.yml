@@ -22,6 +22,7 @@ permissions:
 jobs:
   build-windows:
     name: Build Windows portable
+    if: ${{ !endsWith(github.ref_name, '-cuda') }}
     runs-on: windows-latest
     timeout-minutes: 120
 
