@@ -24,7 +24,10 @@
        ========================================================= -->
   <aside class="sidebar">
     <div class="sidebar__brand">
-      <div class="brand-mark">C</div>
+      <div class="brand-mark" style="overflow:hidden;border-radius:8px;padding:0">
+        <img src="assets/codega_icon.png" alt="CODEGA AI" width="36" height="36"
+             style="display:block;object-fit:cover;border-radius:8px">
+      </div>
       <div class="brand-text">
         <span class="brand-name">CODEGA AI</span>
         <span class="brand-version" id="brand-version">v...</span>
@@ -123,6 +126,10 @@
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
         <span>Görsel</span>
       </button>
+      <button class="nav-item" data-view="canvas">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><polyline points="9 9 12 12 15 9"/></svg>
+        <span>Canvas</span>
+      </button>
       <button class="nav-item" data-view="video">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
         <span>Video</span>
@@ -210,7 +217,8 @@
         <div class="chat-messages" id="chat-messages">
           <div class="welcome">
             <div class="welcome__brand">
-              <span class="welcome__brand-c">C</span>
+              <img src="assets/codega_logo_sm.png" alt="CODEGA AI"
+                   style="width:220px;border-radius:12px;margin-bottom:8px;box-shadow:0 4px 24px rgba(245,158,11,.2)">
             </div>
             <h2 class="welcome__title">CODEGA AI'a hoş geldin</h2>
             <p class="welcome__subtitle">
@@ -387,6 +395,59 @@
     </section>
 
     <!-- ─── Video ─── -->
+    <!-- ─── Canvas / Artifact ─── -->
+    <section class="view" data-view="canvas">
+      <header class="view-header">
+        <h1 class="view-title">Canvas <span style="font-size:12px;opacity:.6;font-weight:400">Canlı Önizleme & Artifact</span></h1>
+        <div style="display:flex;gap:8px;margin-left:auto">
+          <button class="btn btn--sm" onclick="canvasRun()" title="Kodu çalıştır">▶ Çalıştır</button>
+          <button class="btn btn--sm btn--ghost" onclick="canvasCopy()" title="HTML kopyala">📋 Kopyala</button>
+          <button class="btn btn--sm btn--ghost" onclick="canvasClear()">✕ Temizle</button>
+        </div>
+      </header>
+      <div style="display:grid;grid-template-columns:1fr 1fr;height:calc(100vh - 64px);gap:0">
+        <!-- Kod editörü -->
+        <div style="display:flex;flex-direction:column;border-right:1px solid var(--color-border)">
+          <div style="padding:8px 16px;background:var(--color-surface-2);border-bottom:1px solid var(--color-border);font-size:12px;color:var(--color-text-muted);display:flex;gap:8px;align-items:center">
+            <select id="canvas-lang" onchange="canvasLangChange()" style="background:transparent;border:none;color:inherit;font-size:12px;cursor:pointer">
+              <option value="html">HTML/CSS/JS</option>
+              <option value="python">Python</option>
+              <option value="php">PHP (Önizleme)</option>
+            </select>
+            <span id="canvas-status" style="margin-left:auto;color:var(--color-accent)"></span>
+          </div>
+          <textarea id="canvas-editor"
+            style="flex:1;padding:16px;font-family:monospace;font-size:13px;line-height:1.6;
+                   background:var(--color-surface);color:var(--color-text);border:none;resize:none;outline:none;tab-size:2"
+            placeholder="<!-- HTML kodunu buraya yaz veya AI'ya 'canvas olarak göster' de -->
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;body style=&quot;background:#0a0b0d;color:#fff;font-family:sans-serif;padding:2rem&quot;&gt;
+  &lt;h1 style=&quot;color:#f59e0b&quot;&gt;CODEGA AI Canvas&lt;/h1&gt;
+  &lt;p&gt;Buraya HTML yaz, sağda canlı önizleme gör.&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;"
+            oninput="canvasAutoRun()"></textarea>
+        </div>
+        <!-- Canlı önizleme -->
+        <div style="display:flex;flex-direction:column">
+          <div style="padding:8px 16px;background:var(--color-surface-2);border-bottom:1px solid var(--color-border);font-size:12px;color:var(--color-text-muted)">
+            Önizleme
+          </div>
+          <div id="canvas-output-wrap" style="flex:1;position:relative">
+            <iframe id="canvas-preview"
+              style="width:100%;height:100%;border:none;background:#fff"
+              sandbox="allow-scripts allow-modals"
+              srcdoc="<body style='background:#0a0b0d;color:#666;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;font-size:14px'>Kod yaz, ▶ Çalıştır'a bas</body>">
+            </iframe>
+            <!-- Python/sandbox çıktısı -->
+            <div id="canvas-sandbox-output" style="display:none;position:absolute;inset:0;background:var(--color-surface);padding:16px;font-family:monospace;font-size:13px;overflow:auto;white-space:pre-wrap"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Görüntü & Video ─── -->
     <section class="view" data-view="video">
       <header class="view-header">
         <div>
@@ -1212,6 +1273,7 @@
   <script src="/js/chat.js"></script>
   <script src="/js/system.js"></script>
   <script src="/js/models.js"></script>
+  <script src="/js/canvas.js"></script>
   <script src="/js/image.js"></script>
   <script src="/js/audio.js"></script>
   <script src="/js/video.js"></script>

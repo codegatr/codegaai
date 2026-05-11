@@ -184,3 +184,165 @@ async def list_repos(token: str) -> dict:
             headers={"Authorization":f"token {token}","Accept":"application/vnd.github+json"})
         if r.status_code != 200: return {"error":f"GitHub {r.status_code}"}
         return {"repos":[{"name":x["full_name"],"private":x["private"]} for x in r.json()]}
+
+
+# ── GitHub PR Oluşturma ────────────────────────────────────────────────────
+
+class PRRequest(BaseModel):
+    repo: str
+    token: str
+    title: str
+    body: str = ""
+    head_branch: str = "codega-ai-patch"
+    base_branch: str = "main"
+    files: dict = {}   # Değiştirilecek dosyalar {path: content}
+
+@router.post("/github/pr")
+async def create_pr(req: PRRequest) -> dict:
+    """Yeni branch aç, dosyaları push et, PR oluştur."""
+    import httpx, base64, re
+    hdrs = {"Authorization": f"token {req.token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"}
+    api = f"https://api.github.com/repos/{req.repo}"
+
+    async with httpx.AsyncClient(timeout=30.0) as c:
+        # Ana branch SHA al
+        r = await c.get(f"{api}/git/ref/heads/{req.base_branch}", headers=hdrs)
+        if r.status_code != 200:
+            return {"error": f"Base branch bulunamadı: {r.status_code}"}
+        base_sha = r.json()["object"]["sha"]
+
+        # Yeni branch oluştur
+        branch = re.sub(r"[^a-zA-Z0-9_-]", "-", req.head_branch)[:50]
+        await c.post(f"{api}/git/refs", headers=hdrs,
+                     json={"ref": f"refs/heads/{branch}", "sha": base_sha})
+
+        # Dosyaları push et
+        for path, content in req.files.items():
+            safe = path.lstrip("/").replace("\\", "/")
+            url = f"{api}/contents/{safe}"
+            sha = None
+            try:
+                ex = await c.get(url + f"?ref={branch}", headers=hdrs)
+                if ex.status_code == 200:
+                    sha = ex.json().get("sha")
+            except Exception:
+                pass
+            body: dict = {"message": f"CODEGA AI: {req.title}",
+                          "content": base64.b64encode(content.encode()).decode(),
+                          "branch": branch}
+            if sha:
+                body["sha"] = sha
+            await c.put(url, headers=hdrs, json=body)
+
+        # PR oluştur
+        r = await c.post(f"{api}/pulls", headers=hdrs, json={
+            "title": req.title, "body": req.body or "CODEGA AI tarafından oluşturuldu.",
+            "head": branch, "base": req.base_branch,
+        })
+        if r.status_code in (200, 201):
+            pr = r.json()
+            return {"ok": True, "pr_url": pr["html_url"], "number": pr["number"],
+                    "title": pr["title"]}
+        return {"error": f"PR oluşturulamadı: {r.status_code} {r.text[:200]}"}
+
+
+# ── Otomatik Test Yazma ───────────────────────────────────────────────────
+
+class TestGenRequest(BaseModel):
+    code: str
+    language: str = "php"   # php, python, js
+    project_name: str = "test"
+
+@router.post("/generate/tests")
+async def generate_tests(req: TestGenRequest) -> dict:
+    """Verilen koda otomatik test dosyası yaz."""
+    from codegaai.core.engine import LLMEngine, GenerationConfig
+    engine = LLMEngine.get()
+    if not engine.is_ready:
+        return {"error": "Model yüklü değil"}
+
+    lang_guides = {
+        "php": "PHPUnit ile test_* metodları, setUp, tearDown. PHP 8.3.",
+        "python": "pytest ile test_ fonksiyonları. mock, fixtures.",
+        "js": "Jest ile describe/it blokları. expect matchers.",
+    }
+    guide = lang_guides.get(req.language, lang_guides["php"])
+
+    prompt = f"""Bu {req.language.upper()} kodunu incele ve kapsamlı test dosyası yaz:
+
+```{req.language}
+{req.code[:3000]}
+```
+
+Test çerçevesi: {guide}
+
+[FILE: test_{req.project_name}.{req.language}]
+{{% test kodu buraya %}}
+[/FILE]
+
+Tüm public metotları test et. Edge case'leri kapsayanlara özellikle dikkat et."""
+
+    msgs = [{"role": "system", "content": "Sen bir test uzmanısın. Kapsamlı, çalışan testler yazarsın."},
+            {"role": "user", "content": prompt}]
+
+    full = ""
+    for tok in engine.stream(msgs, cfg=GenerationConfig(max_tokens=1500, temperature=0.2)):
+        full += tok
+
+    files = _parse(full)
+    if not files:
+        # Direkt cevabı test dosyası olarak al
+        files = {f"test_{req.project_name}.{req.language}": full}
+
+    data = _make_zip(f"tests_{req.project_name}", files)
+    zid = str(uuid.uuid4())[:8]
+    _zip_store[zid] = {"data": data, "filename": f"tests_{req.project_name}.zip", "ts": time.time()}
+    _cleanup(_zip_store)
+    return {"zip_id": zid, "files": list(files.keys()),
+            "download_url": f"/api/files/download/{zid}",
+            "test_code": list(files.values())[0][:2000]}
+
+
+# ── PDF Okuma ─────────────────────────────────────────────────────────────
+
+@router.post("/read-pdf")
+async def read_pdf(file: UploadFile = File(...)) -> dict:
+    """PDF dosyasını oku, metin çıkar, AI bağlamı hazırla."""
+    content = await file.read()
+    fname = file.filename or "file.pdf"
+    text_pages = []
+
+    # PyMuPDF (fitz) dene
+    try:
+        import fitz  # PyMuPDF
+        doc = fitz.open(stream=content, filetype="pdf")
+        for i, page in enumerate(doc):
+            t = page.get_text().strip()
+            if t:
+                text_pages.append(f"[Sayfa {i+1}]\n{t}")
+        doc.close()
+    except ImportError:
+        # pdfplumber dene
+        try:
+            import pdfplumber, io as _io
+            with pdfplumber.open(_io.BytesIO(content)) as pdf:
+                for i, page in enumerate(pdf.pages):
+                    t = page.extract_text() or ""
+                    if t.strip():
+                        text_pages.append(f"[Sayfa {i+1}]\n{t}")
+        except ImportError:
+            return {"error": "PDF okuma için 'pip install pymupdf' veya 'pip install pdfplumber' gerekli"}
+
+    if not text_pages:
+        return {"error": "PDF'den metin çıkarılamadı (taranmış görüntü olabilir)"}
+
+    full_text = "\n\n".join(text_pages)
+    fid = str(uuid.uuid4())[:8]
+    context = f"PDF: **{fname}** ({len(text_pages)} sayfa)\n\n{full_text[:15000]}"
+    _file_store[fid] = {"filename": fname, "context": context, "ts": time.time()}
+    _cleanup(_file_store)
+
+    return {"file_id": fid, "filename": fname, "pages": len(text_pages),
+            "chars": len(full_text), "context": context[:3000] + "..."}

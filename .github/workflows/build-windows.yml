@@ -86,6 +86,7 @@ jobs:
           # Web araması ve öğrenme
           python -m pip install duckduckgo-search beautifulsoup4 feedparser lxml
           python -m pip install easyocr opencv-python-headless
+          python -m pip install pymupdf pdfplumber
 
       - name: Install TTS (Coqui XTTS) [opsiyonel]
         shell: pwsh
