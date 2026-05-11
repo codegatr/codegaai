@@ -216,6 +216,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "learning": {
         "enabled": True,
+        "auto_web_learn_on_startup": True,
+        "startup_web_learn_delay_seconds": 20,
         "min_dpo_pairs_for_training": 100,
         "lora_rank": 16,
         "lora_alpha": 32,

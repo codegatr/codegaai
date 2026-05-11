@@ -249,6 +249,33 @@ def create_app() -> FastAPI:
 
         threading.Thread(target=_start_auto_learn, daemon=True,
                          name="auto-learn-starter").start()
+
+        def _start_web_learning():
+            import time
+            learning_cfg = get_config().get("learning", {})
+            if not learning_cfg.get("enabled", True):
+                log.info("Açılış internet öğrenmesi: learning.enabled=false, atlandı")
+                return
+            if not learning_cfg.get("auto_web_learn_on_startup", True):
+                log.info("Açılış internet öğrenmesi devre dışı")
+                return
+
+            delay = int(learning_cfg.get("startup_web_learn_delay_seconds", 20) or 20)
+            time.sleep(max(0, delay))
+            try:
+                from codegaai.core.web_learner import WebLearner
+                learner = WebLearner.get()
+                if learner.status.get("state") != "idle":
+                    log.info("Açılış internet öğrenmesi: başka öğrenme aktif, atlandı")
+                    return
+                learner.learn_async(feeds=True)
+                log.info("Açılış internet öğrenmesi başlatıldı (RSS/feed)")
+            except Exception as exc:
+                log.warning("Açılış internet öğrenmesi başlatılamadı: %s", exc)
+
+        threading.Thread(target=_start_web_learning, daemon=True,
+                         name="startup-web-learner").start()
+
         cfg = get_config()
         server_cfg = cfg.get("server", {})
         if server_cfg.get("auto_load_model", True):

@@ -181,10 +181,6 @@ async def _run_chat_job(job: ChatJob) -> None:
         from codegaai.core.chat_store import ChatStore
 
         engine = LLMEngine.get()
-        if not engine.is_ready:
-            job.finish(error="Model yüklü değil. Sistem -> model yükle.")
-            return
-
         history = []
         if job.chat_id:
             try:
@@ -194,6 +190,27 @@ async def _run_chat_job(job: ChatJob) -> None:
                     history.append({"role": m["role"], "content": m["content"]})
             except Exception:
                 pass
+
+        try:
+            from codegaai.core.model_router import ModelRouter
+            from codegaai.core.models_registry import ModelRegistry
+
+            router = ModelRouter.get()
+            target_model = router.select_model(job.message, history=history)
+            if target_model:
+                router.switch_model_if_needed(target_model)
+            elif not engine.is_ready:
+                registry = ModelRegistry.get()
+                for model in registry.list_llm_models():
+                    if registry.is_llm_downloaded(model["id"]):
+                        engine.load(model["id"])
+                        break
+        except Exception as exc:
+            log.debug("Model routing atlandı: %s", exc)
+
+        if not engine.is_ready:
+            job.finish(error="Model yüklü değil. Sistem -> model yükle.")
+            return
 
         web_context = ""
         try:
