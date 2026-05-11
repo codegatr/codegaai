@@ -38,8 +38,13 @@ data/outputs/
 data/logs/
 data/cache/
 data/temp/
+data/codegaai_config.json
 data/learning/
 data/adapters/
+data/federation/
+data/updates/
+data/web_learning/
+deploy/federation-php/public/config.php
 
 # Yapılandırma dosyası kullanıcıya özel olabilir; örnek korunur
 config.toml

@@ -184,6 +184,10 @@
   border-top: 1px solid var(--color-border);
   background: var(--color-bg-base);
   padding: var(--space-4) var(--space-8);
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
 }
 
 .chat-input-wrap {
@@ -262,6 +266,18 @@
 
 .chat-input-hint .separator {
   color: var(--color-border-strong);
+}
+
+.chat-queue-status {
+  max-width: 920px;
+  margin: var(--space-2) auto 0;
+  padding: 6px var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  line-height: 1.4;
 }
 
 /* ---- Yazıyor göstergesi ---- */
@@ -492,6 +508,27 @@
   color: var(--color-text-muted);
   margin-bottom: var(--space-4);
   line-height: var(--lh-loose);
+}
+
+.system-log-path {
+  margin-bottom: var(--space-2);
+  font-family: var(--font-mono);
+}
+
+.system-log-lines {
+  min-height: 220px;
+  max-height: 360px;
+  overflow: auto;
+  margin: 0;
+  padding: var(--space-4);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  white-space: pre-wrap;
 }
 
 .models-grid {

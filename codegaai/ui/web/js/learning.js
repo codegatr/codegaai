@@ -11,7 +11,30 @@ const Learning = (() => {
     }[m]));
   }
 
+  async function refreshMemoryStats() {
+    try {
+      const memoryStats = await fetch("/api/memory/stats").then(r => {
+        if (!r.ok) throw new Error("memory stats HTTP " + r.status);
+        return r.json();
+      });
+      document.getElementById("mem-working").textContent =
+        memoryStats.working_memory_messages || 0;
+      document.getElementById("mem-archive").textContent =
+        memoryStats.archive_documents || 0;
+      document.getElementById("mem-core").textContent =
+        memoryStats.core_facts || 0;
+    } catch (err) {
+      console.error("Memory stats refresh:", err);
+      for (const id of ["mem-working", "mem-archive", "mem-core"]) {
+        const node = document.getElementById(id);
+        if (node) node.textContent = "0";
+      }
+    }
+  }
+
   async function refreshStats() {
+    await refreshMemoryStats();
+
     try {
       // Feedback istatistikleri
       const stats = await fetch("/api/learning/stats").then(r => r.json());

@@ -112,7 +112,9 @@ async def stats() -> dict:
 async def status() -> dict:
     """Bellek altyapısının durumu."""
     from codegaai.core.embeddings import EmbeddingService
+    from codegaai.core.models_registry import ModelRegistry
     svc = EmbeddingService.get()
+    reg = ModelRegistry.get()
 
     chromadb_available = False
     try:
@@ -123,7 +125,46 @@ async def status() -> dict:
 
     return {
         "embedding": svc.status,
+        "embedding_downloaded": reg.is_embedding_downloaded("bge-m3"),
+        "download": reg.get_progress("bge-m3").to_dict(),
         "chromadb_installed": chromadb_available,
         "phase": "Faz 3",
         "active": chromadb_available and svc.is_ready,
     }
+
+
+@router.post("/ensure-embedding")
+async def ensure_embedding() -> dict:
+    """BGE-M3'u otomatik indir/yukle; UI manuel yukleme zorunda kalmasin."""
+    import threading
+    from codegaai.core.embeddings import EmbeddingService
+    from codegaai.core.models_registry import ModelRegistry
+
+    svc = EmbeddingService.get()
+    reg = ModelRegistry.get()
+
+    if svc.is_ready:
+        return {"state": "ready", "embedding": svc.status}
+
+    progress = reg.get_progress("bge-m3")
+    if progress.status == "downloading":
+        return {"state": "downloading", "download": progress.to_dict()}
+
+    if not reg.is_embedding_downloaded("bge-m3"):
+        reg.download_snapshot_async("bge-m3", spec_kind="embedding")
+        return {
+            "state": "downloading",
+            "download": reg.get_progress("bge-m3").to_dict(),
+        }
+
+    if svc.status.get("state") == "loading":
+        return {"state": "loading", "embedding": svc.status}
+
+    def _load() -> None:
+        try:
+            svc.load("bge-m3")
+        except Exception as exc:
+            log.warning("BGE-M3 ensure yukleme hatasi: %s", exc)
+
+    threading.Thread(target=_load, daemon=True, name="ensure-bge-m3").start()
+    return {"state": "loading", "embedding": svc.status}

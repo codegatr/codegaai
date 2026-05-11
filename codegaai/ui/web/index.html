@@ -27,7 +27,7 @@
       <div class="brand-mark">C</div>
       <div class="brand-text">
         <span class="brand-name">CODEGA AI</span>
-        <span class="brand-version" id="brand-version">v2.3.0</span>
+        <span class="brand-version" id="brand-version">v...</span>
         <button class="update-badge" id="update-badge" hidden
                 title="Yeni sürüm mevcut">
           <span id="update-badge-text">Yeni!</span>
@@ -266,6 +266,19 @@
               <button type="button" class="icon-btn" id="chat-voice-btn" title="Sesli giriş">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
               </button>
+
+              <!-- ZIP / Dosya yükleme -->
+              <button type="button" class="icon-btn" id="chat-file-btn" title="ZIP veya dosya yükle" onclick="document.getElementById('chat-file-input').click()">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+              </button>
+              <input type="file" id="chat-file-input" accept=".zip,.php,.html,.css,.js,.sql,.json,.txt,.md,.py" style="display:none">
+              <div id="chat-file-badge" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--color-accent)">
+                <span id="chat-file-name"></span>
+                <button type="button" onclick="removeChatFile()" style="border:none;background:none;cursor:pointer;color:var(--color-danger);font-size:14px">×</button>
+              </div>
+
               <button type="submit" class="btn-send" id="chat-send" title="Gönder (Enter)">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               </button>
@@ -278,8 +291,10 @@
             <span class="separator" id="elapsed-sep" style="display:none">·</span>
             <span id="rag-status-label">RAG bellek: <span class="muted">kontrol ediliyor...</span></span>
           </div>
+          <div class="chat-queue-status" id="chat-queue-status" hidden></div>
         </form>
       </div>
+
     </section>
 
     <!-- ─── Görsel ─── -->
@@ -666,7 +681,12 @@
         <div class="learn-stats-grid" id="fed-stats">
           <p class="form-hint">Yükleniyor...</p>
         </div>
-        <div style="margin-top:var(--space-3);display:flex;gap:var(--space-2)">
+        <label class="form-label" style="margin-top:var(--space-3)">
+          Koordinator
+          <input id="fed-coordinator" type="text" value="https://ai.codega.com.tr/api/federation">
+        </label>
+        <div class="form-hint" id="fed-error" style="margin-top:var(--space-2)"></div>
+        <div style="margin-top:var(--space-3);display:flex;gap:var(--space-2);flex-wrap:wrap">
           <button class="btn btn--primary" id="fed-enable-btn">Ağa Katıl</button>
           <button class="btn btn--ghost" id="fed-disable-btn" hidden>Ağdan Çık</button>
           <button class="btn btn--ghost" id="fed-sync-btn" hidden>Manuel Sync</button>
@@ -1006,6 +1026,15 @@
         <div class="models-grid" id="models-grid">
           <div class="engine-row engine-row--loading">Yükleniyor...</div>
         </div>
+      </div>
+
+      <div class="system-section system-section--full">
+        <h3>Uygulama Logları</h3>
+        <p class="system-section__hint">
+          Konsol gizli çalışır; hata, indirme ve model yükleme kayıtları burada görünür.
+        </p>
+        <div id="system-log-path" class="form-hint system-log-path">Log yolu kontrol ediliyor...</div>
+        <pre id="system-log-lines" class="system-log-lines">Loglar yükleniyor...</pre>
       </div>
     </section>
 

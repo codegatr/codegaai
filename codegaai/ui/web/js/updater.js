@@ -151,6 +151,8 @@ const Updater = (() => {
         `v${info.current_version} → v${info.latest_version}`;
       elStatus.className = "image-status";
       btnDownload.hidden = false;
+      btnApply.hidden = false;
+      btnApply.textContent = "Otomatik Uygula (indir + yeniden baslat)";
     }
   }
 
@@ -219,6 +221,96 @@ const Updater = (() => {
       elStatus.textContent = "Bağlantı kesildi — uygulama yeniden başlatılıyor olabilir.";
       elStatus.className = "image-status image-status--working";
     }
+  }
+
+  async function applyUpdateFull() {
+    if (!confirm(
+      "Uygulama yeniden baslatilacak ve guncelleme uygulanacak.\n" +
+      "Acik calismalar kaybolabilir.\n\nDevam edilsin mi?"
+    )) return;
+
+    btnApply.disabled = true;
+    btnDownload.disabled = true;
+    btnApply.textContent = "Hazirlaniyor...";
+    try {
+      let status = await fetch("/api/updater/status").then(r => r.json());
+      state.download = status;
+
+      if (status.state !== "ready") {
+        if (!state.info || !state.info.latest_version) {
+          throw new Error("Guncellenecek surum bilgisi bulunamadi.");
+        }
+        elStatus.textContent = "Guncelleme indiriliyor...";
+        elStatus.className = "image-status image-status--working";
+        modalHeading.textContent = "Indiriliyor...";
+        modalIcon.textContent = "↓";
+        elProgress.hidden = false;
+        btnApply.textContent = "Indiriliyor...";
+
+        await fetch("/api/updater/download", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({version: state.info.latest_version}),
+        }).then(r => {
+          if (!r.ok) return r.json().then(e => Promise.reject(e));
+          return r.json();
+        });
+
+        status = await waitForReady();
+        state.download = status;
+      }
+
+      btnApply.textContent = "Uygulaniyor...";
+      const r = await fetch("/api/updater/apply", {method: "POST"});
+      if (r.ok) {
+        const data = await r.json();
+        elStatus.textContent = data.message || "Yeniden baslatiliyor...";
+        elStatus.className = "image-status image-status--working";
+        modalIcon.textContent = "⚙";
+        modalHeading.textContent = "Uygulaniyor...";
+      } else {
+        throw await r.json();
+      }
+    } catch (err) {
+      const msg = err.detail || err.message || JSON.stringify(err);
+      if (String(msg).includes("Failed to fetch")) {
+        elStatus.textContent = "Baglanti kesildi - uygulama yeniden baslatiliyor olabilir.";
+        elStatus.className = "image-status image-status--working";
+      } else {
+        elStatus.textContent = "Hata: " + msg;
+        elStatus.className = "image-status image-status--err";
+        btnApply.disabled = false;
+        btnDownload.disabled = false;
+        btnApply.textContent = "Otomatik Uygula (indir + yeniden baslat)";
+      }
+    }
+  }
+
+  async function waitForReady() {
+    return new Promise((resolve, reject) => {
+      const started = Date.now();
+      const timer = setInterval(async () => {
+        try {
+          const status = await fetch("/api/updater/status").then(r => r.json());
+          state.download = status;
+          renderModal();
+
+          if (status.state === "ready") {
+            clearInterval(timer);
+            resolve(status);
+          } else if (status.state === "error") {
+            clearInterval(timer);
+            reject(new Error(status.error || "Indirme basarisiz"));
+          } else if (Date.now() - started > 15 * 60 * 1000) {
+            clearInterval(timer);
+            reject(new Error("Indirme zaman asimi"));
+          }
+        } catch (e) {
+          clearInterval(timer);
+          reject(e);
+        }
+      }, 800);
+    });
   }
 
   async function openFolder() {
@@ -300,7 +392,7 @@ const Updater = (() => {
     modalClose.addEventListener("click", closeModal);
     btnClose.addEventListener("click", closeModal);
     btnDownload.addEventListener("click", startDownload);
-    btnApply.addEventListener("click", applyUpdate);
+    btnApply.addEventListener("click", applyUpdateFull);
     btnOpenFolder.addEventListener("click", openFolder);
     btnCancel.addEventListener("click", cancelDownload);
 

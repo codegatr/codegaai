@@ -40,7 +40,7 @@ class SearchRequest(BaseModel):
 
 
 class TopicsRequest(BaseModel):
-    topics: list[str] = Field(..., min_items=1, max_items=10)
+    topics: list[str] = Field(..., min_length=1, max_length=10)
     crawl: bool = True
     store: bool = True
 

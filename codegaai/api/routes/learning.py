@@ -26,6 +26,7 @@ from codegaai.core.learning import (
     AdapterManager,
     FeedbackStore,
     TrainingEngine,
+    MIN_DPO_PAIRS,
 )
 from codegaai.utils.logger import get_logger
 
@@ -98,7 +99,7 @@ async def stats() -> dict:
 
 
 @router.get("/dataset")
-async def dataset(min_pairs: int = 4) -> dict:
+async def dataset(min_pairs: int = MIN_DPO_PAIRS) -> dict:
     """DPO tercih çiftleri önizleme."""
     store = FeedbackStore.open()
     return store.export_dpo_dataset(min_pairs=min_pairs)
@@ -170,7 +171,7 @@ async def start_training(req: TrainRequest) -> dict:
     eng = TrainingEngine.get()
     store = FeedbackStore.open()
 
-    dataset_info = store.export_dpo_dataset(min_pairs=4)
+    dataset_info = store.export_dpo_dataset(min_pairs=MIN_DPO_PAIRS)
     if not dataset_info["ready_for_training"]:
         raise HTTPException(
             409,

@@ -214,16 +214,28 @@ class ChatStore:
             finally:
                 conn.close()
 
-    def get_messages(self, chat_id: int) -> list[dict[str, Any]]:
+    def get_messages(self, chat_id: int, limit: int | None = None) -> list[dict[str, Any]]:
         with self._lock:
             conn = self._connect()
             try:
-                rows = conn.execute(
-                    """SELECT id, role, content, model, created_at
-                       FROM messages WHERE chat_id = ?
-                       ORDER BY id ASC""",
-                    (chat_id,),
-                ).fetchall()
+                if limit is not None and limit > 0:
+                    rows = conn.execute(
+                        """SELECT id, role, content, model, created_at
+                           FROM (
+                               SELECT id, role, content, model, created_at
+                               FROM messages WHERE chat_id = ?
+                               ORDER BY id DESC LIMIT ?
+                           )
+                           ORDER BY id ASC""",
+                        (chat_id, int(limit)),
+                    ).fetchall()
+                else:
+                    rows = conn.execute(
+                        """SELECT id, role, content, model, created_at
+                           FROM messages WHERE chat_id = ?
+                           ORDER BY id ASC""",
+                        (chat_id,),
+                    ).fetchall()
                 return [dict(r) for r in rows]
             finally:
                 conn.close()

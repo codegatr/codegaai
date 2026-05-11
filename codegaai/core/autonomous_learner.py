@@ -62,6 +62,13 @@ MAX_ARTICLES_PER_CYCLE = 3    # Her döngüde kaç makale
 MAX_QUEUE_SIZE = 500          # Konu kuyruğu max boyutu
 MIN_CONTENT_CHARS = 200       # Minimum içerik uzunluğu
 
+GENERIC_TOPIC_STOPLIST = {
+    "change", "changes", "update", "updates", "loading", "watch", "duplicate",
+    "query", "planning", "data", "using", "best", "new", "old", "error",
+    "errors", "issue", "issues", "problem", "problems", "example", "test",
+    "tests", "function", "class", "method", "file", "code",
+}
+
 # ============================================================
 # Başlangıç Konu Ağacı (Seed Topics)
 # ============================================================
@@ -490,6 +497,7 @@ class AutonomousLearner:
         LEARNER_DIR.mkdir(parents=True, exist_ok=True)
         self._stats = LearnerStats()
         self._topic_queue: queue.Queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
+        self._queued_topics: set[str] = set()
         self._seen_hashes: set[str] = set()
         self._knowledge_map: dict[str, list[str]] = {}  # topic → subtopics
         self._running = False
@@ -543,9 +551,7 @@ class AutonomousLearner:
                     TOPIC_QUEUE_FILE.read_text(encoding="utf-8")
                 )
                 for t in saved_topics[:200]:
-                    try:
-                        self._topic_queue.put_nowait(t)
-                    except queue.Full:
+                    if not self._enqueue_topic(t):
                         break
             log.info("Otonom öğrenme durumu yüklendi: %d makale, %d konu",
                      self._stats.total_articles, self._topic_queue.qsize())
@@ -599,28 +605,70 @@ class AutonomousLearner:
         random.shuffle(topics)
         for topic in topics:
             if topic not in self._knowledge_map:
-                try:
-                    self._topic_queue.put_nowait(topic)
-                except queue.Full:
+                if not self._enqueue_topic(topic):
                     break
+
+    def _normalize_topic(self, topic: str) -> str:
+        text = re.sub(r"\s+", " ", str(topic or "")).strip(" .,:;/-_")
+        return text[:120]
+
+    def _is_good_topic(self, topic: str) -> bool:
+        text = self._normalize_topic(topic)
+        if len(text) < 4:
+            return False
+        words = re.findall(r"[A-Za-z0-9+#.]+", text.lower())
+        if not words:
+            return False
+        if len(words) == 1 and words[0] in GENERIC_TOPIC_STOPLIST:
+            return False
+        if len(words) == 1 and len(words[0]) < 5:
+            return False
+        return True
+
+    def _enqueue_topic(self, topic: str) -> bool:
+        text = self._normalize_topic(topic)
+        key = text.lower()
+        known = {k.lower() for k in self._knowledge_map}
+        if (
+            not self._is_good_topic(text)
+            or key in self._queued_topics
+            or key in known
+        ):
+            return True
+        try:
+            self._topic_queue.put_nowait(text)
+            self._queued_topics.add(key)
+            return True
+        except queue.Full:
+            return False
 
     def _next_topic(self) -> str:
         """Sıradaki öğrenilecek konuyu seç."""
         # Önce kuyruktan
-        try:
-            return self._topic_queue.get_nowait()
-        except queue.Empty:
-            pass
+        while True:
+            try:
+                topic = self._normalize_topic(self._topic_queue.get_nowait())
+                self._queued_topics.discard(topic.lower())
+                if self._is_good_topic(topic):
+                    return topic
+                log.debug("Konu atlandı (genel/zayıf): %s", topic)
+            except queue.Empty:
+                break
 
         # Kuyruk boşsa: bilgi haritasından henüz işlenmemiş konu bul
         for topic, subtopics in self._knowledge_map.items():
             for sub in subtopics:
-                if sub not in self._knowledge_map:
+                sub = self._normalize_topic(sub)
+                if self._is_good_topic(sub) and sub not in self._knowledge_map:
                     return sub
 
         # Hâlâ boşsa: seed'leri yeniden ekle
         self._seed_queue()
-        return self._topic_queue.get(timeout=5)
+        while True:
+            topic = self._normalize_topic(self._topic_queue.get(timeout=5))
+            self._queued_topics.discard(topic.lower())
+            if self._is_good_topic(topic):
+                return topic
 
     def _expand_topic(self, topic: str, article: LearnedArticle) -> None:
         """
@@ -644,19 +692,26 @@ class AutonomousLearner:
         # LLM varsa daha akıllı genişletme
         new_subtopics.extend(self._llm_expand(topic))
 
-        # Deduplicate + kaydet
-        new_subtopics = list(set(new_subtopics))
+        # Normalize + deduplicate + kaydet
+        normalized = []
+        seen = set()
+        parent_key = topic.lower()
+        for sub in new_subtopics:
+            text = self._normalize_topic(sub)
+            key = text.lower()
+            if key and key != parent_key and key not in seen:
+                normalized.append(text)
+                seen.add(key)
+        new_subtopics = normalized
         self._knowledge_map[topic] = new_subtopics
 
         # Bilinmeyenleri kuyruğa ekle
         added = 0
         for sub in new_subtopics:
             if sub and sub not in self._knowledge_map and len(sub) > 3:
-                try:
-                    self._topic_queue.put_nowait(sub)
-                    added += 1
-                except queue.Full:
+                if not self._enqueue_topic(sub):
                     break
+                added += 1
 
         if added:
             log.debug("Konu genişleme: '%s' → %d yeni konu", topic, added)
@@ -847,6 +902,9 @@ class AutonomousLearner:
                 if not self._is_duplicate(art):
                     self._store_article(art)
                     saved += 1
+
+        if saved == 0:
+            self._knowledge_map.setdefault(topic, [])
 
         self._stats.cycles_completed += 1
         self._stats.total_topics = len(self._knowledge_map)

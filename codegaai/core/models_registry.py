@@ -155,7 +155,6 @@ LLM_MODELS: tuple[LLMModelSpec, ...] = (
     LLMModelSpec(
         id="qwen2.5-3b-instruct-q4_k_m",
         name="Qwen 2.5 3B Instruct (Q4_K_M) ⚡ CPU İçin Önerilen",
-        default=True,
         hf_repo="Qwen/Qwen2.5-3B-Instruct-GGUF",
         hf_file="qwen2.5-3b-instruct-q4_k_m.gguf",
         size_gb=2.0,
@@ -167,6 +166,7 @@ LLM_MODELS: tuple[LLMModelSpec, ...] = (
     LLMModelSpec(
         id="qwen2.5-7b-instruct-q4_k_m",
         name="Qwen 2.5 7B Instruct (Q4_K_M)",
+        default=True,
         hf_repo="bartowski/Qwen2.5-7B-Instruct-GGUF",
         hf_file="Qwen2.5-7B-Instruct-Q4_K_M.gguf",
         size_gb=4.68,
@@ -1243,6 +1243,7 @@ class ModelRegistry:
                 local_dir=str(target_dir),
                 local_dir_use_symlinks=False,
                 resume_download=True,
+                token=_hf_tok or None,
                 # max_workers: paralel parça indirme
                 max_workers=4,
             )

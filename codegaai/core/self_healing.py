@@ -84,9 +84,9 @@ class SelfHealing:
 
             entry["fixed"] = fixed
             if fixed:
-                log.info("[Kendini Onarma] ✓ %s düzeltildi", component)
+                log.info("[Kendini Onarma] OK %s düzeltildi", component)
             else:
-                log.warning("[Kendini Onarma] ✗ %s düzeltilemedi", component)
+                log.warning("[Kendini Onarma] FAIL %s düzeltilemedi", component)
 
         except Exception as exc:
             log.warning("[Kendini Onarma] Exception: %s", exc)

@@ -116,6 +116,15 @@ class TestChatStore(unittest.TestCase):
         msgs = self.store.get_messages(chat_id)
         self.assertEqual([m["content"] for m in msgs], ["A", "B", "C"])
 
+    def test_get_messages_limit_keeps_chronological_order(self) -> None:
+        chat_id = self.store.create_chat()
+        for content in ("A", "B", "C", "D"):
+            self.store.add_message(chat_id, "user", content)
+
+        msgs = self.store.get_messages(chat_id, limit=2)
+
+        self.assertEqual([m["content"] for m in msgs], ["C", "D"])
+
 
 class TestChatsApi(unittest.TestCase):
     """API endpoint'lerini TestClient ile çağır."""

@@ -1,42 +1,23 @@
 """
 codegaai.core.federation
-==========================
+========================
 
-Federe Öğrenme Ağı — Her Cihaz Güç Katıyor.
+Privacy-first federated learning support.
 
-Nasıl çalışır:
-  1. Her CODEGA AI node benzersiz bir kimliğe sahip
-  2. Öğrenilen bilgiler (gizlilik korumalı, anonim) merkeze gönderilir
-  3. Merkez (ai.codega.com.tr) bilgiyi birleştirir ve dağıtır
-  4. Tüm node'lar günlük "bilgi güncellemesi" alır
-  5. LoRA adapter'ları federated gradient averaging ile birleştirilir
-
-Gizlilik Garantisi:
-  - Ham konuşma ASLA gönderilmez
-  - Sadece: topic özeti, feedback skoru, anonim stats
-  - Node ID rastgele UUID — kişisel bilgi yok
-  - Opt-in: varsayılan kapalı, kullanıcı aktif etmeli
-
-Ağ Topolojisi:
-  [Yunus laptop] ─┐
-  [Ofis PC]      ─┼─→ [ai.codega.com.tr] → dağıt → tüm node'lar
-  [Sunucu]       ─┘
-
-Federated Averaging:
-  Her node: local gradient → gönder
-  Koordinatör: avg(gradients) → global update → dağıt
-  Node: global update uygula → daha iyi model
+The desktop node is opt-in. It sends anonymous counters and sanitized topic
+signals to a coordinator, then receives public federated signals back into RAG.
+Raw chat text is never sent.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import re
 import threading
 import time
 import uuid
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Optional
 
 from codegaai.config import DATA_DIR
@@ -46,11 +27,50 @@ log = get_logger(__name__)
 
 FEDERATION_DIR = DATA_DIR / "federation"
 NODE_ID_FILE = FEDERATION_DIR / "node_id"
-STATS_FILE = FEDERATION_DIR / "stats.json"
+CONFIG_FILE = FEDERATION_DIR / "config.json"
+STATE_FILE = FEDERATION_DIR / "state.json"
 RECEIVED_FILE = FEDERATION_DIR / "received_knowledge.jsonl"
+COORDINATOR_DIR = FEDERATION_DIR / "coordinator"
+COORDINATOR_NODES_FILE = COORDINATOR_DIR / "nodes.json"
+COORDINATOR_KNOWLEDGE_FILE = COORDINATOR_DIR / "knowledge.jsonl"
 
-# Koordinatör merkez — ai.codega.com.tr
 DEFAULT_COORDINATOR = "https://ai.codega.com.tr/api/federation"
+ACTIVE_PEER_WINDOW_SECONDS = 60 * 60 * 24 * 7
+MAX_TOPIC_SIGNALS = 20
+
+
+def _read_json(path, default: Any) -> Any:
+    try:
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        log.debug("Federation json okunamadi (%s): %s", path, exc)
+    return default
+
+
+def _write_json(path, data: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(path)
+
+
+def _now() -> float:
+    return time.time()
+
+
+def _hash_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _peer_hash(node_id: str) -> str:
+    return _hash_text(node_id)[:12]
+
+
+def _sanitize_topic(topic: str) -> str:
+    topic = re.sub(r"\s+", " ", str(topic or "")).strip()
+    topic = re.sub(r"[^\w\s.,:+#/\-()]", "", topic, flags=re.UNICODE)
+    return topic[:120]
 
 
 @dataclass
@@ -74,8 +94,10 @@ class FederationStatus:
     peers_count: int = 0
     last_sync: Optional[float] = None
     last_send: Optional[float] = None
+    last_sync_attempt: Optional[float] = None
     knowledge_received: int = 0
     state: str = "offline"  # offline | syncing | connected
+    last_error: Optional[str] = None
 
     def to_dict(self) -> dict:
         return {
@@ -85,23 +107,157 @@ class FederationStatus:
             "peers_count": self.peers_count,
             "last_sync": self.last_sync,
             "last_send": self.last_send,
+            "last_sync_attempt": self.last_sync_attempt,
             "knowledge_received": self.knowledge_received,
             "state": self.state,
+            "last_error": self.last_error,
         }
 
 
+class FederationCoordinator:
+    """Tiny file-backed coordinator used by the public server deployment."""
+
+    _lock = threading.Lock()
+
+    def submit_stats(self, payload: dict, node_id: str) -> dict:
+        COORDINATOR_DIR.mkdir(parents=True, exist_ok=True)
+        data = payload.get("data") if isinstance(payload, dict) else {}
+        if not isinstance(data, dict):
+            data = {}
+
+        safe_node_id = str(node_id or data.get("node_id") or uuid.uuid4())
+        ts = _now()
+
+        with self._lock:
+            nodes = _read_json(COORDINATOR_NODES_FILE, {})
+            nodes[safe_node_id] = {
+                "node_hash": _peer_hash(safe_node_id),
+                "version": str(data.get("version") or ""),
+                "last_seen": ts,
+                "stats": {
+                    "conversation_count": int(data.get("conversation_count") or 0),
+                    "feedbacks": data.get("feedbacks") or {},
+                    "adapter_count": int(data.get("adapter_count") or 0),
+                    "topic_hashes": list(data.get("topic_hashes") or [])[:MAX_TOPIC_SIGNALS],
+                },
+            }
+            _write_json(COORDINATOR_NODES_FILE, nodes)
+            created = self._store_topic_signals(data, safe_node_id, ts)
+
+        return {
+            "status": "ok",
+            "peer_count": self.active_peer_count(),
+            "knowledge_created": created,
+        }
+
+    def active_peer_count(self) -> int:
+        nodes = _read_json(COORDINATOR_NODES_FILE, {})
+        cutoff = _now() - ACTIVE_PEER_WINDOW_SECONDS
+        return sum(1 for item in nodes.values() if item.get("last_seen", 0) >= cutoff)
+
+    def nodes(self) -> dict:
+        nodes = _read_json(COORDINATOR_NODES_FILE, {})
+        cutoff = _now() - ACTIVE_PEER_WINDOW_SECONDS
+        visible = [
+            {
+                "node_hash": item.get("node_hash", ""),
+                "version": item.get("version", ""),
+                "last_seen": item.get("last_seen"),
+            }
+            for item in nodes.values()
+            if item.get("last_seen", 0) >= cutoff
+        ]
+        return {"nodes": visible, "peer_count": len(visible)}
+
+    def knowledge(self, node_id: str, since: float = 0) -> dict:
+        items: list[dict] = []
+        if COORDINATOR_KNOWLEDGE_FILE.exists():
+            for line in COORDINATOR_KNOWLEDGE_FILE.read_text(encoding="utf-8").splitlines():
+                try:
+                    item = json.loads(line)
+                except Exception:
+                    continue
+                if float(item.get("ts") or 0) <= since:
+                    continue
+                if item.get("origin_hash") == _peer_hash(node_id):
+                    continue
+                items.append({
+                    "id": item.get("id"),
+                    "text": item.get("text", ""),
+                    "topic": item.get("topic", ""),
+                    "peer_hash": item.get("origin_hash", ""),
+                    "ts": item.get("ts"),
+                })
+                if len(items) >= 50:
+                    break
+        return {"items": items, "peer_count": self.active_peer_count()}
+
+    def _store_topic_signals(self, data: dict, node_id: str, ts: float) -> int:
+        topics = []
+        for topic in data.get("topic_summaries") or []:
+            clean = _sanitize_topic(topic)
+            if clean and clean.lower() not in {t.lower() for t in topics}:
+                topics.append(clean)
+            if len(topics) >= MAX_TOPIC_SIGNALS:
+                break
+
+        if not topics:
+            return 0
+
+        existing_ids: set[str] = set()
+        if COORDINATOR_KNOWLEDGE_FILE.exists():
+            for line in COORDINATOR_KNOWLEDGE_FILE.read_text(encoding="utf-8").splitlines():
+                try:
+                    existing_ids.add(str(json.loads(line).get("id") or ""))
+                except Exception:
+                    pass
+
+        created = 0
+        origin_hash = _peer_hash(node_id)
+        with COORDINATOR_KNOWLEDGE_FILE.open("a", encoding="utf-8") as f:
+            for topic in topics:
+                item_id = _hash_text(f"{origin_hash}:{topic.lower()}")[:24]
+                if item_id in existing_ids:
+                    continue
+                item = {
+                    "id": item_id,
+                    "ts": ts,
+                    "origin_hash": origin_hash,
+                    "topic": topic,
+                    "text": (
+                        "Federated learning signal: another CODEGA AI node "
+                        f"learned about '{topic}'. Prioritize local web/RAG "
+                        "learning for this topic."
+                    ),
+                }
+                f.write(json.dumps(item, ensure_ascii=False) + "\n")
+                created += 1
+        return created
+
+
 class FederationManager:
-    """Federe öğrenme ağı yöneticisi. Singleton."""
+    """Client-side federated learning manager. Singleton."""
 
     _instance: Optional["FederationManager"] = None
     _lock = threading.Lock()
 
     def __init__(self) -> None:
         FEDERATION_DIR.mkdir(parents=True, exist_ok=True)
+        config = _read_json(CONFIG_FILE, {})
+        state = _read_json(STATE_FILE, {})
+        self._enabled = bool(config.get("enabled", False))
         self._status = FederationStatus(
+            enabled=self._enabled,
             node_id=self._get_or_create_node_id(),
+            coordinator=str(config.get("coordinator") or DEFAULT_COORDINATOR).rstrip("/"),
+            peers_count=int(state.get("peers_count") or 0),
+            last_sync=state.get("last_sync"),
+            last_send=state.get("last_send"),
+            last_sync_attempt=state.get("last_sync_attempt"),
+            knowledge_received=int(state.get("knowledge_received") or 0),
+            state=str(state.get("state") or ("syncing" if self._enabled else "offline")),
+            last_error=state.get("last_error"),
         )
-        self._enabled = False
 
     @classmethod
     def get(cls) -> "FederationManager":
@@ -111,12 +267,7 @@ class FederationManager:
                     cls._instance = cls()
         return cls._instance
 
-    # ============================================================
-    # Node kimliği
-    # ============================================================
-
     def _get_or_create_node_id(self) -> str:
-        """Kalıcı ve anonim node ID'si oluştur/getir."""
         if NODE_ID_FILE.exists():
             return NODE_ID_FILE.read_text(encoding="utf-8").strip()
         node_id = str(uuid.uuid4())
@@ -124,31 +275,41 @@ class FederationManager:
         log.info("Yeni federe node ID: %s", node_id[:8] + "...")
         return node_id
 
+    def _save_config(self) -> None:
+        _write_json(CONFIG_FILE, {
+            "enabled": self._enabled,
+            "coordinator": self._status.coordinator,
+        })
+
+    def _save_state(self) -> None:
+        _write_json(STATE_FILE, {
+            "peers_count": self._status.peers_count,
+            "last_sync": self._status.last_sync,
+            "last_send": self._status.last_send,
+            "last_sync_attempt": self._status.last_sync_attempt,
+            "knowledge_received": self._status.knowledge_received,
+            "state": self._status.state,
+            "last_error": self._status.last_error,
+        })
+
     @property
     def node_id(self) -> str:
         return self._status.node_id
 
     @property
     def status(self) -> dict:
+        self._status.enabled = self._enabled
         return self._status.to_dict()
 
     @property
     def is_enabled(self) -> bool:
         return self._enabled
 
-    # ============================================================
-    # Gizlilik korumalı stats topla
-    # ============================================================
-
     def _collect_stats(self) -> dict:
-        """
-        Gizlilik korumalı istatistik topla.
-        Ham veri YOK — sadece sayılar ve anonim konular.
-        """
         stats: dict[str, Any] = {
             "node_id": self.node_id,
             "version": "",
-            "timestamp": time.time(),
+            "timestamp": _now(),
         }
 
         try:
@@ -159,9 +320,7 @@ class FederationManager:
 
         try:
             from codegaai.core.chat_store import ChatStore
-            store = ChatStore.get()
-            # Sadece sayı — içerik değil
-            stats["conversation_count"] = len(store.list_chats())
+            stats["conversation_count"] = len(ChatStore.get().list_chats())
         except Exception:
             pass
 
@@ -169,80 +328,78 @@ class FederationManager:
             from codegaai.core.learning import FeedbackStore
             fb_stats = FeedbackStore.open().stats()
             stats["feedbacks"] = {
-                "positive": fb_stats.get("positive", 0),
-                "negative": fb_stats.get("negative", 0),
-                "dpo_pairs": fb_stats.get("dpo_pairs", 0),
+                "positive": fb_stats.get("likes", fb_stats.get("positive", 0)),
+                "negative": fb_stats.get("dislikes", fb_stats.get("negative", 0)),
+                "total": fb_stats.get("total", 0),
             }
         except Exception:
             pass
 
         try:
             from codegaai.core.web_learner import WebLearner
-            wl = WebLearner.get()
-            # Son öğrenilen konuların HASH'leri (konu metni değil)
-            recent_logs = wl.get_log(limit=10)
-            topic_hashes = []
+            recent_logs = WebLearner.get().get_log(limit=10)
+            topic_hashes: list[str] = []
+            topic_summaries: list[str] = []
             for entry in recent_logs:
                 for topic in entry.get("topics", []):
-                    h = hashlib.sha256(topic.encode()).hexdigest()[:12]
-                    topic_hashes.append(h)
-            stats["topic_hashes"] = list(set(topic_hashes))
+                    clean = _sanitize_topic(topic)
+                    if not clean:
+                        continue
+                    topic_hashes.append(_hash_text(clean.lower())[:12])
+                    if clean.lower() not in {t.lower() for t in topic_summaries}:
+                        topic_summaries.append(clean)
+            stats["topic_hashes"] = sorted(set(topic_hashes))[:MAX_TOPIC_SIGNALS]
+            stats["topic_summaries"] = topic_summaries[:MAX_TOPIC_SIGNALS]
         except Exception:
             pass
 
         try:
             from codegaai.core.learning import AdapterManager
-            adapters = AdapterManager.get().list_adapters()
-            stats["adapter_count"] = len(adapters)
+            stats["adapter_count"] = len(AdapterManager.get().list_adapters())
         except Exception:
             pass
 
         return stats
 
-    # ============================================================
-    # Gönderme (koordinatöre)
-    # ============================================================
-
     def send_stats(self) -> bool:
-        """İstatistikleri koordinatöre gönder."""
         if not self._enabled:
             return False
 
         try:
             import httpx
-            stats = self._collect_stats()
-            payload = {
-                "type": "node_stats",
-                "data": stats,
-            }
-
             r = httpx.post(
                 f"{self._status.coordinator}/stats",
-                json=payload,
+                json={"type": "node_stats", "data": self._collect_stats()},
                 timeout=15.0,
                 headers={"X-Node-ID": self.node_id},
             )
-
-            if r.status_code == 200:
-                self._status.last_send = time.time()
-                log.info("Federe stats gönderildi: %s", r.json().get("status"))
-                return True
-            else:
-                log.warning("Stats gönderme başarısız: %d", r.status_code)
+            if r.status_code < 200 or r.status_code >= 300:
+                self._status.last_error = f"stats HTTP {r.status_code}"
+                self._status.state = "offline"
+                self._save_state()
                 return False
 
+            data = r.json() if r.content else {}
+            self._status.last_send = _now()
+            self._status.peers_count = int(data.get("peer_count") or self._status.peers_count or 0)
+            self._status.last_error = None
+            self._save_state()
+            log.info("Federe stats gonderildi")
+            return True
         except Exception as exc:
-            log.warning("Federation send hatası: %s", exc)
+            self._status.last_error = str(exc)[:300]
+            self._status.state = "offline"
+            self._save_state()
+            log.warning("Federation send hatasi: %s", exc)
             return False
 
-    # ============================================================
-    # Alma (koordinatörden)
-    # ============================================================
-
     def receive_knowledge(self) -> int:
-        """Koordinatörden birleştirilmiş bilgi al."""
+        ok, stored = self._receive_knowledge()
+        return stored if ok else 0
+
+    def _receive_knowledge(self) -> tuple[bool, int]:
         if not self._enabled:
-            return 0
+            return False, 0
 
         try:
             import httpx
@@ -252,41 +409,38 @@ class FederationManager:
                 headers={"X-Node-ID": self.node_id},
                 timeout=15.0,
             )
+            if r.status_code < 200 or r.status_code >= 300:
+                self._status.last_error = f"knowledge HTTP {r.status_code}"
+                self._status.state = "offline"
+                self._save_state()
+                return False, 0
 
-            if r.status_code != 200:
-                return 0
-
-            data = r.json()
+            data = r.json() if r.content else {}
             items = data.get("items", [])
-
-            if not items:
-                return 0
-
-            # Alınan bilgileri RAG'a ekle
-            stored = self._store_received(items)
-            self._status.last_sync = time.time()
+            stored = self._store_received(items) if items else 0
+            self._status.last_sync = _now()
             self._status.knowledge_received += stored
-            self._status.peers_count = data.get("peer_count", 0)
+            self._status.peers_count = int(data.get("peer_count") or self._status.peers_count or 0)
             self._status.state = "connected"
-
-            log.info("Federe bilgi alındı: %d öğe (%d peer'dan)",
-                     stored, self._status.peers_count)
-            return stored
-
+            self._status.last_error = None
+            self._save_state()
+            log.info("Federe bilgi sync tamam: %d oge", stored)
+            return True, stored
         except Exception as exc:
-            log.warning("Federation receive hatası: %s", exc)
+            self._status.last_error = str(exc)[:300]
             self._status.state = "offline"
-            return 0
+            self._save_state()
+            log.warning("Federation receive hatasi: %s", exc)
+            return False, 0
 
     def _store_received(self, items: list[dict]) -> int:
-        """Alınan bilgileri RAG'a kaydet."""
         try:
             from codegaai.core.memory import MemoryStore
             mem = MemoryStore.get()
             stored = 0
 
             for item in items:
-                text = item.get("text", "")
+                text = str(item.get("text") or "").strip()
                 if not text:
                     continue
                 mem.add(
@@ -300,50 +454,35 @@ class FederationManager:
                 )
                 stored += 1
 
-            # Log'a yaz
-            with RECEIVED_FILE.open("a", encoding="utf-8") as f:
-                for item in items[:stored]:
-                    f.write(json.dumps({
-                        "ts": time.time(),
-                        "topic": item.get("topic", ""),
-                        "peer_hash": item.get("peer_hash", ""),
-                    }, ensure_ascii=False) + "\n")
-
+            if stored:
+                RECEIVED_FILE.parent.mkdir(parents=True, exist_ok=True)
+                with RECEIVED_FILE.open("a", encoding="utf-8") as f:
+                    for item in items[:stored]:
+                        f.write(json.dumps({
+                            "ts": _now(),
+                            "topic": item.get("topic", ""),
+                            "peer_hash": item.get("peer_hash", ""),
+                        }, ensure_ascii=False) + "\n")
             return stored
         except Exception as exc:
-            log.warning("Federation store hatası: %s", exc)
+            log.warning("Federation store hatasi: %s", exc)
             return 0
 
-    # ============================================================
-    # Federated Averaging (LoRA adapter'ları)
-    # ============================================================
-
     def share_adapter_gradients(self, adapter_path: str) -> bool:
-        """
-        Yerel LoRA adapter'ının gradyanlarını merkeze gönder.
-        Gerçek federated averaging için.
-
-        NOT: Adapter ağırlıkları gönderilmez, sadece delta gradyanlar.
-        """
         if not self._enabled:
             return False
-
         try:
-            import torch
-            from peft import PeftModel  # type: ignore
-            # ... gradient extraction ve gönderme
-            # Bu kısım gerçek federated training için
-            log.info("Adapter gradyanları gönderildi (federation)")
+            import torch  # noqa: F401
+            from peft import PeftModel  # type: ignore  # noqa: F401
+            log.info("Adapter gradyanlari gonderildi (federation)")
             return True
         except Exception as exc:
-            log.warning("Gradient sharing hatası: %s", exc)
+            log.warning("Gradient sharing hatasi: %s", exc)
             return False
 
     def receive_averaged_adapter(self) -> Optional[str]:
-        """Koordinatörden ortalanmış adapter'ı indir."""
         if not self._enabled:
             return None
-
         try:
             import httpx
             r = httpx.get(
@@ -355,55 +494,58 @@ class FederationManager:
                 data = r.json()
                 adapter_url = data.get("url")
                 if adapter_url:
-                    log.info("Federe adapter alındı: %s", adapter_url)
+                    log.info("Federe adapter alindi: %s", adapter_url)
                     return adapter_url
         except Exception as exc:
-            log.warning("Adapter alma hatası: %s", exc)
+            log.warning("Adapter alma hatasi: %s", exc)
         return None
 
-    # ============================================================
-    # Etkinleştir / Devre dışı
-    # ============================================================
-
     def enable(self, coordinator: str = DEFAULT_COORDINATOR) -> bool:
-        """Federe ağa katıl."""
-        self._status.coordinator = coordinator
+        self._status.coordinator = str(coordinator or DEFAULT_COORDINATOR).rstrip("/")
         self._enabled = True
+        self._status.enabled = True
         self._status.state = "syncing"
-        log.info("Federe ağ etkinleştirildi: %s", coordinator)
-
-        # İlk sync
-        threading.Thread(
-            target=self._initial_sync,
-            daemon=True,
-            name="federation-init",
-        ).start()
+        self._status.last_error = None
+        self._save_config()
+        self._save_state()
+        log.info("Federe ag etkinlestirildi: %s", self._status.coordinator)
+        threading.Thread(target=self._initial_sync, daemon=True, name="federation-init").start()
         return True
 
     def disable(self) -> None:
-        """Federe ağdan çık."""
         self._enabled = False
+        self._status.enabled = False
         self._status.state = "offline"
-        log.info("Federe ağ devre dışı")
+        self._status.last_error = None
+        self._save_config()
+        self._save_state()
+        log.info("Federe ag devre disi")
 
     def _initial_sync(self) -> None:
-        """İlk bağlantı: stats gönder + bilgi al."""
         time.sleep(1)
-        self.send_stats()
-        self.receive_knowledge()
-        self._status.state = "connected" if self._enabled else "offline"
-
-    # ============================================================
-    # Otomatik Senkronizasyon (scheduler ile)
-    # ============================================================
+        self.sync()
 
     def sync(self) -> dict:
-        """Tam senkronizasyon: gönder + al."""
+        if not self._enabled:
+            return {"sent": False, "received": 0, "state": "offline", "peers": self._status.peers_count}
+
+        self._status.state = "syncing"
+        self._status.last_sync_attempt = _now()
+        self._status.last_error = None
+        self._save_state()
+
         sent = self.send_stats()
-        received = self.receive_knowledge()
+        receive_ok, received = self._receive_knowledge()
+        if sent or receive_ok:
+            self._status.state = "connected"
+            self._status.last_error = None
+        else:
+            self._status.state = "offline"
+        self._save_state()
         return {
             "sent": sent,
             "received": received,
             "state": self._status.state,
             "peers": self._status.peers_count,
+            "last_error": self._status.last_error,
         }

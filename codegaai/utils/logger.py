@@ -69,14 +69,18 @@ def _setup_root_logger() -> None:
         except Exception:
             pass
 
-        console_handler: logging.Handler = logging.StreamHandler(sys.stderr)
-        console_handler.setLevel(level)
-        console_handler.setFormatter(
-            logging.Formatter(
-                "[%(asctime)s] %(levelname)-8s %(message)s",
-                datefmt="%H:%M:%S",
+        stream = getattr(sys, "stderr", None)
+        if stream is None:
+            console_handler = logging.NullHandler()
+        else:
+            console_handler = logging.StreamHandler(stream)
+            console_handler.setFormatter(
+                logging.Formatter(
+                    "[%(asctime)s] %(levelname)-8s %(message)s",
+                    datefmt="%H:%M:%S",
+                )
             )
-        )
+        console_handler.setLevel(level)
     elif _HAS_RICH:
         console_handler = RichHandler(
             level=level,

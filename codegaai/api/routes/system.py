@@ -8,9 +8,11 @@ from fastapi import APIRouter
 
 from codegaai import __version__, __phase__
 from codegaai.config import get_config
+from codegaai.utils.logger import get_logger
 from codegaai.utils.system_check import run_all_checks
 
 router = APIRouter()
+log = get_logger(__name__)
 
 
 @router.get("/info")
@@ -217,6 +219,28 @@ async def engines() -> dict[str, Any]:
         }
 
 
+@router.get("/logs")
+async def logs(limit: int = 80) -> dict[str, Any]:
+    """Son uygulama loglarını UI'da göstermek için döndür."""
+    from codegaai.config import LOGS_DIR, get_config
+
+    log_cfg = get_config().get("logging", {})
+    log_name = str(log_cfg.get("file", "codegaai.log")).split("/")[-1].split("\\")[-1]
+    path = LOGS_DIR / log_name
+    if not path.exists():
+        return {"path": str(path), "lines": [], "exists": False}
+
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        return {
+            "path": str(path),
+            "lines": lines[-max(1, min(limit, 300)):],
+            "exists": True,
+        }
+    except Exception as exc:
+        return {"path": str(path), "lines": [f"Log okunamadı: {exc}"], "exists": True}
+
+
 # ============================================================
 # Disk ve Model Dizini Yönetimi
 # ============================================================
@@ -320,6 +344,7 @@ async def set_models_dir(body: dict) -> dict:
         return {"error": f"Dizin oluşturulamadı: {exc}"}
 
     # Config dosyasına yaz
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     cfg_file = DATA_DIR / "codegaai_config.json"
     cfg = {}
     if cfg_file.exists():
@@ -383,6 +408,7 @@ async def save_hf_token(body: dict) -> dict:
 
     token = body.get("token", "").strip()
 
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     cfg_file = DATA_DIR / "codegaai_config.json"
     cfg = {}
     if cfg_file.exists():
@@ -395,7 +421,7 @@ async def save_hf_token(body: dict) -> dict:
         cfg["hf_token"] = token
         import os
         os.environ["HF_TOKEN"] = token
-        log.info("HuggingFace token kaydedildi ✓")
+        log.info("HuggingFace token kaydedildi")
     else:
         cfg.pop("hf_token", None)
         import os

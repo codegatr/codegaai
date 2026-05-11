@@ -38,6 +38,7 @@ log = get_logger(__name__)
 LEARNING_DIR = DATA_DIR / "learning"
 ADAPTERS_DIR = DATA_DIR / "adapters"
 FEEDBACK_DB = LEARNING_DIR / "feedback.db"
+MIN_DPO_PAIRS = 100
 
 
 # ============================================================
@@ -182,7 +183,7 @@ class FeedbackStore:
                 "chats_with_feedback": int(row["chats"] or 0),
             }
 
-    def export_dpo_dataset(self, min_pairs: int = 10) -> dict[str, Any]:
+    def export_dpo_dataset(self, min_pairs: int = MIN_DPO_PAIRS) -> dict[str, Any]:
         """
         DPO için tercih çiftleri üret.
 
@@ -477,10 +478,10 @@ class TrainingEngine:
                 f"pip install peft trl bitsandbytes datasets"
             )
 
-        if len(pairs) < 4:
+        if len(pairs) < MIN_DPO_PAIRS:
             raise RuntimeError(
-                f"En az 4 tercih çifti gerekli (mevcut: {len(pairs)}). "
-                f"Daha fazla 👍/👎 topladıktan sonra deneyin."
+                f"Güvenli DPO eğitimi için en az {MIN_DPO_PAIRS} tercih çifti gerekli "
+                f"(mevcut: {len(pairs)}). Daha fazla kaliteli 👍/👎 topladıktan sonra deneyin."
             )
 
         job_id = f"dpo-{int(time.time())}-{uuid.uuid4().hex[:6]}"
@@ -547,7 +548,7 @@ class TrainingEngine:
                 log.info("Gerçek DPO training başlıyor: %s pairs, %s epochs",
                          len(pairs), epochs)
                 adapter_id = self._run_real_training(
-                    pairs, adapter_name, base_model_id, epochs, batch_size,
+                    pairs, adapter_name, base_model_id, epochs, batch_size=1,
                 )
             else:
                 # Bağımlılık eksik → feedback'i kaydet, eğitim atla

@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Demirhan
 Lisans: MIT
 """
 
-__version__ = "2.3.0"
-__phase__ = "v1.5.0 - v1.7.0 - v1.8.0 - v1.9.0 - Kurulum Sihirbazi + Disk Fix + Yol Haritasi: Vision + OCR + Video Analiz"
+__version__ = "3.0.0"
+__phase__ = "v3.0.0 - ZIP Upload/Download + PHP Proje Uretici + GitHub Push + AgentBrain"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

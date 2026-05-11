@@ -30,8 +30,9 @@ from codegaai.utils.logger import get_logger
 
 log = get_logger(__name__)
 
-# Token tahmin: ortalama 4 karakter = 1 token
-CHARS_PER_TOKEN = 4
+# Token tahmin: Türkçe metinde 4 char/token çoğu zaman iyimser kalır.
+# Tokenizer yüklenemediğinde güvenli tarafta kalmak için 3 char/token kullanılır.
+CHARS_PER_TOKEN = 3
 MAX_CONTEXT_TOKENS = 28_000   # 32K limitinin altında güvenli alan
 SUMMARY_THRESHOLD_TOKENS = 20_000  # Bu aşılınca özetle
 KEEP_FIRST = 2    # İlk N mesajı her zaman koru (sistem bağlamı)
@@ -39,7 +40,21 @@ KEEP_LAST = 10    # Son N mesajı her zaman koru (aktif konuşma)
 
 
 def estimate_tokens(text: str) -> int:
-    return len(text) // CHARS_PER_TOKEN
+    if not text:
+        return 0
+    try:
+        from codegaai.core.engine import LLMEngine
+        model_id = LLMEngine.get().status.get("model_id")
+        if model_id:
+            from codegaai.core.models_registry import ModelRegistry
+            spec = ModelRegistry.get().get_llm_spec(model_id)
+            if spec and getattr(spec, "hf_repo", None):
+                from transformers import AutoTokenizer  # type: ignore
+                tok = AutoTokenizer.from_pretrained(spec.hf_repo)
+                return len(tok.encode(text))
+    except Exception:
+        pass
+    return max(1, len(text) // CHARS_PER_TOKEN)
 
 
 def estimate_messages_tokens(messages: list[dict]) -> int:

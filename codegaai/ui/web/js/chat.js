@@ -8,9 +8,10 @@ const Chat = (() => {
     chatTitle: "Yeni sohbet",
     messages: [],
     sending: false,
+    queue: [],
   };
 
-  let elInput, elMessages, elForm, elSend, elTitle, elDelete, elRename;
+  let elInput, elMessages, elForm, elSend, elTitle, elDelete, elRename, elQueueStatus;
 
   // ---------- DOM yardımcıları ----------
 
@@ -234,6 +235,53 @@ const Chat = (() => {
     });
   }
 
+  function isNearBottom() {
+    if (!elMessages) return true;
+    return elMessages.scrollHeight - elMessages.scrollTop - elMessages.clientHeight < 96;
+  }
+
+  function keepBottomIfNeeded(wasNearBottom) {
+    if (!wasNearBottom) return;
+    requestAnimationFrame(() => {
+      elMessages.scrollTop = elMessages.scrollHeight;
+    });
+  }
+
+  function updateQueueStatus() {
+    if (!elQueueStatus) return;
+    const count = state.queue.length;
+    if (!state.sending && count === 0) {
+      elQueueStatus.hidden = true;
+      elQueueStatus.textContent = "";
+      if (elSend) elSend.title = "Gonder (Enter)";
+      return;
+    }
+
+    elQueueStatus.hidden = false;
+    const firstQueued = count > 0 ? state.queue[0] : null;
+    const firstText = firstQueued ? (firstQueued.text || "[gorsel]") : "";
+    const next = count > 0 ? ` Siradaki: "${firstText.slice(0, 80)}${firstText.length > 80 ? "..." : ""}"` : "";
+    elQueueStatus.textContent = count > 0
+      ? `Cevap uretiliyor. ${count} mesaj sirada.${next}`
+      : "Cevap uretiliyor. Yeni mesaj yazip Enter'a basarsan siraya eklenir.";
+    if (elSend) elSend.title = state.sending ? "Siraya ekle (Enter)" : "Gonder (Enter)";
+  }
+
+  function enqueue(payload) {
+    state.queue.push(payload);
+    updateQueueStatus();
+  }
+
+  function processNextQueued() {
+    if (state.sending || state.queue.length === 0) {
+      updateQueueStatus();
+      return;
+    }
+    const next = state.queue.shift();
+    updateQueueStatus();
+    send(next);
+  }
+
   function updateHeader() {
     if (elTitle) elTitle.textContent = state.chatTitle || "Yeni sohbet";
     const hasChat = state.chatId !== null;
@@ -244,6 +292,7 @@ const Chat = (() => {
   // ---------- Sohbet yükleme/yönetimi ----------
 
   function loadChat(chatData, messages) {
+    if (!state.sending) state.queue = [];
     state.chatId = chatData.id;
     state.chatTitle = chatData.title || "Yeni sohbet";
     state.messages = (messages || []).map((m) => ({
@@ -254,6 +303,7 @@ const Chat = (() => {
       rating: 0,
     }));
     renderAll();
+    updateQueueStatus();
 
     // Faz 7: bu sohbete ait feedback'leri yükle
     loadFeedbackForChat();
@@ -286,27 +336,96 @@ const Chat = (() => {
   }
 
   function clearActive() {
+    if (!state.sending) state.queue = [];
     state.chatId = null;
     state.chatTitle = "Yeni sohbet";
     state.messages = [];
     renderAll();
+    updateQueueStatus();
   }
 
   // ---------- Gönder ----------
 
-  async function send(text) {
-    text = String(text || "").trim();
-    if (!text || state.sending) return;
+  function getAttachedImage() {
+    return window._chatAttachedImage || null;
+  }
+
+  function clearAttachedImage() {
+    window._chatAttachedImage = null;
+    const previewDiv = document.getElementById("chat-image-preview");
+    const imgInput = document.getElementById("chat-image-input");
+    const thumb = document.getElementById("chat-image-thumb");
+    if (previewDiv) previewDiv.style.display = "none";
+    if (imgInput) imgInput.value = "";
+    if (thumb) thumb.removeAttribute("src");
+  }
+
+  function makePayload(input) {
+    if (input && typeof input === "object" && "text" in input) {
+      return {
+        text: String(input.text || "").trim(),
+        image: input.image || null,
+      };
+    }
+    const image = getAttachedImage();
+    let text = String(input || "").trim();
+    if (!text && image) text = "Bu gorseli analiz eder misin?";
+    return { text, image };
+  }
+
+  async function analyzeAttachedImage(file, question) {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("question", question || "Bu gorselde ne var? Detayli anlat.");
+    form.append("max_tokens", "512");
+    form.append("auto_load", "true");
+
+    const resp = await fetch("/api/vision/analyze", {
+      method: "POST",
+      body: form,
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      const msg = data.detail || data.error || `HTTP ${resp.status}`;
+      throw new Error(`Gorsel analizi basarisiz: ${msg}`);
+    }
+    if (!data.answer) {
+      throw new Error("Gorsel analizi bos yanit dondu");
+    }
+
+    return [
+      "## Ekli Gorsel Analizi",
+      `Dosya: ${file.name || "gorsel"}`,
+      `Soru: ${question || "Bu gorselde ne var? Detayli anlat."}`,
+      `Model: ${data.model || "vision"}`,
+      "",
+      data.answer,
+    ].join("\n");
+  }
+
+  async function send(input) {
+    const payload = makePayload(input);
+    if (!payload.text && !payload.image) return;
+    if (state.sending) {
+      enqueue(payload);
+      elInput.value = "";
+      autoResize();
+      clearAttachedImage();
+      elInput.focus();
+      return;
+    }
 
     state.sending = true;
-    elSend.disabled = true;
+    if (elSend) elSend.disabled = false;
+    updateQueueStatus();
 
     // Aktif sohbet yoksa, otomatik yeni oluştur
     if (state.chatId === null) {
       const newChat = await Chats.createNew();
       if (!newChat) {
         state.sending = false;
-        elSend.disabled = false;
+        if (elSend) elSend.disabled = false;
+        updateQueueStatus();
         return;
       }
       state.chatId = newChat.id;
@@ -315,16 +434,40 @@ const Chat = (() => {
       renderAll();
     }
 
+    let text = payload.text;
+    if (payload.image) {
+      text = [
+        text,
+        "",
+        `[Ekli gorsel: ${payload.image.name || "gorsel"}]`,
+        "Gorsel analizi hazirlaniyor...",
+      ].join("\n");
+    }
+
     const userMsg = { role: "user", content: text };
     state.messages.push(userMsg);
     appendMessage(userMsg);
 
     elInput.value = "";
     autoResize();
+    clearAttachedImage();
     showTyping();
 
     // Job polling ile gönder (SSE yerine — PyWebView'da güvenilir)
     try {
+      if (payload.image) {
+        const visionContext = await analyzeAttachedImage(payload.image, payload.text);
+        text = [
+          payload.text,
+          "",
+          `[Ekli gorsel: ${payload.image.name || "gorsel"}]`,
+          "",
+          visionContext,
+        ].join("\n").trim();
+        userMsg.content = text;
+        renderAll();
+        showTyping();
+      }
       await sendWithPolling(text);
     } catch (err) {
       hideTyping();
@@ -334,8 +477,10 @@ const Chat = (() => {
       });
     } finally {
       state.sending = false;
-      elSend.disabled = false;
+      if (elSend) elSend.disabled = false;
+      updateQueueStatus();
       elInput.focus();
+      processNextQueued();
     }
   }
 
@@ -363,6 +508,7 @@ const Chat = (() => {
     if (!jobId) throw new Error("İş başlatılamadı");
 
     hideTyping();
+    _pendingFileContext = ''; window.removeChatFile && window.removeChatFile();
 
     // Poll — her 300ms job durumunu sorgula
     return new Promise((resolve, reject) => {
@@ -377,12 +523,13 @@ const Chat = (() => {
 
           // Yeni token'lar varsa göster
           if (d.content && d.content.length > lastLen) {
+            const shouldStick = isNearBottom();
             lastLen = d.content.length;
             assistantMsg.content = d.content;
             if (contentEl) {
               contentEl.innerHTML = renderMarkdown(d.content) +
                 (d.done ? "" : '<span class="stream-cursor">▊</span>');
-              contentEl.scrollIntoView({ block: "end", behavior: "smooth" });
+              keepBottomIfNeeded(shouldStick);
             }
           }
 
@@ -456,9 +603,10 @@ const Chat = (() => {
             accumulated += data.content;
             assistantMsg.content = accumulated;
             if (contentEl) {
+              const shouldStick = isNearBottom();
               contentEl.innerHTML = renderMarkdown(accumulated) +
                 '<span class="stream-cursor">▊</span>';
-              contentEl.scrollIntoView({ block: "end", behavior: "smooth" });
+              keepBottomIfNeeded(shouldStick);
             }
 
           } else if (data.type === "tool_result") {
@@ -597,6 +745,7 @@ const Chat = (() => {
     elTitle = document.getElementById("chat-title");
     elDelete = document.getElementById("chat-delete");
     elRename = document.getElementById("chat-rename");
+    elQueueStatus = document.getElementById("chat-queue-status");
 
     if (!elInput || !elMessages || !elForm) return;
 
@@ -621,6 +770,14 @@ const Chat = (() => {
         if (ragLbl) {
           if (memD.active) {
             ragLbl.innerHTML = 'RAG bellek: <span style="color:var(--color-success)">✓ aktif</span>';
+          } else if (memD.download?.status === "downloading") {
+            const pct = Math.round(memD.download.percent || 0);
+            ragLbl.innerHTML = `RAG bellek: <span class="muted">BGE-M3 indiriliyor %${pct}</span>`;
+          } else if (memD.embedding?.state === "loading") {
+            ragLbl.innerHTML = 'RAG bellek: <span class="muted">embedding yükleniyor...</span>';
+          } else if (!memD.embedding_downloaded && memD.chromadb_installed) {
+            ragLbl.innerHTML = 'RAG bellek: <span class="muted">BGE-M3 otomatik hazırlanıyor...</span>';
+            fetch("/api/memory/ensure-embedding", { method: "POST" }).catch(() => {});
           } else if (memD.chromadb_installed) {
             ragLbl.innerHTML = 'RAG bellek: <span class="muted">embedding yüklenmedi</span> '
               + '<button style="font-size:11px;padding:1px 6px;border:1px solid var(--color-border);'
@@ -690,6 +847,7 @@ const Chat = (() => {
 
     autoResize();
     updateHeader();
+    updateQueueStatus();
   }
 
   return { init, send, rename, deleteCurrent };
@@ -702,7 +860,7 @@ window.loadEmbedding = async function() {
   const ragLbl = document.getElementById("rag-status-label");
   if (ragLbl) ragLbl.innerHTML = 'RAG bellek: <span class="muted">BGE-M3 yükleniyor...</span>';
   try {
-    await fetch("/api/models/bge-m3/load", { method: "POST" });
+    await fetch("/api/memory/ensure-embedding", { method: "POST" });
     setTimeout(async () => {
       const r = await fetch("/api/memory/status");
       const d = await r.json();
@@ -714,5 +872,72 @@ window.loadEmbedding = async function() {
     }, 3000);
   } catch(e) {
     if (ragLbl) ragLbl.innerHTML = 'RAG bellek: <span class="muted">hata: ' + e.message + '</span>';
+  }
+};
+
+// ── Dosya Yükleme ────────────────────────────────────────────────────────
+let _pendingFileContext = "";
+let _pendingFileId = "";
+
+(function() {
+  const inp = document.getElementById("chat-file-input");
+  if (!inp) return;
+  inp.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const badge = document.getElementById("chat-file-badge");
+    const nameEl = document.getElementById("chat-file-name");
+    if (nameEl) nameEl.textContent = "⏳ " + file.name;
+    if (badge) badge.style.display = "flex";
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await fetch("/api/files/upload", { method: "POST", body: fd });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      _pendingFileContext = d.context || "";
+      _pendingFileId = d.file_id || "";
+      if (nameEl) nameEl.textContent = "📎 " + d.filename + " (" + d.size_kb + " KB)";
+      // Kutuya mesaj yaz
+      const ta = document.getElementById("chat-input") || document.querySelector(".chat-input textarea");
+      if (ta && !ta.value) ta.value = d.filename + " dosyasını analiz et";
+    } catch(err) {
+      if (nameEl) nameEl.textContent = "❌ " + err.message;
+      _pendingFileContext = "";
+    }
+    inp.value = "";
+  });
+})();
+
+window.removeChatFile = function() {
+  _pendingFileContext = "";
+  _pendingFileId = "";
+  const b = document.getElementById("chat-file-badge");
+  if (b) b.style.display = "none";
+};
+
+// ── ZIP İndirme (cevaptaki kodları paketle) ───────────────────────────────
+window.packAndDownload = async function(text, projectName) {
+  const btn = document.getElementById("pack-btn-" + (projectName || ""));
+  if (btn) { btn.disabled = true; btn.textContent = "📦 Hazırlanıyor..."; }
+  try {
+    const r = await fetch("/api/files/pack", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, project_name: projectName || "codega_project" })
+    });
+    const d = await r.json();
+    if (d.error) { alert("❌ " + d.error); return; }
+    // Otomatik indir
+    const a = document.createElement("a");
+    a.href = d.download_url;
+    a.download = d.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    if (btn) { btn.textContent = "✅ " + d.filename + " (" + d.file_count + " dosya)"; }
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = "📦 ZIP İndir"; }
+    alert("Hata: " + e.message);
   }
 };

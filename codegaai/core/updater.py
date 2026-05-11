@@ -409,6 +409,7 @@ echo =============================================
 echo   Surum  : {version}
 echo   Kaynak : {new_dir}
 echo   Hedef  : {install_dir}
+echo   PID    : {pid}
 echo   Log    : {log_file}
 echo.
 
@@ -426,10 +427,12 @@ set /a WAITED=0
 :wait_loop
 timeout /t 1 /nobreak > nul
 set /a WAITED+=1
-tasklist /FI "IMAGENAME eq codegaai.exe" 2>nul | find /I "codegaai.exe" > nul
+tasklist /FI "PID eq {pid}" 2>nul | find "{pid}" > nul
 if not errorlevel 1 (
     if !WAITED! LSS 15 goto wait_loop
-    echo Surecin kapanmasi bekleniyor... (zorla devam)
+    echo Surec hala acik, PID kapatiliyor...
+    taskkill /PID {pid} /F > nul 2>> "{log_file}"
+    timeout /t 2 /nobreak > nul
 ) else (
     echo Surecin kapandigi dogrulandi (%WAITED%s)
 )
@@ -459,12 +462,12 @@ echo Kopyalama tamamlandi.
 
 REM Yeni surumu baslat
 echo Yeni surum baslatiliyor...
-if exist "{install_dir}\codegaai.exe" (
-    start "" "{install_dir}\codegaai.exe"
+if exist "{install_dir}\{exe_name}" (
+    start "" "{install_dir}\{exe_name}"
     echo %date% %time% - Yeni surum baslatildi >> "{log_file}"
 ) else (
-    echo HATA: codegaai.exe bulunamadi: {install_dir}
-    echo HATA: codegaai.exe bulunamadi >> "{log_file}"
+    echo HATA: {exe_name} bulunamadi: {install_dir}
+    echo HATA: {exe_name} bulunamadi >> "{log_file}"
 )
 
 REM Temizlik
@@ -535,6 +538,8 @@ echo %date% %time% - Guncelleme tamamlandi >> "{log_file}"
                 install_dir=str(install_dir),
                 new_dir=str(effective_new_dir),
                 log_file=str(log_file),
+                pid=os.getpid(),
+                exe_name=Path(sys.executable).name,
             ),
             encoding="utf-8",  # UTF-8 (chcp 65001 aktif)
         )

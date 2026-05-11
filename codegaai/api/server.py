@@ -210,9 +210,11 @@ def create_app() -> FastAPI:
     from codegaai.api.routes import autolearn as autolearn_routes
     from codegaai.api.routes import setup as setup_routes
     from codegaai.api.routes import jobs as jobs_routes
+    from codegaai.api.routes import files as files_routes
     app.include_router(autolearn_routes.router, prefix="/api/autolearn", tags=["autolearn"])
     app.include_router(setup_routes.router, prefix="/api/setup", tags=["setup"])
     app.include_router(jobs_routes.router, prefix="/api/jobs", tags=["jobs"])
+    app.include_router(files_routes.router, prefix="/api/files", tags=["files"])
 
     # Setup.html — ilk kurulum sayfası
     from fastapi.responses import FileResponse
@@ -249,6 +251,33 @@ def create_app() -> FastAPI:
 
         threading.Thread(target=_start_auto_learn, daemon=True,
                          name="auto-learn-starter").start()
+
+        def _start_web_learning():
+            import time
+            learning_cfg = get_config().get("learning", {})
+            if not learning_cfg.get("enabled", True):
+                log.info("Açılış internet öğrenmesi: learning.enabled=false, atlandı")
+                return
+            if not learning_cfg.get("auto_web_learn_on_startup", True):
+                log.info("Açılış internet öğrenmesi devre dışı")
+                return
+
+            delay = int(learning_cfg.get("startup_web_learn_delay_seconds", 20) or 20)
+            time.sleep(max(0, delay))
+            try:
+                from codegaai.core.web_learner import WebLearner
+                learner = WebLearner.get()
+                if learner.status.get("state") != "idle":
+                    log.info("Açılış internet öğrenmesi: başka öğrenme aktif, atlandı")
+                    return
+                learner.learn_async(feeds=True)
+                log.info("Açılış internet öğrenmesi başlatıldı (RSS/feed)")
+            except Exception as exc:
+                log.warning("Açılış internet öğrenmesi başlatılamadı: %s", exc)
+
+        threading.Thread(target=_start_web_learning, daemon=True,
+                         name="startup-web-learner").start()
+
         cfg = get_config()
         server_cfg = cfg.get("server", {})
         if server_cfg.get("auto_load_model", True):
@@ -304,6 +333,25 @@ def create_app() -> FastAPI:
                                     log.info("BGE-M3 yüklendi ✓")
                                 except Exception as emb_err:
                                     log.warning("BGE-M3 yüklenemedi: %s", emb_err)
+                            elif server_cfg.get("auto_download_embedding", True):
+                                log.info("BGE-M3 indirilmemis - otomatik indirme baslatiliyor")
+                                try:
+                                    thread = reg.download_snapshot_async(
+                                        "bge-m3", spec_kind="embedding",
+                                    )
+                                    thread.join()
+                                    progress = reg.get_progress("bge-m3")
+                                    if progress.status == "completed":
+                                        log.info("BGE-M3 indirildi, bellege yukleniyor")
+                                        emb.load("bge-m3")
+                                        log.info("BGE-M3 yuklendi")
+                                    else:
+                                        log.warning(
+                                            "BGE-M3 otomatik indirme tamamlanamadi: %s %s",
+                                            progress.status, progress.error or "",
+                                        )
+                                except Exception as emb_err:
+                                    log.warning("BGE-M3 otomatik hazirlanamadi: %s", emb_err)
                             else:
                                 log.info("BGE-M3 indirilmemiş — RAG devre dışı")
                                 log.info("Sistem → Bellek → BGE-M3 İndir adımını takip edin")
