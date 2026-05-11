@@ -55,8 +55,8 @@
 | 41 | Mobil Erişim | ✅ App | ✅ App | ✅ App | ❌ | ✅ App | ✅ App | ✅ QR+PWA |
 | **FİYAT** |
 | 42 | Ücretsiz Tier | 🟡 GPT-3.5 | 🟡 Sınırlı | 🟡 Sınırlı | ❌ | 🟡 | 🟡 | ✅ Tam |
-| 43 | Ücretli Plan | $20/ay | $20/ay | $20/ay | Kurumsal | $30/ay | $30/ay | **$0** |
-| 44 | API Maliyeti | $0.01/1K | $0.001/1K | $0.015/1K | $0.02/1K | Yok | $0.01/1K | **$0** |
+| 43 | Ücretli Plan | $20/ay | $20/ay | $20/ay | Kurumsal | $30/ay | $30/ay | ✅ $0 |
+| 44 | API Maliyeti | $0.01/1K | $0.001/1K | $0.015/1K | $0.02/1K | Yok | $0.01/1K | ✅ $0 |
 
 ---
 
@@ -70,7 +70,7 @@
 | CODEX | 28/44 | ❌ Bulut | Kurumsal |
 | Grok | 26/44 | ❌ Bulut | $30/ay |
 | Copilot | 30/44 | ❌ Bulut | $30/ay |
-| **CODEGA AI** | **42/44** | ✅ **Tam Yerel** | **$0** |
+| **CODEGA AI** | **44/44** | ✅ **Tam Yerel** | ✅ $0 |
 
 ---
 
