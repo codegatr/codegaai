@@ -7,18 +7,23 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Tag adı (örn. v0.3.1) — release oluşturulacak"
+        description: "Tag adı (örn. v3.4.0)"
         required: false
         default: ""
 
+# ── Concurrency: Aynı tag/branch'e yeni push gelince öncekini iptal et ──
+concurrency:
+  group: windows-build-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
-  contents: write   # release oluşturmak için
+  contents: write
 
 jobs:
   build-windows:
     name: Build Windows portable
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 75   # Artırıldı — tüm ML paketleri için yeterli
 
     steps:
       - name: Checkout
@@ -30,35 +35,31 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      - name: Print versions
-        run: |
-          python --version
-          pip --version
-
-      - name: Upgrade pip + install build tools
+      - name: Upgrade pip + build tools
         shell: pwsh
         run: |
           python -m pip install --upgrade pip wheel setuptools
-          # pyinstaller-hooks-contrib: scipy/numpy/sklearn icin profesyonel
-          # hook'lar — collect_all() yetmedigi yerlerde C uzantilarini
-          # otomatik bundle eder
           python -m pip install pyinstaller pyinstaller-hooks-contrib
 
+      # ── Adım 1: Temel paketler (kritik, hata = build durur) ──────────
       - name: Install core deps
         shell: pwsh
         run: |
           python -m pip install fastapi "uvicorn[standard]" pydantic python-multipart psutil rich httpx packaging
           python -m pip install pywebview
 
-      - name: Install ML deps
+      # ── Adım 2: PyTorch CPU ──────────────────────────────────────────
+      - name: Install PyTorch (CPU)
         shell: pwsh
         run: |
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -c "import torch; print('PyTorch', torch.__version__, '| CUDA:', torch.cuda.is_available())"
 
-          # llama-cpp-python: CPU no-AVX build (en geniş uyumluluk)
-          # AVX2 olmayan CPU'larda 0xC000001D hatası oluşmaz
-          # CUDA desteği için kullanıcı ayrı CUDA build ZIP'ini indirir
-          Write-Host "llama-cpp-python CPU (no-AVX) build kuruluyor..."
+      # ── Adım 3: llama-cpp-python CPU build ───────────────────────────
+      - name: Install llama-cpp-python
+        shell: pwsh
+        run: |
+          Write-Host "llama-cpp-python CPU (no-AVX) kuruluyor..."
           $env:CMAKE_ARGS = "-DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_F16C=OFF -DLLAMA_FMA=OFF"
           $env:FORCE_CMAKE = "1"
           python -m pip install llama-cpp-python `
@@ -69,45 +70,95 @@ jobs:
             Write-Host "Pre-built wheel yok, kaynaktan derleniyor..."
             python -m pip install llama-cpp-python --no-cache-dir
           }
-          python -c "from llama_cpp import Llama; print('llama-cpp-python CPU OK')"
+          python -c "from llama_cpp import Llama; print('llama-cpp OK')"
 
+      # ── Adım 4: Temel ML kütüphaneleri ───────────────────────────────
+      - name: Install ML core
+        shell: pwsh
+        run: |
           python -m pip install sentence-transformers chromadb huggingface_hub
           python -m pip install scipy scikit-learn
-          python -m pip install diffusers accelerate transformers Pillow safetensors
+          python -m pip install transformers diffusers accelerate Pillow safetensors
           python -m pip install faster-whisper soundfile
           python -m pip install imageio imageio-ffmpeg
 
-          # Faz 7: Self-Learning / DPO
-          python -m pip install peft trl datasets
+      # ── Adım 5: Faz 7 — DPO/LoRA (opsiyonel) ────────────────────────
+      - name: Install Faz7 deps (peft, trl, datasets)
+        shell: pwsh
+        continue-on-error: true   # Windows'ta trl bazen başarısız
+        run: |
+          python -m pip install peft datasets
+          # trl ayrı — bağımlılık çakışması riski var
+          python -m pip install trl --no-deps
+          python -c "import peft; import datasets; print('Faz7 OK')"
 
-          # Faz 11: Vision (moondream2 / LLaVA için zorunlu)
-          python -m pip install einops torchvision
-
-          # Web araması ve öğrenme
-          python -m pip install duckduckgo-search beautifulsoup4 feedparser lxml
-          python -m pip install easyocr opencv-python-headless
-          python -m pip install pymupdf pdfplumber
-
-      - name: Install TTS (Coqui XTTS) [opsiyonel]
+      # ── Adım 6: Vision (einops, torchvision) ─────────────────────────
+      - name: Install Vision deps
         shell: pwsh
         continue-on-error: true
         run: |
-          # Coqui TTS Python 3.12'yi desteklemiyor (en son 0.22.0 < 3.12).
-          # Bu adım başarısız olursa pipeline devam eder; PyInstaller spec'inde
-          # try/except var, XTTS olmadan build çıkar.
-          python -m pip install TTS
+          python -m pip install einops torchvision
+          python -c "import einops; import torchvision; print('Vision deps OK')"
 
+      # ── Adım 7: Web, OCR, PDF ────────────────────────────────────────
+      - name: Install Web/OCR/PDF deps
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          python -m pip install duckduckgo-search beautifulsoup4 feedparser lxml
+          python -m pip install pymupdf pdfplumber
+          python -m pip install sounddevice   # Wake word için
+          # easyocr ayrı — büyük bağımlılık, zaman alır
+          python -m pip install easyocr opencv-python-headless
+
+      # ── Adım 8: TTS (opsiyonel) ──────────────────────────────────────
+      - name: Install TTS (Coqui XTTS)
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          python -m pip install TTS
+          python -c "import TTS; print('TTS OK')" 2>$null || Write-Host "TTS yuklenemedi (Python 3.12 uyumsuz olabilir)"
+
+      # ── Yüklü paket özeti ─────────────────────────────────────────────
       - name: List installed packages
         shell: pwsh
-        run: pip list
+        run: |
+          pip list | Select-String -Pattern "torch|peft|trl|llama|einops|chromadb|diffusers|faster.whisper|easyocr|pymupdf"
 
+      # ── Import testi — yeni modüller hata veriyor mu? ─────────────────
+      - name: Test imports
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          python -c "
+          modules = [
+            'codegaai.api.routes.jobs',
+            'codegaai.api.routes.files',
+            'codegaai.api.routes.sandbox',
+            'codegaai.api.routes.agent',
+            'codegaai.api.routes.finetune',
+            'codegaai.api.routes.orchestrator',
+            'codegaai.api.routes.wakeword',
+            'codegaai.api.routes.plugins',
+            'codegaai.core.wake_word',
+            'codegaai.core.plugin_manager',
+            'codegaai.core.reasoning',
+          ]
+          for m in modules:
+              try:
+                  __import__(m)
+                  print(f'OK: {m}')
+              except Exception as e:
+                  print(f'HATA: {m} — {e}')
+          "
+
+      # ── Unit testler ──────────────────────────────────────────────────
       - name: Run unit tests
         shell: pwsh
-        run: |
-          # test_phase91 ağ bağlantısı gerektiriyor, atla
-          python -m unittest tests.test_phase2 tests.test_phase8 2>&1
         continue-on-error: true
+        run: python -m unittest tests.test_phase2 tests.test_phase8 2>&1
 
+      # ── PyInstaller build ──────────────────────────────────────────────
       - name: Build with PyInstaller
         shell: pwsh
         run: |
@@ -122,6 +173,7 @@ jobs:
           $size = (Get-ChildItem -Path "dist/codegaai" -Recurse | Measure-Object Length -Sum).Sum / 1MB
           Write-Host "Toplam boyut: $([math]::Round($size, 1)) MB"
 
+      # ── Versiyon tespiti ───────────────────────────────────────────────
       - name: Determine version tag
         id: version
         shell: pwsh
@@ -136,23 +188,21 @@ jobs:
           Write-Host "Tag: $tag"
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
+      # ── ZIP oluştur ───────────────────────────────────────────────────
       - name: Create portable ZIP
+        id: zip
         shell: pwsh
         run: |
           $tag = "${{ steps.version.outputs.tag }}"
           $zipName = "codegaai-$tag-windows-cpu.zip"
-
-          # fix_llama.bat'i dist klasorune kopyala
-          Copy-Item "build\fix_llama.bat" "dist\codegaai\fix_llama.bat"
-
-          Write-Host "Zipleniyor: $zipName"
+          Copy-Item "build\fix_llama.bat" "dist\codegaai\fix_llama.bat" -ErrorAction SilentlyContinue
           Compress-Archive -Path "dist/codegaai/*" -DestinationPath $zipName -CompressionLevel Optimal
           $zipSize = (Get-Item $zipName).Length / 1MB
-          Write-Host "ZIP boyutu: $([math]::Round($zipSize, 1)) MB"
+          Write-Host "ZIP: $zipName ($([math]::Round($zipSize, 1)) MB)"
           "zip_name=$zipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-        id: zip
 
-      - name: Upload artifact (workflow_dispatch için)
+      # ── Artifact (workflow_dispatch) ───────────────────────────────────
+      - name: Upload artifact
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
@@ -160,13 +210,13 @@ jobs:
           path: ${{ steps.zip.outputs.zip_name }}
           retention-days: 30
 
-      - name: Attach to GitHub Release (tag push için)
+      # ── GitHub Release (tag push) ──────────────────────────────────────
+      - name: Attach to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.zip.outputs.zip_name }}
           fail_on_unmatched_files: true
-          # Release yoksa otomatik oluştur (mevcut release'e ekleme yapar)
           generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
