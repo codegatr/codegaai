@@ -87,6 +87,24 @@ for pkg in ("scipy", "sklearn", "numpy", "sentence_transformers"):
     datas += _d
     binaries += _b
 
+# torchgen: torch.utils._python_dispatch tarafından import ediliyor
+# excludes listesine KOYMAYINIZ — runtime crash yapar
+try:
+    import torchgen as _tg
+    import os as _os
+    _tg_dir = _os.path.dirname(_tg.__file__)
+    _tg_parent = _os.path.dirname(_tg_dir)
+    print(f"[ok] torchgen manuel bundle: {_tg_dir}")
+    for _root, _dirs, _files in _os.walk(_tg_dir):
+        _dirs[:] = [d for d in _dirs if d != "__pycache__"]
+        for _fname in _files:
+            if not _fname.endswith(".pyc"):
+                _src = _os.path.join(_root, _fname)
+                _rel = _os.path.relpath(_root, _tg_parent)
+                datas.append((_src, _rel))
+except Exception as _e:
+    print(f"[uyarı] torchgen bundle atlandı: {_e}")
+
 # ---- uvicorn lazy-loaded modülleri ----
 hiddenimports += [
     "uvicorn.logging",
@@ -97,6 +115,9 @@ hiddenimports += [
     "uvicorn.protocols.websockets", "uvicorn.protocols.websockets.auto",
     "uvicorn.protocols.websockets.wsproto_impl",
     "uvicorn.lifespan", "uvicorn.lifespan.on", "uvicorn.lifespan.off",
+    # torch runtime bağımlılıkları — EXCLUDE EDİLMEMELİ
+    "torchgen",
+    "functorch",
 ]
 
 # ---- CODEGA AI — TÜM routes ve core modülleri -------------------------
@@ -252,11 +273,8 @@ a = Analysis(
         "IPython", "jupyter", "notebook", "pytest", "tkinter",
         "matplotlib.tests", "numpy.tests", "torch.test",
         "transformers.testing_utils",
-        # sentence_transformers çakışma önlemi
-        "sentence_transformers.cross_encoder.evaluation",
-        # Büyük torch bileşenleri — kullanılmıyor
-        "torch.distributed", "torch.testing",
-        "torchgen", "functorch",
+        # torchgen ve functorch ÇIKARILMADI — torch runtime'da ihtiyaç duyuyor
+        # "torchgen", "functorch",  ← BU SATIRLAR YANLIŞ, KALDIRILDI
     ],
     noarchive=False,   # True yapılırsa .pyc dosyaları ayrı tutulur (debug için)
 )

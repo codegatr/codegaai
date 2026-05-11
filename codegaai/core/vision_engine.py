@@ -193,34 +193,41 @@ class VisionEngine:
             kwargs["device_map"] = "auto"
 
         if spec.id == "moondream2":
-            # moondream2: pyvips gerektirmeyen kararlı revision
-            # 2024-08-26 revision'ı pyvips bağımlılığı içermiyor
-            MOONDREAM_REVISION = "2024-08-26"
-            try:
-                self._model = AutoModelForCausalLM.from_pretrained(
-                    spec.hf_repo,
-                    revision=MOONDREAM_REVISION,
-                    **kwargs,
-                ).eval()
-                self._tokenizer = AutoTokenizer.from_pretrained(
-                    spec.hf_repo,
-                    revision=MOONDREAM_REVISION,
-                    cache_dir=cache_dir,
-                )
-            except Exception as e:
-                # Revision başarısız → pyvips'siz en son deneme
-                log.warning("moondream2 revision %s başarısız: %s, "
-                            "pyvips olmadan denenecek", MOONDREAM_REVISION, e)
-                # pyvips import'unu engelle
-                import sys
-                sys.modules["pyvips"] = type(sys)("pyvips_stub")
-                self._model = AutoModelForCausalLM.from_pretrained(
-                    spec.hf_repo, **kwargs,
-                ).eval()
-                self._tokenizer = AutoTokenizer.from_pretrained(
-                    spec.hf_repo, cache_dir=cache_dir,
-                )
-            self._processor = None
+            # moondream2 revision'ları — yeniden eskiye doğru dene
+            REVISIONS = [
+                "2024-08-26",   # stabil, pyvips gerektirmiyor
+                "2024-07-23",   # daha eski, transformers uyumlu
+                None,           # en son (revision yok)
+            ]
+            loaded = False
+            for rev in REVISIONS:
+                try:
+                    rev_str = rev or "latest"
+                    log.info("moondream2 yükleniyor (revision=%s)", rev_str)
+                    kw = dict(kwargs)
+                    if rev:
+                        kw["revision"] = rev
+                    # all_tied_weights_keys uyumsuzluğu için low_cpu_mem_usage kaldır
+                    kw.pop("low_cpu_mem_usage", None)
+                    self._model = AutoModelForCausalLM.from_pretrained(
+                        spec.hf_repo,
+                        low_cpu_mem_usage=False,   # all_tied_weights_keys crash'ini önler
+                        **kw,
+                    ).eval()
+                    self._tokenizer = AutoTokenizer.from_pretrained(
+                        spec.hf_repo,
+                        revision=rev,
+                        cache_dir=cache_dir,
+                    )
+                    self._processor = None
+                    loaded = True
+                    log.info("moondream2 hazır (revision=%s)", rev_str)
+                    break
+                except Exception as e:
+                    log.warning("moondream2 revision=%s başarısız: %s", rev or "latest", e)
+
+            if not loaded:
+                raise RuntimeError("moondream2 yüklenemedi, tüm revision'lar denendi")
 
         elif "Qwen2-VL" in spec.hf_repo:
             from transformers import Qwen2VLForConditionalGeneration, AutoProcessor  # type: ignore
