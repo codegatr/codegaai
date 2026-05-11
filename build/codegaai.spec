@@ -13,7 +13,7 @@ Windows için tek-klasörlü (--onedir) bir dağıtım üretir.
 Stratejı:
 - Tek klasör (--onedir) modu, --onefile değil — onefile her açılışta
   Temp'e açıyor, ML kütüphaneleri büyük olduğundan başlatma yavaş kalır.
-- Konsol açık (debug için ilk sürümde). Sonra --windowed'a geçeriz.
+- Windows'ta konsol gizli; loglar dosyaya yazılır.
 - PyWebView platform binary'leri ve llama-cpp DLL'leri elle toplanır.
 - Veri dizini frozen modda %LOCALAPPDATA%\\CODEGA AI\\data'ya gider
   (config.py içinde otomatik).
@@ -234,7 +234,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=True,         # İlk sürümde konsol görünür (hata teşhisi için)
+    console=False,        # Kullanıcıda ikinci DOS penceresi açılmasın
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
