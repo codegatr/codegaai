@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "3.6.4"
-__phase__ = "v3.6.4 - NoAVX CPU Build + GPU Tespiti"
+__version__ = "3.6.5"
+__phase__ = "v3.6.5 - Sistem UI Timeout Dayanikliligi"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

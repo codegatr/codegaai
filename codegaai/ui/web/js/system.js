@@ -9,15 +9,27 @@ const System = (() => {
   function el(id) { return document.getElementById(id); }
   function setText(id, v) { const e=el(id); if(e) e.textContent=v; }
 
-  async function get(path) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 8000);
-    try {
-      const r = await fetch(path, {signal: ctrl.signal});
-      clearTimeout(t);
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return await r.json();
-    } catch(e) { clearTimeout(t); throw e; }
+  async function get(path, timeoutMs = 45000) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        reject(new Error("Sunucu hazirlaniyor; yanit gecikti. Biraz sonra Yenile."));
+      }, timeoutMs);
+    });
+    const request = fetch(path)
+      .then(r => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .catch(e => {
+        const msg = String(e?.message || e || "");
+        if (e?.name === "AbortError" || msg.includes("signal is aborted")) {
+          throw new Error("Sunucu hazirlaniyor; istek zaman asimina ugradi.");
+        }
+        throw e;
+      })
+      .finally(() => clearTimeout(timer));
+    return Promise.race([request, timeout]);
   }
 
   async function post(path, body) {

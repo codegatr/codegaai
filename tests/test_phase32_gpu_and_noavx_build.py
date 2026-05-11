@@ -44,6 +44,14 @@ class TestGpuAndNoAvxBuild(unittest.TestCase):
         self.assertIn("no-AVX Windows paketini kurun", engine_py)
         self.assertNotIn("--prefer-binary", startup_py)
 
+    def test_system_page_does_not_abort_startup_requests(self) -> None:
+        system_js = (ROOT / "codegaai" / "ui" / "web" / "js" / "system.js").read_text(encoding="utf-8")
+
+        self.assertIn("timeoutMs = 45000", system_js)
+        self.assertIn("Promise.race", system_js)
+        self.assertIn("Sunucu hazirlaniyor", system_js)
+        self.assertNotIn("ctrl.abort()", system_js)
+
 
 if __name__ == "__main__":
     unittest.main()
