@@ -99,11 +99,20 @@ class TestAgentBrain(unittest.TestCase):
         self.assertIn("_looks_like_model_refusal", src)
         self.assertIn("Teslim guard", src)
         self.assertIn("run_action_first", src)
-        self.assertIn("is_delivery_request(job.message)", src)
+        self.assertIn("_build_action_request", src)
+        self.assertIn("is_delivery_request(action_request)", src)
+        self.assertIn("run_action_first(action_request", src)
 
         orchestrator_src = Path("codegaai/core/action_orchestrator.py").read_text(encoding="utf-8")
         self.assertIn("create_php_project_zip", orchestrator_src)
         self.assertIn("Calisma ozeti", orchestrator_src)
+
+    def test_followup_design_request_uses_previous_delivery_context(self) -> None:
+        src = Path("codegaai/api/routes/jobs.py").read_text(encoding="utf-8")
+
+        self.assertIn("history[-8:]", src)
+        self.assertIn("user_lines[-4:]", src)
+        self.assertIn("action_request = _build_action_request(history, job.message)", src)
 
 
 if __name__ == "__main__":

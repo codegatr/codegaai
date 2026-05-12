@@ -200,6 +200,21 @@ def _build_recent_focus(history: list[dict], latest: str) -> str:
     )
 
 
+def _build_action_request(history: list[dict], latest: str) -> str:
+    """Combine recent user intent with short follow-ups like 'now do it'."""
+    user_lines = []
+    for item in history[-8:]:
+        if item.get("role") != "user":
+            continue
+        content = re.sub(r"\s+", " ", str(item.get("content", ""))).strip()
+        if content:
+            user_lines.append(content[:1000])
+    latest_clean = re.sub(r"\s+", " ", str(latest or "")).strip()
+    if latest_clean:
+        user_lines.append(latest_clean[:1000])
+    return "\n".join(user_lines[-4:])
+
+
 async def _maybe_web_search(message: str) -> str:
     if not _needs_web_search(message):
         return ""
@@ -343,11 +358,12 @@ async def _run_chat_job(job: ChatJob) -> None:
             except Exception:
                 pass
 
+        action_request = _build_action_request(history, job.message)
         decision = decide_response(job.message, history=history)
         job.set_progress(f"Niyet algilandi: {decision.intent}")
 
-        if "generate_project" in decision.needs_tools or is_delivery_request(job.message):
-            outcome = await run_action_first(job.message, job.set_progress, _maybe_web_search)
+        if "generate_project" in decision.needs_tools or is_delivery_request(action_request):
+            outcome = await run_action_first(action_request, job.set_progress, _maybe_web_search)
             if outcome.handled:
                 job.content = outcome.content
                 if job.chat_id:
@@ -513,10 +529,10 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
         if not job.content.strip():
             with job._lock:
                 job.content = _fallback_empty_response(job.message, decision.intent)
-        if is_delivery_request(job.message) and is_model_escape(job.content):
+        if is_delivery_request(action_request) and is_model_escape(job.content):
             try:
                 outcome = await run_action_first(
-                    job.message,
+                    action_request,
                     lambda message: job.set_progress(f"Teslim guard: {message}"),
                     _maybe_web_search,
                     rescued=True,
