@@ -56,6 +56,16 @@ class TestAgentBrain(unittest.TestCase):
         self.assertIn("generate_project", decision.needs_tools)
         self.assertFalse(decision.should_stream)
 
+    def test_action_orchestrator_catches_delivery_and_model_escape(self) -> None:
+        from codegaai.core.action_orchestrator import is_delivery_request, is_model_escape
+
+        self.assertTrue(is_delivery_request(
+            "Araç Kiralama firması için PHP 8.3 veritabanlı sistemi oluştur ve ZIP olarak ver."
+        ))
+        self.assertTrue(is_model_escape(
+            "Üzgünüm, sistemimde bir ZIP dosyası oluşturamadım. Bunun yerine stratejik plan sunabilirim."
+        ))
+
     def test_url_reference_site_request_selects_generation_tool(self) -> None:
         from codegaai.core.agent_brain import decide_response
 
@@ -82,13 +92,18 @@ class TestAgentBrain(unittest.TestCase):
         self.assertIn("decide_response", src)
         self.assertIn("decision.should_stream", src)
         self.assertIn("engine.generate(messages, cfg=cfg, use_tools=True)", src)
-        self.assertIn("create_php_project_zip", src)
         self.assertIn("ZIP'i indir", src)
         self.assertIn("progress_log", src)
         self.assertIn("set_progress", src)
         self.assertIn("_looks_like_delivery_request", src)
         self.assertIn("_looks_like_model_refusal", src)
         self.assertIn("Teslim guard", src)
+        self.assertIn("run_action_first", src)
+        self.assertIn("is_delivery_request(job.message)", src)
+
+        orchestrator_src = Path("codegaai/core/action_orchestrator.py").read_text(encoding="utf-8")
+        self.assertIn("create_php_project_zip", orchestrator_src)
+        self.assertIn("Calisma ozeti", orchestrator_src)
 
 
 if __name__ == "__main__":
