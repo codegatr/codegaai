@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "3.8.1"
-__phase__ = "v3.8.1 - Codex-Style Autonomous Actions"
+__version__ = "3.8.2"
+__phase__ = "v3.8.2 - Visible Agent Progress"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

@@ -195,9 +195,17 @@ class ChatJob:
         self.status = "pending"
         self.content = ""
         self.error = ""
+        self.progress = "Is siraya alindi"
+        self.progress_log: list[str] = []
         self.started_at = time.time()
         self.finished_at: Optional[float] = None
         self._lock = threading.Lock()
+
+    def set_progress(self, message: str) -> None:
+        with self._lock:
+            self.progress = message
+            self.progress_log.append(message)
+            self.progress_log = self.progress_log[-8:]
 
     def append(self, token: str) -> None:
         with self._lock:
@@ -217,6 +225,8 @@ class ChatJob:
                 "status": self.status,
                 "content": self.content,
                 "thought": self.thought,    # Derin düşünme içeriği
+                "progress": self.progress,
+                "progress_log": list(self.progress_log),
                 "message_id": self.message_id,
                 "error": self.error,
                 "done": self.status in ("done", "error"),
@@ -244,6 +254,7 @@ def _get_job(job_id: str) -> Optional[ChatJob]:
 
 async def _run_chat_job(job: ChatJob) -> None:
     job.status = "running"
+    job.set_progress("Talimat analiz ediliyor")
     try:
         from codegaai.core.engine import LLMEngine, GenerationConfig
         from codegaai.core.system_prompt import build_system_prompt
@@ -262,17 +273,21 @@ async def _run_chat_job(job: ChatJob) -> None:
                 pass
 
         decision = decide_response(job.message, history=history)
+        job.set_progress(f"Niyet algilandi: {decision.intent}")
 
         if "generate_project" in decision.needs_tools:
             from codegaai.api.routes.files import create_php_project_zip
 
             source_context = ""
-            if re.search(r"https?://", job.message):
+            if re.search(r"https?://|\b[\w.-]+\.(?:com|net|org|com\.tr|tr)\b", job.message, re.IGNORECASE):
                 try:
+                    job.set_progress("Referans web sayfasi inceleniyor")
                     source_context = await _maybe_web_search(job.message)
                 except Exception as exc:
                     log.debug("Proje kaynak URL incelemesi atlandi: %s", exc)
+                    job.set_progress("Referans sayfa okunamadi, yerel sablonla devam ediliyor")
             project_name, db_name = _project_meta_from_message(job.message)
+            job.set_progress("PHP 8.3 + veritabani dosyalari uretiliyor")
             result = create_php_project_zip(
                 job.message,
                 project_name=project_name,
@@ -280,6 +295,7 @@ async def _run_chat_job(job: ChatJob) -> None:
                 php_version="8.3",
                 source_context=source_context,
             )
+            job.set_progress("ZIP paketi hazirlandi")
             files = ", ".join(f"`{f}`" for f in result.get("files", [])[:8])
             source_line = "\n- Kaynak sayfa incelendi ve tasarim/fonksiyon yapisi projeye uyarlandi." if source_context else ""
             job.content = (
@@ -303,17 +319,20 @@ async def _run_chat_job(job: ChatJob) -> None:
             return
 
         try:
+            job.set_progress("Uygun model seciliyor")
             from codegaai.core.model_router import ModelRouter
             from codegaai.core.models_registry import ModelRegistry
 
             router = ModelRouter.get()
             target_model = router.select_model(job.message, history=history)
             if target_model:
+                job.set_progress(f"Model hazirlaniyor: {target_model}")
                 router.switch_model_if_needed(target_model)
             elif not engine.is_ready:
                 registry = ModelRegistry.get()
                 for model in registry.list_llm_models():
                     if registry.is_llm_downloaded(model["id"]):
+                        job.set_progress(f"Model yukleniyor: {model['id']}")
                         engine.load(model["id"])
                         break
         except Exception as exc:
@@ -327,6 +346,7 @@ async def _run_chat_job(job: ChatJob) -> None:
         plugin_result = ""
         # Plugin eşleşmesi — hava/hesap/takvim vb.
         try:
+            job.set_progress("Pluginler kontrol ediliyor")
             from codegaai.core.plugin_manager import PluginManager
             pm = PluginManager.get()
             match = pm.match_command(job.message)
@@ -338,12 +358,14 @@ async def _run_chat_job(job: ChatJob) -> None:
             pass
         try:
             if decision.needs_web:
+                job.set_progress("Web aramasi yapiliyor")
                 web_context = await _maybe_web_search(job.message)
         except Exception:
             pass
 
         rag_text = ""
         try:
+            job.set_progress("Bellek/RAG taraniyor")
             from codegaai.core.memory import MemoryStore
             from codegaai.core.embeddings import EmbeddingService
             if EmbeddingService.get().is_ready:
@@ -381,6 +403,7 @@ async def _run_chat_job(job: ChatJob) -> None:
 
         # ── Derin Düşünme (o1/o3 modu) ───────────────────────────────
         if job.deep_think:
+            job.set_progress("Derin dusunme ile cevap uretiliyor")
             think_prompt = system_prompt + """
 
 ## Derin Düşünme Modu AKTİF
@@ -428,9 +451,11 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
         if not job.deep_think:  # deep_think zaten yukarıda üretildi
             cfg = GenerationConfig(max_tokens=job.max_tokens, temperature=0.55)
             if decision.should_stream:
+                job.set_progress("Cevap akisi basladi")
                 for token in engine.stream(messages, cfg=cfg):
                     job.append(token)
             else:
+                job.set_progress("Aracli cevap uretiliyor")
                 result = engine.generate(messages, cfg=cfg, use_tools=True)
                 job.append(result.get("content", ""))
 
@@ -445,6 +470,7 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
         if not job.content.strip():
             with job._lock:
                 job.content = _fallback_empty_response(job.message, decision.intent)
+        job.set_progress("Cevap tamamlandi")
 
         if job.chat_id and job.content:
             try:

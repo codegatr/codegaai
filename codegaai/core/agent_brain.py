@@ -48,6 +48,8 @@ class AgentBrain:
     ]
     _PROJECT_GENERATION_PATTERNS = [
         r"https?://.*\b(incele|analiz et|benzer|hazirla|hazırla|olustur|oluştur|yap|uret|üret)\b",
+        r"\b[\w.-]+\.(com|net|org|com\.tr|tr)\b.*\b(incele|analiz et|benzer|hazirla|hazırla|olustur|oluştur|yap|uret|üret)\b",
+        r"\b(incele|analiz et)\b.*\b(benzer|web sayfasi|web sayfası|site|hazirla|hazırla|olustur|oluştur|yap)\b",
         r"\b(proje|web sitesi|web sayfasi|web sayfası|website|site|sistem|uygulama)\b.*\b(olustur|oluştur|yap|hazirla|hazırla|uret|üret)\b",
         r"\b(olustur|oluştur|yap|hazirla|hazırla|uret|üret)\b.*\b(proje|web sitesi|web sayfasi|web sayfası|website|site|sistem|uygulama)\b",
         r"\b(zip|dosyalari|dosyaları|veritabani|veritabanı|schema|sql)\b.*\b(ver|hazirla|hazırla|olustur|oluştur)\b",

@@ -72,6 +72,8 @@ class TestAgentBrain(unittest.TestCase):
         self.assertIn("engine.generate(messages, cfg=cfg, use_tools=True)", src)
         self.assertIn("create_php_project_zip", src)
         self.assertIn("ZIP'i indir", src)
+        self.assertIn("progress_log", src)
+        self.assertIn("set_progress", src)
 
 
 if __name__ == "__main__":

@@ -51,6 +51,17 @@ const Chat = (() => {
     return `<p>${html}</p>`;
   }
 
+  function renderAgentProgress(progress, log) {
+    const list = Array.isArray(log) ? log : [];
+    if (!progress && list.length === 0) return "";
+    const current = progress || list[list.length - 1] || "Hazirlaniyor";
+    const items = list.map(x => `<li>${escapeHTML(x)}</li>`).join("");
+    return `<div class="agent-progress">
+      <div class="agent-progress__head"><span class="agent-progress__dot"></span>${escapeHTML(current)}</div>
+      ${items ? `<ul>${items}</ul>` : ""}
+    </div>`;
+  }
+
   // ---------- Render ----------
 
   function renderMessage(msg) {
@@ -61,7 +72,7 @@ const Chat = (() => {
         el("div", { class: "message__role" }, isUser ? "Sen" : "CODEGA AI"),
         el("div", {
           class: "message__content",
-          html: renderMarkdown(msg.content),
+          html: (!isUser ? renderAgentProgress(msg.progress, msg.progress_log) : "") + renderMarkdown(msg.content),
         }),
         // Faz 7: asistan mesajlarına 👍/👎
         !isUser && msg.id && state.chatId
@@ -497,12 +508,15 @@ const Chat = (() => {
 
   // ── Job Polling ile Chat (SSE yerine, her yerde çalışır) ─────────────
   async function sendWithPolling(text) {
+    function progressHTML(d) {
+      return renderAgentProgress(d.progress, d.progress_log);
+    }
     // Yanıt balonunu oluştur
     const assistantMsg = { role: "assistant", content: "", id: null, rating: 0 };
     state.messages.push(assistantMsg);
     const msgEl = appendMessage(assistantMsg);
     const contentEl = msgEl ? msgEl.querySelector(".message__content") : null;
-    if (contentEl) contentEl.innerHTML = '<span class="stream-cursor">▊</span>';
+    if (contentEl) contentEl.innerHTML = '<div class="agent-progress"><div class="agent-progress__head"><span class="agent-progress__dot"></span>Is baslatiliyor</div></div><span class="stream-cursor">▊</span>';
 
     // İşi başlat
     const startResp = await fetch("/api/jobs/chat", {
@@ -528,20 +542,34 @@ const Chat = (() => {
       const t0 = Date.now();
       const MAX_MS = 300_000; // 5 dakika maksimum
       let lastLen = 0;
+      let lastProgress = "";
 
       const poll = setInterval(async () => {
         try {
           const r = await fetch(`/api/jobs/${jobId}`);
           const d = await r.json();
 
+          if (contentEl && d.progress && d.progress !== lastProgress) {
+            lastProgress = d.progress;
+            assistantMsg.progress = d.progress;
+            assistantMsg.progress_log = d.progress_log || [];
+            const shouldStick = isNearBottom();
+            if (!d.content || d.content.length <= lastLen) {
+              contentEl.innerHTML = progressHTML(d) + (d.done ? "" : '<span class="stream-cursor">▊</span>');
+              keepBottomIfNeeded(shouldStick);
+            }
+          }
+
           // Yeni token'lar varsa göster
           if (d.content && d.content.length > lastLen) {
             const shouldStick = isNearBottom();
             lastLen = d.content.length;
             assistantMsg.content = d.content;
+            assistantMsg.progress = d.progress;
+            assistantMsg.progress_log = d.progress_log || [];
             if (contentEl) {
               let thoughtHtml = d.thought ? `<details style="margin-bottom:8px;opacity:.7"><summary style="cursor:pointer;font-size:12px;color:var(--color-accent)">💭 Düşünce (${d.thought.split(' ').length} kelime)</summary><pre style="font-size:11px;padding:8px;background:var(--color-surface-2);border-radius:6px;white-space:pre-wrap">${d.thought}</pre></details>` : '';
-              contentEl.innerHTML = thoughtHtml + renderMarkdown(d.content) + (d.done ? "" : '<span class="stream-cursor">▊</span>');
+              contentEl.innerHTML = progressHTML(d) + thoughtHtml + renderMarkdown(d.content) + (d.done ? "" : '<span class="stream-cursor">▊</span>');
               keepBottomIfNeeded(shouldStick);
             }
           }
@@ -554,7 +582,9 @@ const Chat = (() => {
             }
             if (d.content) {
               assistantMsg.content = d.content;
-              if (contentEl) contentEl.innerHTML = renderMarkdown(d.content);
+              assistantMsg.progress = d.progress;
+              assistantMsg.progress_log = d.progress_log || [];
+              if (contentEl) contentEl.innerHTML = progressHTML(d) + renderMarkdown(d.content);
             }
             if (d.message_id) {
               assistantMsg.id = d.message_id;

@@ -26,6 +26,15 @@ class TestChatUiContracts(unittest.TestCase):
         self.assertIn("FormData", js)
         self.assertIn("Ekli Gorsel Analizi", js)
 
+    def test_chat_shows_agent_progress(self) -> None:
+        js = (ROOT / "codegaai" / "ui" / "web" / "js" / "chat.js").read_text(encoding="utf-8")
+        css = (ROOT / "codegaai" / "ui" / "web" / "css" / "views.css").read_text(encoding="utf-8")
+
+        self.assertIn("progressHTML", js)
+        self.assertIn("progress_log", js)
+        self.assertIn("agent-progress", js)
+        self.assertIn(".agent-progress", css)
+
     def test_primary_navigation_lives_in_top_bar(self) -> None:
         html = (ROOT / "codegaai" / "ui" / "web" / "index.html").read_text(encoding="utf-8")
         css = (ROOT / "codegaai" / "ui" / "web" / "css" / "layout.css").read_text(encoding="utf-8")
