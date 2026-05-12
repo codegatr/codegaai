@@ -102,6 +102,15 @@ def _fallback_empty_response(message: str, decision_intent: str = "general") -> 
     return "Buradayim. Cevap uretimi bos dondu, ama sohbeti surduruyorum; son mesajina gore devam edebilirim."
 
 
+def _project_meta_from_message(message: str) -> tuple[str, str]:
+    msg = str(message or "").lower()
+    if any(w in msg for w in ["arac", "araç", "kiralama", "rent a car", "rentacar"]):
+        return "arac_kiralama", "arac_kiralama_db"
+    if "php" in msg:
+        return "php_proje", "php_proje_db"
+    return "codega_project", "codega_project_db"
+
+
 def _build_recent_focus(history: list[dict], latest: str) -> str:
     recent = history[-6:]
     if not recent:
@@ -253,6 +262,36 @@ async def _run_chat_job(job: ChatJob) -> None:
                 pass
 
         decision = decide_response(job.message, history=history)
+
+        if "generate_project" in decision.needs_tools:
+            from codegaai.api.routes.files import create_php_project_zip
+
+            project_name, db_name = _project_meta_from_message(job.message)
+            result = create_php_project_zip(
+                job.message,
+                project_name=project_name,
+                db_name=db_name,
+                php_version="8.3",
+            )
+            files = ", ".join(f"`{f}`" for f in result.get("files", [])[:8])
+            job.content = (
+                "Ise koyuldum ve projeyi ZIP olarak hazirladim.\n\n"
+                f"- Proje: `{result['filename']}`\n"
+                f"- Dosya sayisi: {result['file_count']}\n"
+                f"- Veritabani: `{db_name}` / `schema.sql` dahil\n"
+                f"- Dosyalar: {files}\n\n"
+                f"[ZIP'i indir]({result['download_url']})"
+            )
+            if job.chat_id:
+                try:
+                    store = ChatStore.open()
+                    store.add_message(job.chat_id, "user", job.message)
+                    job.message_id = store.add_message(job.chat_id, "assistant", job.content)
+                except Exception:
+                    pass
+            job.finish()
+            log.info("ChatJob %s proje zip hazirlandi: %s", job.job_id, result.get("filename"))
+            return
 
         try:
             from codegaai.core.model_router import ModelRouter

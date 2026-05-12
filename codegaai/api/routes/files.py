@@ -86,6 +86,256 @@ def _make_zip(name: str, files: dict) -> bytes:
         zf.writestr(f"{name}/README.md", readme)
     return buf.getvalue()
 
+def create_php_project_zip(description: str,
+                           project_name: str = "arac_kiralama",
+                           db_name: str = "arac_kiralama_db",
+                           php_version: str = "8.3") -> dict:
+    """Create a complete PHP project ZIP without waiting for the LLM."""
+    name = re.sub(r"[^a-zA-Z0-9_-]", "_", project_name)[:30] or "project"
+    db = re.sub(r"[^a-zA-Z0-9_]", "_", db_name)[:40] or "project_db"
+    title = "Online Arac Kiralama Sistemi"
+    files = {
+        "config.php": f"""<?php
+declare(strict_types=1);
+
+const DB_HOST = 'localhost';
+const DB_NAME = '{db}';
+const DB_USER = 'root';
+const DB_PASS = '';
+const APP_NAME = '{title}';
+
+function db(): PDO
+{{
+    static $pdo = null;
+    if ($pdo instanceof PDO) {{
+        return $pdo;
+    }}
+
+    $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4';
+    $pdo = new PDO($dsn, DB_USER, DB_PASS, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
+    return $pdo;
+}}
+
+function e(string $value): string
+{{
+    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+}}
+""",
+        "index.php": """<?php
+declare(strict_types=1);
+require __DIR__ . '/config.php';
+
+$pdo = db();
+$message = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $vehicleId = (int)($_POST['vehicle_id'] ?? 0);
+    $customerName = trim((string)($_POST['customer_name'] ?? ''));
+    $email = trim((string)($_POST['email'] ?? ''));
+    $phone = trim((string)($_POST['phone'] ?? ''));
+    $startDate = (string)($_POST['start_date'] ?? '');
+    $endDate = (string)($_POST['end_date'] ?? '');
+
+    if ($vehicleId && $customerName && filter_var($email, FILTER_VALIDATE_EMAIL) && $startDate && $endDate && $endDate >= $startDate) {
+        $stmt = $pdo->prepare('INSERT INTO reservations (vehicle_id, customer_name, email, phone, start_date, end_date, status) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        $stmt->execute([$vehicleId, $customerName, $email, $phone, $startDate, $endDate, 'pending']);
+        $message = 'Rezervasyon talebiniz alindi. Ekibimiz kisa surede sizinle iletisime gececek.';
+    } else {
+        $message = 'Lutfen tum alanlari dogru doldurun.';
+    }
+}
+
+$vehicles = $pdo->query('SELECT * FROM vehicles WHERE is_active = 1 ORDER BY daily_price ASC')->fetchAll();
+?>
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><?= e(APP_NAME) ?></title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="hero">
+    <nav>
+      <strong><?= e(APP_NAME) ?></strong>
+      <a href="#cars">Araclar</a>
+      <a href="#reserve">Rezervasyon</a>
+      <a href="admin.php">Yonetim</a>
+    </nav>
+    <section>
+      <p class="eyebrow">PHP 8.3 + MySQL</p>
+      <h1>Hizli, guvenilir ve online arac kiralama</h1>
+      <p>Musait araclari inceleyin, tarih secin ve rezervasyon talebinizi saniyeler icinde gonderin.</p>
+      <a class="button" href="#reserve">Hemen Kirala</a>
+    </section>
+  </header>
+
+  <main>
+    <?php if ($message): ?><div class="notice"><?= e($message) ?></div><?php endif; ?>
+
+    <section id="cars" class="grid">
+      <?php foreach ($vehicles as $car): ?>
+        <article class="card">
+          <span><?= e($car['category']) ?></span>
+          <h2><?= e($car['brand'] . ' ' . $car['model']) ?></h2>
+          <p><?= e($car['fuel_type']) ?> · <?= e($car['transmission']) ?> · <?= (int)$car['seats'] ?> koltuk</p>
+          <strong><?= number_format((float)$car['daily_price'], 2, ',', '.') ?> TL / gun</strong>
+        </article>
+      <?php endforeach; ?>
+    </section>
+
+    <section id="reserve" class="panel">
+      <h2>Online Kiralama Talebi</h2>
+      <form method="post">
+        <label>Arac
+          <select name="vehicle_id" required>
+            <option value="">Arac secin</option>
+            <?php foreach ($vehicles as $car): ?>
+              <option value="<?= (int)$car['id'] ?>"><?= e($car['brand'] . ' ' . $car['model']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </label>
+        <label>Ad Soyad <input name="customer_name" required></label>
+        <label>E-posta <input type="email" name="email" required></label>
+        <label>Telefon <input name="phone" required></label>
+        <label>Baslangic <input type="date" name="start_date" required></label>
+        <label>Bitis <input type="date" name="end_date" required></label>
+        <button type="submit">Rezervasyon Gonder</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
+""",
+        "admin.php": """<?php
+declare(strict_types=1);
+require __DIR__ . '/config.php';
+
+$reservations = db()->query('SELECT r.*, v.brand, v.model FROM reservations r JOIN vehicles v ON v.id = r.vehicle_id ORDER BY r.created_at DESC')->fetchAll();
+?>
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rezervasyon Yonetimi</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <main class="admin">
+    <a href="index.php">← Siteye don</a>
+    <h1>Rezervasyonlar</h1>
+    <table>
+      <thead><tr><th>Musteri</th><th>Arac</th><th>Tarih</th><th>Durum</th><th>Iletisim</th></tr></thead>
+      <tbody>
+        <?php foreach ($reservations as $r): ?>
+          <tr>
+            <td><?= e($r['customer_name']) ?></td>
+            <td><?= e($r['brand'] . ' ' . $r['model']) ?></td>
+            <td><?= e($r['start_date'] . ' - ' . $r['end_date']) ?></td>
+            <td><?= e($r['status']) ?></td>
+            <td><?= e($r['email'] . ' / ' . $r['phone']) ?></td>
+          </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>
+""",
+        "schema.sql": f"""DROP DATABASE IF EXISTS `{db}`;
+CREATE DATABASE `{db}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `{db}`;
+
+CREATE TABLE vehicles (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  brand VARCHAR(80) NOT NULL,
+  model VARCHAR(80) NOT NULL,
+  category VARCHAR(80) NOT NULL,
+  fuel_type VARCHAR(40) NOT NULL,
+  transmission VARCHAR(40) NOT NULL,
+  seats TINYINT UNSIGNED NOT NULL DEFAULT 5,
+  daily_price DECIMAL(10,2) NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE reservations (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  vehicle_id INT UNSIGNED NOT NULL,
+  customer_name VARCHAR(120) NOT NULL,
+  email VARCHAR(160) NOT NULL,
+  phone VARCHAR(40) NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  status ENUM('pending','approved','cancelled','completed') NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_reservations_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
+);
+
+INSERT INTO vehicles (brand, model, category, fuel_type, transmission, seats, daily_price) VALUES
+('Renault', 'Clio', 'Ekonomik', 'Benzin', 'Manuel', 5, 1250.00),
+('Fiat', 'Egea', 'Konfor', 'Dizel', 'Otomatik', 5, 1550.00),
+('Toyota', 'Corolla', 'Sedan', 'Hibrit', 'Otomatik', 5, 2100.00),
+('Volkswagen', 'Transporter', 'Minibus', 'Dizel', 'Manuel', 8, 3200.00);
+""",
+        "assets/style.css": """:root{color-scheme:dark;--bg:#0b0f14;--panel:#121820;--text:#eef4ff;--muted:#93a4b8;--accent:#f5a400;--line:#253040}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}a{color:inherit}
+.hero{min-height:58vh;padding:28px 6vw;background:linear-gradient(120deg,#101722,#172231 55%,#2b210f)}
+nav{display:flex;gap:24px;align-items:center}nav strong{margin-right:auto;font-size:20px}nav a{text-decoration:none;color:var(--muted)}
+.hero section{max-width:760px;margin-top:90px}.eyebrow{color:var(--accent);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+h1{font-size:clamp(36px,6vw,72px);line-height:1;margin:0 0 18px}p{color:var(--muted);line-height:1.7}.button,button{border:0;border-radius:8px;background:var(--accent);color:#111;padding:14px 20px;font-weight:800;text-decoration:none;cursor:pointer}
+main{padding:36px 6vw}.notice{padding:16px 18px;border:1px solid #2f6f53;background:#0f2a22;border-radius:8px;margin-bottom:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}.card,.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:22px}.card span{color:var(--accent);font-size:12px;font-weight:800;text-transform:uppercase}.card strong{display:block;margin-top:18px;font-size:20px}
+.panel{max-width:920px;margin:34px auto}form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}label{display:grid;gap:8px;color:var(--muted)}input,select{width:100%;background:#0d1218;border:1px solid var(--line);border-radius:8px;color:var(--text);padding:13px}button{grid-column:1/-1}
+.admin{max-width:1100px;margin:auto}table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line)}th,td{text-align:left;padding:14px;border-bottom:1px solid var(--line)}th{color:var(--accent)}
+@media(max-width:720px){nav{flex-wrap:wrap}.hero section{margin-top:48px}form{grid-template-columns:1fr}}
+""",
+        ".htaccess": """RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L]
+""",
+        "README.md": f"""# {title}
+
+PHP {php_version}+ ve MySQL/MariaDB destekli online arac kiralama sistemi.
+
+## Kurulum
+1. Dosyalari web sunucusuna yukleyin.
+2. `schema.sql` dosyasini MySQL/MariaDB icine aktararak `{db}` veritabanini olusturun.
+3. `config.php` icindeki DB kullanici/parola bilgilerini duzenleyin.
+4. `index.php` uzerinden siteyi, `admin.php` uzerinden rezervasyonlari acin.
+
+## Icerik
+- Arac listeleme
+- Online rezervasyon formu
+- PDO ile guvenli veritabani baglantisi
+- Rezervasyon yonetim ekrani
+- Ornek arac verileri
+
+## Talep
+{description}
+""",
+    }
+    data = _make_zip(name, files)
+    zid = str(uuid.uuid4())[:8]
+    _zip_store[zid] = {"data": data, "filename": f"{name}.zip", "ts": time.time()}
+    _cleanup(_zip_store)
+    return {
+        "zip_id": zid,
+        "filename": f"{name}.zip",
+        "file_count": len(files),
+        "size_kb": round(len(data) / 1024, 1),
+        "files": list(files.keys()),
+        "has_sql": True,
+        "download_url": f"/api/files/download/{zid}?filename={name}.zip",
+    }
+
 class PackReq(BaseModel):
     text: str; project_name: str = "project"
 
@@ -107,6 +357,13 @@ class ProjectReq(BaseModel):
 async def generate_project(req: ProjectReq) -> dict:
     from codegaai.core.engine import LLMEngine, GenerationConfig
     engine = LLMEngine.get()
+    if re.search(r"(arac|ara.|kiralama|rent a car|rentacar)", req.description, re.IGNORECASE):
+        return create_php_project_zip(
+            req.description,
+            project_name=req.project_name,
+            db_name=req.db_name,
+            php_version=req.php_version,
+        )
     if not engine.is_ready: return {"error":"Model yüklü değil"}
     name = re.sub(r"[^a-zA-Z0-9_-]","_",req.project_name)[:30] or "project"
     prompt = f"""PHP {req.php_version}+ projesi oluştur.

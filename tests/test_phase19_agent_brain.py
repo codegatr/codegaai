@@ -31,6 +31,19 @@ class TestAgentBrain(unittest.TestCase):
         self.assertIn("run_python", decision.needs_tools)
         self.assertIn("calculate", decision.needs_tools)
 
+    def test_project_zip_request_selects_generation_tool(self) -> None:
+        from codegaai.core.agent_brain import decide_response
+
+        decision = decide_response(
+            "Arac Kiralama firmasi icin PHP 8.3 veritabanli online kiralama sistemi olustur "
+            "ve dosyalari zip olarak ver."
+        )
+
+        self.assertEqual(decision.intent, "project_generation")
+        self.assertEqual(decision.response_style, "action_first")
+        self.assertIn("generate_project", decision.needs_tools)
+        self.assertFalse(decision.should_stream)
+
     def test_system_prompt_really_includes_tools(self) -> None:
         from codegaai.core.system_prompt import build_system_prompt
 
@@ -46,6 +59,8 @@ class TestAgentBrain(unittest.TestCase):
         self.assertIn("decide_response", src)
         self.assertIn("decision.should_stream", src)
         self.assertIn("engine.generate(messages, cfg=cfg, use_tools=True)", src)
+        self.assertIn("create_php_project_zip", src)
+        self.assertIn("ZIP'i indir", src)
 
 
 if __name__ == "__main__":

@@ -36,7 +36,7 @@ class AgentBrain:
 
     _WEB_PATTERNS = [
         r"https?://",
-        r"(internette ara|webde ara|internet|web|arastir|araştır|guncel|güncel|son dakika)",
+        r"(internette ara|nternette ara|webde ara|internet|web|arastir|araştır|guncel|güncel|son dakika)",
         r"\b(latest|current|today|news|browse|search|look up)\b",
     ]
     _SELF_PATTERNS = [
@@ -45,6 +45,12 @@ class AgentBrain:
     _CODE_PATTERNS = [
         r"\b(kod|hata|bug|traceback|python|php|javascript|typescript|sql)\b",
         r"\b(api|fastapi|laravel|composer|docker|github|workflow|test)\b",
+    ]
+    _PROJECT_GENERATION_PATTERNS = [
+        r"\b(proje|web sitesi|website|site|sistem|uygulama)\b.*\b(olustur|oluştur|yap|hazirla|hazırla|uret|üret)\b",
+        r"\b(olustur|oluştur|yap|hazirla|hazırla|uret|üret)\b.*\b(proje|web sitesi|website|site|sistem|uygulama)\b",
+        r"\b(zip|dosyalari|dosyaları|veritabani|veritabanı|schema|sql)\b.*\b(ver|hazirla|hazırla|olustur|oluştur)\b",
+        r"\b(php\s*8\.?3|php)\b.*\b(veritabani|veritabanı|sql|zip)\b",
     ]
     _MATH_PATTERNS = [r"\d+\s*[\+\-\*/\^]\s*\d+", r"\b(hesapla|calculate)\b"]
     _VISION_PATTERNS = [r"\b(gorsel|görsel|resim|foto|image|screenshot|ekran)\b"]
@@ -68,6 +74,12 @@ class AgentBrain:
             decision.intent = "coding"
             decision.needs_careful_reasoning = True
 
+        if self._matches(low, self._PROJECT_GENERATION_PATTERNS):
+            decision.intent = "project_generation"
+            decision.response_style = "action_first"
+            decision.needs_careful_reasoning = True
+            decision.needs_tools.append("generate_project")
+
         if self._matches(low, self._VISION_PATTERNS):
             decision.intent = "vision"
             decision.needs_tools.append("analyze_image")
@@ -77,7 +89,7 @@ class AgentBrain:
                 decision.intent = "calculation"
             decision.needs_tools.append("calculate")
 
-        if self._matches(low, self._IMPLICIT_REASONING_PATTERNS):
+        if self._matches(low, self._IMPLICIT_REASONING_PATTERNS) and decision.intent != "project_generation":
             decision.intent = "implicit_context"
             decision.response_style = "human_inference"
             decision.needs_careful_reasoning = True
@@ -124,6 +136,11 @@ class AgentBrain:
                 "- Bu soruda arac gerekebilir: "
                 + ", ".join(decision.needs_tools)
                 + ". Gerekliyse yalnizca uygun <tool>...</tool> cagrisini kullan."
+            )
+        if decision.intent == "project_generation":
+            lines.append(
+                "- Kullanici proje/dosya/zip istiyorsa plan anlatmakla yetinme; "
+                "dosya uretme aksiyonunu baslat ve indirme linki ver."
             )
         if decision.needs_careful_reasoning:
             lines.append(

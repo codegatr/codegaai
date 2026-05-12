@@ -44,6 +44,14 @@ class TestHumanReasoningContracts(unittest.TestCase):
         self.assertIn("Cevap uretimi bos dondu", jobs_py)
         self.assertIn("mantik cercevesinde konusalim", jobs_py)
 
+    def test_deterministic_php_rental_project_builder_is_present(self) -> None:
+        files_py = (ROOT / "codegaai" / "api" / "routes" / "files.py").read_text(encoding="utf-8")
+
+        self.assertIn("def create_php_project_zip", files_py)
+        self.assertIn("Online Arac Kiralama Sistemi", files_py)
+        self.assertIn("schema.sql", files_py)
+        self.assertIn("reservations", files_py)
+
 
 if __name__ == "__main__":
     unittest.main()
