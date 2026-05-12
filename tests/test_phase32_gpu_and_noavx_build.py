@@ -70,6 +70,16 @@ class TestGpuAndNoAvxBuild(unittest.TestCase):
         self.assertIn("os.add_dll_directory", engine_py)
         self.assertIn('base / "torch" / "lib"', engine_py)
 
+    def test_llama_load_has_native_crash_preflight(self) -> None:
+        engine_py = (ROOT / "codegaai" / "core" / "engine.py").read_text(encoding="utf-8")
+        launcher_py = (ROOT / "launcher.py").read_text(encoding="utf-8")
+
+        self.assertIn("_native_preflight_llama", engine_py)
+        self.assertIn("CODEGA_SKIP_NATIVE_PREFLIGHT", engine_py)
+        self.assertIn("Ana uygulamanin kapanmamasi icin model yukleme engellendi", engine_py)
+        self.assertIn("--native-preflight-llama", launcher_py)
+        self.assertIn("cmd_native_preflight_llama", launcher_py)
+
 
 if __name__ == "__main__":
     unittest.main()

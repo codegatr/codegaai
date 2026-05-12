@@ -16,7 +16,9 @@ Ana giriş noktası. Şu modlarda çalışır:
 from __future__ import annotations
 
 import argparse
+import faulthandler
 import sys
+import threading
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -33,6 +35,35 @@ from codegaai.config import (
 )
 from codegaai.utils.system_check import run_all_checks, print_report
 from codegaai.utils.logger import get_logger
+
+
+_CRASH_DUMP_HANDLE = None
+
+
+def _enable_crash_dump() -> None:
+    global _CRASH_DUMP_HANDLE
+    try:
+        from codegaai.config import LOGS_DIR
+        LOGS_DIR.mkdir(parents=True, exist_ok=True)
+        crash_log = LOGS_DIR / "crash_dump.log"
+        fh = crash_log.open("a", encoding="utf-8")
+        _CRASH_DUMP_HANDLE = fh
+        faulthandler.enable(file=fh, all_threads=True)
+
+        def _thread_hook(args: threading.ExceptHookArgs) -> None:
+            print(
+                f"\n[thread-exception] {args.thread.name}: "
+                f"{args.exc_type.__name__}: {args.exc_value}",
+                file=fh,
+                flush=True,
+            )
+
+        threading.excepthook = _thread_hook
+    except Exception:
+        pass
+
+
+_enable_crash_dump()
 
 
 # ============================================================
@@ -70,6 +101,31 @@ def cmd_check() -> int:
     report = run_all_checks()
     print_report(report)
     return 1 if report.has_failures else 0
+
+
+def cmd_native_preflight_llama(model_path: str,
+                               n_ctx: int,
+                               n_gpu_layers: int) -> int:
+    """llama-cpp native yuklemesini cocuk surecte dener."""
+    try:
+        from codegaai.core.engine import LLMEngine
+        LLMEngine._prepare_windows_cuda_dll_paths()
+        from llama_cpp import Llama  # type: ignore[import-not-found]
+
+        llm = Llama(
+            model_path=model_path,
+            n_ctx=max(512, int(n_ctx or 2048)),
+            n_gpu_layers=int(n_gpu_layers),
+            n_threads=1,
+            n_batch=64,
+            verbose=False,
+            seed=-1,
+        )
+        del llm
+        return 0
+    except Exception as exc:
+        print(f"native-preflight-error: {exc}", file=sys.stderr)
+        return 70
 
 
 # ============================================================
@@ -230,6 +286,9 @@ def main(argv: list[str] | None = None) -> int:
                        help="Sadece backend sunucusunu çalıştır (UI açmadan)")
     group.add_argument("--browser", action="store_true",
                        help="Sunucuyu başlat ve sistem tarayıcısında aç")
+    group.add_argument("--native-preflight-llama", nargs=3,
+                       metavar=("MODEL_PATH", "N_CTX", "N_GPU_LAYERS"),
+                       help=argparse.SUPPRESS)
 
     args = parser.parse_args(argv)
 
@@ -239,6 +298,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.init:    return cmd_init()
         if args.serve:   return cmd_serve()
         if args.browser: return cmd_browser()
+        if args.native_preflight_llama:
+            model_path, n_ctx, n_gpu_layers = args.native_preflight_llama
+            return cmd_native_preflight_llama(
+                model_path, int(n_ctx), int(n_gpu_layers)
+            )
         return cmd_window()
     except KeyboardInterrupt:
         print("\nKullanıcı iptal etti.")

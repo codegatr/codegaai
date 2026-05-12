@@ -213,6 +213,56 @@ class LLMEngine:
 
         return None, 0.0, 0.0
 
+    @staticmethod
+    def _native_preflight_llama(path: Path,
+                                n_ctx: int,
+                                n_gpu_layers: int) -> tuple[bool, str]:
+        if os.environ.get("CODEGA_SKIP_NATIVE_PREFLIGHT", "").strip() == "1":
+            return True, "preflight skipped"
+
+        try:
+            if getattr(sys, "frozen", False):
+                cmd = [
+                    sys.executable,
+                    "--native-preflight-llama",
+                    str(path),
+                    str(n_ctx),
+                    str(n_gpu_layers),
+                ]
+            else:
+                launcher = Path(__file__).resolve().parents[2] / "launcher.py"
+                cmd = [
+                    sys.executable,
+                    str(launcher),
+                    "--native-preflight-llama",
+                    str(path),
+                    str(n_ctx),
+                    str(n_gpu_layers),
+                ]
+
+            env = {**os.environ, "CODEGA_SKIP_NATIVE_PREFLIGHT": "1"}
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=int(os.environ.get("CODEGA_NATIVE_PREFLIGHT_TIMEOUT", "90")),
+                env=env,
+            )
+            if result.returncode == 0:
+                return True, "native preflight ok"
+            detail = (result.stderr or result.stdout or "").strip()
+            return False, (
+                f"Native llama preflight basarisiz (exit={result.returncode}). "
+                f"Ana uygulamanin kapanmamasi icin model yukleme engellendi. {detail[-500:]}"
+            ).strip()
+        except subprocess.TimeoutExpired:
+            return False, (
+                "Native llama preflight zaman asimina ugradi. "
+                "Ana uygulamanin kapanmamasi icin model yukleme engellendi."
+            )
+        except Exception as exc:
+            return False, f"Native llama preflight calistirilamadi: {exc}"
+
     def load(self, model_id: str,
              n_ctx: int = 0,
              n_gpu_layers: int = -1) -> None:
@@ -291,6 +341,21 @@ class LLMEngine:
                         effective_gpu_layers = max(1, int(32 * ratio))
             elif n_gpu_layers == -1:
                 effective_gpu_layers = 0
+
+            ok, preflight_msg = self._native_preflight_llama(
+                path,
+                effective_ctx,
+                effective_gpu_layers,
+            )
+            if not ok:
+                log.error(preflight_msg)
+                self._status = EngineStatus(
+                    state="error",
+                    model_id=model_id,
+                    model_path=str(path),
+                    error=preflight_msg,
+                )
+                raise RuntimeError(preflight_msg)
 
             self._llm = Llama(
                 model_path=str(path),
