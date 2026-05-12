@@ -68,10 +68,63 @@ class TestVisionSafety(unittest.TestCase):
 
         self.assertIn("CODEGA_ALLOW_CPU_DIFFUSERS", image)
         self.assertIn("CPU diffusers yuklemesi engellendi", image)
+        self.assertIn("CODEGA_ALLOW_LOW_VRAM_DIFFUSERS", image)
+        self.assertIn("Uygulamanin kapanmamasi icin yukleme engellendi", image)
         self.assertIn("CODEGA_ALLOW_CPU_DIFFUSERS", video)
         self.assertIn("CPU diffusers yuklemesi engellendi", video)
+        self.assertIn("CODEGA_ALLOW_LOW_VRAM_DIFFUSERS", video)
         self.assertIn("CODEGA_ALLOW_CPU_XTTS", audio)
         self.assertIn("CPU XTTS yuklemesi engellendi", audio)
+
+    def test_model_load_route_has_video_branch_and_ui_surfaces_errors(self) -> None:
+        from pathlib import Path
+
+        root = Path(__file__).resolve().parent.parent
+        route = (root / "codegaai" / "api" / "routes" / "models.py").read_text(encoding="utf-8")
+        system_js = (root / "codegaai" / "ui" / "web" / "js" / "system.js").read_text(encoding="utf-8")
+        system_route = (root / "codegaai" / "api" / "routes" / "system.py").read_text(encoding="utf-8")
+
+        self.assertIn("registry.get_video_spec(model_id)", route)
+        self.assertIn("VideoEngine.get()", route)
+        self.assertIn("Yukleme engellendi", system_js)
+        self.assertIn("v.error || v.tts?.error || v.asr?.error", system_js)
+        self.assertIn('"error": img_status.get("error")', system_route)
+        self.assertIn('"error": video_status.get("error")', system_route)
+
+    def test_video_engine_blocks_low_vram_without_pipeline_import(self) -> None:
+        from codegaai.core.video_engine import VideoEngine
+
+        VideoEngine._instance = None
+
+        spec = types.SimpleNamespace(
+            id="cogvideox-2b",
+            pipeline="cogvideox",
+            mode="t2v",
+            vram_gb=12.0,
+        )
+        fake_registry = types.SimpleNamespace(
+            get_llm_spec=lambda _id: None,
+            get_embedding_spec=lambda _id: None,
+            get_image_spec=lambda _id: None,
+            get_audio_spec=lambda _id: None,
+            get_video_spec=lambda _id: spec,
+            is_video_downloaded=lambda _id: True,
+            video_dir_path=lambda _id: ".",
+        )
+        fake_torch = types.SimpleNamespace(
+            cuda=types.SimpleNamespace(is_available=lambda: True),
+            bfloat16="bfloat16",
+            float32="float32",
+        )
+
+        with patch("codegaai.core.video_engine.ModelRegistry.get", return_value=fake_registry), \
+             patch("codegaai.core.video_engine.VideoEngine._detect_cuda_vram_gb", return_value=(True, 6.0)), \
+             patch.dict(sys.modules, {"torch": fake_torch}):
+            with self.assertRaises(RuntimeError) as ctx:
+                VideoEngine.get().load("cogvideox-2b")
+
+        self.assertIn("VRAM gerekir", str(ctx.exception))
+        self.assertEqual(VideoEngine.get().status["state"], "error")
 
     def test_auto_vision_paths_return_errors_instead_of_crashing(self) -> None:
         from pathlib import Path

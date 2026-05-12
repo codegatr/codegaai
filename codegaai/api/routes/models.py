@@ -399,6 +399,17 @@ async def load_model(model_id: str,
             raise HTTPException(500, f"{spec.kind.upper()} yükleme başarısız: {exc}")
         return {"loaded": True, "audio": eng.status}
 
+    if registry.get_video_spec(model_id):
+        from codegaai.core.video_engine import VideoEngine
+        video = VideoEngine.get()
+        try:
+            video.load(model_id, force_cpu_offload=force_cpu_offload)
+        except RuntimeError as exc:
+            raise HTTPException(409, str(exc))
+        except Exception as exc:
+            raise HTTPException(500, f"Video yukleme basarisiz: {exc}")
+        return {"loaded": True, "video": video.status}
+
     raise HTTPException(404, f"Model bulunamadı: {model_id}")
 
 

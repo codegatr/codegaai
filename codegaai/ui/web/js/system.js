@@ -81,14 +81,19 @@ const System = (() => {
       for (const [k,lbl] of Object.entries(lbls)) {
         const v = d[k]||{};
         const active = v.active||v.ready;
+        const err = v.error || v.tts?.error || v.asr?.error || "";
+        const labelText = active ? (v.model_id||"Aktif")
+          : err ? "Hata"
+          : v.state==="loading" ? "Yukleniyor..."
+          : "Beklemede";
         const row = document.createElement("div");
         row.className = "engine-row";
         row.innerHTML = `
           <div class="engine-row__name">${esc(lbl)}</div>
           <div class="engine-row__status">
-            <span class="status-pill ${active?"status-pill--ok":""}">
+            <span class="status-pill ${active?"status-pill--ok":""}" title="${esc(err)}">
               <span class="status-pill__dot"></span>
-              ${active?(v.model_id||"Aktif"):v.state==="loading"?"Yükleniyor...":"Beklemede"}
+              ${labelText}
             </span>
           </div>`;
         box.appendChild(row);
@@ -240,9 +245,14 @@ const System = (() => {
 
   async function loadModel(id) {
     const ma = el("ma-"+id);
-    if (ma) ma.innerHTML = '<span style="font-size:12px;color:#f59e0b">Yükleniyor...</span>';
-    try { await post(`/api/models/${id}/load`); setTimeout(()=>{loadModels();loadEngines();},2000); }
-    catch(e) { loadModels(); }
+    if (ma) ma.innerHTML = '<span style="font-size:12px;color:#f59e0b">Yukleniyor...</span>';
+    try {
+      await post(`/api/models/${id}/load`);
+      setTimeout(()=>{loadModels();loadEngines();},2000);
+    } catch(e) {
+      if (ma) ma.innerHTML = `<div style="font-size:12px;color:#ef4444;line-height:1.35">Yukleme engellendi: ${esc(e.message)}</div>`;
+      loadEngines();
+    }
   }
 
   async function unloadModel(id) {

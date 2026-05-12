@@ -149,6 +149,12 @@ class VideoEngine:
                     "Video uretim modeli CPU modunda ana uygulamayi kapatabilecek kadar agir. "
                     "Guvenlik icin CPU diffusers yuklemesi engellendi. CUDA destekli paket kullanin."
                 )
+            if cuda_ok and spec.vram_gb > vram_gb and os.environ.get("CODEGA_ALLOW_LOW_VRAM_DIFFUSERS", "").strip() != "1":
+                raise RuntimeError(
+                    f"Video uretim modeli icin en az {spec.vram_gb:.1f} GB VRAM gerekir; "
+                    f"bu GPU {vram_gb:.1f} GB gorunuyor. Uygulamanin kapanmamasi icin yukleme engellendi. "
+                    "Daha kucuk model kullanin veya CODEGA_ALLOW_LOW_VRAM_DIFFUSERS=1 ile riski kendiniz acin."
+                )
             backend = "cuda" if cuda_ok else "cpu"
             cpu_offload = force_cpu_offload or (
                 cuda_ok and vram_gb < self.VRAM_OFFLOAD_THRESHOLD_GB

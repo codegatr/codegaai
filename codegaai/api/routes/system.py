@@ -175,6 +175,7 @@ async def engines() -> dict[str, Any]:
                 "active": img_status.get("ready", False),
                 "state": img_status.get("state", "unloaded"),
                 "model_id": img_status.get("model_id"),
+                "error": img_status.get("error"),
                 "phase": "Faz 4",
             },
             "audio": {
@@ -187,6 +188,7 @@ async def engines() -> dict[str, Any]:
                 "active": video_status.get("ready", False),
                 "state": video_status.get("state", "unloaded"),
                 "model_id": video_status.get("model_id"),
+                "error": video_status.get("error"),
                 "phase": "Faz 6",
             },
             "learning": {
