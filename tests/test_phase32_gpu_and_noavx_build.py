@@ -80,6 +80,20 @@ class TestGpuAndNoAvxBuild(unittest.TestCase):
         self.assertIn("--native-preflight-llama", launcher_py)
         self.assertIn("cmd_native_preflight_llama", launcher_py)
 
+    def test_desktop_startup_does_not_autoload_models_or_die_on_webview(self) -> None:
+        config_py = (ROOT / "codegaai" / "config.py").read_text(encoding="utf-8")
+        startup_py = (ROOT / "codegaai" / "core" / "startup.py").read_text(encoding="utf-8")
+        window_py = (ROOT / "codegaai" / "ui" / "window.py").read_text(encoding="utf-8")
+
+        self.assertIn('"auto_load_model": False', config_py)
+        self.assertIn('"auto_load_embedding": False', config_py)
+        self.assertIn("CODEGA_STARTUP_AUTOLOAD_MODELS", startup_py)
+        self.assertIn("startup model autoload kapali", startup_py)
+        self.assertIn("guvenli acilis: LLM otomatik yuklenmedi", startup_py)
+        self.assertIn("guvenli acilis: embedding otomatik yuklenmedi", startup_py)
+        self.assertIn("webview_failed_early", window_py)
+        self.assertIn("Sistem tarayicisi acildi", window_py)
+
 
 if __name__ == "__main__":
     unittest.main()

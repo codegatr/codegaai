@@ -142,10 +142,13 @@ class StartupDoctor:
             self._finish(task, "warning", str(exc))
 
     def _prepare_embedding(self, server_cfg: dict[str, Any]) -> None:
-        if not server_cfg.get("auto_load_embedding", True):
-            return
-
         task = self._task("embedding-bge-m3")
+        if os.environ.get("CODEGA_STARTUP_AUTOLOAD_MODELS", "").strip() != "1":
+            self._finish(task, "warning", "guvenli acilis: startup model autoload kapali")
+            return
+        if not server_cfg.get("auto_load_embedding", False):
+            self._finish(task, "warning", "guvenli acilis: embedding otomatik yuklenmedi")
+            return
         try:
             from codegaai.core.embeddings import EmbeddingService
             from codegaai.core.models_registry import ModelRegistry
@@ -192,10 +195,13 @@ class StartupDoctor:
             self._finish(task, "warning", str(exc))
 
     def _prepare_llm(self, server_cfg: dict[str, Any]) -> None:
-        if not server_cfg.get("auto_load_model", True):
-            return
-
         task = self._task("llm-auto-load")
+        if os.environ.get("CODEGA_STARTUP_AUTOLOAD_MODELS", "").strip() != "1":
+            self._finish(task, "warning", "guvenli acilis: startup model autoload kapali")
+            return
+        if not server_cfg.get("auto_load_model", False):
+            self._finish(task, "warning", "guvenli acilis: LLM otomatik yuklenmedi")
+            return
         try:
             from codegaai.core.engine import LLMEngine
             from codegaai.core.models_registry import ModelRegistry

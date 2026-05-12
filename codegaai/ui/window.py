@@ -63,6 +63,8 @@ def open_window(host: str = "127.0.0.1",
 
     log.info("Sunucu hazır: http://%s:%s/", host, port)
     log.info("PyWebView penceresi açılıyor...")
+    started_at = time.time()
+    webview_failed_early = False
     try:
         webview.create_window(
             title=f"CODEGA AI v{__version__}",
@@ -78,13 +80,30 @@ def open_window(host: str = "127.0.0.1",
         # gui parametresi: Windows'ta edgechromium (WebView2), macOS'ta cocoa,
         # Linux'ta gtk veya qt. None bırakırsak PyWebView otomatik seçer.
         webview.start(debug=False)
+        if time.time() - started_at < 5:
+            webview_failed_early = True
+            log.warning("PyWebView cok erken kapandi; sistem tarayicisina geciliyor")
     except Exception as exc:
-        log.exception("Pencere açılamadı: %s", exc)
-        server.stop()
-        return 1
+        log.exception("Pencere acilamadi: %s", exc)
+        webview_failed_early = True
     finally:
-        log.info("Pencere kapatıldı, sunucu durduruluyor...")
-        server.stop()
+        if webview_failed_early:
+            try:
+                import webbrowser
+                webbrowser.open(url)
+                log.info("Sistem tarayicisi acildi: %s", url)
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                log.info("Kullanici cikti, sunucu durduruluyor.")
+                server.stop()
+            except Exception as browser_exc:
+                log.exception("Tarayici fallback basarisiz: %s", browser_exc)
+                server.stop()
+                raise RuntimeError("Tarayici fallback basarisiz") from browser_exc
+        else:
+            log.info("Pencere kapatildi, sunucu durduruluyor...")
+            server.stop()
 
     return 0
 

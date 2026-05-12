@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "3.7.5"
-__phase__ = "v3.7.5 - Native Crash Preflight"
+__version__ = "3.7.7"
+__phase__ = "v3.7.7 - Forced Safe Startup"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"
