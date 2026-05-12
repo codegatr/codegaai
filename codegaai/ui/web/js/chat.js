@@ -55,10 +55,8 @@ const Chat = (() => {
     const list = Array.isArray(log) ? log : [];
     if (!progress && list.length === 0) return "";
     const current = progress || list[list.length - 1] || "Hazirlaniyor";
-    const items = list.map(x => `<li>${escapeHTML(x)}</li>`).join("");
     return `<div class="agent-progress">
       <div class="agent-progress__head"><span class="agent-progress__dot"></span>${escapeHTML(current)}</div>
-      ${items ? `<ul>${items}</ul>` : ""}
     </div>`;
   }
 

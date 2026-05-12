@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "3.8.4"
-__phase__ = "v3.8.4 - Claude-Style Action Orchestrator"
+__version__ = "3.8.5"
+__phase__ = "v3.8.5 - Calm Progress Display"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

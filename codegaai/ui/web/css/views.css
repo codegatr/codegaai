@@ -1715,11 +1715,14 @@ body.modal-open { overflow: hidden; }
 }
 
 .agent-progress {
-  margin: 0 0 12px;
-  padding: 10px 12px;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  margin: 0 0 10px;
+  padding: 5px 10px;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--color-surface-2) 88%, var(--color-accent) 12%);
+  border-radius: 999px;
+  background: var(--color-bg-elevated);
   color: var(--color-text-muted);
   font-size: 12px;
 }
@@ -1727,9 +1730,13 @@ body.modal-open { overflow: hidden; }
 .agent-progress__head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: var(--color-text);
-  font-weight: 700;
+  gap: 7px;
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .agent-progress__dot {
@@ -1738,15 +1745,6 @@ body.modal-open { overflow: hidden; }
   border-radius: 50%;
   background: var(--color-accent);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 22%, transparent);
-}
-
-.agent-progress ul {
-  margin: 8px 0 0 18px;
-  padding: 0;
-}
-
-.agent-progress li {
-  margin: 3px 0;
 }
 @keyframes blink-cursor {
   0%, 100% { opacity: 1; }
