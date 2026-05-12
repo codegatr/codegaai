@@ -106,6 +106,7 @@ class LLMEngine:
     def __init__(self) -> None:
         self._llm = None  # type: Any  # llama_cpp.Llama instance
         self._status = EngineStatus()
+        self._native_blocked_models: set[str] = set()
         self._gen_lock = threading.Lock()  # tek seferde bir üretim
 
     @classmethod
@@ -240,7 +241,11 @@ class LLMEngine:
                     str(n_gpu_layers),
                 ]
 
-            env = {**os.environ, "CODEGA_SKIP_NATIVE_PREFLIGHT": "1"}
+            env = {
+                **os.environ,
+                "CODEGA_SKIP_NATIVE_PREFLIGHT": "1",
+                "CODEGA_DISABLE_CRASH_DUMP": "1",
+            }
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -262,6 +267,16 @@ class LLMEngine:
             )
         except Exception as exc:
             return False, f"Native llama preflight calistirilamadi: {exc}"
+
+    @staticmethod
+    def _is_native_illegal_instruction(text: str) -> bool:
+        low = str(text or "").lower()
+        return (
+            "0xc000001d" in low
+            or "-1073741795" in low
+            or "illegal instruction" in low
+            or "native llama preflight basarisiz" in low
+        )
 
     def load(self, model_id: str,
              n_ctx: int = 0,
@@ -285,6 +300,15 @@ class LLMEngine:
                 f"Model henüz indirilmedi: {model_id}. "
                 f"Önce /api/models/{model_id}/download çağrısı yapın."
             )
+
+        if model_id in self._native_blocked_models:
+            err = (
+                "Bu oturumda llama native preflight CPU uyumsuzlugu nedeniyle "
+                "zaten engellendi. Uygulama kapanmasin diye tekrar denenmiyor. "
+                "v3.8.7 veya sonrasi no-native/no-AVX Windows paketini kurun."
+            )
+            self._status = EngineStatus(state="error", model_id=model_id, error=err)
+            raise RuntimeError(err)
 
         path = registry.llm_path(model_id)
         log.info("LLM yükleniyor: %s (%s)", model_id, path)
@@ -349,6 +373,9 @@ class LLMEngine:
             )
             if not ok:
                 log.error(preflight_msg)
+                if self._is_native_illegal_instruction(preflight_msg):
+                    self._native_blocked_models.add(model_id)
+                    self._write_fix_script()
                 self._status = EngineStatus(
                     state="error",
                     model_id=model_id,
@@ -468,7 +495,7 @@ class LLMEngine:
             bat.write_text(
                 f'@echo off\nchcp 65001 > nul\n'
                 f'echo CODEGA AI - llama-cpp-python AVX2 onarimi\n'
-                f'set CMAKE_ARGS=-DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_F16C=OFF -DGGML_FMA=OFF -DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_F16C=OFF -DLLAMA_FMA=OFF\n'
+                f'set CMAKE_ARGS=-DGGML_NATIVE=OFF -DLLAMA_NATIVE=OFF -DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_F16C=OFF -DGGML_FMA=OFF -DGGML_AVX512=OFF -DGGML_AVX512_VBMI=OFF -DGGML_AVX512_VNNI=OFF -DGGML_AVX512_BF16=OFF -DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_F16C=OFF -DLLAMA_FMA=OFF\n'
                 f'set FORCE_CMAKE=1\n'
                 f'"{python_exe}" -m pip uninstall llama-cpp-python -y\n'
                 f'"{python_exe}" -m pip install llama-cpp-python '

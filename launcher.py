@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import faulthandler
+import os
 import sys
 import threading
 from pathlib import Path
@@ -63,7 +64,8 @@ def _enable_crash_dump() -> None:
         pass
 
 
-_enable_crash_dump()
+if os.environ.get("CODEGA_DISABLE_CRASH_DUMP", "").strip() != "1":
+    _enable_crash_dump()
 
 
 # ============================================================

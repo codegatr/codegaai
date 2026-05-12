@@ -15,7 +15,9 @@ class TestGpuAndNoAvxBuild(unittest.TestCase):
         workflow = (ROOT / ".github" / "workflows" / "build-windows.yml").read_text(encoding="utf-8")
 
         self.assertIn("--no-binary llama-cpp-python", workflow)
+        self.assertIn("GGML_NATIVE=OFF", workflow)
         self.assertIn("GGML_AVX2=OFF", workflow)
+        self.assertIn("GGML_AVX512=OFF", workflow)
         self.assertIn("GGML_FMA=OFF", workflow)
         self.assertNotIn("--prefer-binary", workflow)
 
@@ -76,9 +78,13 @@ class TestGpuAndNoAvxBuild(unittest.TestCase):
 
         self.assertIn("_native_preflight_llama", engine_py)
         self.assertIn("CODEGA_SKIP_NATIVE_PREFLIGHT", engine_py)
+        self.assertIn("CODEGA_DISABLE_CRASH_DUMP", engine_py)
+        self.assertIn("_native_blocked_models", engine_py)
+        self.assertIn("_is_native_illegal_instruction", engine_py)
         self.assertIn("Ana uygulamanin kapanmamasi icin model yukleme engellendi", engine_py)
         self.assertIn("--native-preflight-llama", launcher_py)
         self.assertIn("cmd_native_preflight_llama", launcher_py)
+        self.assertIn("CODEGA_DISABLE_CRASH_DUMP", launcher_py)
 
     def test_desktop_startup_does_not_autoload_models_or_die_on_webview(self) -> None:
         config_py = (ROOT / "codegaai" / "config.py").read_text(encoding="utf-8")
