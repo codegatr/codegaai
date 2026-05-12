@@ -549,6 +549,13 @@ const Chat = (() => {
           if (d.done) {
             clearInterval(poll);
             assistantMsg.streaming = false;
+            if (!d.error && (!d.content || !String(d.content).trim())) {
+              d.content = "Buradayim. Cevap bos dondu; sohbeti kaybetmedim, devam edebiliriz.";
+            }
+            if (d.content) {
+              assistantMsg.content = d.content;
+              if (contentEl) contentEl.innerHTML = renderMarkdown(d.content);
+            }
             if (d.message_id) {
               assistantMsg.id = d.message_id;
               renderAll();

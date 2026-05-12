@@ -34,7 +34,15 @@ class TestHumanReasoningContracts(unittest.TestCase):
 
         self.assertIn("auto_think = bool(job.deep_think or decision.needs_careful_reasoning)", jobs_py)
         self.assertIn("Otomatik Akil Yurutme", jobs_py)
-        self.assertIn("<thinking>.*?</thinking>", jobs_py)
+        self.assertIn("_clean_visible_answer", jobs_py)
+        self.assertIn("_fallback_empty_response", jobs_py)
+
+    def test_empty_thought_only_answer_gets_fallback(self) -> None:
+        jobs_py = (ROOT / "codegaai" / "api" / "routes" / "jobs.py").read_text(encoding="utf-8")
+
+        self.assertIn("r\"<think(?:ing)?>(.*?)</think(?:ing)?>", jobs_py)
+        self.assertIn("Cevap uretimi bos dondu", jobs_py)
+        self.assertIn("mantik cercevesinde konusalim", jobs_py)
 
 
 if __name__ == "__main__":

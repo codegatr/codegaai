@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "3.7.8"
-__phase__ = "v3.7.8 - Human Reasoning Mode"
+__version__ = "3.7.9"
+__phase__ = "v3.7.9 - Chat Blank Response Guard"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

@@ -49,6 +49,59 @@ def _needs_web_search(message: str) -> bool:
     return any(re.search(p, msg, re.IGNORECASE) for p in _WEB_REQUIRED_PATTERNS)
 
 
+def _clean_visible_answer(text: str) -> tuple[str, str]:
+    """Remove leaked private thought blocks without losing the whole reply."""
+    if not text:
+        return "", ""
+
+    thought_parts: list[str] = []
+
+    def _capture(match: re.Match) -> str:
+        thought_parts.append(match.group(1).strip())
+        return ""
+
+    cleaned = re.sub(
+        r"<think(?:ing)?>(.*?)</think(?:ing)?>\s*",
+        _capture,
+        text,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    # If the model opened a thought tag and never closed it, do not show the
+    # raw tag in chat. Keep only any text before the tag.
+    cleaned = re.sub(
+        r"<think(?:ing)?>.*$",
+        "",
+        cleaned,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    cleaned = cleaned.strip()
+    return cleaned, "\n\n".join(p for p in thought_parts if p)
+
+
+def _fallback_empty_response(message: str, decision_intent: str = "general") -> str:
+    """Last-resort answer so the chat never silently goes blank."""
+    msg = re.sub(r"\s+", " ", str(message or "")).strip()
+    low = msg.lower()
+
+    if any(w in low for w in ["konusmayi mi unuttun", "konuşmayı mı unuttun", "cevap vermeyi", "cevap yok"]):
+        return (
+            "Buradayim, konusmayi unutmadim. Az once cevap uretimi takildi; "
+            "buradan devam edelim. Ne demek istedigini baglama gore okuyup dogrudan cevap verecegim."
+        )
+    if any(w in low for w in ["mantik", "mantık", "dusun", "düşün", "leb", "leblebi"]):
+        return (
+            "Tamam, mantik cercevesinde konusalim. Once ima edilen soruyu cikaracagim, "
+            "sonra varsayimlarimi ayirip net sonuca gidecegim. Bu durumda asil konu: "
+            "CODEGA AI'nin sadece kelimeye cevap vermesi degil, baglami anlayip insansi tepki vermesi."
+        )
+    if decision_intent == "implicit_context":
+        return (
+            "Anladim. Burada dogrudan soru sorulmuyor; benden baglami ve imayi yakalamam bekleniyor. "
+            "Bu yuzden cevabi onceki konusmaya gore kurmam gerekiyor."
+        )
+    return "Buradayim. Cevap uretimi bos dondu, ama sohbeti surduruyorum; son mesajina gore devam edebilirim."
+
+
 def _build_recent_focus(history: list[dict], latest: str) -> str:
     recent = history[-6:]
     if not recent:
@@ -272,9 +325,10 @@ async def _run_chat_job(job: ChatJob) -> None:
         if auto_think and not job.deep_think:
             system_prompt += (
                 "\n\n## Otomatik Akil Yurutme\n"
-                "Cevap vermeden once icinden kisa analiz yap: kullanici aslinda ne soruyor, "
+                "Cevap vermeden once yalnizca icinden kisa analiz yap: kullanici aslinda ne soruyor, "
                 "onceki mesajdaki ima ne, en dogal cevap ne? "
-                "Bu analizi <think> veya <thinking> olarak yazma; sadece sonuc cevabi ver."
+                "Ilk yazdigin karakter final cevabin olsun. "
+                "Kesinlikle <think>, <thinking>, analiz notu veya ic dusunce blogu yazma; sadece sonuc cevabi ver."
             )
 
         # ── Derin Düşünme (o1/o3 modu) ───────────────────────────────
@@ -334,12 +388,15 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
 
         # Local modeller bazen talimata ragmen dusunce etiketlerini sizdirir.
         # Kullaniciya ic analiz degil, temiz final cevap gosterilir.
-        if job.content:
-            cleaned = re.sub(r"<think>.*?</think>\s*", "", job.content, flags=re.DOTALL | re.IGNORECASE)
-            cleaned = re.sub(r"<thinking>.*?</thinking>\s*", "", cleaned, flags=re.DOTALL | re.IGNORECASE)
-            if cleaned.strip() != job.content.strip():
-                with job._lock:
-                    job.content = cleaned.strip()
+        cleaned, leaked_thought = _clean_visible_answer(job.content)
+        if leaked_thought and not job.thought:
+            job.thought = leaked_thought
+        if cleaned != job.content.strip():
+            with job._lock:
+                job.content = cleaned
+        if not job.content.strip():
+            with job._lock:
+                job.content = _fallback_empty_response(job.message, decision.intent)
 
         if job.chat_id and job.content:
             try:
