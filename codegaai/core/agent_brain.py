@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 @dataclass
 class AgentDecision:
     intent: str = "general"
+    response_style: str = "natural"
     needs_web: bool = False
     needs_memory: bool = True
     needs_tools: list[str] = field(default_factory=list)
@@ -35,18 +36,28 @@ class AgentBrain:
 
     _WEB_PATTERNS = [
         r"https?://",
-        r"(internette ara|nternette ara|webde ara|internet|web|araştır|araşt?r|güncel|guncel|son dakika)",
+        r"(internette ara|webde ara|internet|web|arastir|araştır|guncel|güncel|son dakika)",
         r"\b(latest|current|today|news|browse|search|look up)\b",
     ]
     _SELF_PATTERNS = [
-        r"\b(sen|senden|seni|sana|kendin|codega|asistan|cevabın|cevabin)\b",
+        r"\b(sen|senden|seni|sana|kendin|codega|asistan|cevabin|cevabın)\b",
     ]
     _CODE_PATTERNS = [
         r"\b(kod|hata|bug|traceback|python|php|javascript|typescript|sql)\b",
         r"\b(api|fastapi|laravel|composer|docker|github|workflow|test)\b",
     ]
     _MATH_PATTERNS = [r"\d+\s*[\+\-\*/\^]\s*\d+", r"\b(hesapla|calculate)\b"]
-    _VISION_PATTERNS = [r"\b(görsel|resim|foto|image|screenshot|ekran)\b"]
+    _VISION_PATTERNS = [r"\b(gorsel|görsel|resim|foto|image|screenshot|ekran)\b"]
+    _IMPLICIT_REASONING_PATTERNS = [
+        r"\b(mantik|mantık|akil yurut|akıl yürüt|dusun|düşün|dusunce|düşünce|analiz)\b",
+        r"\b(leb|leblebi|ima|ne demek istedim|anlaman gerek|algilaman|algılaman)\b",
+        r"\b(arkadasim|arkadaşım|dedi|sorsan|bilmez|bilmiyor)\b",
+        r"\b(reason|infer|implicit|think|understand)\b",
+    ]
+    _CONVERSATIONAL_PATTERNS = [
+        r"^(gunaydin|günaydın|selam|merhaba|iyi aksamlar|iyi akşamlar)\b",
+        r"\b(arkadas gibi|arkadaş gibi|insan gibi|dogal|doğal|samimi|sohbet)\b",
+    ]
 
     def decide(self, message: str, history: list[dict] | None = None) -> AgentDecision:
         text = str(message or "")
@@ -66,7 +77,23 @@ class AgentBrain:
                 decision.intent = "calculation"
             decision.needs_tools.append("calculate")
 
-        if any(w in low for w in ["çalıştır", "test et", "run ", "execute"]):
+        if self._matches(low, self._IMPLICIT_REASONING_PATTERNS):
+            decision.intent = "implicit_context"
+            decision.response_style = "human_inference"
+            decision.needs_careful_reasoning = True
+
+        if self._matches(low, self._CONVERSATIONAL_PATTERNS):
+            decision.response_style = "warm_conversation"
+
+        if history:
+            recent = " ".join(str(h.get("content", "")) for h in history[-6:]).lower()
+            if any(w in recent for w in ["mantik", "mantık", "düşün", "dusun", "insan gibi"]):
+                decision.needs_careful_reasoning = True
+                if decision.intent == "general":
+                    decision.intent = "implicit_context"
+                decision.response_style = "human_inference"
+
+        if any(w in low for w in ["calistir", "çalıştır", "test et", "run ", "execute"]):
             if decision.intent == "coding":
                 decision.needs_tools.append("run_python")
 
@@ -77,29 +104,32 @@ class AgentBrain:
         if decision.needs_web:
             decision.needs_tools.append("web_search")
 
-        # Tool execution currently happens after a full model response, so do
-        # not stream when tool use is likely. This trades typing animation for
-        # correctness.
         decision.needs_tools = sorted(set(decision.needs_tools))
         decision.should_stream = not decision.needs_tools
         return decision
 
     def guidance(self, decision: AgentDecision) -> str:
         lines = [
-            "## Ajan Çalışma Modu",
+            "## Ajan Calisma Modu",
             f"- Niyet: {decision.intent}",
-            "- Önce son sohbet bağlamını oku, sonra bellek/RAG ve araç sonuçlarını değerlendir.",
-            "- Kullanıcı belirsiz konuşuyorsa önce yakın geçmişten zamirleri çöz.",
-            "- Emin olmadığın noktayı açıkça söyle; uydurma bilgi verme.",
+            f"- Cevap stili: {decision.response_style}",
+            "- Once son sohbet baglamini oku, sonra bellek/RAG ve arac sonuclarini degerlendir.",
+            "- Kullanici belirsiz konusuyorsa once yakin gecmisten zamirleri coz.",
+            "- Kullanici dolayli bir test yapiyorsa once imayi coz, sonra dogrudan cevap ver.",
+            "- Genel yardim teklifiyle kacma; kullanicinin sordugu seye cevap ver.",
+            "- Emin olmadigin noktayi acikca soyle; uydurma bilgi verme.",
         ]
         if decision.needs_tools:
             lines.append(
-                "- Bu soruda araç gerekebilir: "
+                "- Bu soruda arac gerekebilir: "
                 + ", ".join(decision.needs_tools)
-                + ". Gerekliyse yalnızca uygun <tool>...</tool> çağrısını kullan."
+                + ". Gerekliyse yalnizca uygun <tool>...</tool> cagrisini kullan."
             )
         if decision.needs_careful_reasoning:
-            lines.append("- Teknik işlerde kısa plan kur, sonra uygulanabilir adımlarla cevap ver.")
+            lines.append(
+                "- Cevaptan once icinden kisa analiz yap; analizini kullaniciya acma. "
+                "Son cevap dogal, net ve baglama uygun olsun."
+            )
         return "\n".join(lines)
 
     def _matches(self, text: str, patterns: list[str]) -> bool:

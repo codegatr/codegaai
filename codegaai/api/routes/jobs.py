@@ -268,6 +268,14 @@ async def _run_chat_job(job: ChatJob) -> None:
             rag_context=full_context,
             agent_guidance=decision_guidance(decision),
         )
+        auto_think = bool(job.deep_think or decision.needs_careful_reasoning)
+        if auto_think and not job.deep_think:
+            system_prompt += (
+                "\n\n## Otomatik Akil Yurutme\n"
+                "Cevap vermeden once icinden kisa analiz yap: kullanici aslinda ne soruyor, "
+                "onceki mesajdaki ima ne, en dogal cevap ne? "
+                "Bu analizi <think> veya <thinking> olarak yazma; sadece sonuc cevabi ver."
+            )
 
         # ── Derin Düşünme (o1/o3 modu) ───────────────────────────────
         if job.deep_think:
@@ -323,6 +331,15 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
             else:
                 result = engine.generate(messages, cfg=cfg, use_tools=True)
                 job.append(result.get("content", ""))
+
+        # Local modeller bazen talimata ragmen dusunce etiketlerini sizdirir.
+        # Kullaniciya ic analiz degil, temiz final cevap gosterilir.
+        if job.content:
+            cleaned = re.sub(r"<think>.*?</think>\s*", "", job.content, flags=re.DOTALL | re.IGNORECASE)
+            cleaned = re.sub(r"<thinking>.*?</thinking>\s*", "", cleaned, flags=re.DOTALL | re.IGNORECASE)
+            if cleaned.strip() != job.content.strip():
+                with job._lock:
+                    job.content = cleaned.strip()
 
         if job.chat_id and job.content:
             try:
