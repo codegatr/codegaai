@@ -266,20 +266,29 @@ async def _run_chat_job(job: ChatJob) -> None:
         if "generate_project" in decision.needs_tools:
             from codegaai.api.routes.files import create_php_project_zip
 
+            source_context = ""
+            if re.search(r"https?://", job.message):
+                try:
+                    source_context = await _maybe_web_search(job.message)
+                except Exception as exc:
+                    log.debug("Proje kaynak URL incelemesi atlandi: %s", exc)
             project_name, db_name = _project_meta_from_message(job.message)
             result = create_php_project_zip(
                 job.message,
                 project_name=project_name,
                 db_name=db_name,
                 php_version="8.3",
+                source_context=source_context,
             )
             files = ", ".join(f"`{f}`" for f in result.get("files", [])[:8])
+            source_line = "\n- Kaynak sayfa incelendi ve tasarim/fonksiyon yapisi projeye uyarlandi." if source_context else ""
             job.content = (
-                "Ise koyuldum ve projeyi ZIP olarak hazirladim.\n\n"
+                "Ise koyuldum; yorum yapmak yerine projeyi olusturdum.\n\n"
                 f"- Proje: `{result['filename']}`\n"
                 f"- Dosya sayisi: {result['file_count']}\n"
                 f"- Veritabani: `{db_name}` / `schema.sql` dahil\n"
-                f"- Dosyalar: {files}\n\n"
+                f"- Dosyalar: {files}"
+                f"{source_line}\n\n"
                 f"[ZIP'i indir]({result['download_url']})"
             )
             if job.chat_id:

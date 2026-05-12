@@ -47,8 +47,9 @@ class AgentBrain:
         r"\b(api|fastapi|laravel|composer|docker|github|workflow|test)\b",
     ]
     _PROJECT_GENERATION_PATTERNS = [
-        r"\b(proje|web sitesi|website|site|sistem|uygulama)\b.*\b(olustur|oluştur|yap|hazirla|hazırla|uret|üret)\b",
-        r"\b(olustur|oluştur|yap|hazirla|hazırla|uret|üret)\b.*\b(proje|web sitesi|website|site|sistem|uygulama)\b",
+        r"https?://.*\b(incele|analiz et|benzer|hazirla|hazırla|olustur|oluştur|yap|uret|üret)\b",
+        r"\b(proje|web sitesi|web sayfasi|web sayfası|website|site|sistem|uygulama)\b.*\b(olustur|oluştur|yap|hazirla|hazırla|uret|üret)\b",
+        r"\b(olustur|oluştur|yap|hazirla|hazırla|uret|üret)\b.*\b(proje|web sitesi|web sayfasi|web sayfası|website|site|sistem|uygulama)\b",
         r"\b(zip|dosyalari|dosyaları|veritabani|veritabanı|schema|sql)\b.*\b(ver|hazirla|hazırla|olustur|oluştur)\b",
         r"\b(php\s*8\.?3|php)\b.*\b(veritabani|veritabanı|sql|zip)\b",
     ]

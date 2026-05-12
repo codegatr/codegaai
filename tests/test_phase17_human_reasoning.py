@@ -51,6 +51,8 @@ class TestHumanReasoningContracts(unittest.TestCase):
         self.assertIn("Online Arac Kiralama Sistemi", files_py)
         self.assertIn("schema.sql", files_py)
         self.assertIn("reservations", files_py)
+        self.assertIn("source_context", files_py)
+        self.assertIn("Havalimani Teslim", files_py)
 
 
 if __name__ == "__main__":

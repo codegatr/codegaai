@@ -44,6 +44,17 @@ class TestAgentBrain(unittest.TestCase):
         self.assertIn("generate_project", decision.needs_tools)
         self.assertFalse(decision.should_stream)
 
+    def test_url_reference_site_request_selects_generation_tool(self) -> None:
+        from codegaai.core.agent_brain import decide_response
+
+        decision = decide_response(
+            "https://www.mihrayrentacar.com/ bu web sayfasini incele ve bana buna benzer bir web sayfasi hazirla."
+        )
+
+        self.assertEqual(decision.intent, "project_generation")
+        self.assertEqual(decision.response_style, "action_first")
+        self.assertIn("generate_project", decision.needs_tools)
+
     def test_system_prompt_really_includes_tools(self) -> None:
         from codegaai.core.system_prompt import build_system_prompt
 

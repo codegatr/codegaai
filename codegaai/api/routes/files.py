@@ -86,14 +86,39 @@ def _make_zip(name: str, files: dict) -> bytes:
         zf.writestr(f"{name}/README.md", readme)
     return buf.getvalue()
 
+def _summarize_source_context(source_context: str) -> str:
+    text = re.sub(r"\s+", " ", str(source_context or "")).strip()
+    if not text:
+        return ""
+    keep = []
+    for key in [
+        "Konya",
+        "Araç Kirala",
+        "Araç Tipi",
+        "Havalimanı",
+        "7/24",
+        "Renault",
+        "Peugeot",
+        "günlük",
+        "Rezervasyon",
+        "İletişim",
+    ]:
+        if key.lower() in text.lower():
+            keep.append(key)
+    bullets = ", ".join(dict.fromkeys(keep))
+    return bullets or text[:240]
+
+
 def create_php_project_zip(description: str,
                            project_name: str = "arac_kiralama",
                            db_name: str = "arac_kiralama_db",
-                           php_version: str = "8.3") -> dict:
+                           php_version: str = "8.3",
+                           source_context: str = "") -> dict:
     """Create a complete PHP project ZIP without waiting for the LLM."""
     name = re.sub(r"[^a-zA-Z0-9_-]", "_", project_name)[:30] or "project"
     db = re.sub(r"[^a-zA-Z0-9_]", "_", db_name)[:40] or "project_db"
     title = "Online Arac Kiralama Sistemi"
+    source_summary = _summarize_source_context(source_context)
     files = {
         "config.php": f"""<?php
 declare(strict_types=1);
@@ -187,6 +212,13 @@ $vehicles = $pdo->query('SELECT * FROM vehicles WHERE is_active = 1 ORDER BY dai
           <strong><?= number_format((float)$car['daily_price'], 2, ',', '.') ?> TL / gun</strong>
         </article>
       <?php endforeach; ?>
+    </section>
+
+    <section class="features">
+      <article><strong>7/24 Hizmet</strong><span>Telefon ve WhatsApp destekli hizli iletisim.</span></article>
+      <article><strong>Havalimani Teslim</strong><span>Konya ve cevresinde kolay teslim/iade.</span></article>
+      <article><strong>Guvenli Kiralama</strong><span>Bakimli araclar, sigorta ve net fiyatlandirma.</span></article>
+      <article><strong>Online Rezervasyon</strong><span>Musait araci sec, tarih gir, talebi gonder.</span></article>
     </section>
 
     <section id="reserve" class="panel">
@@ -291,7 +323,7 @@ nav{display:flex;gap:24px;align-items:center}nav strong{margin-right:auto;font-s
 .hero section{max-width:760px;margin-top:90px}.eyebrow{color:var(--accent);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
 h1{font-size:clamp(36px,6vw,72px);line-height:1;margin:0 0 18px}p{color:var(--muted);line-height:1.7}.button,button{border:0;border-radius:8px;background:var(--accent);color:#111;padding:14px 20px;font-weight:800;text-decoration:none;cursor:pointer}
 main{padding:36px 6vw}.notice{padding:16px 18px;border:1px solid #2f6f53;background:#0f2a22;border-radius:8px;margin-bottom:20px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}.card,.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:22px}.card span{color:var(--accent);font-size:12px;font-weight:800;text-transform:uppercase}.card strong{display:block;margin-top:18px;font-size:20px}
+.grid,.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}.card,.panel,.features article{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:22px}.card span{color:var(--accent);font-size:12px;font-weight:800;text-transform:uppercase}.card strong,.features strong{display:block;margin-top:18px;font-size:20px}.features{margin:28px 0}.features span{display:block;color:var(--muted);margin-top:10px}
 .panel{max-width:920px;margin:34px auto}form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}label{display:grid;gap:8px;color:var(--muted)}input,select{width:100%;background:#0d1218;border:1px solid var(--line);border-radius:8px;color:var(--text);padding:13px}button{grid-column:1/-1}
 .admin{max-width:1100px;margin:auto}table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line)}th,td{text-align:left;padding:14px;border-bottom:1px solid var(--line)}th{color:var(--accent)}
 @media(max-width:720px){nav{flex-wrap:wrap}.hero section{margin-top:48px}form{grid-template-columns:1fr}}
@@ -320,6 +352,9 @@ PHP {php_version}+ ve MySQL/MariaDB destekli online arac kiralama sistemi.
 
 ## Talep
 {description}
+
+## Incelenen kaynak ozeti
+{source_summary or "Kaynak URL belirtilmediyse genel rent a car yapisi kullanildi."}
 """,
     }
     data = _make_zip(name, files)
@@ -363,6 +398,7 @@ async def generate_project(req: ProjectReq) -> dict:
             project_name=req.project_name,
             db_name=req.db_name,
             php_version=req.php_version,
+            source_context="",
         )
     if not engine.is_ready: return {"error":"Model yüklü değil"}
     name = re.sub(r"[^a-zA-Z0-9_-]","_",req.project_name)[:30] or "project"
