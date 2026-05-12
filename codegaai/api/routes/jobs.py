@@ -111,6 +111,72 @@ def _project_meta_from_message(message: str) -> tuple[str, str]:
     return "codega_project", "codega_project_db"
 
 
+def _fold_tr(text: str) -> str:
+    """Tiny Turkish normalizer for delivery guards."""
+    table = str.maketrans({
+        "ı": "i", "İ": "i", "ğ": "g", "Ğ": "g", "ü": "u", "Ü": "u",
+        "ş": "s", "Ş": "s", "ö": "o", "Ö": "o", "ç": "c", "Ç": "c",
+    })
+    return str(text or "").translate(table).lower()
+
+
+def _looks_like_delivery_request(message: str) -> bool:
+    msg = _fold_tr(message)
+    artifacts = [
+        "zip", "dosya", "dosyalari", "veritabani", "database", "schema", "sql",
+        "php", "web sitesi", "web sayfasi", "website", "site", "proje",
+        "uygulama", "sistem", "arac", "kiralama", "rent a car", "rentacar",
+    ]
+    actions = [
+        "olustur", "hazirla", "yap", "uret", "ver", "teslim", "indir",
+        "paketle", "kodla", "gelistir",
+    ]
+    if "zip" in msg and any(a in msg for a in ["olustur", "hazirla", "ver", "teslim", "indir", "paketle"]):
+        return True
+    if "php" in msg and any(a in msg for a in ["veritabani", "database", "sql", "zip", "dosya"]):
+        return True
+    return any(a in msg for a in artifacts) and any(a in msg for a in actions)
+
+
+def _looks_like_model_refusal(content: str) -> bool:
+    msg = _fold_tr(content)
+    refusal_markers = [
+        "zip dosyasi olusturamadim",
+        "sistemimde bir zip",
+        "zip dosyasi olusturam",
+        "bunun yerine",
+        "stratejik plan",
+        "nasil yardimci olabilirim",
+        "planlayabiliriz",
+        "hangi sayfalarin olusturulacagini",
+        "kod dogrudan yazabilme",
+        "kod yazma yetenegim yok",
+        "dosya olusturma yetenegim yok",
+        "yetenegim yok",
+        "yetenegim bulunmuyor",
+    ]
+    return any(marker in msg for marker in refusal_markers)
+
+
+def _format_project_zip_response(result: dict, db_name: str, source_context: str = "", rescued: bool = False) -> str:
+    files = ", ".join(f"`{f}`" for f in result.get("files", [])[:8])
+    source_line = "\n- Kaynak sayfa incelendi ve tasarim/fonksiyon yapisi projeye uyarlandi." if source_context else ""
+    intro = (
+        "Teslim guard devreye girdi; plan/refusal yerine projeyi olusturdum."
+        if rescued
+        else "Ise koyuldum; yorum yapmak yerine projeyi olusturdum."
+    )
+    return (
+        f"{intro}\n\n"
+        f"- Proje: `{result['filename']}`\n"
+        f"- Dosya sayisi: {result['file_count']}\n"
+        f"- Veritabani: `{db_name}` / `schema.sql` dahil\n"
+        f"- Dosyalar: {files}"
+        f"{source_line}\n\n"
+        f"[ZIP'i indir]({result['download_url']})"
+    )
+
+
 def _build_recent_focus(history: list[dict], latest: str) -> str:
     recent = history[-6:]
     if not recent:
@@ -296,17 +362,7 @@ async def _run_chat_job(job: ChatJob) -> None:
                 source_context=source_context,
             )
             job.set_progress("ZIP paketi hazirlandi")
-            files = ", ".join(f"`{f}`" for f in result.get("files", [])[:8])
-            source_line = "\n- Kaynak sayfa incelendi ve tasarim/fonksiyon yapisi projeye uyarlandi." if source_context else ""
-            job.content = (
-                "Ise koyuldum; yorum yapmak yerine projeyi olusturdum.\n\n"
-                f"- Proje: `{result['filename']}`\n"
-                f"- Dosya sayisi: {result['file_count']}\n"
-                f"- Veritabani: `{db_name}` / `schema.sql` dahil\n"
-                f"- Dosyalar: {files}"
-                f"{source_line}\n\n"
-                f"[ZIP'i indir]({result['download_url']})"
-            )
+            job.content = _format_project_zip_response(result, db_name, source_context)
             if job.chat_id:
                 try:
                     store = ChatStore.open()
@@ -470,6 +526,37 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
         if not job.content.strip():
             with job._lock:
                 job.content = _fallback_empty_response(job.message, decision.intent)
+        if _looks_like_delivery_request(job.message) and _looks_like_model_refusal(job.content):
+            try:
+                from codegaai.api.routes.files import create_php_project_zip
+
+                source_context = ""
+                if re.search(r"https?://|\b[\w.-]+\.(?:com|net|org|com\.tr|tr)\b", job.message, re.IGNORECASE):
+                    try:
+                        job.set_progress("Teslim guard: referans sayfa inceleniyor")
+                        source_context = await _maybe_web_search(job.message)
+                    except Exception as exc:
+                        log.debug("Teslim guard kaynak incelemesi atlandi: %s", exc)
+                project_name, db_name = _project_meta_from_message(job.message)
+                job.set_progress("Teslim guard: ZIP dosyalari uretiliyor")
+                result = create_php_project_zip(
+                    job.message,
+                    project_name=project_name,
+                    db_name=db_name,
+                    php_version="8.3",
+                    source_context=source_context,
+                )
+                with job._lock:
+                    job.content = _format_project_zip_response(
+                        result,
+                        db_name,
+                        source_context,
+                        rescued=True,
+                    )
+                job.set_progress("Teslim guard: ZIP paketi hazirlandi")
+                log.info("ChatJob %s teslim guard proje zip hazirladi: %s", job.job_id, result.get("filename"))
+            except Exception as exc:
+                log.warning("Teslim guard proje uretimi basarisiz: %s", exc)
         job.set_progress("Cevap tamamlandi")
 
         if job.chat_id and job.content:

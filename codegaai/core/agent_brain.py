@@ -70,7 +70,7 @@ class AgentBrain:
 
     def decide(self, message: str, history: list[dict] | None = None) -> AgentDecision:
         text = str(message or "")
-        low = text.lower()
+        low = self._fold_tr(text)
         decision = AgentDecision()
 
         if self._matches(low, self._CODE_PATTERNS):
@@ -154,6 +154,13 @@ class AgentBrain:
 
     def _matches(self, text: str, patterns: list[str]) -> bool:
         return any(re.search(pattern, text, re.IGNORECASE) for pattern in patterns)
+
+    def _fold_tr(self, text: str) -> str:
+        table = str.maketrans({
+            "ı": "i", "İ": "i", "ğ": "g", "Ğ": "g", "ü": "u", "Ü": "u",
+            "ş": "s", "Ş": "s", "ö": "o", "Ö": "o", "ç": "c", "Ç": "c",
+        })
+        return str(text or "").translate(table).lower()
 
 
 _BRAIN = AgentBrain()
