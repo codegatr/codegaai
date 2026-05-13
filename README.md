@@ -38,6 +38,10 @@
 | Çoklu Model Orkestrasyon | ❌ | ❌ | ❌ | ❌ | ✅ Benzersiz |
 | **Ücret** | $20/ay | $20/ay | Kurumsal | $20/ay | ✅ **Ücretsiz** |
 
+### Cursor IDE ile farklar
+
+CODEGA bir **masaüstü yapay zekâ platformu**dur; [Cursor](https://cursor.com) ise **kod editörü içinde** çalışan ajan ve MCP ekosistemine sahip bir IDE’dir. İkisi aynı puan tablosunda değerlendirilmez. Özellik örtüşmesi, eksikler ve önerilen yol haritası için bkz. **[COMPARISON.md — Cursor IDE ile karşılaştırma](COMPARISON.md#cursor-ide)**.
+
 ---
 
 ## ✅ Tamamlanan Fazlar

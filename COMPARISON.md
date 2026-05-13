@@ -1,4 +1,6 @@
-# CODEGA AI v3.6.0 — Tam Karşılaştırma
+# CODEGA AI v3.8.7 — Tam Karşılaştırma
+
+> Sürüm notu: Bu belge `codegaai/__init__.py` içindeki sürüm ile hizalanmıştır (v3.8.7). Eski belgelerde görülen v3.6.0 başlığı güncellenmiştir.
 
 ## Rakipler: ChatGPT · Gemini · Claude · CODEX · Grok · Copilot
 
@@ -60,6 +62,49 @@
 
 ---
 
+## Cursor IDE ile karşılaştırma {#cursor-ide}
+
+**Cursor**, VS Code tabanlı bir **geliştirme ortamı** ve yapay zekâyı düzenleyici, terminal, Git ve proje geneline gömülü şekilde sunar. **CODEGA AI** ise **bağımsız masaüstü uygulaması** olarak; yerel LLM, RAG, medya ve API odaklı bir **asistan platformu**dur. Ürün sınıfları farklı olduğu için “kim kazanır” yerine **örtüşen** ve **dışlayan** yetenekleri ayırmak doğru olur.
+
+### Örtüşen alanlar (benzer işlev)
+
+| Alan | Cursor | CODEGA |
+|------|:------:|:------:|
+| Doğal dil ile kod üretimi / düzenleme | ✅ | ✅ |
+| Çok adımlı ajan ve araç zinciri | ✅ Agent/Composer | ✅ Agent API + AgentBrain |
+| Kod çalıştırma (sınırlı güvenli ortam) | ✅ Terminal / sandbox varyantları | ✅ Python sandbox |
+| Proje dosyaları ve bağlam | ✅ @codebase, semantik arama | ✅ Dosya yükleme, RAG, ZIP |
+| Canvas / zengin önizleme | ✅ Cursor Canvas | ✅ HTML/JS canvas (Faz 17) |
+| GitHub entegrasyonu | ✅ | ✅ push / PR |
+| Genişletilebilir “araç” fikri | ✅ MCP sunucuları | ✅ `plugins/` + manifest |
+
+### Cursor’da güçlü, CODEGA’da kısmi veya farklı modellenen özellikler
+
+| # | Özellik | Cursor | CODEGA | Kısa not |
+|---|---------|:------:|:------:|----------|
+| C1 | Tam IDE: LSP, sembol navigasyonu, çok dosyalı refaktör | ✅ | ❌ | CODEGA editör değil; kod üretimi API/sohbet üzerinden. |
+| C2 | Satır içi Tab tamamlama | ✅ | ❌ | Ayrı ürün kararı; yerel model ile teorik olarak eklenebilir. |
+| C3 | **MCP** (Model Context Protocol) ile harici araç standardı | ✅ | 🟡 | CODEGA’da kendi plugin API’si var; MCP uyumluluk katmanı yok. |
+| C4 | **Proje kuralları** (`.cursor/rules`, `AGENTS.md`) | ✅ | 🟡 | `config.toml` / profil yaklaşımı; Cursor ile aynı dosya formatı değil. |
+| C5 | **Skills** (`SKILL.md` ile uzman davranış) | ✅ | ❌ | Benzeri: sistem prompt + plugin birleşimi ile kısmen karşılanabilir. |
+| C6 | Tam yetkili terminal / CI içinde ajan | ✅ | 🟡 | Sandbox ve API odaklı; tam shell oturumu IDE kadar derin değil. |
+| C7 | Cloud / arka plan ajanları | ✅ | ❌ | CODEGA tasarımı yerel ve gizlilik odaklı. |
+| C8 | Çok köklü workspace (monorepo UX) | ✅ | 🟡 | Dosya yükleme ve proje üretimi var; monorepo IDE deneyimi yok. |
+
+### CODEGA’nın Cursor’a göre öne çıktığı alanlar
+
+- **Tam yerel çalışma** ve buluta zorunlu gönderim olmaksızın LLM/RAG (Cursor’da model ve özelliklere bağlı olarak bulut kullanımı söz konusu olabilir).
+- **Medya yığını**: SDXL/FLUX, video, TTS/ASR, fine-tuning, GPU katman yönetimi — tipik IDE ajanının kapsamının dışında.
+- **Otonom öğrenme, DPO, federe ağ** gibi CODEGA’ya özgü modüller.
+
+### Önerilen yol haritası (Cursor ile hizalama)
+
+1. **MCP köprüsü**: Harici MCP sunucularını CODEGA plugin sistemine veya ayrı bir adaptör katmanına bağlamak.
+2. **Proje kuralları dosyası**: Depo kökünde `CODEGA_RULES.md` veya TOML bölümü ile Cursor’daki `AGENTS.md` benzeri tek kaynak.
+3. **Açık “bağlam sözleşmesi”**: Hangi modların bulut/HTTP gerektirdiğini (HF token, wttr.in vb.) README’de tek tabloda netleştirmek — “tam offline” iddiası ile çelişmeyi önlemek.
+
+---
+
 ## Özet Skoru
 
 | Yapay Zeka | Özellik Sayısı | Gizlilik | Fiyat |
@@ -71,6 +116,8 @@
 | Grok | 26/44 | ❌ Bulut | $30/ay |
 | Copilot | 30/44 | ❌ Bulut | $30/ay |
 | **CODEGA AI** | **44/44** | ✅ **Tam Yerel** | ✅ $0 |
+
+> **Not (Cursor):** Cursor IDE aynı 44 maddelik “sohbet asistanı” tablosunda değerlendirilmez; üstteki [Cursor IDE ile karşılaştırma](#cursor-ide) bölümündeki **C1–C8** ekseni kullanılmalıdır.
 
 ---
 

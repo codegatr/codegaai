@@ -1,0 +1,12 @@
+---
+description: CODEGA AI repo — Cursor ile kıyas ve MCP/plugin tutarlılığı
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# CODEGA geliştirici notları (Cursor ile hizalama)
+
+- **Ürün sınıfı**: CODEGA, Cursor gibi bir IDE değil; API + PyWebView masaüstü asistanıdır. Karşılaştırma iddialarında `COMPARISON.md` içindeki [Cursor IDE bölümünü](COMPARISON.md#cursor-ide) kullan; sohbet botu tablosunu IDE özellikleriyle karıştırma.
+- **Genişletilebilirlik**: Yeni harici entegrasyonlar için önce mevcut `codegaai/plugins` ve `plugin_manager` kalıplarını takip et. MCP eklenirse, araç şeması ve güvenlik sınırlarını FastAPI route katmanında açıkça doğrula.
+- **Gizlilik dili**: “Tam offline” ifadesi kullanılıyorsa, HF token, web learner veya harici HTTP çağrılarını README / config yorumlarında listele; kullanıcıyı yanıltma.
+- **Sürüm**: Karşılaştırma belgelerindeki sürüm `codegaai/__init__.py` ile aynı tutulmalı.
