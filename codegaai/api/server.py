@@ -127,7 +127,6 @@ def create_app() -> FastAPI:
             allow_origins=[
                 "http://127.0.0.1",
                 "http://localhost",
-                "null",
             ],
             allow_origin_regex=r"^https?://(127\.0\.0\.1|localhost)(:\d+)?$",
             allow_credentials=True,
@@ -254,155 +253,12 @@ def create_app() -> FastAPI:
     app.include_router(gpu_routes.router, prefix="/api/gpu", tags=["gpu"])
 
     # Setup.html — ilk kurulum sayfası
-    from fastapi.responses import FileResponse
-
     @app.get("/setup")
     async def setup_page():
-        from pathlib import Path
-        _ui_dir = Path(__file__).parent.parent / "ui" / "web"
-        setup_html = _ui_dir / "setup.html"
+        setup_html = UI_ROOT / "setup.html"
         if setup_html.exists():
             return FileResponse(str(setup_html))
         return {"error": "setup.html bulunamadı"}
-
-    # Zamanlayıcıyı başlat + modelleri otomatik yükle
-    # Startup logic lifespan'e taşındı
-    async def _start_scheduler():
-        try:
-            from codegaai.core.scheduler import setup_scheduler
-            setup_scheduler()
-            log.info("Zamanlayıcı başlatıldı (Faz 10)")
-        except Exception as exc:
-            log.warning("Zamanlayıcı başlatılamadı: %s", exc)
-
-        # Otomatik öğrenme — idle'da arka planda çalışır
-        def _start_auto_learn():
-            import time
-            time.sleep(5)  # Sistem tamamen hazır olsun
-            try:
-                from codegaai.core.autonomous_learner import AutonomousLearner
-                AutonomousLearner.get().start()
-                log.info("Otonom öğrenme başlatıldı (idle'da çalışacak)")
-            except Exception as exc:
-                log.warning("Otonom öğrenme başlatılamadı: %s", exc)
-
-        threading.Thread(target=_start_auto_learn, daemon=True,
-                         name="auto-learn-starter").start()
-
-        def _start_web_learning():
-            import time
-            learning_cfg = get_config().get("learning", {})
-            if not learning_cfg.get("enabled", True):
-                log.info("Açılış internet öğrenmesi: learning.enabled=false, atlandı")
-                return
-            if not learning_cfg.get("auto_web_learn_on_startup", True):
-                log.info("Açılış internet öğrenmesi devre dışı")
-                return
-
-            delay = int(learning_cfg.get("startup_web_learn_delay_seconds", 20) or 20)
-            time.sleep(max(0, delay))
-            try:
-                from codegaai.core.web_learner import WebLearner
-                learner = WebLearner.get()
-                if learner.status.get("state") != "idle":
-                    log.info("Açılış internet öğrenmesi: başka öğrenme aktif, atlandı")
-                    return
-                learner.learn_async(feeds=True)
-                log.info("Açılış internet öğrenmesi başlatıldı (RSS/feed)")
-            except Exception as exc:
-                log.warning("Açılış internet öğrenmesi başlatılamadı: %s", exc)
-
-        threading.Thread(target=_start_web_learning, daemon=True,
-                         name="startup-web-learner").start()
-
-        cfg = get_config()
-        server_cfg = cfg.get("server", {})
-        if server_cfg.get("auto_load_model", True):
-            import threading
-            def _auto_load():
-                import time
-                time.sleep(3)  # FastAPI tamamen ayağa kalksın
-                log.info("Otomatik model yükleme başlıyor...")
-                try:
-                    from codegaai.core.models_registry import ModelRegistry
-                    from codegaai.core.engine import LLMEngine
-                    from codegaai.core.embeddings import EmbeddingService
-
-                    reg = ModelRegistry.get()
-                    engine = LLMEngine.get()
-
-                    # İndirilmiş modelleri listele — detaylı log
-                    all_models = reg.list_llm_models()
-                    downloaded = []
-                    for m in all_models:
-                        is_dl = reg.is_llm_downloaded(m["id"])
-                        log.info("  Model kontrol: %s → %s",
-                                 m["id"], "✓ indirilmiş" if is_dl else "✗ yok")
-                        if is_dl:
-                            downloaded.append(m)
-
-                    if not downloaded:
-                        log.info("Otomatik yükleme: İndirilmiş model yok, atlandı")
-                    elif engine.is_ready:
-                        log.info("Motor zaten hazır: %s", engine._status.model_id)
-                    else:
-                        # Önce varsayılan, yoksa ilk indirilen
-                        default = next(
-                            (m for m in downloaded if m.get("default")),
-                            downloaded[0],
-                        )
-                        log.info("Otomatik model yükleme: %s", default["id"])
-                        engine.load(default["id"])
-                        log.info("Otomatik yükleme tamamlandı: %s",
-                                 default["id"])
-
-                    # BGE-M3 otomatik yükle — embedding şart
-                    if server_cfg.get("auto_load_embedding", True):
-                        emb = EmbeddingService.get()
-                        if not emb.is_ready:
-                            is_dl = reg.is_embedding_downloaded("bge-m3")
-                            log.info("BGE-M3 kontrol: %s",
-                                     "✓ indirilmiş" if is_dl else "✗ indirilmemiş")
-                            if is_dl:
-                                log.info("Otomatik embedding yükleme: bge-m3")
-                                try:
-                                    emb.load("bge-m3")
-                                    log.info("BGE-M3 yüklendi ✓")
-                                except Exception as emb_err:
-                                    log.warning("BGE-M3 yüklenemedi: %s", emb_err)
-                            elif server_cfg.get("auto_download_embedding", True):
-                                log.info("BGE-M3 indirilmemiş — arka planda indiriliyor")
-                                def _dl_and_load_emb():
-                                    try:
-                                        t = reg.download_snapshot_async("bge-m3", spec_kind="embedding")
-                                        t.join()
-                                        progress = reg.get_progress("bge-m3")
-                                        if progress.status == "completed":
-                                            log.info("BGE-M3 indirildi, yükleniyor...")
-                                            EmbeddingService.get().load("bge-m3")
-                                            log.info("BGE-M3 hazır ✓ (arka planda indirildi)")
-                                        else:
-                                            log.warning("BGE-M3 indirme başarısız: %s", progress.error)
-                                    except Exception as e:
-                                        log.warning("BGE-M3 arka plan indirme hatası: %s", e)
-                                import threading as _th
-                                _th.Thread(target=_dl_and_load_emb, daemon=True,
-                                           name="emb-auto-dl").start()
-
-                except OSError as exc:
-                    if "0xc000001d" in str(exc).lower() or "-1073741795" in str(exc):
-                        log.error(
-                            "OTOMATİK YÜKLEME BAŞARISIZ — CPU AVX2 uyumsuzluğu! "
-                            "fix_llama.bat dosyasını çalıştırın."
-                        )
-                    else:
-                        log.error("Otomatik model yükleme OSError: %s", exc)
-                except Exception as exc:
-                    log.error("Otomatik model yükleme başarısız: %s", exc,
-                              exc_info=True)
-
-            threading.Thread(target=_auto_load, daemon=True,
-                             name="auto-loader").start()
 
     # ---- Statik UI dosyaları ----
     if UI_ROOT.exists():

@@ -351,18 +351,16 @@
                 </svg>
               </button>
               <input type="file" id="chat-file-input" accept=".zip,.php,.html,.css,.js,.sql,.json,.txt,.md,.py" style="display:none">
-              <div id="chat-file-badge" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--color-accent)">
+              <div id="chat-file-badge" class="chat-file-badge">
                 <span id="chat-file-name"></span>
-                <button type="button" onclick="removeChatFile()" style="border:none;background:none;cursor:pointer;color:var(--color-danger);font-size:14px">×</button>
+                <button type="button" onclick="removeChatFile()" class="chat-file-remove-btn">×</button>
               </div>
 
               <!-- Derin Düşünme Modu (o1/o3 karşılığı) -->
               <button type="button" id="think-toggle"
                 title="Derin Düşünme Modu — Yanıt vermeden önce adım adım düşünür"
                 onclick="toggleThinkMode()"
-                style="padding:6px 10px;border:1px solid var(--color-border);border-radius:6px;
-                       background:none;color:var(--color-text-muted);font-size:12px;cursor:pointer;
-                       display:flex;align-items:center;gap:4px;white-space:nowrap">
+                class="chat-mode-toggle">
                 💭 Düşün
               </button>
 
@@ -370,9 +368,7 @@
               <button type="button" id="agent-toggle"
                 title="Çok Adımlı Ajan — Karmaşık görevi planlar ve uygular"
                 onclick="toggleAgentMode()"
-                style="padding:6px 10px;border:1px solid var(--color-border);border-radius:6px;
-                       background:none;color:var(--color-text-muted);font-size:12px;cursor:pointer;
-                       display:flex;align-items:center;gap:4px;white-space:nowrap">
+                class="chat-mode-toggle">
                 🤖 Ajan
               </button>
 
@@ -487,27 +483,26 @@
     <!-- ─── Canvas / Artifact ─── -->
     <section class="view" data-view="canvas">
       <header class="view-header">
-        <h1 class="view-title">Canvas <span style="font-size:12px;opacity:.6;font-weight:400">Canlı Önizleme & Artifact</span></h1>
-        <div style="display:flex;gap:8px;margin-left:auto">
+        <h1 class="view-title">Canvas <span class="canvas-subtitle">Canlı Önizleme &amp; Artifact</span></h1>
+        <div class="canvas-header-actions">
           <button class="btn btn--sm" onclick="canvasRun()" title="Kodu çalıştır">▶ Çalıştır</button>
           <button class="btn btn--sm btn--ghost" onclick="canvasCopy()" title="HTML kopyala">📋 Kopyala</button>
           <button class="btn btn--sm btn--ghost" onclick="canvasClear()">✕ Temizle</button>
         </div>
       </header>
-      <div style="display:grid;grid-template-columns:1fr 1fr;height:calc(100vh - 64px);gap:0">
+      <div class="canvas-split">
         <!-- Kod editörü -->
-        <div style="display:flex;flex-direction:column;border-right:1px solid var(--color-border)">
-          <div style="padding:8px 16px;background:var(--color-surface-2);border-bottom:1px solid var(--color-border);font-size:12px;color:var(--color-text-muted);display:flex;gap:8px;align-items:center">
-            <select id="canvas-lang" onchange="canvasLangChange()" style="background:transparent;border:none;color:inherit;font-size:12px;cursor:pointer">
+        <div class="canvas-pane canvas-pane--editor">
+          <div class="canvas-toolbar">
+            <select id="canvas-lang" onchange="canvasLangChange()" class="canvas-lang-select">
               <option value="html">HTML/CSS/JS</option>
               <option value="python">Python</option>
               <option value="php">PHP (Önizleme)</option>
             </select>
-            <span id="canvas-status" style="margin-left:auto;color:var(--color-accent)"></span>
+            <span id="canvas-status" class="canvas-status"></span>
           </div>
           <textarea id="canvas-editor"
-            style="flex:1;padding:16px;font-family:monospace;font-size:13px;line-height:1.6;
-                   background:var(--color-surface);color:var(--color-text);border:none;resize:none;outline:none;tab-size:2"
+            class="canvas-editor"
             placeholder="<!-- HTML kodunu buraya yaz veya AI'ya 'canvas olarak göster' de -->
 &lt;!DOCTYPE html&gt;
 &lt;html&gt;
@@ -519,18 +514,18 @@
             oninput="canvasAutoRun()"></textarea>
         </div>
         <!-- Canlı önizleme -->
-        <div style="display:flex;flex-direction:column">
-          <div style="padding:8px 16px;background:var(--color-surface-2);border-bottom:1px solid var(--color-border);font-size:12px;color:var(--color-text-muted)">
+        <div class="canvas-pane">
+          <div class="canvas-toolbar">
             Önizleme
           </div>
-          <div id="canvas-output-wrap" style="flex:1;position:relative">
+          <div id="canvas-output-wrap" class="canvas-output-wrap">
             <iframe id="canvas-preview"
-              style="width:100%;height:100%;border:none;background:#fff"
+              class="canvas-preview"
               sandbox="allow-scripts allow-modals"
               srcdoc="<body style='background:#0a0b0d;color:#666;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;font-size:14px'>Kod yaz, ▶ Çalıştır'a bas</body>">
             </iframe>
             <!-- Python/sandbox çıktısı -->
-            <div id="canvas-sandbox-output" style="display:none;position:absolute;inset:0;background:var(--color-surface);padding:16px;font-family:monospace;font-size:13px;overflow:auto;white-space:pre-wrap"></div>
+            <div id="canvas-sandbox-output" class="canvas-sandbox-output"></div>
           </div>
         </div>
       </div>

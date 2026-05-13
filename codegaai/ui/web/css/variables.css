@@ -107,13 +107,41 @@
   --z-modal:      100;
 }
 
-/* Açık tema (gelecek için hazır - şu anda kullanılmıyor) */
+/* Açık tema (gelecek için hazır) */
 [data-theme="light"] {
-  --color-bg-base:     #fafafa;
-  --color-bg-elevated: #ffffff;
-  --color-bg-raised:   #f4f4f5;
-  --color-text:        #18181b;
-  --color-text-muted:  #52525b;
-  --color-text-dim:    #a1a1aa;
-  --color-border:      #e4e4e7;
+  /* ---- Renkler: temel ---- */
+  --color-bg-base:        #fafafa;
+  --color-bg-elevated:    #ffffff;
+  --color-bg-raised:      #f4f4f5;
+  --color-bg-input:       #ffffff;
+
+  /* ---- Renkler: yüzey kenarları ---- */
+  --color-border:         #e4e4e7;
+  --color-border-strong:  #d4d4d8;
+  --color-border-subtle:  #f0f0f2;
+
+  /* ---- Renkler: metin ---- */
+  --color-text:           #18181b;
+  --color-text-muted:     #52525b;
+  --color-text-dim:       #a1a1aa;
+  --color-text-inverse:   #fafafa;
+
+  /* ---- Renkler: aksent ---- */
+  --color-accent:         #d97706;
+  --color-accent-hover:   #b45309;
+  --color-accent-dim:     #92400e;
+  --color-accent-glow:    rgb(217 119 6 / 0.12);
+
+  /* ---- Renkler: durum ---- */
+  --color-success:        #059669;
+  --color-warning:        #ca8a04;
+  --color-danger:         #dc2626;
+  --color-info:           #2563eb;
+  --color-pending:        #0d9488;
+
+  /* ---- Gölgeler ---- */
+  --shadow-sm:  0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow:     0 2px 8px rgb(0 0 0 / 0.08);
+  --shadow-lg:  0 12px 24px rgb(0 0 0 / 0.12);
 }
+

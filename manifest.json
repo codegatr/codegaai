@@ -1,8 +1,8 @@
 {
   "name": "CODEGA AI",
   "slug": "codegaai",
-  "version": "1.0.0",
-  "phase": "v1.0.0 - Production: Masaüstü + Linux Sunucu + Auth",
+  "version": "3.8.7",
+  "phase": "v3.8.7 - Stable No-AVX Llama Preflight",
   "description": "Yerelde çalışan, kendi kendine öğrenen, çok modlu yapay zeka platformu. RTX 3060+ ve 16GB+ RAM için optimize edilmiştir.",
   "author": "CODEGA",
   "license": "MIT",
