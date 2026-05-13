@@ -6,7 +6,7 @@
   <p><strong>Türkiye'nin Yerel, Otonom & Ücretsiz Yapay Zeka Asistanı</strong></p>
 
   <p>
-    <img src="https://img.shields.io/badge/versiyon-v3.8.7-orange" alt="v3.8.7">
+    <img src="https://img.shields.io/badge/versiyon-v3.8.8-orange" alt="v3.8.8">
     <img src="https://img.shields.io/badge/python-3.12-blue" alt="Python 3.12">
     <img src="https://img.shields.io/badge/platform-Windows-lightgrey" alt="Windows">
     <img src="https://img.shields.io/badge/lisans-MIT-green" alt="MIT">
