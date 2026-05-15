@@ -245,6 +245,10 @@ def create_app() -> FastAPI:
     app.include_router(screen_routes.router, prefix="/api/screen", tags=["screen"])
     from codegaai.api.routes import gpu as gpu_routes
     app.include_router(gpu_routes.router, prefix="/api/gpu", tags=["gpu"])
+    from codegaai.api.routes import codebase as codebase_routes
+    app.include_router(codebase_routes.router, prefix="/api/codebase", tags=["codebase"])
+    from codegaai.api.routes import codex_plus as codex_routes
+    app.include_router(codex_routes.router, prefix="/api/codex_plus", tags=["codex_plus"])
 
     # Setup.html — ilk kurulum sayfası
     from fastapi.responses import FileResponse

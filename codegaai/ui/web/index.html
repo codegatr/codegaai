@@ -1200,6 +1200,53 @@
       </div>
 
       <div class="system-section system-section--full">
+        <h3>⬆ Güncelleme Merkezi</h3>
+
+        <!-- Durum -->
+        <div id="updater-status" style="margin-bottom:16px">
+          <span class="muted">Kontrol ediliyor...</span>
+        </div>
+
+        <!-- İndirme progress -->
+        <div id="updater-progress" style="display:none;margin-bottom:16px">
+          <div style="background:var(--color-surface-2);border-radius:6px;height:8px;overflow:hidden;margin-bottom:6px">
+            <div id="updater-bar" style="height:100%;background:var(--color-accent);width:0%;transition:width .3s"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span id="updater-bar-label" style="font-size:12px;color:var(--color-text-muted)"></span>
+            <button onclick="Updater.cancel()" style="font-size:11px;padding:2px 8px;border:1px solid var(--color-border);border-radius:4px;background:none;color:var(--color-danger);cursor:pointer">İptal</button>
+          </div>
+        </div>
+
+        <!-- Eylemler -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+          <button class="btn btn--sm" onclick="Updater.check(true)">🔄 Yenile</button>
+          <button class="btn btn--sm btn--ghost" onclick="Updater.createBackup()">💾 Yedek Al</button>
+          <button class="btn btn--sm btn--ghost" onclick="Updater.showChangelog()">📋 Changelog</button>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px">
+            <input type="checkbox" onchange="Updater.setAutoUpdate(this.checked)"
+                   id="auto-update-cb" style="accent-color:var(--color-accent)">
+            <span id="auto-update-label">Otomatik Kontrol</span>
+          </label>
+        </div>
+
+        <!-- Changelog -->
+        <div id="updater-changelog" style="display:none;max-height:300px;overflow-y:auto;margin-bottom:20px"></div>
+
+        <!-- Yedekler -->
+        <div style="margin-bottom:16px">
+          <h4 style="font-size:13px;margin-bottom:8px;color:var(--color-text-muted)">Yedekler</h4>
+          <div id="updater-backups"><span class="muted" style="font-size:13px">Yükleniyor...</span></div>
+        </div>
+
+        <!-- Güncelleme Geçmişi -->
+        <div>
+          <h4 style="font-size:13px;margin-bottom:8px;color:var(--color-text-muted)">Güncelleme Geçmişi</h4>
+          <div id="updater-history"><span class="muted" style="font-size:13px">Yükleniyor...</span></div>
+        </div>
+      </div>
+
+      <div class="system-section system-section--full">
         <h3>Uygulama Logları</h3>
         <p class="system-section__hint">
           Konsol gizli çalışır; hata, indirme ve model yükleme kayıtları burada görünür.

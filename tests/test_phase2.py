@@ -51,7 +51,7 @@ class TestApiServer(unittest.TestCase):
             "/api/memory/learn",
             "/api/memory/stats",
             "/api/updater/check",
-            "/api/updater/status",
+            "/api/updater/progress",
         ]
         for p in expected:
             self.assertIn(p, paths, f"Eksik rota: {p}")
