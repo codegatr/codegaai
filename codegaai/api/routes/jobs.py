@@ -313,44 +313,38 @@ async def _run_chat_job(job: ChatJob) -> None:
             deep_think=job.deep_think,
         )
 
-        # ── Derin Düşünme (o1/o3 modu) ───────────────────────────────
+        # ── Mesaj listesi oluştur + Context Sıkıştırma ───────────────
         if job.deep_think:
             think_prompt = system_prompt + """
 
 ## Derin Düşünme Modu AKTİF
-
 Yanıt vermeden önce <think> bloğu içinde adım adım düşün:
 <think>
-1. Soruyu analiz et — ne tam olarak soruluyor?
+1. Soruyu analiz et
 2. Hangi bilgilere ihtiyacım var?
 3. Çözüm yaklaşımım nedir?
-4. Olası hatalar ve edge case'ler?
+4. Olası hatalar?
 5. En iyi yanıt nasıl olmalı?
 </think>
-
 Düşünce sonrası net ve doğrudan yanıt ver."""
-            messages = [{"role": "system", "content": think_prompt}]
-            messages.extend(history)
-            messages.append({"role": "user", "content": job.message})
-            # Düşünceyi ayır
-            full_out = ""
-            for token in engine.stream(messages, cfg=GenerationConfig(
-                    max_tokens=job.max_tokens + 512, temperature=0.4)):
-                full_out += token
-            # <think>...</think> bloğunu ayıkla
-            import re as _re
-            think_match = _re.search(r'<think>(.*?)</think>', full_out, _re.DOTALL)
-            if think_match:
-                job.thought = think_match.group(1).strip()
-                answer = _re.sub(r'<think>.*?</think>', '', full_out, flags=_re.DOTALL).strip()
-                job.append(answer)
-            else:
-                job.append(full_out)
-        # ── Normal mod ────────────────────────────────────────────────
+            raw_messages = [{"role": "system", "content": think_prompt}]
         else:
-            messages = [{"role": "system", "content": system_prompt}]
-            messages.extend(history)
-            messages.append({"role": "user", "content": job.message})
+            raw_messages = [{"role": "system", "content": system_prompt}]
+
+        raw_messages.extend(history)
+        raw_messages.append({"role": "user", "content": job.message})
+
+        # Context sıkıştırma — token limiti aşılacaksa önceki mesajları özetle
+        try:
+            from codegaai.core.context_manager import ContextManager
+            ctx = ContextManager()
+            result_ctx = ctx.prepare_context(raw_messages, system_prompt)
+            messages = result_ctx.messages
+            if result_ctx.was_compressed:
+                log.info("Context sıkıştırıldı: %d→%d mesaj",
+                         len(raw_messages), len(messages))
+        except Exception:
+            messages = raw_messages
 
         if job.chat_id:
             try:
@@ -359,7 +353,7 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
             except Exception:
                 pass
 
-        if not job.deep_think:  # deep_think zaten yukarıda üretildi
+        if not job.deep_think:
             cfg = GenerationConfig(max_tokens=job.max_tokens, temperature=0.55)
             if decision.should_stream:
                 for token in engine.stream(messages, cfg=cfg):
@@ -367,6 +361,36 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
             else:
                 result = engine.generate(messages, cfg=cfg, use_tools=True)
                 job.append(result.get("content", ""))
+        else:
+            full_out = ""
+            for token in engine.stream(messages, cfg=GenerationConfig(
+                    max_tokens=job.max_tokens + 512, temperature=0.4)):
+                full_out += token
+            import re as _re
+            think_match = _re.search(r'<think>(.*?)</think>', full_out, _re.DOTALL)
+            if think_match:
+                job.thought = think_match.group(1).strip()
+                answer = _re.sub(r'<think>.*?</think>', '', full_out, flags=_re.DOTALL).strip()
+                job.append(answer)
+            else:
+                job.append(full_out)
+
+        # ── Tool Calling — <tool>...</tool> bloklarını çalıştır ───────
+        if job.content and "<tool>" in job.content:
+            job.content = await _execute_inline_tools(job.content, job)
+
+        # ── Self-Evaluation — Kısa/belirsiz yanıtları yeniden yaz ────
+        if _needs_retry(job.message, job.content):
+            log.info("Self-eval: yanıt yetersiz, yeniden üretiliyor")
+            retry_msgs = messages + [
+                {"role": "assistant", "content": job.content},
+                {"role": "user", "content":
+                 "Bu yanıt yetersiz veya belirsiz. Lütfen daha kapsamlı ve açık yanıt ver."},
+            ]
+            job.content = ""
+            for token in engine.stream(retry_msgs, cfg=GenerationConfig(
+                    max_tokens=job.max_tokens, temperature=0.45)):
+                job.append(token)
 
         if job.chat_id and job.content:
             try:
@@ -375,8 +399,14 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
             except Exception:
                 pass
 
-        # Sohbetten öğren — kaliteli yanıtları RAG'a ekle
+        # ── Sohbetten öğren ───────────────────────────────────────────
         _learn_from_chat(job.message, job.content, decision.intent)
+
+        # ── Kullanıcı profilini güncelle (arka planda) ─────────────────
+        _update_profile_async(history + [
+            {"role": "user", "content": job.message},
+            {"role": "assistant", "content": job.content[:500]},
+        ])
 
         job.finish()
         log.info(
