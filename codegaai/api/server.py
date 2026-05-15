@@ -251,6 +251,8 @@ def create_app() -> FastAPI:
     app.include_router(codex_routes.router, prefix="/api/codex_plus", tags=["codex_plus"])
     from codegaai.api.routes import advanced as advanced_routes
     app.include_router(advanced_routes.router, prefix="/api/advanced", tags=["advanced"])
+    from codegaai.api.routes import devtools as devtools_routes
+    app.include_router(devtools_routes.router, prefix="/api/devtools", tags=["devtools"])
 
     # Setup.html — ilk kurulum sayfası
     from fastapi.responses import FileResponse
