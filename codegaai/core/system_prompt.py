@@ -1,31 +1,46 @@
 """
 codegaai.core.system_prompt
 ============================
-Compact but stricter system prompt for local models.
+CODEGA AI için dinamik sistem promptu.
 """
-
 from __future__ import annotations
-
 from codegaai.utils.logger import get_logger
-
 log = get_logger(__name__)
 
-BASE_CHARACTER = """Sen CODEGA AI'sın - yerel, güvenilir ve bağlamı takip eden bir yapay zeka asistanısın.
+BASE = """Sen CODEGA AI'sın — Türkiye'de geliştirilmiş, yerel çalışan bir yapay zeka asistanı.
 
-Temel kurallar:
-- Kullanıcı Türkçe yazıyorsa doğal Türkçe cevap ver; İngilizce isterse İngilizce cevap ver.
-- Her cevaptan önce son kullanıcı mesajını önceki 3-6 mesajla birlikte yorumla.
-- Zamirleri ve belirsiz ifadeleri sohbet bağlamından çöz: "sen", "senden", "seni" çoğu durumda CODEGA AI'yi ifade eder.
-- Kullanıcı seni veya CODEGA AI'yi soruyorsa Windows, Microsoft, genel haber veya ilgisiz web sonucuna kayma.
-- Kullanıcının varsayımını bozacak bir konu değişikliği yapmadan önce kısa bir netleştirme sorusu sor.
-- Bilmediğin konuda uydurma; emin değilsen açıkça belirt.
-- Sohbet geçmişi verildiyse onu birincil bağlam kabul et; RAG/web sonuçları geçmişle çelişiyorsa önce geçmişi izle.
-- Sana verilen RAG/bellek bağlamı yoksa geçmişi varmış gibi davranma.
-- Teknik cevaplarda uygulanabilir komut, dosya yolu ve adım ver.
-- Gereksiz rol yapma, abartılı iddia ve sahte internet erişimi kullanma.
-- Kısa, net, doğrudan ve denetlenebilir cevap ver.
-- Hata yaptığın fark edilirse savunmaya geçme; hatayı adlandır, düzelt ve sonraki cevabı daha iyi üret.
-"""
+## Kimliğin
+- Geliştirici: Yunus Aksoy / CODEGA Yazılım Ajansı, Konya
+- Yerel çalışır — hiçbir veri buluta gitmiyor
+- Uzmanlık: PHP 8.3+, Python, JavaScript, MySQL, sistem tasarımı
+
+## Yanıt Kuralları
+1. Türkçe sorulursa Türkçe, İngilizce sorulursa İngilizce yanıtla
+2. Önceki mesajları oku — "onu düzelt", "bunu yap" gibi ifadeleri geçmişten çöz
+3. "Tabii ki!", "Harika soru!" gibi dolgu cümleler kullanma — doğrudan yanıtla
+4. Bilmiyorsan açıkça söyle, uydurma
+5. Kod yazarken çalışan, test edilebilir kod üret — placeholder koyma
+6. Hata yaptığında kabul et, düzelt, devam et
+
+## Yeteneklerin
+Web araması · Python sandbox · ZIP proje üretimi · GitHub push/PR
+Dosya/PDF okuma · Görsel analiz · Ekran paylaşımı · Çeviri"""
+
+CODE_ADDON = """
+## Kodlama Modu
+PHP: PSR-4, PHP 8.3+ özellikleri (readonly, enum, match)
+SQL: PDO prepared statement — asla ham sorgu
+Güvenlik: XSS, SQLi, CSRF'e karşı önlem al
+Her fonksiyona kısa docblock ekle"""
+
+MATH_ADDON = """
+## Hesaplama Modu
+Adım adım göster · Python sandbox'ta doğrula · Sonucu net belirt"""
+
+THINK_ADDON = """
+## Derin Düşünme
+Yanıttan önce <think> bloğunda: soruyu analiz et → yaklaşım seç → hataları öngör </think>
+Sonra net cevap ver."""
 
 
 def build_system_prompt(
@@ -33,17 +48,35 @@ def build_system_prompt(
     include_profile: bool = False,
     rag_context: str = "",
     agent_guidance: str = "",
+    intent: str = "general",
+    deep_think: bool = False,
 ) -> str:
-    parts = [BASE_CHARACTER]
+    parts = [BASE]
+
+    if intent == "coding":
+        parts.append(CODE_ADDON)
+    elif intent == "calculation":
+        parts.append(MATH_ADDON)
+
+    if deep_think:
+        parts.append(THINK_ADDON)
+
+    if include_profile:
+        try:
+            from codegaai.core.user_profile import UserProfile
+            summary = UserProfile.get().summary()
+            if summary:
+                parts.append(f"\n## Kullanıcı Hakkında\n{summary}")
+        except Exception:
+            pass
 
     if agent_guidance:
-        parts.append(agent_guidance[:1600])
+        parts.append(f"\n## Görev\n{agent_guidance[:800]}")
 
-    if rag_context:
+    if rag_context and rag_context.strip():
         parts.append(
-            f"\n## Güvenilir Bağlam / Bellek Sonuçları\n{rag_context[:3200]}"
-            "\n\nBu bağlam yardımcıdır; son sohbet mesajının niyetini ezmemelidir. "
-            "Bağlamla çelişen bir şey üreteceksen emin olmadığını belirt."
+            f"\n## İlgili Bellek\n{rag_context[:3000]}\n"
+            "(Soruyla alakasızsa görmezden gel.)"
         )
 
     if include_tools:
@@ -51,6 +84,6 @@ def build_system_prompt(
             from codegaai.core.tools import tools_system_prompt
             parts.append(tools_system_prompt())
         except Exception as exc:
-            log.debug("Araç prompt'u eklenemedi: %s", exc)
+            log.debug("Araç promptu: %s", exc)
 
     return "\n".join(parts)

@@ -24,6 +24,35 @@ log = get_logger(__name__)
 router = APIRouter()
 
 
+def _learn_from_chat(question: str, answer: str, intent: str) -> None:
+    """
+    Sohbetten öğren — yeterince uzun ve bilgi dolu yanıtları RAG'a ekle.
+    Kısa/genel yanıtları atla (belleği kirletme).
+    """
+    if len(answer) < 150:  # Çok kısa → kaydetme
+        return
+    if intent not in ("coding", "calculation", "general"):
+        return
+    try:
+        from codegaai.core.memory import MemoryStore
+        from codegaai.core.embeddings import EmbeddingService
+        if not EmbeddingService.get().is_ready:
+            return
+        mem = MemoryStore.open()
+        import time
+        mem.add(
+            text=f"S: {question[:200]}\nC: {answer[:600]}",
+            metadata={
+                "source": "chat_learning",
+                "intent": intent,
+                "learned_at": time.time(),
+                "title": question[:80],
+            },
+        )
+    except Exception:
+        pass
+
+
 _WEB_REQUIRED_PATTERNS = [
     r"https?://",
     r"\b(site|web\s*site|internet|google|duckduckgo|haber|news)\b",
@@ -245,9 +274,25 @@ async def _run_chat_job(job: ChatJob) -> None:
             from codegaai.core.embeddings import EmbeddingService
             if EmbeddingService.get().is_ready:
                 mem = MemoryStore.open()
-                hits = mem.search(job.message, n_results=3)
+                # Daha zengin RAG: son mesaj + önceki 2 mesajı birleştir
+                rag_query = job.message
+                if history:
+                    prev = " ".join(
+                        m["content"][:120]
+                        for m in history[-3:]
+                        if m.get("role") == "user"
+                    )
+                    if prev:
+                        rag_query = f"{prev} {job.message}"
+
+                hits = mem.search(rag_query, n_results=5)
                 if hits:
-                    rag_text = "\n".join(h.get("text", "")[:300] for h in hits)
+                    # Skorla sırala, en alakalı 3'ü al
+                    top = sorted(hits, key=lambda h: h.get("score", 0), reverse=True)[:3]
+                    rag_text = "\n---\n".join(
+                        f"[{h.get('metadata', {}).get('title', 'Bellek')}]\n{h.get('text', '')[:400]}"
+                        for h in top
+                    )
         except Exception:
             pass
 
@@ -258,13 +303,14 @@ async def _run_chat_job(job: ChatJob) -> None:
             full_context += f"\n\n## Yüklenen Dosya İçeriği\n{job.file_context[:8000]}"
         if web_context:
             full_context += f"\n\n## İnternet Araması Sonuçları\n{web_context}"
-        if rag_text:
-            full_context += f"\n\n## İlgili Bellek\n{rag_text}"
 
         system_prompt = build_system_prompt(
             include_tools=decision.uses_tools,
-            rag_context=full_context,
+            include_profile=True,              # ← kullanıcı profili dahil
+            rag_context=rag_text,              # ← sadece RAG, diğerleri ayrı
             agent_guidance=decision_guidance(decision),
+            intent=decision.intent,            # ← coding/calculation/general
+            deep_think=job.deep_think,
         )
 
         # ── Derin Düşünme (o1/o3 modu) ───────────────────────────────
@@ -328,6 +374,9 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
                 store.add_message(job.chat_id, "assistant", job.content)
             except Exception:
                 pass
+
+        # Sohbetten öğren — kaliteli yanıtları RAG'a ekle
+        _learn_from_chat(job.message, job.content, decision.intent)
 
         job.finish()
         log.info(

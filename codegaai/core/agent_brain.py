@@ -35,18 +35,31 @@ class AgentBrain:
 
     _WEB_PATTERNS = [
         r"https?://",
-        r"(internette ara|nternette ara|webde ara|internet|web|araştır|araşt?r|güncel|guncel|son dakika)",
+        r"(internette ara|webde ara|internet|web|araştır|güncel|guncel|son dakika|haber)",
         r"\b(latest|current|today|news|browse|search|look up)\b",
     ]
     _SELF_PATTERNS = [
-        r"\b(sen|senden|seni|sana|kendin|codega|asistan|cevabın|cevabin)\b",
+        r"\b(sen|senden|seni|sana|kendin|codega|asistan|cevabın)\b",
     ]
     _CODE_PATTERNS = [
         r"\b(kod|hata|bug|traceback|python|php|javascript|typescript|sql)\b",
-        r"\b(api|fastapi|laravel|composer|docker|github|workflow|test)\b",
+        r"\b(api|fastapi|laravel|composer|docker|github|workflow|test|fonksiyon|class|metod)\b",
+        r"\b(yaz|oluştur|düzelt|refactor|optimize)\b.{0,30}\b(kod|script|fonksiyon|class)\b",
     ]
-    _MATH_PATTERNS = [r"\d+\s*[\+\-\*/\^]\s*\d+", r"\b(hesapla|calculate)\b"]
-    _VISION_PATTERNS = [r"\b(görsel|resim|foto|image|screenshot|ekran)\b"]
+    _MATH_PATTERNS = [
+        r"\d+\s*[\+\-\*/\^]\s*\d+",
+        r"\b(hesapla|calculate|integral|türev|matris|istatistik)\b",
+    ]
+    _VISION_PATTERNS = [
+        r"\b(görsel|resim|foto|image|screenshot|ekran|fotoğraf)\b",
+    ]
+    _TRANSLATE_PATTERNS = [
+        r"\b(çevir|translate|tercüme|İngilizce|Almanca|Fransızca|Arapça)\b",
+    ]
+    _FILE_PATTERNS = [
+        r"\b(dosya|zip|pdf|yükle|indir|oluştur|proje)\b",
+        r"\b(file|upload|download|project|generate)\b",
+    ]
 
     def decide(self, message: str, history: list[dict] | None = None) -> AgentDecision:
         text = str(message or "")
@@ -66,7 +79,14 @@ class AgentBrain:
                 decision.intent = "calculation"
             decision.needs_tools.append("calculate")
 
-        if any(w in low for w in ["çalıştır", "test et", "run ", "execute"]):
+        if self._matches(low, self._TRANSLATE_PATTERNS):
+            if decision.intent == "general":
+                decision.intent = "translate"
+
+        if self._matches(low, self._FILE_PATTERNS):
+            decision.needs_tools.append("file_ops")
+
+        if any(w in low for w in ["çalıştır", "test et", "run ", "execute", "koştur"]):
             if decision.intent == "coding":
                 decision.needs_tools.append("run_python")
 
