@@ -5,7 +5,7 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "4.0.1"
+__version__ = "4.0.2"
 __phase__ = "v3.6.0 - Ekran Paylasimi(Faz31) + GPU(Faz32) + Tam Harita"
 __author__ = "CODEGA"
 __license__ = "MIT"

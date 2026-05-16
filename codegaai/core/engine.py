@@ -320,26 +320,35 @@ class LLMEngine:
     def _check_avx2_compat(self) -> bool:
         """
         llama-cpp-python'un bu CPU'da çalışıp çalışmayacağını test et.
-        Küçük bir test binary import ederek kontrol — crash olmaz.
+
+        FROZEN BUILD'DE subprocess KULLANILMAZ — sys.executable codegaai.exe
+        olduğundan '-c' argümanı tanınmaz ve test hep başarısız döner.
+        Bunun yerine doğrudan import denenip hata yakalanır.
         """
-        try:
-            # Daha önce kontrol edilmişse cached sonucu kullan
-            if hasattr(self, "_avx2_ok"):
-                return self._avx2_ok
-            import subprocess
-            result = subprocess.run(
-                [sys.executable, "-c",
-                 "from llama_cpp import Llama; print('ok')"],
-                capture_output=True, text=True, timeout=8,
-            )
-            self._avx2_ok = result.returncode == 0
-            if not self._avx2_ok:
-                log.warning("AVX2 uyumluluk testi başarısız: %s",
-                            result.stderr[:200])
+        if hasattr(self, "_avx2_ok"):
             return self._avx2_ok
-        except Exception as e:
-            log.debug("AVX2 kontrol hatası: %s", e)
-            self._avx2_ok = True  # Belirsizlik → dene
+
+        try:
+            # Doğrudan import et — crash olursa OSError/ImportError yakalar
+            from llama_cpp import Llama as _LlamaTest  # noqa: F401
+            self._avx2_ok = True
+            return True
+        except OSError as e:
+            err = str(e).lower()
+            if "0xc000001d" in err or "-1073741795" in err or "illegal instruction" in err:
+                log.warning("AVX2 uyumsuzluğu tespit edildi (import testi)")
+                self._avx2_ok = False
+                return False
+            # Başka OSError → llama kurulmamış olabilir, yüklemeyi dene
+            self._avx2_ok = True
+            return True
+        except ImportError:
+            # llama_cpp hiç kurulmamış — zaten yüklenemez ama crash olmaz
+            self._avx2_ok = True
+            return True
+        except Exception:
+            # Beklenmedik hata → dene, en kötü ihtimalle OSError yakalarız
+            self._avx2_ok = True
             return True
 
     def _write_fix_script(self) -> None:

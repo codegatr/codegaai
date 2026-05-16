@@ -13,7 +13,16 @@ const Updater = (() => {
   async function check(force = false) {
     set("updater-status", "<span class='muted'>Kontrol ediliyor…</span>");
     try {
-      const d = await fetch(`/api/updater/check?force=${force}`).then(r => r.json());
+      const resp = await fetch(`/api/updater/check?force=${force}`);
+      const text = await resp.text();
+      let d;
+      try {
+        d = JSON.parse(text);
+      } catch(_) {
+        set("updater-status",
+          `<span style='color:var(--color-text-muted)'>Güncelleme sunucusuna ulaşılamadı</span>`);
+        return null;
+      }
       _renderStatus(d); return d;
     } catch(e) {
       set("updater-status", `<span style='color:var(--color-danger)'>❌ ${e.message}</span>`);

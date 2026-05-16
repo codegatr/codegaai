@@ -68,18 +68,33 @@ def _install_dir() -> Path | None:
 
 @router.get("/check")
 async def check(force: bool = False) -> dict:
-    from codegaai.core.updater import Updater
-    info = Updater.get().check_for_updates(force=force)
-    return {
-        "current_version":  info.current_version,
-        "latest_version":   info.latest_version,
-        "update_available": info.update_available,
-        "release_notes":    info.release_notes or "",
-        "release_url":      info.release_url   or "",
-        "asset_size_mb":    round(info.asset_size_bytes / 1_048_576, 1) if info.asset_size_bytes else 0,
-        "auto_update":      AUTO_FLAG.exists(),
-        "checked_at":       time.strftime("%H:%M:%S"),
-    }
+    from codegaai import __version__
+    try:
+        from codegaai.core.updater import Updater
+        info = Updater.get().check_for_updates(force=force)
+        return {
+            "current_version":  info.current_version,
+            "latest_version":   info.latest_version,
+            "update_available": info.update_available,
+            "release_notes":    info.release_notes or "",
+            "release_url":      info.release_url   or "",
+            "asset_size_mb":    round(info.asset_size_bytes / 1_048_576, 1) if info.asset_size_bytes else 0,
+            "auto_update":      AUTO_FLAG.exists(),
+            "checked_at":       time.strftime("%H:%M:%S"),
+        }
+    except Exception as e:
+        log.warning("Güncelleme kontrolü hatası: %s", e)
+        return {
+            "current_version":  __version__,
+            "latest_version":   __version__,
+            "update_available": False,
+            "release_notes":    "",
+            "release_url":      "",
+            "asset_size_mb":    0,
+            "auto_update":      AUTO_FLAG.exists(),
+            "checked_at":       time.strftime("%H:%M:%S"),
+            "error":            str(e),
+        }
 
 
 @router.get("/status")
