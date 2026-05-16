@@ -253,3 +253,234 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", loadCalendar);
   });
 });
+
+// ── Sistem Monitörü UI (Faz 49) ───────────────────────────────────────────
+const MonitorUI = (() => {
+  let _timer = null;
+  let _cpuHistory = [];
+  const MAX_HIST = 30;
+
+  async function poll() {
+    try {
+      const d = await fetch("/api/monitor/system/snapshot").then(r => r.json());
+      // Metrik kartları
+      _setCard("mon-cpu",  `CPU\n<b>${d.cpu_percent ?? "—"}%</b>`);
+      _setCard("mon-ram",  `RAM\n<b>${d.ram_used_gb ?? "—"} / ${d.ram_total_gb ?? "—"} GB</b>`);
+      _setCard("mon-disk", `Disk\n<b>${d.disk_percent ?? "—"}%</b>`);
+      _setCard("mon-gpu",  `VRAM\n<b>${d.gpu_vram_percent != null ? d.gpu_vram_percent + "%" : "Yok"}</b>`);
+      // Mini tarih CPU grafiği (bar chart ASCII)
+      _cpuHistory.push(d.cpu_percent ?? 0);
+      if (_cpuHistory.length > MAX_HIST) _cpuHistory.shift();
+      const bars = _cpuHistory.map(v => {
+        const h = Math.round(v / 10);
+        const chars = ["▁","▂","▃","▄","▅","▆","▇","█"];
+        return chars[Math.min(h, 7)];
+      }).join("");
+      const hist = document.getElementById("mon-history");
+      if (hist) hist.textContent = `CPU: ${bars}  ${d.cpu_percent ?? 0}%`;
+      // Uyarılar
+      const warn = document.getElementById("mon-warnings");
+      if (warn) {
+        warn.innerHTML = (d.warnings || []).map(w =>
+          `<div style="color:var(--color-danger);font-size:12px">⚠ ${w}</div>`
+        ).join("");
+      }
+      // Durum göstergesi
+      const dot = document.getElementById("monitor-status-dot");
+      const txt = document.getElementById("monitor-status-txt");
+      if (dot) dot.style.background = d.health === "ok" ? "var(--color-success)"
+                                     : d.health === "warning" ? "var(--color-accent)" : "var(--color-danger)";
+      if (txt) txt.textContent = `${d.health === "ok" ? "Sağlıklı" : d.health === "warning" ? "Uyarı" : "Kritik"} · ${d.ts || ""}`;
+    } catch(e) {}
+  }
+
+  function _setCard(id, html) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  }
+
+  function toggle() {
+    const btn = document.querySelector("[onclick='MonitorUI.toggle()']");
+    if (_timer) {
+      clearInterval(_timer); _timer = null;
+      fetch("/api/monitor/system/monitor", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled:false})});
+      if (btn) btn.textContent = "Başlat";
+    } else {
+      fetch("/api/monitor/system/monitor", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled:true,interval_sec:5})});
+      _timer = setInterval(poll, 3000);
+      poll();
+      if (btn) btn.textContent = "Durdur";
+    }
+  }
+
+  // Sistem sayfası açılınca otomatik başlat
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll('.nav-item[data-view="system"],.toolbar-nav[data-view="system"]').forEach(b => {
+      b.addEventListener("click", () => {
+        if (!_timer) toggle();
+      });
+    });
+  });
+
+  return { toggle, poll };
+})();
+
+
+// ── Proje Yöneticisi UI (Faz 50) ──────────────────────────────────────────
+const ProjectUI = (() => {
+  const PRIORITY_COLORS = {critical:"#ef4444",high:"#f97316",medium:"var(--color-accent)",low:"#6b7280"};
+
+  async function init() {
+    const sel = document.getElementById("proj-select");
+    if (!sel) return;
+    const d = await fetch("/api/monitor/projects").then(r => r.json()).catch(() => ({projects:[]}));
+    sel.innerHTML = '<option value="">Proje seç...</option>' +
+      (d.projects || []).map(p => `<option value="${p.id}">${p.name} (${p.progress}%)</option>`).join("");
+    if (d.projects?.length) { sel.value = d.projects[0].id; loadBoard(); }
+  }
+
+  async function loadBoard() {
+    const pid = document.getElementById("proj-select")?.value;
+    const sprint = document.getElementById("sprint-select")?.value || 1;
+    if (!pid) return;
+    const d = await fetch(`/api/monitor/sprint/${pid}/${sprint}`).then(r => r.json()).catch(() => ({}));
+    ["todo","in_progress","review","done"].forEach(status => {
+      const col = document.getElementById(`col-${status}`);
+      if (!col) return;
+      const tasks = (d.board || {})[status] || [];
+      col.innerHTML = tasks.length ? tasks.map(t => `
+        <div class="kanban-card" style="border-left-color:${PRIORITY_COLORS[t.priority]||'#888'}">
+          <div style="font-size:13px;font-weight:500">${t.title}</div>
+          <div style="font-size:11px;color:var(--color-text-muted);margin-top:4px">
+            ${t.priority} · ${t.estimated_hours ? t.estimated_hours+"sa" : "?"}
+            ${t.ai_priority_score ? `· <span style="color:var(--color-accent)">AI:${t.ai_priority_score}</span>` : ""}
+          </div>
+          <div style="display:flex;gap:4px;margin-top:6px">
+            <button style="font-size:10px;padding:1px 6px;border:1px solid var(--color-border);border-radius:3px;background:none;color:var(--color-text);cursor:pointer"
+              onclick="ProjectUI.moveTask('${t.id}','${_nextStatus(status)}')">→</button>
+          </div>
+        </div>`).join("")
+        : `<div class="muted" style="font-size:12px;padding:8px">Boş</div>`;
+    });
+  }
+
+  const _nextStatus = s => ({todo:"in_progress",in_progress:"review",review:"done",done:"done"})[s]||"done";
+
+  async function moveTask(taskId, newStatus) {
+    await fetch(`/api/monitor/tasks/${taskId}`, {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({task_id:taskId,status:newStatus})});
+    loadBoard();
+  }
+
+  async function aiPrioritize() {
+    const pid = document.getElementById("proj-select")?.value;
+    if (!pid) return alert("Proje seç");
+    const btn = document.querySelector("[onclick='ProjectUI.aiPrioritize()']");
+    if (btn) btn.textContent = "⏳ Analiz...";
+    await fetch(`/api/monitor/tasks/${pid}/ai-prioritize`, {method:"POST"});
+    loadBoard();
+    if (btn) btn.textContent = "🤖 AI Önceliklendir";
+  }
+
+  async function aiPlan() {
+    const pid = document.getElementById("proj-select")?.value;
+    if (!pid) return alert("Proje seç");
+    const out = document.getElementById("proj-ai-output");
+    if (out) { out.style.display = "block"; out.textContent = "⏳ Plan hazırlanıyor..."; }
+    const d = await fetch(`/api/monitor/projects/${pid}/ai-plan`, {method:"POST"}).then(r => r.json()).catch(() => ({plan:"Hata"}));
+    if (out) out.textContent = d.plan || d.error || "Hata";
+  }
+
+  function newProject() {
+    const name = prompt("Proje adı:");
+    if (!name) return;
+    const deadline = prompt("Deadline (YYYY-MM-DD, boş bırakılabilir):");
+    fetch("/api/monitor/projects", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name, deadline: deadline||""})})
+      .then(() => init());
+  }
+
+  function newTask() {
+    const pid = document.getElementById("proj-select")?.value;
+    if (!pid) return alert("Önce proje seç");
+    const title = prompt("Görev adı:");
+    if (!title) return;
+    const priority = prompt("Öncelik (low/medium/high/critical):", "medium") || "medium";
+    fetch("/api/monitor/tasks", {method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({project_id:pid, title, priority})})
+      .then(() => loadBoard());
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll('[data-view="projects"]').forEach(btn => {
+      btn.addEventListener("click", init);
+    });
+  });
+
+  return { init, loadBoard, moveTask, aiPrioritize, aiPlan, newProject, newTask };
+})();
+
+
+// ── Geliştirici Araçları UI (Faz 37-39, 44, 46) ──────────────────────────
+const DevToolUI = (() => {
+  let _currentTab = "sast";
+
+  function tab(name, btn) {
+    _currentTab = name;
+    document.querySelectorAll("#devtool-tabs button").forEach(b => {
+      b.classList.toggle("active", b === btn);
+      b.classList.toggle("btn--ghost", b !== btn);
+    });
+    ["sast","testgen","rename"].forEach(t => {
+      const el = document.getElementById(`dt-extra-${t}`);
+      if (el) el.style.display = t === name ? "flex" : "none";
+    });
+  }
+
+  async function run() {
+    const code = document.getElementById("dt-code")?.value;
+    if (!code?.trim()) return;
+    const lang = document.getElementById("dt-lang")?.value || "php";
+    const result = document.getElementById("dt-result");
+    const btn = document.getElementById("dt-run-btn");
+    if (btn) btn.textContent = "⏳";
+    if (result) result.textContent = "İşleniyor...";
+
+    try {
+      let url, body;
+      if (_currentTab === "sast") {
+        url  = "/api/devtools/sast/scan";
+        body = {code, language: lang, ai_analysis: document.getElementById("dt-ai-analysis")?.checked};
+        const d = await fetch(url, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(r=>r.json());
+        result.innerHTML = `<b>Risk Skoru: ${d.risk_score}/100</b> · ${d.summary?.total||0} sorun\n\n` +
+          (d.findings||[]).map(f => `<span style="color:${f.severity==='high'?'#ef4444':'#f97316'}">■</span> [${f.severity.toUpperCase()}] Satır ${f.line}: ${f.description}\n  ${f.code}`).join("\n\n") +
+          (d.ai_report ? "\n\n─ AI Raporu ─\n" + d.ai_report : "");
+      } else if (_currentTab === "testgen") {
+        url  = "/api/devtools/testgen";
+        body = {code, language: lang, test_type: document.getElementById("dt-test-type")?.value || "unit"};
+        const d = await fetch(url, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(r=>r.json());
+        result.textContent = d.test_code || d.error;
+      } else if (_currentTab === "profiler") {
+        url  = "/api/devtools/profiler/analyze";
+        body = {code, language: lang};
+        const d = await fetch(url, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(r=>r.json());
+        result.textContent = `Not: ${d.grade} · Karmaşıklık: ${d.metrics?.complexity?.total} · ${d.metrics?.bottleneck_count} darboğaz\n\n` + d.ai_suggestions;
+      } else if (_currentTab === "rename") {
+        url  = "/api/powertools/rename/preview";
+        body = {code, language:lang, old_name:document.getElementById("dt-old-name")?.value||"",new_name:document.getElementById("dt-new-name")?.value||"",rename_type:document.getElementById("dt-rename-type")?.value||"function"};
+        const d = await fetch(url, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(r=>r.json());
+        result.textContent = `${d.changes_count} değişiklik:\n\n` + d.diff;
+      } else if (_currentTab === "clones") {
+        const fname = "file." + lang;
+        url  = "/api/intelligence/clones/detect";
+        body = {files:{[fname]:code}, language:lang};
+        const d = await fetch(url, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(r=>r.json());
+        result.textContent = `Tekrar oranı: ${d.duplication_ratio}% (Not: ${d.grade})\n${d.clone_count} klon grubu\n\n` + d.ai_suggestions;
+      }
+    } catch(e) {
+      if (result) result.textContent = "❌ " + e.message;
+    } finally {
+      if (btn) btn.textContent = "▶ Çalıştır";
+    }
+  }
+
+  return { tab, run };
+})();

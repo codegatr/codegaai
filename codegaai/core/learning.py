@@ -435,15 +435,30 @@ class TrainingEngine:
         return self._status.state == "training"
 
     @staticmethod
+    @staticmethod
     def check_dependencies() -> dict[str, bool]:
-        """peft + trl + bitsandbytes mevcut mu?"""
-        deps = {}
-        for mod in ("peft", "trl", "bitsandbytes", "datasets"):
-            try:
-                __import__(mod)
-                deps[mod] = True
-            except ImportError:
-                deps[mod] = False
+        """peft + trl + bitsandbytes mevcut mu? Frozen build'de subprocess ile test et."""
+        import sys
+        deps: dict[str, bool] = {}
+        if getattr(sys, "frozen", False):
+            import subprocess
+            for mod in ("peft", "trl", "bitsandbytes", "datasets"):
+                try:
+                    r = subprocess.run(
+                        [sys.executable, "-c", f"import {mod}"],
+                        capture_output=True, timeout=5,
+                        creationflags=0x08000000,
+                    )
+                    deps[mod] = r.returncode == 0
+                except Exception:
+                    deps[mod] = False
+        else:
+            for mod in ("peft", "trl", "bitsandbytes", "datasets"):
+                try:
+                    __import__(mod)
+                    deps[mod] = True
+                except Exception:
+                    deps[mod] = False
         return deps
 
     def start_dpo(self, base_model_id: str,

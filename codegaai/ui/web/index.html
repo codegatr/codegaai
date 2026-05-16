@@ -1029,6 +1029,115 @@
     </section>
 
     <!-- ─── İnternet Öğrenmesi (Faz 10) ─── -->
+    <!-- ─── Proje Yöneticisi (Faz 50) ─── -->
+    <section class="view" data-view="projects">
+      <header class="view-header">
+        <h1 class="view-title">Proje Yöneticisi</h1>
+        <div style="display:flex;gap:8px;margin-left:auto">
+          <button class="btn btn--sm" onclick="ProjectUI.newProject()">+ Proje</button>
+          <button class="btn btn--sm btn--ghost" onclick="ProjectUI.newTask()">+ Görev</button>
+        </div>
+      </header>
+      <div style="padding:20px">
+        <!-- Proje seçimi -->
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+          <select id="proj-select" onchange="ProjectUI.loadBoard()"
+            style="padding:6px 10px;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:6px;color:var(--color-text);min-width:200px">
+            <option value="">Proje seç...</option>
+          </select>
+          <select id="sprint-select" onchange="ProjectUI.loadBoard()"
+            style="padding:6px 10px;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:6px;color:var(--color-text)">
+            <option value="1">Sprint 1</option>
+            <option value="2">Sprint 2</option>
+            <option value="3">Sprint 3</option>
+          </select>
+          <button class="btn btn--sm btn--ghost" onclick="ProjectUI.aiPrioritize()">🤖 AI Önceliklendir</button>
+          <button class="btn btn--sm btn--ghost" onclick="ProjectUI.aiPlan()">📋 AI Sprint Planı</button>
+        </div>
+        <!-- Kanban -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+          <div class="kanban-col" data-status="todo">
+            <div class="kanban-col__header">📋 Yapılacak</div>
+            <div class="kanban-col__body" id="col-todo"></div>
+          </div>
+          <div class="kanban-col" data-status="in_progress">
+            <div class="kanban-col__header">⚡ Devam Ediyor</div>
+            <div class="kanban-col__body" id="col-in_progress"></div>
+          </div>
+          <div class="kanban-col" data-status="review">
+            <div class="kanban-col__header">👁 İnceleme</div>
+            <div class="kanban-col__body" id="col-review"></div>
+          </div>
+          <div class="kanban-col" data-status="done">
+            <div class="kanban-col__header">✅ Tamamlandı</div>
+            <div class="kanban-col__body" id="col-done"></div>
+          </div>
+        </div>
+        <!-- AI Plan çıktısı -->
+        <div id="proj-ai-output" style="display:none;margin-top:16px;padding:16px;background:var(--color-surface-2);border-radius:8px;white-space:pre-wrap;font-size:13px"></div>
+      </div>
+    </section>
+
+    <!-- ─── Geliştirici Araçları (Faz 37-39) ─── -->
+    <section class="view" data-view="devtools-ui">
+      <header class="view-header">
+        <h1 class="view-title">Geliştirici Araçları</h1>
+      </header>
+      <div style="padding:20px">
+        <!-- Tab'lar -->
+        <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--color-border);padding-bottom:8px" id="devtool-tabs">
+          <button class="btn btn--sm active" onclick="DevToolUI.tab('sast',this)">🔒 Güvenlik</button>
+          <button class="btn btn--sm btn--ghost" onclick="DevToolUI.tab('testgen',this)">🧪 Test Üret</button>
+          <button class="btn btn--sm btn--ghost" onclick="DevToolUI.tab('profiler',this)">⚡ Profiler</button>
+          <button class="btn btn--sm btn--ghost" onclick="DevToolUI.tab('rename',this)">✏️ Yeniden Adlandır</button>
+          <button class="btn btn--sm btn--ghost" onclick="DevToolUI.tab('clones',this)">🔍 Klon Tespit</button>
+        </div>
+        <!-- Kod girişi -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <div style="display:flex;gap:8px;margin-bottom:6px;align-items:center">
+              <select id="dt-lang" style="padding:4px 8px;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:4px;color:var(--color-text);font-size:12px">
+                <option value="php">PHP</option>
+                <option value="python">Python</option>
+                <option value="javascript">JavaScript</option>
+              </select>
+              <button class="btn btn--sm" onclick="DevToolUI.run()" id="dt-run-btn">▶ Çalıştır</button>
+            </div>
+            <textarea id="dt-code" placeholder="Kodu buraya yapıştır..." rows="16"
+              style="width:100%;padding:10px;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:6px;color:var(--color-text);font-family:monospace;font-size:13px;resize:vertical"></textarea>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:6px">Sonuç</div>
+            <div id="dt-result" style="background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:6px;padding:12px;min-height:300px;font-size:13px;overflow-y:auto;white-space:pre-wrap">Kod gir ve çalıştır...</div>
+          </div>
+        </div>
+        <!-- SAST ek seçenekler -->
+        <div id="dt-extra-sast" style="margin-top:8px;display:flex;gap:8px;align-items:center">
+          <label style="font-size:12px"><input type="checkbox" id="dt-ai-analysis" checked> AI analizi</label>
+        </div>
+        <!-- TestGen ek seçenekler -->
+        <div id="dt-extra-testgen" style="margin-top:8px;display:none;gap:8px;align-items:center">
+          <select id="dt-test-type" style="padding:4px 8px;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:4px;color:var(--color-text);font-size:12px">
+            <option value="unit">Unit Test</option>
+            <option value="integration">Integration</option>
+            <option value="e2e">E2E</option>
+          </select>
+        </div>
+        <!-- Rename ek seçenekler -->
+        <div id="dt-extra-rename" style="margin-top:8px;display:none;gap:8px;align-items:center;flex-wrap:wrap">
+          <input id="dt-old-name" placeholder="Eski isim" style="padding:4px 8px;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:4px;color:var(--color-text);font-size:12px;width:120px">
+          <span style="color:var(--color-text-muted)">→</span>
+          <input id="dt-new-name" placeholder="Yeni isim" style="padding:4px 8px;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:4px;color:var(--color-text);font-size:12px;width:120px">
+          <select id="dt-rename-type" style="padding:4px 8px;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:4px;color:var(--color-text);font-size:12px">
+            <option value="function">Fonksiyon</option>
+            <option value="variable">Değişken</option>
+            <option value="class">Sınıf</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── İnternet Öğrenmesi ─── -->
     <section class="view" data-view="weblearn">
       <header class="view-header">
         <div>
@@ -1159,6 +1268,27 @@
           <div class="system-table" id="system-table">
             <div class="system-row system-row--loading">Yükleniyor...</div>
           </div>
+        </div>
+
+        <!-- Faz 49 — Sistem Monitörü -->
+        <div class="system-section" style="grid-column:1/-1">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <h3 style="margin:0">📊 Sistem Monitörü</h3>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span id="monitor-status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--color-text-muted);display:inline-block"></span>
+              <span id="monitor-status-txt" style="font-size:12px;color:var(--color-text-muted)">Bekleniyor</span>
+              <button class="btn btn--sm" onclick="MonitorUI.toggle()">Başlat</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
+            <div id="mon-cpu"  class="system-metric-card">CPU<br><b>—</b></div>
+            <div id="mon-ram"  class="system-metric-card">RAM<br><b>—</b></div>
+            <div id="mon-disk" class="system-metric-card">Disk<br><b>—</b></div>
+            <div id="mon-gpu"  class="system-metric-card">VRAM<br><b>—</b></div>
+          </div>
+          <!-- Mini grafik (ASCII) -->
+          <div id="mon-history" style="font-family:monospace;font-size:11px;color:var(--color-accent);background:var(--color-surface-2);padding:8px;border-radius:6px;min-height:30px;overflow:hidden;white-space:nowrap"></div>
+          <div id="mon-warnings" style="margin-top:8px"></div>
         </div>
 
         <div class="system-section">

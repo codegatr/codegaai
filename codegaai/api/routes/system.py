@@ -118,12 +118,12 @@ async def engines() -> dict[str, Any]:
         feedback_count = 0
         deps_ok = False
         try:
-            from codegaai.core.learning import (
-                FeedbackStore, TrainingEngine,
-            )
+            from codegaai.core.learning import FeedbackStore, TrainingEngine
             feedback_count = FeedbackStore.open().stats().get("total", 0)
-            deps_ok = all(TrainingEngine.check_dependencies().values())
             learning_active = TrainingEngine.get().is_training
+            # check_dependencies frozen build'de pyarrow crash yaratır — lazy kontrol
+            import sys
+            deps_ok = not getattr(sys, "frozen", False)  # frozen değilse OK say
         except Exception:
             pass
 

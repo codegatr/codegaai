@@ -26,9 +26,11 @@ Kullanım:
 
 from __future__ import annotations
 
+import sys
 import threading
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Iterator, Optional
 
 from codegaai.core.models_registry import ModelRegistry
@@ -199,13 +201,12 @@ class LLMEngine:
                         log.info("GPU: %s, Toplam VRAM: %.1f GB, Boş: %.1f GB",
                                  props.name, vram_gb, free_vram)
                         if spec.vram_gb <= free_vram * 0.9:
-                            effective_gpu_layers = -1  # Tüm katmanlar GPU
+                            effective_gpu_layers = -1
                             log.info("GPU mod: tüm katmanlar GPU'da")
                         else:
                             ratio = (free_vram * 0.85) / spec.vram_gb
                             effective_gpu_layers = max(1, int(32 * ratio))
-                            log.info("Kısmi GPU: %d katman (%.1f GB model, %.1f GB boş)",
-                                     effective_gpu_layers, spec.vram_gb, free_vram)
+                            log.info("Kısmi GPU: %d katman", effective_gpu_layers)
                     else:
                         effective_gpu_layers = 0
                         log.info("CUDA yok, CPU mod kullanılıyor")
@@ -213,9 +214,25 @@ class LLMEngine:
                     effective_gpu_layers = 0
                     log.warning("GPU tespiti başarısız: %s → CPU mod", e)
 
+            # AVX2 uyumluluğunu önceden kontrol et (crash önle)
+            if not self._check_avx2_compat():
+                err = (
+                    "CPU uyumsuzluğu: llama-cpp-python AVX2 gerektiriyor ama CPU'nuz desteklemiyor.\n"
+                    "fix_llama.bat dosyasını çalıştırın veya terminalde:\n"
+                    "pip install llama-cpp-python --prefer-binary "
+                    "--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu"
+                )
+                log.error("AVX2 uyumsuzluğu tespit edildi — yükleme iptal edildi")
+                self._write_fix_script()
+                self._status = EngineStatus(
+                    state="error", model_id=model_id,
+                    model_path=str(path), error=err,
+                )
+                return   # crash olmadan çık
+
             # Düşük sistem parametreleri
             n_batch = 128 if low_end else 512
-            n_threads = 2 if low_end else None   # Düşük sistemde 2 thread
+            n_threads = 2 if low_end else None
 
             self._llm = Llama(
                 model_path=str(path),
@@ -225,7 +242,8 @@ class LLMEngine:
                 n_batch=n_batch,
                 verbose=False,
                 seed=-1,
-                use_mlock=False,   # Düşük sistemde mlock kapalı
+                use_mlock=False,
+
                 use_mmap=True,     # mmap açık — RAM tasarrufu
             )
 
@@ -299,9 +317,33 @@ class LLMEngine:
         except Exception:
             return "unknown"
 
+    def _check_avx2_compat(self) -> bool:
+        """
+        llama-cpp-python'un bu CPU'da çalışıp çalışmayacağını test et.
+        Küçük bir test binary import ederek kontrol — crash olmaz.
+        """
+        try:
+            # Daha önce kontrol edilmişse cached sonucu kullan
+            if hasattr(self, "_avx2_ok"):
+                return self._avx2_ok
+            import subprocess
+            result = subprocess.run(
+                [sys.executable, "-c",
+                 "from llama_cpp import Llama; print('ok')"],
+                capture_output=True, text=True, timeout=8,
+            )
+            self._avx2_ok = result.returncode == 0
+            if not self._avx2_ok:
+                log.warning("AVX2 uyumluluk testi başarısız: %s",
+                            result.stderr[:200])
+            return self._avx2_ok
+        except Exception as e:
+            log.debug("AVX2 kontrol hatası: %s", e)
+            self._avx2_ok = True  # Belirsizlik → dene
+            return True
+
     def _write_fix_script(self) -> None:
         """AVX2 uyumsuzluğu için fix_llama.bat oluştur."""
-        import sys
         try:
             if getattr(sys, "frozen", False):
                 bat_dir = Path(sys.executable).parent

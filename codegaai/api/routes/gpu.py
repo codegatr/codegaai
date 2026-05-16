@@ -56,11 +56,14 @@ def _detect_gpu() -> dict:
 
     # nvidia-smi ile driver versiyon
     try:
-        import subprocess
+        import subprocess, sys
+        # nvidia-smi yalnızca Windows ve Linux'ta çalıştır, frozen build'de kısa timeout
+        timeout = 2 if getattr(sys, "frozen", False) else 3
         r = subprocess.run(
             ["nvidia-smi", "--query-gpu=name,driver_version,memory.total,memory.free",
              "--format=csv,noheader,nounits"],
-            capture_output=True, text=True, timeout=3
+            capture_output=True, text=True, timeout=timeout,
+            creationflags=0x08000000 if sys.platform == "win32" else 0,  # CREATE_NO_WINDOW
         )
         if r.returncode == 0:
             parts = r.stdout.strip().split(",")

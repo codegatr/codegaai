@@ -336,41 +336,49 @@ class MemoryStore:
 
 class _CodegaEmbeddingFunction:
     """
-    ChromaDB embedding fonksiyonu adaptörü.
+    ChromaDB embedding fonksiyonu adaptörü — tüm API versiyonlarını destekler.
 
-    ChromaDB sürümleri arasında arayüz değişti — birden fazla protokol
-    desteklenir:
-    - __call__(input)              → eski Chroma + chromadb.utils
-    - embed_documents(texts)       → LangChain-style (yeni Chroma)
-    - embed_query(text)            → LangChain-style sorgular için tek metin
-    Hepsi aynı `EmbeddingService.embed()` altyapısını kullanır.
+    ChromaDB ≥0.4.15: __call__(input: Documents) → Embeddings
+    ChromaDB ≥0.5.x:  is_legacy kontrolü + EmbeddingFunction ABC
+    LangChain-style:   embed_query(text) / embed_documents(texts)
     """
 
+    # ChromaDB ≥0.5'te is_legacy attribute kontrolü yapar
+    is_legacy: bool = False
+
     def __call__(self, input):
-        """ChromaDB EmbeddingFunction — signature kesinlikle (self, input)."""
+        """ChromaDB EmbeddingFunction — input her zaman liste."""
         from codegaai.core.embeddings import EmbeddingService
         svc = EmbeddingService.get()
-        if not svc.is_ready:
-            # Embedding yüklenmemiş — boş vektör döndür (yazma devam etsin)
-            texts = [input] if isinstance(input, str) else list(input)
-            return [[0.0] * 1024 for _ in texts]
+        # input str, list[str] veya Documents olabilir
         if isinstance(input, str):
-            return svc.embed([input])
-        return svc.embed(list(input))
+            texts = [input]
+        else:
+            texts = list(input)
+        if not svc.is_ready:
+            return [[0.0] * 1024 for _ in texts]
+        return svc.embed(texts)
 
     def embed_documents(self, texts):
-        """LangChain-style — liste metni vektörlere çevir."""
+        """LangChain-style belge embedding."""
         from codegaai.core.embeddings import EmbeddingService
-        data = texts if not isinstance(texts, str) else [texts]
-        return EmbeddingService.get().embed(list(data))
+        data = [texts] if isinstance(texts, str) else list(texts)
+        svc = EmbeddingService.get()
+        if not svc.is_ready:
+            return [[0.0] * 1024 for _ in data]
+        return svc.embed(data)
 
     def embed_query(self, text=None, **kwargs):
-        """LangChain-style — hem text= hem input= kabul eder."""
+        """LangChain-style sorgu embedding — input= kwarg da desteklenir."""
         from codegaai.core.embeddings import EmbeddingService
         t = text or kwargs.get("input") or ""
         if isinstance(t, list):
             t = t[0] if t else ""
-        return EmbeddingService.get().embed([str(t)])[0]
+        svc = EmbeddingService.get()
+        if not svc.is_ready:
+            return [0.0] * 1024
+        result = svc.embed([str(t)])
+        return result[0] if result else [0.0] * 1024
 
     @classmethod
     def name(cls) -> str:
