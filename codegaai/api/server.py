@@ -257,6 +257,8 @@ def create_app() -> FastAPI:
     app.include_router(intellitools_routes.router, prefix="/api/intellitools", tags=["intellitools"])
     from codegaai.api.routes import session as session_routes
     app.include_router(session_routes.router, prefix="/api/session", tags=["session"])
+    from codegaai.api.routes import powertools as powertools_routes
+    app.include_router(powertools_routes.router, prefix="/api/powertools", tags=["powertools"])
 
     # Setup.html — ilk kurulum sayfası
     from fastapi.responses import FileResponse
