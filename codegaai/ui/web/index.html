@@ -223,37 +223,61 @@
 
       <div class="chat-container">
         <div class="chat-messages" id="chat-messages">
-          <div class="welcome">
-            <div class="welcome__brand">
-              <span class="welcome__brand-c">C</span>
-            </div>
-            <h2 class="welcome__title">CODEGA AI'a hoş geldin</h2>
-            <p class="welcome__subtitle">
-              Yerelde çalışan, hiçbir buluta veri sızdırmayan,
-              <em>kendi kendine öğrenen</em> yapay zeka.
-            </p>
+          <div class="welcome welcome--codex">
+            <h2 class="welcome__codex-title">Ne üzerinde çalışalım?</h2>
 
-            <div class="suggestions">
-              <button class="suggestion-card" data-suggest="Türkçe yazılım terimleri için bir sözlük hazırla">
-                <span class="suggestion-card__icon">📚</span>
-                <span class="suggestion-card__title">Sözlük hazırla</span>
-                <span class="suggestion-card__desc">Türkçe yazılım terimleri</span>
+            <!-- AVX2 uyarısı (gerekirse görünür) -->
+            <div id="avx2-warning" style="display:none;max-width:680px;margin:0 auto 24px;padding:14px 18px;background:rgba(245,158,11,.08);border:1px solid var(--color-accent);border-radius:10px;font-size:13px;color:var(--color-text)">
+              <div style="display:flex;gap:10px;align-items:start">
+                <span style="font-size:18px">⚠️</span>
+                <div style="flex:1">
+                  <div style="font-weight:600;color:var(--color-accent);margin-bottom:4px">CPU uyumsuzluğu tespit edildi</div>
+                  <div style="color:var(--color-text-muted);font-size:12px;line-height:1.6">
+                    İşlemciniz AVX2 talimat setini desteklemiyor. Modeli yüklemek için
+                    <code style="background:var(--color-surface-2);padding:1px 4px;border-radius:3px">fix_llama.bat</code>
+                    dosyasını çalıştırın (uygulama dizininde).
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Model seçim banner'ı (otomatik yükleme önerisi) -->
+            <div id="auto-model-banner" style="display:none;max-width:680px;margin:0 auto 24px;padding:14px 18px;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:10px;font-size:13px">
+              <div style="display:flex;gap:10px;align-items:center">
+                <span style="font-size:18px">🤖</span>
+                <div style="flex:1">
+                  <div style="font-weight:600;margin-bottom:2px" id="auto-model-name">Akıllı model yükleniyor...</div>
+                  <div style="color:var(--color-text-muted);font-size:12px" id="auto-model-desc">Donanımınıza göre en uygun model otomatik seçildi</div>
+                </div>
+                <span id="auto-model-status" style="font-size:11px;color:var(--color-accent)">⏳</span>
+              </div>
+            </div>
+
+            <!-- Tıklanabilir örnek prompt'lar -->
+            <div class="codex-suggestions">
+              <button class="codex-card" data-suggest="Bana güzel bir manzara resmi oluştur" data-intent="image_gen">
+                <span class="codex-card__icon">🖼</span>
+                <span class="codex-card__text">Görsel oluştur</span>
               </button>
-              <button class="suggestion-card" data-suggest="PHP 8.3'te yeni eklenen özellikleri açıkla">
-                <span class="suggestion-card__icon">💻</span>
-                <span class="suggestion-card__title">Kod öğret</span>
-                <span class="suggestion-card__desc">PHP 8.3'ün yeni özellikleri</span>
+              <button class="codex-card" data-suggest="PHP ile basit bir REST API yaz" data-intent="coding">
+                <span class="codex-card__icon">💻</span>
+                <span class="codex-card__text">Kod yaz</span>
               </button>
-              <button class="suggestion-card" data-suggest="Bana e-ticaret ürün açıklaması yazmayı öğret">
-                <span class="suggestion-card__icon">✍️</span>
-                <span class="suggestion-card__title">Yazı yardımı</span>
-                <span class="suggestion-card__desc">E-ticaret ürün açıklamaları</span>
+              <button class="codex-card" data-suggest="Bu metni İngilizce'ye çevir: " data-intent="translate">
+                <span class="codex-card__icon">🌐</span>
+                <span class="codex-card__text">Çeviri yap</span>
               </button>
-              <button class="suggestion-card" data-suggest="LoRA fine-tuning nasıl çalışır, basit dille anlat">
-                <span class="suggestion-card__icon">🧠</span>
-                <span class="suggestion-card__title">Konsept öğren</span>
-                <span class="suggestion-card__desc">LoRA fine-tuning</span>
+              <button class="codex-card" data-suggest="Bir CSV dosyasından istatistik nasıl çıkarılır, anlat" data-intent="general">
+                <span class="codex-card__icon">📊</span>
+                <span class="codex-card__text">Veri analizi</span>
               </button>
+            </div>
+
+            <!-- Daha fazla seçenek (alttaki linkler) -->
+            <div class="codex-quick-links">
+              <a href="#" onclick="document.querySelector('[data-view=\'system\']').click(); return false;">⚙️ Sistem ayarları</a>
+              <a href="#" onclick="document.querySelector('[data-view=\'projects\']')?.click(); return false;">📋 Projeler</a>
+              <a href="#" onclick="window.MultiModel?.show(); return false;">🔀 Çoklu model karşılaştır</a>
             </div>
           </div>
         </div>

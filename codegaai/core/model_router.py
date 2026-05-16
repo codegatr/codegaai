@@ -135,6 +135,17 @@ RULES: list[ModelRule] = [
         patterns=[],
         task_types=["reasoning", "general"],
     ),
+    # Uzun bağlam / Karmaşık akıl yürütme → Llama 3.1 8B
+    ModelRule(
+        model_id="llama-3.1-8b-instruct-q4_k_m",
+        priority=60,
+        min_vram_gb=6.0,
+        keywords=["uzun", "detaylı", "kapsamlı", "analiz",
+                  "rapor", "araştırma", "research", "long context",
+                  "summarize", "özetle"],
+        patterns=[],
+        task_types=["long_context", "reasoning"],
+    ),
 ]
 
 

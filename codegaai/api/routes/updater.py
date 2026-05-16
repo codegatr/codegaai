@@ -72,13 +72,15 @@ async def check(force: bool = False) -> dict:
     try:
         from codegaai.core.updater import Updater
         info = Updater.get().check_for_updates(force=force)
+        # UpdateInfo'da asset_size_bytes değil asset_size
+        size = getattr(info, "asset_size", None) or getattr(info, "asset_size_bytes", 0) or 0
         return {
             "current_version":  info.current_version,
-            "latest_version":   info.latest_version,
+            "latest_version":   info.latest_version or info.current_version,
             "update_available": info.update_available,
             "release_notes":    info.release_notes or "",
             "release_url":      info.release_url   or "",
-            "asset_size_mb":    round(info.asset_size_bytes / 1_048_576, 1) if info.asset_size_bytes else 0,
+            "asset_size_mb":    round(size / 1_048_576, 1) if size else 0,
             "auto_update":      AUTO_FLAG.exists(),
             "checked_at":       time.strftime("%H:%M:%S"),
         }

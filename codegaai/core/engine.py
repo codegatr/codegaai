@@ -352,7 +352,7 @@ class LLMEngine:
             return True
 
     def _write_fix_script(self) -> None:
-        """AVX2 uyumsuzluğu için fix_llama.bat oluştur."""
+        """AVX2 uyumsuzluğu için güçlü fix_llama.bat oluştur (3 fallback)."""
         try:
             if getattr(sys, "frozen", False):
                 bat_dir = Path(sys.executable).parent
@@ -363,14 +363,55 @@ class LLMEngine:
             python_exe = sys.executable
             bat = bat_dir / "fix_llama.bat"
             bat.write_text(
-                f'@echo off\nchcp 65001 > nul\n'
-                f'echo CODEGA AI - llama-cpp-python AVX2 onarimi\n'
-                f'"{python_exe}" -m pip uninstall llama-cpp-python -y\n'
-                f'"{python_exe}" -m pip install llama-cpp-python '
-                f'--prefer-binary '
-                f'--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu '
-                f'--no-cache-dir\n'
-                f'echo Tamamlandi! CODEGA AI yeniden baslatilabilir.\npause\n',
+                '@echo off\r\n'
+                'chcp 65001 > nul\r\n'
+                'title CODEGA AI - llama-cpp-python AVX2 Onarimi\r\n'
+                'cls\r\n'
+                'echo ============================================\r\n'
+                'echo  CODEGA AI - CPU UYUMLULUK ONARIMI\r\n'
+                'echo ============================================\r\n'
+                'echo.\r\n'
+                'echo Bu islemin tamamlanmasi 5-15 dakika surebilir.\r\n'
+                'echo Internet baglantisi gereklidir.\r\n'
+                'echo.\r\n'
+                'pause\r\n'
+                'echo.\r\n'
+                'echo [1/3] Mevcut llama-cpp-python kaldiriliyor...\r\n'
+                f'"{python_exe}" -m pip uninstall llama-cpp-python -y\r\n'
+                'echo.\r\n'
+                'echo [2/3] CPU-only wheel deneniyor (hizli yontem)...\r\n'
+                f'"{python_exe}" -m pip install llama-cpp-python ^\r\n'
+                '    --prefer-binary ^\r\n'
+                '    --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu ^\r\n'
+                '    --no-cache-dir\r\n'
+                'if %errorlevel% == 0 (\r\n'
+                '    echo.\r\n'
+                '    echo BAS ARILI! CPU-only wheel kuruldu.\r\n'
+                '    goto :test\r\n'
+                ')\r\n'
+                'echo.\r\n'
+                'echo [3/3] Kaynaktan derleme deneniyor (yavas yontem)...\r\n'
+                'set CMAKE_ARGS=-DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_F16C=OFF -DLLAMA_FMA=OFF\r\n'
+                'set FORCE_CMAKE=1\r\n'
+                f'"{python_exe}" -m pip install llama-cpp-python --no-cache-dir --force-reinstall\r\n'
+                ':test\r\n'
+                'echo.\r\n'
+                'echo Test ediliyor...\r\n'
+                f'"{python_exe}" -c "from llama_cpp import Llama; print(\'llama-cpp-python calisiyor\')"\r\n'
+                'if %errorlevel% == 0 (\r\n'
+                '    echo.\r\n'
+                '    echo ============================================\r\n'
+                '    echo  ONARIM TAMAMLANDI - CODEGA AI yeniden baslatilabilir\r\n'
+                '    echo ============================================\r\n'
+                ') else (\r\n'
+                '    echo.\r\n'
+                '    echo ============================================\r\n'
+                '    echo  ONARIM BASARISIZ - Manuel destek gerekli\r\n'
+                '    echo  https://github.com/codegatr/codegaai/issues\r\n'
+                '    echo ============================================\r\n'
+                ')\r\n'
+                'echo.\r\n'
+                'pause\r\n',
                 encoding="utf-8",
             )
             log.info("fix_llama.bat oluşturuldu: %s", bat)

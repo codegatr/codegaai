@@ -1000,3 +1000,112 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
+
+// ── v4.0.3: Akıllı Otomatik Model Yükleme + AVX2 Tespit ─────────────────
+(async function autoLoadBestModel() {
+  // Sistem durumunu kontrol et
+  try {
+    const sys = await fetch("/api/system").then(r => r.json()).catch(() => null);
+    if (!sys) return;
+
+    // Model zaten yüklüyse banner gösterme
+    if (sys.llm?.is_ready) {
+      const banner = document.getElementById("auto-model-banner");
+      if (banner) banner.style.display = "none";
+      return;
+    }
+
+    // AVX2 hatası var mı?
+    const isAvx2Error = sys.llm?.error && (
+      sys.llm.error.includes("0xC000001D") ||
+      sys.llm.error.includes("AVX2") ||
+      sys.llm.error.includes("CPU uyumsuz") ||
+      sys.llm.error.includes("Illegal instruction")
+    );
+
+    if (isAvx2Error) {
+      const warn = document.getElementById("avx2-warning");
+      if (warn) warn.style.display = "block";
+      return;   // AVX2 yoksa otomatik yükleme deneme — crash olur
+    }
+
+    // RAM/VRAM'e göre en uygun modeli seç
+    const ram = sys.system?.ram_total_gb || 8;
+    const vram = sys.gpu?.vram_total_mb ? sys.gpu.vram_total_mb / 1024 : 0;
+
+    // İndirilmiş modelleri al
+    const models = await fetch("/api/models/list").then(r => r.json()).catch(() => ({models:[]}));
+    const downloaded = (models.models || []).filter(m => m.is_downloaded);
+    if (!downloaded.length) {
+      _showBanner("Henüz model indirilmedi", "Sistem → Modeller'den bir model indirin", "📥");
+      return;
+    }
+
+    // Donanıma göre en iyi modeli seç (CPU'da küçük, GPU'da büyük)
+    let target;
+    if (vram >= 5) {
+      target = downloaded.find(m => m.id.includes("7b") || m.id.includes("8b")) || downloaded[0];
+    } else if (vram >= 2 || ram >= 8) {
+      target = downloaded.find(m => m.id.includes("3b")) || downloaded[0];
+    } else {
+      // Çok düşük sistem — en küçük model
+      target = downloaded.sort((a,b) => (a.size_gb||999) - (b.size_gb||999))[0];
+    }
+
+    if (!target) return;
+
+    _showBanner(`${target.name || target.id}`,
+                `${vram >= 2 ? `GPU ${vram.toFixed(1)}GB` : `CPU mod`} · ${target.size_gb || "?"} GB`,
+                "⏳");
+
+    // Yüklemeyi başlat
+    const loadResp = await fetch("/api/models/load", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({model_id: target.id})
+    }).then(r => r.json()).catch(e => ({error: e.message}));
+
+    if (loadResp.error) {
+      // AVX2 hatası gelirse banner'ı kapat, uyarıyı göster
+      if (loadResp.error.includes("AVX2") || loadResp.error.includes("0xC000001D")) {
+        document.getElementById("auto-model-banner").style.display = "none";
+        document.getElementById("avx2-warning").style.display = "block";
+      } else {
+        _showBanner("Model yüklenemedi", loadResp.error.slice(0, 80), "❌");
+      }
+    } else {
+      // Başarı — banner'ı 3 saniye sonra gizle
+      _showBanner(`✓ ${target.name || target.id} hazır`, "Sohbet etmeye başlayabilirsiniz", "✅");
+      setTimeout(() => {
+        const b = document.getElementById("auto-model-banner");
+        if (b) b.style.display = "none";
+      }, 3000);
+    }
+  } catch(e) {
+    console.debug("Otomatik model yükleme atlandı:", e);
+  }
+
+  function _showBanner(name, desc, status) {
+    const banner = document.getElementById("auto-model-banner");
+    if (!banner) return;
+    banner.style.display = "block";
+    document.getElementById("auto-model-name").textContent = name;
+    document.getElementById("auto-model-desc").textContent = desc;
+    document.getElementById("auto-model-status").textContent = status;
+  }
+})();
+
+// CODEX-tarzı suggestion butonları
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".codex-card[data-suggest]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const text = btn.dataset.suggest;
+      const input = document.getElementById("chat-input");
+      if (input) {
+        input.value = text;
+        input.focus();
+        input.dispatchEvent(new Event("input"));
+      }
+    });
+  });
+});
