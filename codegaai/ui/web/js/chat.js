@@ -980,3 +980,23 @@ document.addEventListener("DOMContentLoaded", () => {
   const hint = document.querySelector(".chat-input-hint");
   if (hint) hint.style.flexWrap = "wrap";
 });
+
+// Header toolbar nav butonları — view geçişi
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".toolbar-nav[data-view]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const view = btn.dataset.view;
+      // Mevcut nav sistemini kullan
+      document.querySelectorAll(".nav-item[data-view]").forEach(n => {
+        n.classList.toggle("active", n.dataset.view === view);
+      });
+      document.querySelectorAll(".view[data-view]").forEach(v => {
+        v.classList.toggle("active", v.dataset.view === view);
+      });
+      // Toolbar butonlarını da güncelle
+      document.querySelectorAll(".toolbar-nav").forEach(b => {
+        b.classList.toggle("active", b.dataset.view === view);
+      });
+    });
+  });
+});

@@ -169,8 +169,23 @@ class LLMEngine:
         try:
             from llama_cpp import Llama  # type: ignore[import-not-found]
 
-            # n_ctx: 0 verilirse modelin tam context'ini kullan
-            effective_ctx = n_ctx or spec.context_length
+            # Sistem kaynakları tespit et — düşük sistem modu
+            import psutil
+            ram_gb = psutil.virtual_memory().available / 1e9
+            low_end = ram_gb < 4.0   # 4 GB altı = düşük sistem
+
+            # n_ctx: düşük sistemde küçük tut, çökmeyi önle
+            if n_ctx:
+                effective_ctx = n_ctx
+            elif low_end:
+                effective_ctx = 512    # Düşük sistem: 512 token
+                log.warning("Düşük RAM (%.1f GB) — context 512'ye düşürüldü", ram_gb)
+            else:
+                max_ctx = spec.context_length
+                # RAM'e göre kısıtla (her 1K token ~2MB RAM)
+                ram_limit = int(ram_gb * 500)   # 8GB→4000, 4GB→2000
+                effective_ctx = min(max_ctx, max(512, ram_limit))
+                log.info("Context: %d (RAM: %.1f GB)", effective_ctx, ram_gb)
 
             # VRAM otomatik tespiti
             effective_gpu_layers = n_gpu_layers
@@ -198,14 +213,20 @@ class LLMEngine:
                     effective_gpu_layers = 0
                     log.warning("GPU tespiti başarısız: %s → CPU mod", e)
 
+            # Düşük sistem parametreleri
+            n_batch = 128 if low_end else 512
+            n_threads = 2 if low_end else None   # Düşük sistemde 2 thread
+
             self._llm = Llama(
                 model_path=str(path),
                 n_ctx=effective_ctx,
                 n_gpu_layers=effective_gpu_layers,
-                n_threads=None,         # otomatik CPU thread
-                n_batch=512,            # batch boyutu (performans için)
+                n_threads=n_threads,
+                n_batch=n_batch,
                 verbose=False,
                 seed=-1,
+                use_mlock=False,   # Düşük sistemde mlock kapalı
+                use_mmap=True,     # mmap açık — RAM tasarrufu
             )
 
             backend = self._detect_backend()
