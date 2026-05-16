@@ -76,6 +76,17 @@ async def _lifespan(app: FastAPI):
     except Exception as exc:
         log.warning("Zamanlayıcı başlatılamadı: %s", exc)
 
+    # Sistem monitörü otomatik başlat (Faz 49)
+    try:
+        from codegaai.api.routes.monitor import _monitor_loop
+        import threading as _threading, codegaai.api.routes.monitor as _mon
+        _mon._monitor_active = True
+        _threading.Thread(target=_monitor_loop, args=(5,),
+                          daemon=True, name="sys-monitor").start()
+        log.info("Sistem monitörü başlatıldı")
+    except Exception as exc:
+        log.debug("Sistem monitörü başlatılamadı: %s", exc)
+
     yield
 
     log.info("FastAPI kapanıyor")
@@ -261,6 +272,8 @@ def create_app() -> FastAPI:
     app.include_router(powertools_routes.router, prefix="/api/powertools", tags=["powertools"])
     from codegaai.api.routes import intelligence as intelligence_routes
     app.include_router(intelligence_routes.router, prefix="/api/intelligence", tags=["intelligence"])
+    from codegaai.api.routes import monitor as monitor_routes
+    app.include_router(monitor_routes.router, prefix="/api/monitor", tags=["monitor"])
 
     # Setup.html — ilk kurulum sayfası
     from fastapi.responses import FileResponse
