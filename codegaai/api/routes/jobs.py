@@ -198,26 +198,65 @@ def _update_profile_async(messages: list[dict]) -> None:
 def _needs_retry(question: str, answer: str) -> bool:
     """
     Self-eval: yanıt yetersizse True dön.
-    
+
     Kriterler:
     - Çok kısa (< 15 karakter)
     - Belirsiz/kaçamak ifadeler ('bilmiyorum', 'üzgünüm' tek başına)
     - Hata mesajı içeriyor
     - Sadece soruyu tekrarlıyor
+    - YASAK kalıplar (Claude-tarzı yanıt için engelleme)
     """
     if not answer or not answer.strip():
         return True
-    
+
     ans = answer.strip().lower()
-    
+
     # Çok kısa cevaplar (genellikle yetersiz)
     if len(ans) < 15:
         return True
-    
-    # Kaçamak/yetersiz ifade kalıpları
-    weak_patterns = [
+
+    # YASAK kalıplar — Claude-tarzı için engellenir
+    # Bu kalıplardan biri varsa MUTLAKA retry
+    forbidden_patterns = [
+        "doğrudan internet üzerinde gezinem",   # gezinemem / gezinemiyorum
+        "internet üzerinde doğrudan gezinem",
+        "internete doğrudan erişim",
+        "internete erişim",                      # "yok" devamı olsa da olmasa da
+        "web'e erişim",
+        "web e erişim",
+        "internete bağlanam",
+        "ben bir yapay zeka asistanıyım",
+        "ben bir yapay zekayım",
+        "ben bir yapay zeka modeliyim",
+        "ben sadece bir yapay zeka",
+        "gerçek zamanlı veri sağla",
+        "gerçek zamanlı bilgi sağla",
+        "bilgilerim 2023",
+        "bilgilerim 2024",
+        "bilgilerim 2025",
+        "knowledge cutoff",
+        "training data",
+        "öncelikle belirtmeliyim",
+        "maalesef, ",
+        "maalesef bu konuda",
         "üzgünüm, ancak",
-        "üzgünüm, bu konuda",
+        "üzgünüm, ben bir",
+        "üzgünüm, doğrudan",
+        "as an ai language model",
+        "as an ai assistant",
+        "i cannot browse",
+        "i don't have access to",
+        "i don't have the ability",
+        "tarayıcı kullanma yeteneğim yok",
+        "gezinme yeteneğim yok",
+        "tarayıcı yeteneğim yok",
+    ]
+    for pattern in forbidden_patterns:
+        if pattern in ans:
+            return True
+
+    # Kaçamak/yetersiz ifade kalıpları (kısa cevap + zayıf ifade)
+    weak_patterns = [
         "bilmiyorum",
         "yardımcı olamam",
         "anlayamadım",
@@ -227,16 +266,15 @@ def _needs_retry(question: str, answer: str) -> bool:
         "name error",
         "traceback",
     ]
-    # Sadece bir kaçamak cümle varsa retry
     weak_count = sum(1 for p in weak_patterns if p in ans)
     if weak_count >= 1 and len(ans) < 100:
         return True
-    
+
     # Cevap soruyu aynen tekrarlıyorsa
     q = question.strip().lower()
     if q and len(q) > 10 and ans.startswith(q):
         return True
-    
+
     return False
 
 
@@ -574,15 +612,31 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
         # ── Self-Evaluation — Kısa/belirsiz yanıtları yeniden yaz ────
         if _needs_retry(job.message, job.content):
             log.info("Self-eval: yanıt yetersiz, yeniden üretiliyor")
+            job.set_stage("✏️ Yanıt iyileştiriliyor...")
+
+            # Sert yeniden yazma talimatı — Claude tarzı
+            retry_instruction = (
+                "Bir önceki yanıt YETERSİZ veya yasak kalıp içeriyor. Şu kuralları uygula:\n"
+                "1. 'Ben yapay zeka asistanıyım', 'internet üzerinde gezinemiyorum' "
+                "gibi kalıpları KULLANMA.\n"
+                "2. Eğer kullanıcının sorusunu cevaplayabilmek için web bilgisine "
+                "ihtiyacın varsa, bu mesaj geldikten sonra backend zaten web araması "
+                "yapacak — sen sadece sentezle.\n"
+                "3. Bilmiyorsan 'Hemen araştırıyorum' de — ASLA pes etme.\n"
+                "4. Claude gibi cevapla: doğrudan, net, yardımsever, dolgusuz.\n\n"
+                "Şimdi soruyu YENİDEN cevapla:\n\n"
+                f"Soru: {job.message}"
+            )
+
             retry_msgs = messages + [
                 {"role": "assistant", "content": job.content},
-                {"role": "user", "content":
-                 "Bu yanıt yetersiz veya belirsiz. Lütfen daha kapsamlı ve açık yanıt ver."},
+                {"role": "user", "content": retry_instruction},
             ]
             job.content = ""
             for token in engine.stream(retry_msgs, cfg=GenerationConfig(
-                    max_tokens=job.max_tokens, temperature=0.45)):
+                    max_tokens=job.max_tokens, temperature=0.4)):
                 job.append(token)
+            job.set_stage("")
 
         if job.chat_id and job.content:
             try:

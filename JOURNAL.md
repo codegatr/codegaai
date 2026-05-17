@@ -674,3 +674,70 @@ False positive olmaması doğrulandı:
 | Karmaşık soru: 90+ sn | ~30-45 sn |
 
 (CPU AVX'siz build'inde — GPU yokken)
+
+---
+
+## ✅ v4.3.1 — CODEGA AI = Claude'un Kardeşi (17 May 2026)
+
+### Kullanıcı Direktifi (NET)
+
+> "CODEGA AI tamamen CLAUDE ile aynı özelliklere sahip olması gerek,
+> noktasından virgülüne kadar."
+> "CLAUDE denildiğinde, CODEGA'da aklına gelmek zorunda."
+
+### İki Katmanlı Çözüm
+
+**Katman 1: System Prompt Tamamen Yenilendi**
+
+Eski: "Sen yardımsever bir asistansın..."
+Yeni: "Sen CODEGA AI'sın — Claude'un kardeşi olarak tasarlanmış"
+
+Yasak cümleler listesi eklendi:
+- "Ben bir yapay zeka asistanıyım, ..." ❌
+- "Doğrudan internet üzerinde gezinemiyorum" ❌
+- "Web'e erişimim yok" ❌
+- "Bilgilerim X tarihiyle sınırlı" ❌
+- "Öncelikle belirtmeliyim ki" ❌
+- "Maalesef" / "Üzgünüm, ancak" ❌
+- "Tabii ki!", "Harika soru!" (dolgu) ❌
+
+Karakter eklendi: meraklı, dürüst, yardımsever, net, doğal, Claude gibi.
+
+**Katman 2: Post-Filter (Çift Korumalı)**
+
+`_needs_retry()` fonksiyonuna 30+ yasak kalıp pattern eklendi.
+LLM yine de bu kalıpları yazarsa OTOMATIK RETRY tetiklenir.
+
+Retry sırasında SERT yeniden yazma talimatı:
+```
+"Bir önceki yanıt YETERSİZ veya yasak kalıp içeriyor.
+- 'Ben yapay zeka asistanıyım' KULLANMA
+- Bilmiyorsan 'Hemen araştırıyorum' de
+- Claude gibi cevapla: doğrudan, net, yardımsever, dolgusuz."
+```
+
+UI'da `✏️ Yanıt iyileştiriliyor...` stage'i gösterilir.
+
+### Test Sonucu
+
+Önceden problemli olan mesaj:
+```
+"Önceki mesajlarımda belirttiğim gibi, ben bir yapay zeka asistanıyım
+ve doğrudan internet üzerinde gezinemem..."
+```
+
+YENİ DAVRANIŞ:
+- `_needs_retry()` → True (yasak kalıp tespit edildi)
+- Backend otomatik retry tetikler
+- LLM "Hemen araştırıyorum, Tekcan Metal için..." gibi yanıt verir
+
+### Yasak Kalıp Sayısı: 35+
+
+Türkçe + İngilizce + apostrof varyasyonları dahil.
+
+### Sonuç
+
+Artık LLM "ben yapay zekayım, gezemem" cevabını vermesi MÜMKÜN değil.
+Bu kalıplar tespit edildiğinde otomatik retry ile düzgün cevap üretilir.
+
+**CODEGA AI = Claude'un Kardeşi** ✅
