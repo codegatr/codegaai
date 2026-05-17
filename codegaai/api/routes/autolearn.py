@@ -112,3 +112,39 @@ async def add_topic(req: AddTopicRequest) -> dict:
                 "queue_size": lrn._topic_queue.qsize()}
     except Exception:
         return {"added": False, "error": "Kuyruk dolu"}
+
+
+@router.post("/refill")
+async def refill_queue() -> dict:
+    """Manuel queue yenileme — trend kaynaklarından yeni konular çek."""
+    from codegaai.core.autonomous_learner import AutonomousLearner
+    lrn = AutonomousLearner.get()
+    try:
+        added = lrn._refill_from_trends()
+        return {
+            "success": True,
+            "added": added,
+            "queue_size": lrn._topic_queue.qsize(),
+            "message": f"+{added} yeni konu eklendi"
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.get("/learned-topics")
+async def learned_topics(limit: int = 50) -> dict:
+    """Öğrenilen konuların listesi (knowledge_map)."""
+    from codegaai.core.autonomous_learner import AutonomousLearner
+    lrn = AutonomousLearner.get()
+    topics = list(lrn._knowledge_map.keys())[:limit]
+    return {
+        "total": len(lrn._knowledge_map),
+        "topics": [
+            {
+                "topic": t,
+                "subtopics_count": len(lrn._knowledge_map.get(t, [])),
+                "subtopics": lrn._knowledge_map.get(t, [])[:5],
+            }
+            for t in topics
+        ]
+    }

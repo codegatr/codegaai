@@ -447,3 +447,71 @@ ONARIM BASARISIZ - Manuel destek gerekli
 ### Repair Endpoint Korundu
 
 `/api/repair/*` endpoint'leri silmedi — gelecekte sistem Python olan gelişmiş kullanıcılar için kalsın. UI'dan gizlendi.
+
+---
+
+## ✅ v4.2.0 — Otonom Öğrenme Akıllandırıldı (17 May 2026)
+
+### Sorun
+
+Kullanıcının log'unda: "Otonom öğrenme durumu yüklendi: **39 makale, 0 konu**"
+
+39 makale öğrenilmiş AMA topic queue boş kalmış. Sebep:
+- `_seed_queue()` sadece SEED_TOPICS'ten yüklüyor
+- SEED_TOPICS'taki tüm konular zaten knowledge_map'te
+- Sonuç: queue boş, sistem öğrenecek konu bulamıyor
+
+### Çözümler
+
+**A. Akıllı Refill (Faz 58):**
+- `_refill_from_trends()` metodu eklendi
+- 3 kaynaktan dinamik konu çeker:
+  1. HackerNews top stories (gerçek zamanlı trend)
+  2. Mevcut knowledge_map'tan rastgele alt konular
+  3. 15 popüler fallback konu (ML, Rust, K8s, vb.)
+- `_loop()` içinde her 5 döngüde bir queue<3 kontrolü → otomatik refill
+- `_seed_queue()` boş kalırsa trendlerden tohumlama
+
+**B. RAG Entegrasyonu (Bilgi Tabanı):**
+- `_sync_to_knowledge_base()` metodu
+- Öğrenilen makaleler Faz 51 Bilgi Tabanı'na otomatik eklenir
+- `_recent_articles` tracking ile sadece yenilerini sync eder
+- Embedding ile semantic arama
+- Her döngüde max 20 makale (rate limit)
+
+**C. Yeni Endpoint'ler:**
+- `POST /api/autolearn/refill` → manuel queue yenileme
+- `GET  /api/autolearn/learned-topics` → tüm öğrenilen konular
+
+**D. UI İyileştirmeleri:**
+- "⟳ Konuları Yenile" butonu (otonom öğrenme view'ı)
+- "Öğrenilen Konular" listesi (genişleyebilir alt konularla)
+- Toplam konu sayacı
+
+### Yeni Fazlar: 58 (Akıllı Refill), 59 (KB Entegrasyon)
+
+### Toplam Endpoint Sayısı: 290
+
+### Kullanıcı İçin
+
+Otonom öğrenme view'ına gidip:
+1. "Şimdi Öğren" → tek konu için tetikler
+2. **"⟳ Konuları Yenile"** → trendlerden yeni konular çeker (YENİ)
+3. "Öğrenilen Konular" listesi → şu ana kadar öğrenilen 39 makaleyi gösterir
+4. Her konu tıklanabilir, alt konular açılır
+
+### Veri Akışı
+
+```
+Idle CPU + İdle Network
+  ↓
+Topic Queue (boşsa otomatik refill)
+  ↓
+Wikipedia/ArXiv/HN/StackOverflow/GitHub fetch
+  ↓
+Save to embeddings (chromadb)
+  ↓
+Sync to KB (Faz 51) — semantic search'te bulunur
+  ↓
+Sohbette retrieve edilebilir (RAG)
+```

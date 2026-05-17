@@ -1003,10 +1003,22 @@
         <div class="learn-stats-grid" id="autolearn-stats">
           <p class="form-hint">Yükleniyor...</p>
         </div>
-        <div style="margin-top:var(--space-3);display:flex;gap:var(--space-2)">
+        <div style="margin-top:var(--space-3);display:flex;gap:var(--space-2);flex-wrap:wrap">
           <button class="btn btn--primary" id="autolearn-trigger-btn">Şimdi Öğren</button>
+          <button class="btn btn--secondary" id="autolearn-refill-btn">⟳ Konuları Yenile</button>
           <button class="btn btn--ghost" id="autolearn-stop-btn">Durdur</button>
           <button class="btn btn--ghost" id="autolearn-start-btn" hidden>Başlat</button>
+        </div>
+      </div>
+
+      <!-- Öğrenilen Konular -->
+      <div class="card" style="margin-bottom:var(--space-4)">
+        <div class="card-title">
+          Öğrenilen Konular
+          <span id="learned-topics-count" style="font-size:11px;color:var(--color-text-muted);font-weight:normal"></span>
+        </div>
+        <div id="learned-topics-list" style="max-height:200px;overflow-y:auto;font-size:12px;line-height:1.6">
+          <p class="form-hint">Yükleniyor...</p>
         </div>
       </div>
 

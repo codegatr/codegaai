@@ -612,14 +612,85 @@ class AutonomousLearner:
     # ============================================================
 
     def _seed_queue(self) -> None:
-        """Başlangıç konularını kuyruğa ekle."""
+        """Başlangıç konularını kuyruğa ekle. Boş kalırsa trendlerden doldur."""
         import random
         topics = SEED_TOPICS.copy()
         random.shuffle(topics)
+        seeded = 0
         for topic in topics:
             if topic not in self._knowledge_map:
                 if not self._enqueue_topic(topic):
                     break
+                seeded += 1
+
+        # SEED_TOPICS hepsi öğrenilmiş → trend kaynaklarından konu çek
+        if seeded < 3 and self._topic_queue.qsize() < 3:
+            log.info("SEED_TOPICS tükendi, trend kaynaklarından yenilenme yapılıyor")
+            self._refill_from_trends()
+
+    def _refill_from_trends(self) -> int:
+        """
+        Queue boşsa trend kaynaklarından otomatik konu çek.
+        - HackerNews top stories
+        - Wikipedia "On this day" / popular
+        - Knowledge map'tan rastgele yeniden genişlet
+        """
+        added = 0
+        try:
+            # 1. HackerNews top story başlıklarından konu çıkar
+            try:
+                articles = self._hn.fetch_top(count=10)
+                for article in articles:
+                    for topic in article.topics:
+                        if topic and len(topic) > 3 and topic not in self._knowledge_map:
+                            if self._enqueue_topic(topic):
+                                added += 1
+                                if added >= 15:
+                                    break
+                    if added >= 15:
+                        break
+            except Exception as exc:
+                log.debug("HN trend çekme atlandı: %s", exc)
+
+            # 2. Mevcut öğrenilen konulardan rastgele seçip alt konularını yeniden gez
+            if added < 5 and self._knowledge_map:
+                import random
+                sample = random.sample(
+                    list(self._knowledge_map.keys()),
+                    min(5, len(self._knowledge_map))
+                )
+                for parent in sample:
+                    for sub in self._knowledge_map.get(parent, [])[:3]:
+                        if sub and sub not in self._knowledge_map:
+                            if self._enqueue_topic(sub):
+                                added += 1
+
+            # 3. Hâlâ az ise Wikipedia featured/popular dene
+            if added < 3:
+                fallback_topics = [
+                    "machine learning recent", "rust programming", "kubernetes",
+                    "react server components", "postgresql performance",
+                    "edge computing", "neural network architecture",
+                    "vector database", "llm inference optimization",
+                    "container orchestration", "real-time systems",
+                    "domain-driven design", "event sourcing",
+                    "graph neural networks", "transformer architecture",
+                ]
+                import random
+                random.shuffle(fallback_topics)
+                for topic in fallback_topics:
+                    if topic not in self._knowledge_map:
+                        if self._enqueue_topic(topic):
+                            added += 1
+                            if added >= 10:
+                                break
+
+            log.info("Trend yenilenme: +%d yeni konu (queue: %d)",
+                     added, self._topic_queue.qsize())
+        except Exception as exc:
+            log.warning("Trend yenilenme hatası: %s", exc)
+
+        return added
 
     def _normalize_topic(self, topic: str) -> str:
         text = re.sub(r"\s+", " ", str(topic or "")).strip(" .,:;/-_")
@@ -810,6 +881,13 @@ class AutonomousLearner:
                 self._stats.sources_breakdown.get(src, 0) + 1
             )
 
+            # Son öğrenilen makaleleri sakla (KB sync için)
+            if not hasattr(self, "_recent_articles"):
+                self._recent_articles = []
+            self._recent_articles.append(article)
+            if len(self._recent_articles) > 50:
+                self._recent_articles = self._recent_articles[-50:]
+
             log.debug("Öğrenildi: '%s' (%s, %d chr)",
                       article.title[:50], article.source, len(article.content))
             return True
@@ -964,25 +1042,97 @@ class AutonomousLearner:
 
     def _loop(self) -> None:
         """Ana döngü: idle'da öğren, meşgulken uyu."""
+        refill_check_counter = 0
         while self._running:
             try:
                 if self.is_idle():
                     self._stats.state = "learning"
+
+                    # Queue tükenmek üzere ise yenile (her 5 döngüde bir kontrol)
+                    refill_check_counter += 1
+                    if refill_check_counter >= 5 and self._topic_queue.qsize() < 3:
+                        refill_check_counter = 0
+                        log.info("Queue azaldı (%d), trendlerden yenileniyor",
+                                 self._topic_queue.qsize())
+                        self._refill_from_trends()
+
                     saved = self._learn_cycle()
                     if saved:
                         log.info("Öğrenme döngüsü: +%d makale "
                                  "(toplam: %d, %d bilinen konu)",
                                  saved, self._stats.total_articles,
                                  len(self._knowledge_map))
-                    # Kısa uyku (yoğun internet kullanımı engeli)
+                        # Bilgi Tabanına (Faz 51) entegre et
+                        self._sync_to_knowledge_base()
+
                     time.sleep(LEARN_CYCLE_INTERVAL_S)
                 else:
                     self._stats.state = "idle"
-                    time.sleep(10)  # 10 sn bekle, idle kontrol et
+                    time.sleep(10)
 
             except Exception as exc:
                 log.warning("Öğrenme döngüsü hatası: %s", exc)
                 time.sleep(60)
+
+    def _sync_to_knowledge_base(self) -> None:
+        """
+        Öğrenilen yeni makaleleri Bilgi Tabanı'na (Faz 51) ekle.
+        Sessizce çalışır — KB modülü yoksa atlar.
+        """
+        try:
+            from codegaai.api.routes.knowledge import _load_index, _save_index
+            from codegaai.core.embeddings import EmbeddingService
+            import time as _t
+            import uuid as _u
+
+            kb_index = _load_index()
+            existing_titles = {r.get("title", "") for r in kb_index}
+
+            emb_svc = EmbeddingService.get()
+            new_count = 0
+
+            # Son öğrenilen makaleleri al (her döngüde sadece yenilerini sync et)
+            recent_articles = getattr(self, "_recent_articles", [])
+
+            for article in recent_articles:
+                title = getattr(article, "title", "")
+                if not title or title in existing_titles:
+                    continue
+                content = getattr(article, "content", "")
+                if not content or len(content) < 50:
+                    continue
+
+                # Embedding
+                embedding = None
+                if emb_svc.is_ready:
+                    try:
+                        vecs = emb_svc.embed([content[:2000]])
+                        embedding = vecs[0] if vecs else None
+                    except Exception:
+                        pass
+
+                kb_index.append({
+                    "id": str(_u.uuid4())[:8],
+                    "title": title,
+                    "content": content[:5000],
+                    "tags": getattr(article, "topics", [])[:5],
+                    "source": f"auto:{getattr(article, 'source', 'web')}",
+                    "created_at": _t.time(),
+                    "embedding": embedding,
+                })
+                new_count += 1
+                if new_count >= 20:   # Bir döngüde max 20
+                    break
+
+            if new_count:
+                _save_index(kb_index)
+                log.info("Bilgi Tabanına sync: +%d yeni makale", new_count)
+                # Sync edilenleri temizle
+                self._recent_articles = []
+        except ImportError:
+            pass  # KB modülü yoksa
+        except Exception as exc:
+            log.debug("KB sync hatası: %s", exc)
 
     @property
     def stats(self) -> dict:

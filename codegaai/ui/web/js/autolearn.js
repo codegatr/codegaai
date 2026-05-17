@@ -190,3 +190,86 @@ const AutoLearn = (() => {
 })();
 
 window.AutoLearn = AutoLearn;
+
+// ── v4.2.0: Refill + Learned Topics ─────────────────────────────────
+(function () {
+  // Refill butonu
+  document.addEventListener("DOMContentLoaded", () => {
+    const refillBtn = document.getElementById("autolearn-refill-btn");
+    if (refillBtn) {
+      refillBtn.addEventListener("click", async () => {
+        refillBtn.disabled = true;
+        refillBtn.textContent = "Yenileniyor...";
+        try {
+          const r = await fetch("/api/autolearn/refill", { method: "POST" });
+          const d = await r.json();
+          if (d.success) {
+            refillBtn.textContent = `✓ +${d.added} konu eklendi`;
+            setTimeout(() => {
+              refillBtn.textContent = "⟳ Konuları Yenile";
+              refillBtn.disabled = false;
+            }, 2500);
+            // İstatistikleri ve konuları yeniden yükle
+            if (window.AutoLearn?.load) window.AutoLearn.load();
+            loadLearnedTopics();
+          } else {
+            refillBtn.textContent = `❌ ${d.error || "Hata"}`;
+            setTimeout(() => {
+              refillBtn.textContent = "⟳ Konuları Yenile";
+              refillBtn.disabled = false;
+            }, 3000);
+          }
+        } catch (e) {
+          refillBtn.textContent = "❌ Hata";
+          setTimeout(() => {
+            refillBtn.textContent = "⟳ Konuları Yenile";
+            refillBtn.disabled = false;
+          }, 3000);
+        }
+      });
+    }
+  });
+
+  async function loadLearnedTopics() {
+    try {
+      const r = await fetch("/api/autolearn/learned-topics?limit=100");
+      const d = await r.json();
+      const list = document.getElementById("learned-topics-list");
+      const count = document.getElementById("learned-topics-count");
+      if (!list) return;
+
+      if (count) count.textContent = `(${d.total || 0})`;
+
+      if (!d.topics || !d.topics.length) {
+        list.innerHTML = `<p class="form-hint">Henüz öğrenilen konu yok. Sistem boş zamanlarda otomatik olarak öğrenecek.</p>`;
+        return;
+      }
+
+      list.innerHTML = d.topics.map(t => `
+        <div style="padding:6px 10px;border-bottom:1px solid var(--color-border);cursor:pointer"
+             onclick="this.querySelector('.subs').style.display=this.querySelector('.subs').style.display==='none'?'block':'none'">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong>${t.topic}</strong>
+            <span style="font-size:10px;color:var(--color-text-muted)">${t.subtopics_count} alt konu</span>
+          </div>
+          ${t.subtopics?.length ? `
+            <div class="subs" style="display:none;margin-top:6px;padding-left:12px;font-size:11px;color:var(--color-text-muted)">
+              ${t.subtopics.map(s => `• ${s}`).join("<br>")}
+            </div>
+          ` : ""}
+        </div>
+      `).join("");
+    } catch (e) {
+      console.debug("Learned topics yüklenemedi:", e);
+    }
+  }
+
+  // Sayfa autolearn'a girince yükle
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll('[data-view="autolearn"]').forEach(btn => {
+      btn.addEventListener("click", () => setTimeout(loadLearnedTopics, 100));
+    });
+    // İlk yükleme
+    setTimeout(loadLearnedTopics, 1500);
+  });
+})();
