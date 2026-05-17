@@ -1,31 +1,36 @@
 /* ════════════════════════════════════════════════════════════════
-   CODEGA AI — Claude.ai-tarzı Tema (v4.3.0)
-   Sade, odaklı, yumuşak gri tonlar + amber accent
+   CODEGA AI — Claude.ai-tarzı LAYOUT (v4.3.2)
+   CODEGA'NIN KENDİ AMBER RENKLERİ KORUNUR — sadece düzen/layout Claude tarzı
    ════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* Claude.ai renk paleti (dark mode) */
-  --color-bg: #1a1a1a;
-  --color-surface: #1f1f1f;
-  --color-surface-2: #262626;
-  --color-surface-3: #2e2e2e;
-  --color-border: #2e2e2e;
-  --color-border-strong: #3a3a3a;
+  /* CODEGA'nın ORIJINAL renk paleti — KORUNDU */
+  --color-bg: #0a0b0d;                /* CODEGA derin siyah */
+  --color-surface: #131418;
+  --color-surface-2: #1a1c21;
+  --color-surface-3: #232529;
+  --color-border: #242629;
+  --color-border-strong: #2e3137;
   --color-text: #ececec;
-  --color-text-muted: #a1a1a1;
-  --color-text-faint: #6e6e6e;
-  --color-accent: #d97757;          /* Claude orange */
-  --color-accent-hover: #c46540;
-  --color-accent-bg: rgba(217, 119, 87, 0.1);
-  --color-success: #22c55e;
+  --color-text-muted: #9ca3af;
+  --color-text-faint: #6b7280;
+
+  /* CODEGA Amber — DOKUNULMADI */
+  --color-accent: #f59e0b;            /* CODEGA brand amber */
+  --color-accent-hover: #fbbf24;
+  --color-accent-dim: #b45309;
+  --color-accent-bg: rgba(245, 158, 11, 0.12);
+  --color-accent-glow: rgba(245, 158, 11, 0.18);
+
+  --color-success: #10b981;
   --color-danger: #ef4444;
 
-  /* Tipografi */
+  /* Tipografi — Claude.ai gibi sade */
   --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "SF Mono", Menlo, Monaco, monospace;
 }
 
-/* Body base */
+/* Body — Claude tarzı tipografi */
 body {
   background: var(--color-bg);
   color: var(--color-text);
@@ -35,23 +40,42 @@ body {
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
-/* Sidebar — Claude.ai stil */
+/* ─── Sidebar — Claude düzeni, CODEGA renkleri ─── */
 .sidebar {
-  background: #181818;
+  background: #0d0e10;
   border-right: 1px solid var(--color-border);
   width: 260px;
   padding: 12px 8px;
 }
 
-.sidebar-header {
-  padding: 8px 12px 16px;
-  border-bottom: 1px solid var(--color-border);
-  margin-bottom: 12px;
+/* Nav items — sade düzen */
+.nav-item {
+  border-radius: 8px;
+  padding: 9px 12px;
+  margin: 2px 0;
+  color: var(--color-text-muted);
+  font-size: 13.5px;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.12s, color 0.12s;
 }
 
-/* New Chat butonu — Claude tarzı */
-.new-chat-btn,
+.nav-item:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.nav-item.active {
+  background: var(--color-accent-bg);
+  color: var(--color-accent);
+  font-weight: 500;
+}
+
+/* "Yeni Sohbet" butonu — CODEGA amber accent */
 .btn-new-chat,
+.new-chat-btn,
 button[onclick*="newChat"] {
   background: var(--color-surface-2);
   color: var(--color-text);
@@ -65,39 +89,15 @@ button[onclick*="newChat"] {
   display: flex;
   align-items: center;
   gap: 10px;
-  transition: background 0.15s;
+  transition: all 0.15s;
 }
 
-.new-chat-btn:hover,
-.btn-new-chat:hover {
+.btn-new-chat:hover,
+.new-chat-btn:hover {
   background: var(--color-surface-3);
+  border-color: var(--color-accent);
 }
 
-/* Nav items - daha sade */
-.nav-item {
-  border-radius: 8px;
-  padding: 8px 12px;
-  margin: 2px 0;
-  color: var(--color-text-muted);
-  font-size: 13.5px;
-  font-weight: 400;
-  transition: background 0.12s, color 0.12s;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.nav-item:hover {
-  background: var(--color-surface-2);
-  color: var(--color-text);
-}
-
-.nav-item.active {
-  background: var(--color-accent-bg);
-  color: var(--color-accent);
-}
-
-/* Sohbet geçmişi başlıkları */
 .sidebar h3,
 .sidebar-section-title {
   font-size: 11px;
@@ -108,14 +108,14 @@ button[onclick*="newChat"] {
   padding: 16px 12px 6px;
 }
 
-/* Ana chat alanı - ortalanmış, max-width */
+/* ─── Ana Chat Alanı — Claude tarzı (max-width, ortalanmış) ─── */
 .chat-messages {
   max-width: 760px;
   margin: 0 auto;
   padding: 20px 24px 100px;
 }
 
-/* Mesajlar - Claude.ai tarzı (avatar yerine sade isim) */
+/* Mesajlar — Claude.ai tarzı: sade, kart yok */
 .chat-message {
   margin-bottom: 28px;
   padding: 0;
@@ -124,36 +124,35 @@ button[onclick*="newChat"] {
 }
 
 .chat-message__role {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   margin-bottom: 6px;
-  color: var(--color-text);
-  letter-spacing: 0.2px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
-.chat-message__role--user {
-  color: var(--color-text);
+.chat-message__role--user,
+.chat-message__role[data-role="user"] {
+  color: var(--color-text-muted);
 }
 
-.chat-message__role--assistant {
-  color: var(--color-accent);
+.chat-message__role--assistant,
+.chat-message__role[data-role="assistant"] {
+  color: var(--color-accent);   /* CODEGA amber — kimlik korunur */
 }
 
-/* Avatar küçült/yumuşat */
+/* Avatar küçült */
 .chat-message__avatar,
 .message-avatar {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 6px;
   font-size: 11px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 8px;
+  font-weight: 600;
   flex-shrink: 0;
 }
 
-/* İçerik geniş satır, soft */
+/* İçerik — rahat okunur */
 .chat-message__content,
 .message-content {
   color: var(--color-text);
@@ -168,7 +167,7 @@ button[onclick*="newChat"] {
 
 .chat-message__content code {
   background: var(--color-surface-2);
-  color: #ffb380;
+  color: var(--color-accent);
   padding: 1px 6px;
   border-radius: 4px;
   font-size: 0.92em;
@@ -184,23 +183,13 @@ button[onclick*="newChat"] {
   font-size: 13px;
 }
 
-.chat-message__content ul,
-.chat-message__content ol {
-  padding-left: 22px;
-  margin: 8px 0;
-}
-
-.chat-message__content li {
-  margin-bottom: 4px;
-}
-
-/* Input alanı - alttta sabit, Claude.ai tarzı */
+/* ─── Input Alanı — Claude tarzı, CODEGA amber border ─── */
 .chat-input-area,
 .chat-composer {
   max-width: 760px;
   margin: 0 auto;
   padding: 12px 24px 20px;
-  background: linear-gradient(to bottom, transparent, var(--color-bg) 20%);
+  background: linear-gradient(to bottom, transparent, var(--color-bg) 30%);
   position: sticky;
   bottom: 0;
 }
@@ -219,21 +208,22 @@ button[onclick*="newChat"] {
   width: 100%;
   font-family: inherit;
   line-height: 1.5;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .chat-input-area textarea:focus,
+.chat-composer textarea:focus,
 #chat-input:focus {
   outline: none;
   border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-glow);
 }
 
-/* Gönder butonu - circle, accent */
+/* Gönder butonu — CODEGA amber, dolu */
 .btn-send,
-button[type="submit"][class*="send"],
 #chat-send {
   background: var(--color-accent);
-  color: #1a1a1a;
+  color: #0a0b0d;
   border: none;
   border-radius: 8px;
   width: 36px;
@@ -242,49 +232,83 @@ button[type="submit"][class*="send"],
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, transform 0.1s;
 }
 
-.btn-send:hover {
+.btn-send:hover,
+#chat-send:hover {
   background: var(--color-accent-hover);
 }
 
-/* Welcome ekranı - Claude.ai gibi */
+.btn-send:active {
+  transform: scale(0.96);
+}
+
+/* ─── Welcome Ekranı — Claude.ai layout, CODEGA renk ─── */
 .welcome--codex {
-  padding: 80px 24px 40px !important;
+  padding: 60px 24px 40px !important;
   text-align: center;
+  max-width: 760px;
+  margin: 0 auto;
 }
 
 .welcome__codex-title {
-  font-size: 28px !important;
+  font-size: 30px !important;
   font-weight: 400 !important;
   color: var(--color-text) !important;
-  margin-bottom: 32px !important;
-  letter-spacing: -0.3px !important;
+  margin-bottom: 36px !important;
+  letter-spacing: -0.5px !important;
 }
 
-/* Suggestion kartları - Claude.ai tarzı sade */
+/* Suggestion kartları */
 .codex-suggestions {
-  max-width: 600px !important;
+  max-width: 640px !important;
   margin: 16px auto 0 !important;
-  gap: 8px !important;
+  gap: 10px !important;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
 }
 
 .codex-card {
-  background: transparent !important;
+  background: var(--color-surface) !important;
   border: 1px solid var(--color-border) !important;
   border-radius: 10px !important;
   padding: 14px 16px !important;
+  color: var(--color-text) !important;
   transition: background 0.15s, border-color 0.15s !important;
+  cursor: pointer;
 }
 
 .codex-card:hover {
   background: var(--color-surface-2) !important;
-  border-color: var(--color-border-strong) !important;
-  transform: none !important;
+  border-color: var(--color-accent) !important;
 }
 
-/* Status pill */
+.codex-card__icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+/* Quick links */
+.codex-quick-links {
+  display: flex;
+  gap: 22px;
+  margin-top: 32px;
+  font-size: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.codex-quick-links a {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.codex-quick-links a:hover {
+  color: var(--color-accent);
+}
+
+/* ─── Status Pill — sağ üstte ─── */
 .status-pill {
   background: var(--color-surface-2);
   border: 1px solid var(--color-border);
@@ -292,21 +316,59 @@ button[type="submit"][class*="send"],
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-/* Buttons genel */
-.btn {
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  padding: 8px 14px;
-  transition: background 0.15s;
+.status-pill--ok {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: var(--color-success);
+  color: var(--color-success);
 }
 
+.status-pill--warn {
+  background: var(--color-accent-bg);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* ─── Toolbar üstte: ikonları organize et ─── */
+.toolbar,
+.chat-toolbar {
+  gap: 4px !important;
+}
+
+.icon-btn,
+.toolbar-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.icon-btn:hover,
+.toolbar-icon:hover {
+  background: var(--color-surface-2);
+  color: var(--color-accent);
+}
+
+/* Genel butonlar */
 .btn--primary {
   background: var(--color-accent);
-  color: #1a1a1a;
+  color: #0a0b0d;
   border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-weight: 500;
+  font-size: 13px;
 }
 
 .btn--primary:hover {
@@ -322,15 +384,12 @@ button[type="submit"][class*="send"],
 .btn--ghost:hover {
   background: var(--color-surface-2);
   color: var(--color-text);
-}
-
-/* Spinner animasyonu */
-@keyframes spin {
-  to { transform: rotate(360deg); }
+  border-color: var(--color-border-strong);
 }
 
 /* Sohbet geçmişi item */
-.chat-history-item {
+.chat-history-item,
+.chat-item {
   padding: 8px 12px;
   margin: 1px 0;
   border-radius: 6px;
@@ -343,27 +402,19 @@ button[type="submit"][class*="send"],
   transition: background 0.12s;
 }
 
-.chat-history-item:hover {
+.chat-history-item:hover,
+.chat-item:hover {
   background: var(--color-surface-2);
   color: var(--color-text);
 }
 
-.chat-history-item.active {
+.chat-history-item.active,
+.chat-item.active {
   background: var(--color-accent-bg);
   color: var(--color-accent);
 }
 
-/* Header üst kısım */
-.chat-header,
-.view-header {
-  border-bottom: 1px solid var(--color-border);
-  padding: 12px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-/* Cursor (streaming) */
+/* Streaming cursor */
 .stream-cursor {
   display: inline-block;
   background: var(--color-accent);
@@ -375,7 +426,11 @@ button[type="submit"][class*="send"],
 }
 
 @keyframes blink {
-  50% { opacity: 0; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Scrollbar */
@@ -396,3 +451,4 @@ button[type="submit"][class*="send"],
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-faint);
 }
+

@@ -1041,9 +1041,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const ram = sys.system?.ram_total_gb || 8;
     const vram = sys.gpu?.vram_total_mb ? sys.gpu.vram_total_mb / 1024 : 0;
 
-    // İndirilmiş modelleri al
-    const models = await fetch("/api/models/list").then(r => r.json()).catch(() => ({models:[]}));
-    const downloaded = (models.models || []).filter(m => m.is_downloaded);
+    // İndirilmiş modelleri al — DOĞRU endpoint: /api/models/llm
+    const models = await fetch("/api/models/llm").then(r => r.json()).catch(() => ({models:[]}));
+    const downloaded = (models.models || []).filter(m => m.downloaded || m.is_downloaded);
     if (!downloaded.length) {
       _showBanner("Henüz model indirilmedi", "Sistem → Modeller'den bir model indirin", "📥");
       return;
@@ -1066,11 +1066,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 `${vram >= 2 ? `GPU ${vram.toFixed(1)}GB` : `CPU mod`} · ${target.size_gb || "?"} GB`,
                 "⏳");
 
-    // Yüklemeyi başlat
-    const loadResp = await fetch("/api/models/load", {
+    // Yüklemeyi başlat — DOĞRU endpoint: /api/models/{id}/load
+    const loadResp = await fetch(`/api/models/${target.id}/load`, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({model_id: target.id})
+      body: JSON.stringify({})
     }).then(r => r.json()).catch(e => ({error: e.message}));
 
     if (loadResp.error) {

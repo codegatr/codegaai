@@ -741,3 +741,63 @@ Artık LLM "ben yapay zekayım, gezemem" cevabını vermesi MÜMKÜN değil.
 Bu kalıplar tespit edildiğinde otomatik retry ile düzgün cevap üretilir.
 
 **CODEGA AI = Claude'un Kardeşi** ✅
+
+---
+
+## ✅ v4.3.2 — CODEGA Renkleri Geri Geldi + Endpoint Bug'ları (17 May 2026)
+
+### Kullanıcı Geri Bildirimi (HAKLI ELEŞTİRİ)
+
+> "Ekranda resmen saçmalamışsın, sen böyle misin?"
+> "CODEGA renklerimize uygun olmalı, benzerlik derken Ekrandan bahsettim"
+
+### Hatamı Kabul Ediyorum
+
+v4.3.0'da Claude.ai'ya benzeme talebini YANLIŞ yorumladım:
+- ❌ Yapılan: CODEGA'nın amber rengini Claude'un solgun orange'ı (#d97757) ile değiştirdim
+- ✅ Yapılması gereken: SADECE LAYOUT'u Claude tarzı yap, CODEGA renkleri korunsun
+
+### Düzeltme
+
+**Renkler tamamen CODEGA'ya geri döndü:**
+```css
+--color-accent: #f59e0b;        /* CODEGA amber */
+--color-accent-hover: #fbbf24;
+--color-bg: #0a0b0d;            /* CODEGA derin siyah */
+```
+
+**Layout Claude tarzı korundu:**
+- 760px max-width chat alanı
+- Sidebar 260px
+- Sade mesaj görünümü (kart yok)
+- Tipografi Inter + line-height 1.65
+
+**CSS dosyası temizlendi:**
+- 825 satır → 454 satır (eski duplicate kuralar silindi)
+- Tek bir kaynak, ne yaptığı belli
+
+### Endpoint Bug'ları (Otomatik Model Yükleme)
+
+**Bug 1:** JS `/api/models/list` çağırıyor → 404
+- Doğrusu: `/api/models/llm`
+
+**Bug 2:** JS `m.is_downloaded` arıyor
+- API field adı: `downloaded`
+
+**Bug 3:** JS `/api/models/load` çağırıyor → 404
+- Doğrusu: `/api/models/{model_id}/load`
+
+**Sonuç:**
+Ekranda "Henüz model indirilmedi" gözüküyordu — halbuki kullanıcının
+5 modeli vardı. Şimdi gerçek liste alınıyor, otomatik yükleme çalışıyor.
+
+### Renk Karşılaştırma
+
+| Element | v4.3.0 (yanlış) | v4.3.2 (doğru) |
+|---------|-----------------|-----------------|
+| Accent | #d97757 (solgun Claude orange) | #f59e0b (CODEGA amber) ✓ |
+| BG | #1a1a1a (Claude gri) | #0a0b0d (CODEGA siyah) ✓ |
+| Avatar | gri tonlu | amber arkaplan ✓ |
+| Code inline | #ffb380 | amber accent ✓ |
+
+LAYOUT korundu (Claude tarzı), RENKLER CODEGA'nın.
