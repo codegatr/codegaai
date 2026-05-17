@@ -394,3 +394,56 @@ v4.1.1 tag push'landı
 - Simulation Mode (v4.1.0'da eklendi) devreye girer
 - Selamlama, saat, bilgi tabanı çalışır
 - Otomatik Onar butonu zorunlu olmaz
+
+---
+
+## ✅ v4.1.2 — fix_llama.bat ve UI temizliği (17 May 2026)
+
+### Sorun
+
+Kullanıcının fix_llama.bat çalıştırması başarısız oluyordu:
+```
+[1/3] Mevcut llama-cpp-python kaldiriliyor...
+[2/3] CPU-only wheel deneniyor (hizli yontem)...
+[3/3] Kaynaktan derleme deneniyor (yavas yontem)...
+Test ediliyor...
+ONARIM BASARISIZ - Manuel destek gerekli
+```
+
+**Neden başarısız?**
+- Sistemde Python kurulu DEĞİL → `python -m pip` çalışmaz
+- Frozen build içinde pip yok → `codegaai.exe -m pip` argümanları tanımıyor
+- Visual C++ Build Tools yok → kaynaktan derleme imkansız
+- Üç fallback'in HİÇBİRİ kullanıcının sisteminde çalışmaz
+
+### Çözüm
+
+**fix_llama.bat artık pip denemiyor.** Yerine:
+- Net uyarı mesajı
+- Otomatik olarak GitHub Releases sayfasını açar
+- "v4.1.1+ AVX2 gerektirmiyor, indirin" yönlendirmesi
+
+**UI değişikliği:**
+- "Otomatik Onar (5-15 dk)" butonu kaldırıldı → çalışamadığı için yanıltıcıydı
+- Yerine "⬇ En Son Sürümü İndir" linki (doğrudan GitHub Releases)
+- Build durumu için GitHub Actions linki
+
+### v4.1.1 Build Sonucu
+
+✅ **Başarılı** (21 dakika sürdü, 04:00 - 04:21 UTC)
+- Workflow run #130
+- Branch: v4.1.1
+- AVX'siz llama-cpp kaynaktan derlendi
+- PyInstaller bundle başarılı
+- Release asset hazır
+
+### Kullanıcı İçin
+
+1. https://github.com/codegatr/codegaai/releases/tag/v4.1.1 adresinden ZIP indir
+2. Mevcut CODEGA AI klasörünü kapat/yedekle
+3. Yeni ZIP'i çıkart, codegaai.exe ile başlat
+4. Model otomatik yüklenecek (AVX2 hatası olmaz)
+
+### Repair Endpoint Korundu
+
+`/api/repair/*` endpoint'leri silmedi — gelecekte sistem Python olan gelişmiş kullanıcılar için kalsın. UI'dan gizlendi.

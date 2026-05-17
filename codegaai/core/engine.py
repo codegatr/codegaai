@@ -352,7 +352,11 @@ class LLMEngine:
             return True
 
     def _write_fix_script(self) -> None:
-        """AVX2 uyumsuzluğu için güçlü fix_llama.bat oluştur (3 fallback)."""
+        """
+        AVX2 uyumsuzluğu durumunda kullanıcıya net yönlendirme veren bat.
+        Pip ile onarım denemiyor (Python yoksa zaten çalışmaz).
+        Bunun yerine: yeni sürümü indirmesi için tarayıcı açar.
+        """
         try:
             if getattr(sys, "frozen", False):
                 bat_dir = Path(sys.executable).parent
@@ -360,61 +364,40 @@ class LLMEngine:
                 from codegaai.config import DATA_DIR
                 bat_dir = DATA_DIR
 
-            python_exe = sys.executable
             bat = bat_dir / "fix_llama.bat"
             bat.write_text(
                 '@echo off\r\n'
                 'chcp 65001 > nul\r\n'
-                'title CODEGA AI - llama-cpp-python AVX2 Onarimi\r\n'
+                'title CODEGA AI - AVX2 Onarimi\r\n'
                 'cls\r\n'
-                'echo ============================================\r\n'
-                'echo  CODEGA AI - CPU UYUMLULUK ONARIMI\r\n'
-                'echo ============================================\r\n'
+                'echo ================================================\r\n'
+                'echo  CODEGA AI - CPU AVX2 UYUMSUZLUGU\r\n'
+                'echo ================================================\r\n'
                 'echo.\r\n'
-                'echo Bu islemin tamamlanmasi 5-15 dakika surebilir.\r\n'
-                'echo Internet baglantisi gereklidir.\r\n'
+                'echo Isleminizin AVX2 destegi olmadigi tespit edildi.\r\n'
                 'echo.\r\n'
-                'pause\r\n'
+                'echo COZUM:\r\n'
+                'echo Yeni surum (v4.1.1+) AVX2 gerektirmiyor.\r\n'
+                'echo Asagidaki adimlari izleyin:\r\n'
                 'echo.\r\n'
-                'echo [1/3] Mevcut llama-cpp-python kaldiriliyor...\r\n'
-                f'"{python_exe}" -m pip uninstall llama-cpp-python -y\r\n'
+                'echo  1. Tarayicida acilan sayfadan en son ZIP dosyasini indirin\r\n'
+                'echo  2. Mevcut CODEGA AI klasorunu yedekleyin/silin\r\n'
+                'echo  3. Yeni ZIPi acin, codegaai.exe ile baslatin\r\n'
+                'echo  4. Model otomatik yuklenecek\r\n'
                 'echo.\r\n'
-                'echo [2/3] CPU-only wheel deneniyor (hizli yontem)...\r\n'
-                f'"{python_exe}" -m pip install llama-cpp-python ^\r\n'
-                '    --prefer-binary ^\r\n'
-                '    --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu ^\r\n'
-                '    --no-cache-dir\r\n'
-                'if %errorlevel% == 0 (\r\n'
-                '    echo.\r\n'
-                '    echo BAS ARILI! CPU-only wheel kuruldu.\r\n'
-                '    goto :test\r\n'
-                ')\r\n'
+                'echo Iste indirme sayfasi aciliyor...\r\n'
+                'timeout /t 3 > nul\r\n'
+                'start https://github.com/codegatr/codegaai/releases/latest\r\n'
                 'echo.\r\n'
-                'echo [3/3] Kaynaktan derleme deneniyor (yavas yontem)...\r\n'
-                'set CMAKE_ARGS=-DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_F16C=OFF -DLLAMA_FMA=OFF\r\n'
-                'set FORCE_CMAKE=1\r\n'
-                f'"{python_exe}" -m pip install llama-cpp-python --no-cache-dir --force-reinstall\r\n'
-                ':test\r\n'
-                'echo.\r\n'
-                'echo Test ediliyor...\r\n'
-                f'"{python_exe}" -c "from llama_cpp import Llama; print(\'llama-cpp-python calisiyor\')"\r\n'
-                'if %errorlevel% == 0 (\r\n'
-                '    echo.\r\n'
-                '    echo ============================================\r\n'
-                '    echo  ONARIM TAMAMLANDI - CODEGA AI yeniden baslatilabilir\r\n'
-                '    echo ============================================\r\n'
-                ') else (\r\n'
-                '    echo.\r\n'
-                '    echo ============================================\r\n'
-                '    echo  ONARIM BASARISIZ - Manuel destek gerekli\r\n'
-                '    echo  https://github.com/codegatr/codegaai/issues\r\n'
-                '    echo ============================================\r\n'
-                ')\r\n'
-                'echo.\r\n'
+                'echo ================================================\r\n'
+                'echo  Eger v4.1.1 veya daha yenisi henuz hazir degilse,\r\n'
+                'echo  birkac dakika sonra tekrar deneyin.\r\n'
+                'echo  Build: https://github.com/codegatr/codegaai/actions\r\n'
+                'echo ================================================\r\n'
                 'pause\r\n',
                 encoding="utf-8",
             )
-            log.info("fix_llama.bat oluşturuldu: %s", bat)
+            log.info("fix_llama.bat (yönlendirici) oluşturuldu: %s", bat)
         except Exception as e:
             log.warning("fix_llama.bat yazılamadı: %s", e)
 

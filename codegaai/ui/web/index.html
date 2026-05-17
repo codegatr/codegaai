@@ -233,17 +233,24 @@
                 <div style="flex:1">
                   <div style="font-weight:600;color:var(--color-accent);margin-bottom:6px;font-size:14px">CPU Uyumsuzluğu Tespit Edildi</div>
                   <div style="color:var(--color-text-muted);font-size:12px;line-height:1.6">
-                    İşlemciniz AVX2 talimat setini desteklemiyor. Bu yüzden ana model yüklenemiyor.
+                    İşlemciniz AVX2 talimat setini desteklemiyor. Bu yüzden bu sürümdeki ana model yüklenemiyor.
                     <br><br>
-                    <strong style="color:var(--color-text)">Şu an Simülasyon Modu'ndasınız</strong> — temel sohbet, bilgi tabanı, sistem
-                    özellikleri çalışıyor. Tam yetenek için aşağıdaki butona tıklayın.
+                    <strong style="color:var(--color-text)">Çözüm:</strong>
+                    v4.1.1 ve sonrası sürümler AVX2 gerektirmiyor. Aşağıdaki butondan en son sürümü indirin.
+                    <br><br>
+                    <strong style="color:var(--color-text)">Şu an Simülasyon Modu'ndasınız</strong> — temel sohbet,
+                    saat, bilgi tabanı ve sistem özellikleri çalışıyor.
                   </div>
                 </div>
               </div>
-              <button id="auto-repair-btn" onclick="window.AutoRepair?.start()"
-                      style="width:100%;padding:12px;background:var(--color-accent);color:#000;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px">
-                🔧 Otomatik Onar (5-15 dk)
-              </button>
+              <a href="https://github.com/codegatr/codegaai/releases/latest" target="_blank"
+                 style="display:block;text-align:center;padding:12px;background:var(--color-accent);color:#000;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
+                ⬇ En Son Sürümü İndir (v4.1.1+)
+              </a>
+              <div style="margin-top:10px;text-align:center;font-size:11px;color:var(--color-text-muted)">
+                Build durumu:
+                <a href="https://github.com/codegatr/codegaai/actions" target="_blank" style="color:var(--color-accent)">GitHub Actions</a>
+              </div>
             </div>
 
             <!-- Model seçim banner'ı (otomatik yükleme önerisi) -->
