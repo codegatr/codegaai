@@ -78,6 +78,69 @@ def _needs_web_search(message: str) -> bool:
     return any(re.search(p, msg, re.IGNORECASE) for p in _WEB_REQUIRED_PATTERNS)
 
 
+async def _execute_inline_tools(content: str, job) -> str:
+    """
+    <tool>tool_name(args)</tool> bloklarını çalıştır, sonucu yerine koy.
+    Basit prompt-injection-safe pattern.
+    """
+    import re
+    
+    pattern = re.compile(r"<tool>(.*?)</tool>", re.DOTALL)
+    
+    def _safe_call(match):
+        tool_call = match.group(1).strip()
+        try:
+            # Sadece güvenli, beyaz listede olan tool'lar
+            if tool_call.startswith("search("):
+                query = tool_call[7:-1].strip().strip('"\'')
+                from codegaai.core.web_search import web_search
+                results = web_search(query, limit=3)
+                return "\n[Arama sonuçları]\n" + "\n".join(
+                    f"- {r.get('title', '')}: {r.get('snippet', '')[:150]}"
+                    for r in results
+                ) + "\n"
+            elif tool_call.startswith("calc("):
+                expr = tool_call[5:-1].strip()
+                # Sadece sayısal ifadeler
+                if re.match(r"^[\d\s+\-*/().]+$", expr):
+                    return f" {eval(expr)} "  # noqa: S307 - kısıtlı eval
+            elif tool_call.startswith("time()"):
+                from datetime import datetime
+                return f" {datetime.now().strftime('%H:%M, %d %B %Y')} "
+            return match.group(0)   # Bilinmeyen tool → olduğu gibi bırak
+        except Exception as e:
+            return f"[Tool hatası: {e}]"
+    
+    try:
+        return pattern.sub(_safe_call, content)
+    except Exception:
+        return content
+
+
+def _update_profile_async(messages: list[dict]) -> None:
+    """
+    Kullanıcı profilini arka planda güncelle (engellemez, hata vermez).
+    Sohbetten ilgi alanları, üslup tercihleri çıkartır.
+    """
+    try:
+        import threading
+        
+        def _run():
+            try:
+                from codegaai.core.user_profile import UserProfile
+                profile = UserProfile.get()
+                profile.update_from_messages(messages)
+            except (ImportError, AttributeError):
+                # UserProfile modülü yoksa sessizce atla
+                pass
+            except Exception as e:
+                log.debug("Profil güncellemesi atlandı: %s", e)
+        
+        threading.Thread(target=_run, daemon=True).start()
+    except Exception:
+        pass   # Hiçbir koşulda chat akışını bozma
+
+
 def _needs_retry(question: str, answer: str) -> bool:
     """
     Self-eval: yanıt yetersizse True dön.
