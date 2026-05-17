@@ -601,3 +601,76 @@ False positive olmaması doğrulandı:
 - 'Neler yapabilirsin?' → false ✓
 - 'Python listesi nedir' → false ✓
 - 'Merhaba nasılsın' → false ✓
+
+---
+
+## ✅ v4.3.0 — Claude.ai Tema + Hız Optimizasyonu (17 May 2026)
+
+### Kullanıcı Geri Bildirimi
+
+> "Cevap üretme süresi çok uzun, internetten araştırma dakikalar sürüyor"
+> "Ben senden arayüzü tamamen Claude'ye benzesin demiştim"
+
+### Hız İyileştirmeleri
+
+**1. Akıllı max_tokens** (jobs.py)
+- < 30 karakter → max 128 token (selamlama)
+- 30-80 karakter → max 256 token (tek satır soru)
+- 80+ karakter → orijinal (uzun açıklama gerek)
+- Default: 512 → 384
+
+**2. Web search hızlandırma**
+- Timeout: 8s → 5s
+- Sonuç sayısı: 5 → 3 (daha az context, hızlı LLM)
+- URL fetch boyutu: 3000 → 2000 char
+- Çıktı kısaltma: 2000 → 1500 char
+
+**3. UI Stage Indicator**
+- ChatJob'a `stage` field eklendi
+- Web search sırasında "🔍 İnternette aranıyor..." spinner
+- Kullanıcı bekleme süresinde ne olduğunu görür
+- Eskiden boş ekran → şimdi canlı durum
+
+### Claude.ai Tema (css/claude_theme.css)
+
+**Renk paleti:**
+- BG: #1a1a1a (önceden çok karanlık)
+- Surface: #1f1f1f / #262626 / #2e2e2e
+- Text: #ececec / #a1a1a1 (3 katman)
+- Accent: #d97757 (Claude orange — eskiden parlak amber)
+
+**Layout:**
+- Sidebar: 260px (Claude.ai birebir)
+- Chat alanı: max-width 760px ortalanmış
+- Input alanı: sticky bottom, rounded 14px
+
+**Tipografi:**
+- Inter / Apple system font
+- 14px base, 15px chat
+- Line-height 1.65 (rahat okuma)
+- font-feature: cv02, cv03, cv04, cv11
+
+**Mesajlar:**
+- Avatar 26x26 (eskiden büyüktü)
+- Rol etiketi: bold, soft renk
+- Background yok (sade, Claude.ai gibi)
+- Code: amber tonlu inline
+
+**Suggestion kartları:**
+- Transparent background
+- Sade border
+- Hover'da yumuşak geçiş
+
+**Spinner:**
+- Web search'te dönen amber ring
+- "Aranıyor..." italic mesaj
+
+### Performans Beklentisi
+
+| Önceki | v4.3.0 |
+|--------|--------|
+| Selamlama: 30+ sn | ~5-8 sn (128 token) |
+| Web search: 60+ sn | ~15-25 sn (3 sonuç) |
+| Karmaşık soru: 90+ sn | ~30-45 sn |
+
+(CPU AVX'siz build'inde — GPU yokken)

@@ -523,6 +523,14 @@ const Chat = (() => {
           const r = await fetch(`/api/jobs/${jobId}`);
           const d = await r.json();
 
+          // Stage göster (web aramada, RAG'da, vs.) — content yokken durum bildirici
+          if (!d.content && d.stage && contentEl) {
+            contentEl.innerHTML = `<div style="color:var(--color-text-muted);font-size:13px;font-style:italic;display:flex;align-items:center;gap:8px">
+              <span style="display:inline-block;width:12px;height:12px;border:2px solid var(--color-accent);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></span>
+              ${d.stage}
+            </div>`;
+          }
+
           // Yeni token'lar varsa göster
           if (d.content && d.content.length > lastLen) {
             const shouldStick = isNearBottom();

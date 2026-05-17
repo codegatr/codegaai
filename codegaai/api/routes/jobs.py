@@ -274,17 +274,17 @@ async def _maybe_web_search(message: str) -> str:
     if url_match:
         url = url_match.group(0).rstrip(".,;")
         try:
-            async with httpx.AsyncClient(timeout=8.0) as client:
+            async with httpx.AsyncClient(timeout=5.0) as client:    # 8→5 sn
                 r = await client.get(url, headers=headers, follow_redirects=True)
-                text = re.sub(r"<[^>]+>", " ", r.text[:3000])
+                text = re.sub(r"<[^>]+>", " ", r.text[:2000])       # 3000→2000
                 text = re.sub(r"\s+", " ", text).strip()
-                return f"[{url}]\n{text[:2000]}"
+                return f"[{url}]\n{text[:1500]}"                    # 2000→1500
         except Exception as exc:
             log.debug("URL okuma hatası: %s", exc)
 
     try:
         query = message.strip()
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with httpx.AsyncClient(timeout=5.0) as client:        # 8→5 sn
             r = await client.get(
                 "https://lite.duckduckgo.com/lite/",
                 params={"q": query},
@@ -295,14 +295,15 @@ async def _maybe_web_search(message: str) -> str:
         if not snippets:
             text = re.sub(r"<[^>]+>", " ", r.text)
             text = re.sub(r"\s+", " ", text).strip()
-            return f"[Web Araması: {query}]\n{text[:1500]}"
+            return f"[Web Araması: {query}]\n{text[:1200]}"         # 1500→1200
 
         results = []
+        # Sadece ilk 3 sonuç (eskiden 5) — daha az context, daha hızlı LLM
         for i, (title, snippet) in enumerate(zip(titles, snippets)):
             title_clean = re.sub(r"<[^>]+>", "", title).strip()
             snippet_clean = re.sub(r"<[^>]+>", "", snippet).strip()
-            results.append(f"{i + 1}. {title_clean}: {snippet_clean}")
-            if i >= 4:
+            results.append(f"{i + 1}. {title_clean}: {snippet_clean[:200]}")
+            if i >= 2:    # 0,1,2 = 3 sonuç (eski 5)
                 break
         return f"[Web Araması: {query}]\n" + "\n".join(results)
     except Exception as exc:
@@ -321,11 +322,17 @@ class ChatJob:
         self.deep_think = deep_think   # o1/o3 tarzı CoT
         self.thought = ""              # İç düşünce (kullanıcıya gösterilebilir)
         self.status = "pending"
+        self.stage = ""                # Anlık aşama: searching, retrieving, generating
         self.content = ""
         self.error = ""
         self.started_at = time.time()
         self.finished_at: Optional[float] = None
         self._lock = threading.Lock()
+
+    def set_stage(self, stage: str) -> None:
+        """Anlık aşama bildirimi (UI'da kullanıcıya göster)."""
+        with self._lock:
+            self.stage = stage
 
     def append(self, token: str) -> None:
         with self._lock:
@@ -335,6 +342,7 @@ class ChatJob:
         with self._lock:
             self.status = "error" if error else "done"
             self.error = error
+            self.stage = ""
             self.finished_at = time.time()
 
     def to_dict(self) -> dict:
@@ -343,6 +351,7 @@ class ChatJob:
             return {
                 "job_id": self.job_id,
                 "status": self.status,
+                "stage": self.stage,
                 "content": self.content,
                 "thought": self.thought,    # Derin düşünme içeriği
                 "error": self.error,
@@ -376,6 +385,14 @@ async def _run_chat_job(job: ChatJob) -> None:
         from codegaai.core.system_prompt import build_system_prompt
         from codegaai.core.chat_store import ChatStore
         from codegaai.core.agent_brain import decide_response, decision_guidance
+
+        # Akıllı max_tokens: kısa sorulara kısa cevap (hız için)
+        msg_len = len(job.message.strip())
+        if msg_len < 30:        # "Merhaba", "Nasılsın"
+            job.max_tokens = min(job.max_tokens, 128)
+        elif msg_len < 80:       # Tek satır soru
+            job.max_tokens = min(job.max_tokens, 256)
+        # Uzun soru / açıklama isteği → orijinal max_tokens kullan
 
         engine = LLMEngine.get()
         history = []
@@ -437,9 +454,11 @@ async def _run_chat_job(job: ChatJob) -> None:
             pass
         try:
             if decision.needs_web:
+                job.set_stage("🔍 İnternette aranıyor...")
                 web_context = await _maybe_web_search(job.message)
+                job.set_stage("")
         except Exception:
-            pass
+            job.set_stage("")
 
         rag_text = ""
         try:
@@ -596,7 +615,7 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
 class ChatJobRequest(BaseModel):
     message: str
     chat_id: Optional[int] = None
-    max_tokens: int = 512
+    max_tokens: int = 384   # v4.3.0: Daha hızlı yanıt için düşürüldü (eski 512)
     file_context: str = ""
     deep_think: bool = False   # o1/o3 modu — yanıt vermeden önce düşün
 
