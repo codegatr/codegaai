@@ -56,13 +56,44 @@ def _learn_from_chat(question: str, answer: str, intent: str) -> None:
 _WEB_REQUIRED_PATTERNS = [
     r"https?://",
     r"\b(site|web\s*site|internet|google|duckduckgo|haber|news)\b",
-    r"\b(ara|arat|bul|bak|ziyaret et|search|find|visit|browse)\b",
-    r"\b(en son|son dakika|bugün|bugun|güncel haber|latest|current)\b",
+    r"\b(ara|arat|bul|bak|ziyaret et|search|find|visit|browse|araştır|arastir|gez)\b",
+    r"\b(en son|son dakika|bugün|bugun|güncel haber|latest|current|şu an|simdi)\b",
     r"\b20[2-9][0-9]\b",
 ]
 
+# Explicit web command patterns — bu varsa SELF-REF olsa bile web search yap
+_WEB_EXPLICIT_PATTERNS = [
+    r"\bziyaret\s+et\b",
+    r"\baraştır\b|\barastir\b",
+    r"\binternett?en\s+(ara|bul|bak|öğren)\b",
+    r"\bweb('?de|den)\s+(ara|bul|bak)\b",
+    r"\b(ara\s+ve|bul\s+ve|bak\s+ve|gez\s+ve)\b",  # "ara ve getir/söyle/anlat"
+    r"\barama\s+yap\b",
+    r"\bonline\s+(ara|bul|bak)\b",
+    r"\bgüncel(le|i)?\b",
+    r"\bne\s+oldu\b",   # "ne oldu" → güncel bilgi
+]
+
+# Genel entity / "X hakkında bilgi" patterns — sıkı: en az 2 kelimeli proper noun
+# veya açık kategori (şirket/firma/holding) ile birlikte
+_ENTITY_INFO_PATTERNS = [
+    # Çift büyük harfli isim + bilgi sorusu (örn: "Tekcan Metal hakkında")
+    r"\b[A-ZŞĞÜÇÖİ][a-zşğüçöı]{2,}\s+[A-ZŞĞÜÇÖİ][a-zşğüçöı]{2,}.{0,40}(hakk[ıi]nda|nedir|kimdir|nas[ıi]l)",
+    # Açık kategori + isim
+    r"\b(şirket|firma|company|fabrika|holding|grup)\s+[A-Za-zŞĞÜÇÖİşğüçöı]{3,}",
+]
+
+# Genel "selam" ve sosyal sorular — web search YAPMA
+_SOCIAL_PATTERNS = [
+    r"^\s*(merhaba|selam|hi|hello|hey|günaydın|iyi (akşam|gece)|nasılsın|naber)",
+    r"^\s*(teşekkür|sağol|sagol|tamam|ok|peki)",
+]
+
 _SELF_REFERENCE_PATTERNS = [
-    r"\b(sen|senden|seni|sana|kendin|codega|asistan|cevabın|cevabin)\b",
+    # Yalnız Claude'un kendisi hakkında — "sen ziyaret et" gibi komutlar HARİÇ
+    r"\b(kendin(den|i)|cevabın|cevabin|seni\s+(yapan|geliştiren|kim))\b",
+    r"\b(neler\s+yapabilirsin|özelliklerin|yeteneklerin)\b",
+    r"\b(codega\s+(ai|nedir|kim))\b",
 ]
 
 
@@ -71,10 +102,33 @@ def _looks_self_referential(message: str) -> bool:
     return any(re.search(p, msg, re.IGNORECASE) for p in _SELF_REFERENCE_PATTERNS)
 
 
+def _is_social_chat(message: str) -> bool:
+    msg = message.lower()
+    return any(re.search(p, msg, re.IGNORECASE) for p in _SOCIAL_PATTERNS)
+
+
 def _needs_web_search(message: str) -> bool:
     msg = message.lower()
-    if _looks_self_referential(msg) and not re.search(r"https?://|\binternette ara\b|\bwebde ara\b", msg):
+
+    # 0. Sosyal mesaj (selam, teşekkür) → web search asla
+    if _is_social_chat(msg) and len(msg) < 50:
         return False
+
+    # 1. Explicit web komutları her durumda True (self-ref check'i bypass)
+    for p in _WEB_EXPLICIT_PATTERNS:
+        if re.search(p, msg, re.IGNORECASE):
+            return True
+
+    # 2. Entity araması (Çok kelimeli proper noun + bilgi sorusu)
+    for p in _ENTITY_INFO_PATTERNS:
+        if re.search(p, message):   # case-sensitive: proper noun
+            return True
+
+    # 3. Self-referential ise (Claude'un kendisi hakkında) ve explicit web yoksa → False
+    if _looks_self_referential(msg):
+        return False
+
+    # 4. Genel web triggers
     return any(re.search(p, msg, re.IGNORECASE) for p in _WEB_REQUIRED_PATTERNS)
 
 

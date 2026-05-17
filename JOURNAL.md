@@ -548,3 +548,56 @@ Toplam tamamlanan: 59 faz
 v4.2.0: Faz 58-59 (Trend Refill + KB Sync)
 v4.2.1: UI sync düzeltmeleri
 ```
+
+---
+
+## ✅ v4.2.2 — Web Search Tetikleyici + System Prompt (17 May 2026)
+
+### Sorun
+
+Kullanıcı "Tekcan Metal hakkında bilgi alabilir miyim?" / "Sen ziyaret et ve bana harman bilgi ver" dedi.
+LLM cevap: "Üzgünüm, ben bir yapay zeka asistanıyım ve internet üzerinde doğrudan gezinemiyorum."
+
+İKİ kök neden:
+1. **_needs_web_search ters mantık**: "Sen ziyaret et" → "sen" self-ref olduğu için web search ENGELLENİYORDU
+2. **System prompt yetersiz**: LLM kendisini sıradan LLM gibi tanımlıyordu
+
+### Çözüm 1: _needs_web_search Düzelt
+
+YENİ MANTIK:
+```
+0. Sosyal mesaj (selam/teşekkür) + kısa → False
+1. Explicit web komutu (ziyaret et, araştır, internetten ara) → True (BYPASS self-ref)
+2. Multi-word proper noun + bilgi sorusu (entity) → True
+3. Self-referential (kendin/yetenekler) → False
+4. Genel triggers (ara, bul, güncel, vs.) → True
+```
+
+### Çözüm 2: System Prompt Sertleştir
+
+BASE prompt'a EKLENDİ:
+"## ÇOK ÖNEMLİ: Yeteneklerin
+ASLA 'internet üzerinde gezinemiyorum', 'web'e erişimim yok' YALAN söyleme.
+SENİN İNTERNET ERİŞİMİN VAR:
+- Web araması (DuckDuckGo) → otomatik
+- RSS/Atom feed → otomatik
+- Wikipedia / ArXiv / HN / StackOverflow → otonom
+- Bilgi Tabanı (RAG) → notlar
+- Tarayıcı (Faz 31)
+
+Kullanıcı 'ziyaret et' derse — backend otomatik arar, sonuçları sana verir."
+
+### Test Sonucu: 14/14 ✓
+
+Önceden başarısız olan örnekler:
+- 'Tekcan Metal hakkında bilgi' ✓ (eskiden false)
+- 'Sen ziyaret et' ✓ (eskiden false — "sen" yüzünden bloklanıyordu)
+- 'İnternette araştır Apple' ✓
+- 'Aksoy Holding hakkında bilgi' ✓
+- 'Mizan Sigorta nasıl bir firma' ✓
+
+False positive olmaması doğrulandı:
+- 'Sen kimsin?' → false ✓
+- 'Neler yapabilirsin?' → false ✓
+- 'Python listesi nedir' → false ✓
+- 'Merhaba nasılsın' → false ✓
