@@ -78,6 +78,51 @@ def _needs_web_search(message: str) -> bool:
     return any(re.search(p, msg, re.IGNORECASE) for p in _WEB_REQUIRED_PATTERNS)
 
 
+def _needs_retry(question: str, answer: str) -> bool:
+    """
+    Self-eval: yanıt yetersizse True dön.
+    
+    Kriterler:
+    - Çok kısa (< 15 karakter)
+    - Belirsiz/kaçamak ifadeler ('bilmiyorum', 'üzgünüm' tek başına)
+    - Hata mesajı içeriyor
+    - Sadece soruyu tekrarlıyor
+    """
+    if not answer or not answer.strip():
+        return True
+    
+    ans = answer.strip().lower()
+    
+    # Çok kısa cevaplar (genellikle yetersiz)
+    if len(ans) < 15:
+        return True
+    
+    # Kaçamak/yetersiz ifade kalıpları
+    weak_patterns = [
+        "üzgünüm, ancak",
+        "üzgünüm, bu konuda",
+        "bilmiyorum",
+        "yardımcı olamam",
+        "anlayamadım",
+        "hata: name",
+        "hata: '",
+        "is not defined",
+        "name error",
+        "traceback",
+    ]
+    # Sadece bir kaçamak cümle varsa retry
+    weak_count = sum(1 for p in weak_patterns if p in ans)
+    if weak_count >= 1 and len(ans) < 100:
+        return True
+    
+    # Cevap soruyu aynen tekrarlıyorsa
+    q = question.strip().lower()
+    if q and len(q) > 10 and ans.startswith(q):
+        return True
+    
+    return False
+
+
 def _build_recent_focus(history: list[dict], latest: str) -> str:
     recent = history[-6:]
     if not recent:
