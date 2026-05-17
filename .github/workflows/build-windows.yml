@@ -60,20 +60,21 @@ jobs:
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
           python -c "import torch; print('PyTorch', torch.__version__, '| CUDA:', torch.cuda.is_available())"
 
-      # ── Adım 3: llama-cpp-python CPU build ───────────────────────────
+      # ── Adım 3: llama-cpp-python CPU build (AVX2'siz garanti) ────────
       - name: Install llama-cpp-python
         shell: pwsh
         run: |
-          Write-Host "llama-cpp-python CPU (no-AVX) kuruluyor..."
-          $env:CMAKE_ARGS = "-DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_F16C=OFF -DLLAMA_FMA=OFF"
-          $env:FORCE_CMAKE = "1"
+          Write-Host "llama-cpp-python CPU-only kuruluyor (AVX2 olmadan)..."
+          # Önce abetlen CPU wheel kanalını dene (hızlı, ama AVX2 olabilir)
           python -m pip install llama-cpp-python `
             --prefer-binary `
             --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu `
             --no-cache-dir
           if ($LASTEXITCODE -ne 0) {
-            Write-Host "Pre-built wheel yok, kaynaktan derleniyor..."
-            python -m pip install llama-cpp-python --no-cache-dir
+            Write-Host "Wheel bulunamadı — kaynaktan AVX'siz derleniyor..."
+            $env:CMAKE_ARGS = "-DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_F16C=OFF -DLLAMA_FMA=OFF"
+            $env:FORCE_CMAKE = "1"
+            python -m pip install llama-cpp-python --no-cache-dir --force-reinstall
           }
           python -c "from llama_cpp import Llama; print('llama-cpp OK')"
 

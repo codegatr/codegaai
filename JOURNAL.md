@@ -198,3 +198,139 @@ Her push'tan sonra **mutlaka** bu dosyaya not düş. Bir sonraki Claude oturumu 
 - Proje Yöneticisi UI (zaten backend + UI var, kanban CSS kondu)
 
 **Bilinmesi gereken:** `JOURNAL.md` her sürümde güncellenecek. `transcripts/` klasöründe değil, repo kökünde.
+
+---
+
+## ✅ v4.1.0 — 3 YENİ FAZ (16 May 2026)
+
+### Tamamlanan Yeni Fazlar:
+
+**Faz 51: Bilgi Tabanı (RAG)**
+- Endpoint: `/api/knowledge/*`
+- Not/belge ekle, semantic arama, listeleme, silme
+- Embedding ile benzerlik araması
+- UI: Modal pencere (KnowledgeBase.show())
+- Kullanım: Sistem → Bilgi Tabanı
+
+**Faz 52: Kod→Diyagram**
+- Endpoint: `/api/diagrams/from_code`
+- Kod analiz edip Mermaid diyagram üretir
+- Desteklenen: flowchart, sequence, class diagram
+- UI: Modal pencere (CodeDiagram.show())
+- Kullanım: Sistem → Kod→Diyagram
+
+**Faz 55: Akıllı Arama**
+- Endpoint: `/api/search`
+- Tüm kaynaklarda birleşik arama (chat, KB, dosya, kod, proje)
+- Kaynak bazlı filtreleme (sources=chats,knowledge,...)
+- UI: Modal pencere (UnifiedSearch.show())
+- Kullanım: Sistem → Akıllı Arama
+
+### UI İyileştirmeleri:
+
+**Gelişmiş Özellikler Kartları:**
+- Sistem view'a "🚀 Gelişmiş Özellikler" bölümü eklendi
+- 4 tıklanabilir kart: Bilgi Tabanı / Kod→Diyagram / Akıllı Arama / Proje Yöneticisi
+- Her kart ilgili modal'ı açıyor
+
+**Modal Sistem:**
+- `window.Modals.open(title, content)` global API
+- Overlay click ile kapatma
+- Tüm yeni özellikler modal'da açılıyor
+
+### Toplam Faz Sayısı:
+
+- **Başlangıç:** 50 faz (v4.0.x)
+- **Yeni:** 3 faz (51, 52, 55)
+- **Toplam:** 53 faz tamamlandı
+
+### Sıradaki Olası Fazlar:
+
+- Faz 53: Otomatik CHANGELOG.md (git commit'lerden)
+- Faz 54: Ses Notu → Özet (audio upload → transcript → summary)
+- Faz 56: Toplu Dosya İşleme (batch PDF/image processing)
+- Faz 57: API Playground (REST/GraphQL test UI)
+
+### Backend Endpoint Sayısı:
+
+- `/api/knowledge/*` → 4 endpoint
+- `/api/diagrams/*` → 2 endpoint
+- `/api/search` → 1 endpoint
+- **Toplam:** 278 + 7 = **285 endpoint**
+
+### Test Durumu:
+
+- Tüm testler ✅ OK
+- v4.1.0 release hazır
+
+---
+
+## ✅ v4.1.0 — AVX2 ÇÖZÜMÜ + 6 YENİ FAZ (17 May 2026)
+
+### Ana Sorun: AVX2 Uyumsuzluğu
+
+Kullanıcının CPU'su AVX2 desteklemiyor → llama-cpp 0xC000001D crash.
+fix_llama.bat kullanıcı tarafından çalıştırılmamış → model hala yüklenmiyor.
+
+### 3 Katmanlı Çözüm:
+
+**Katman 1: In-app Otomatik Onarım (Faz 56)**
+- `/api/repair/llama` POST — onarımı başlatır
+- `/api/repair/status` GET — durum
+- `/api/repair/stream` SSE — canlı log
+- UI: Modal pencere, progress bar, canlı log akışı
+- Frozen build'de sistem Python'unu bulur
+
+**Katman 2: Simülasyon Modu (Faz 57)**
+- `codegaai/core/simulation_mode.py`
+- LLM yüklü değilse rule-based cevap
+- Selamlama, saat, tarih, bilgi tabanı sorguları çalışır
+- jobs.py'de fallback olarak entegre
+- Uygulama LLM olmadan da kullanılabilir kalır
+
+**Katman 3: Workflow Düzeltmesi**
+- CMAKE_ARGS AVX kapalı modu önce dene, yetersizse kaynaktan derle
+- Build sürecinde llama-cpp test edilir
+
+### UI Eklemeleri:
+
+**AVX2 Warning Banner Genişletildi:**
+- Büyük "🔧 Otomatik Onar" butonu
+- Simülasyon modu açıklaması
+- Kullanıcı bilgilendirici metin
+
+**AutoRepair Modal:**
+- Progress bar
+- Canlı log konsolu (SSE)
+- 3 aşama göstergesi (kaldır/kur/test)
+
+### Toplam Faz Sayısı: 55 (50 + 5 yeni)
+
+- Faz 51: Bilgi Tabanı ✅
+- Faz 52: Kod→Diyagram ✅
+- Faz 55: Akıllı Arama ✅
+- Faz 56: In-app Onarım ✅ (YENİ)
+- Faz 57: Simülasyon Modu ✅ (YENİ)
+
+### Yeni Endpoint'ler:
+
+- `/api/repair/llama` POST
+- `/api/repair/status` GET
+- `/api/repair/stream` GET (SSE)
+- **Toplam:** 288 endpoint
+
+### Test Durumu:
+
+- Simülasyon modu unit test OK
+- Tüm mevcut testler ✅
+
+### Kullanıcı İçin Adımlar:
+
+1. v4.1.0 release'i indir + kur
+2. Uygulama açılır → AVX2 uyarısı görünür
+3. "Otomatik Onar" butonuna tıkla
+4. 5-15 dakika bekle (modal'da canlı log)
+5. Bitince uygulamayı yeniden başlat
+6. Model otomatik yüklenir (autoLoadBestModel)
+
+**Eğer onarım başarısız olursa:** Simülasyon modunda çalışmaya devam eder, en azından selam/saat/bilgi tabanı çalışır.

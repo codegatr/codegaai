@@ -246,8 +246,19 @@ async def _run_chat_job(job: ChatJob) -> None:
             log.debug("Model routing atlandı: %s", exc)
 
         if not engine.is_ready:
-            job.finish(error="Model yüklü değil. Sistem -> model yükle.")
-            return
+            # ─── Simülasyon Modu (Faz 57) ───
+            # LLM yok ama uygulama kullanılabilir kalsın
+            try:
+                from codegaai.core.simulation_mode import simulate_chat_response
+                sim = simulate_chat_response(job.message, history)
+                job.append(sim["content"])
+                job.finish()
+                log.info("Simülasyon modu yanıt verdi (LLM yüklü değil)")
+                return
+            except Exception as sim_exc:
+                log.warning("Simülasyon modu başarısız: %s", sim_exc)
+                job.finish(error="Model yüklü değil. Sistem → Otomatik Onar ile düzeltebilirsin.")
+                return
 
         web_context = ""
         plugin_result = ""

@@ -275,6 +275,26 @@ def create_app() -> FastAPI:
     from codegaai.api.routes import monitor as monitor_routes
     app.include_router(monitor_routes.router, prefix="/api/monitor", tags=["monitor"])
 
+    # Faz 51: Bilgi Tabanı (RAG)
+    from codegaai.api.routes import knowledge as knowledge_routes
+    app.include_router(knowledge_routes.router, prefix="/api/knowledge", tags=["knowledge"])
+    log.info("Bilgi Tabanı (Faz 51) yüklendi")
+
+    # Faz 52: Kod→Diyagram
+    from codegaai.api.routes import diagrams as diagrams_routes
+    app.include_router(diagrams_routes.router, prefix="/api/diagrams", tags=["diagrams"])
+    log.info("Kod→Diyagram (Faz 52) yüklendi")
+
+    # Faz 55: Akıllı Arama
+    from codegaai.api.routes import search as search_routes
+    app.include_router(search_routes.router, prefix="/api/search", tags=["search"])
+    log.info("Akıllı Arama (Faz 55) yüklendi")
+
+    # Faz 56: In-app Otomatik Onarım
+    from codegaai.api.routes import repair as repair_routes
+    app.include_router(repair_routes.router, prefix="/api/repair", tags=["repair"])
+    log.info("Otomatik Onarım (Faz 56) yüklendi")
+
     # Setup.html — ilk kurulum sayfası
     from fastapi.responses import FileResponse
 

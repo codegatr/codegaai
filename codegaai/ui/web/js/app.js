@@ -484,3 +484,345 @@ const DevToolUI = (() => {
 
   return { tab, run };
 })();
+
+// ═══ Faz 51-55: Gelişmiş Özellikler Modal UI'ları ═══
+
+window.KnowledgeBase = {
+  show() {
+    const html = `
+      <div style="padding:24px;max-width:700px">
+        <h2 style="margin:0 0 16px">📚 Bilgi Tabanı</h2>
+        
+        <div style="margin-bottom:20px">
+          <label style="display:block;margin-bottom:8px;font-weight:500">Başlık</label>
+          <input id="kb-title" type="text" placeholder="Örn: Python Liste İpuçları" 
+                 style="width:100%;padding:10px;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:6px;color:var(--color-text)">
+        </div>
+        
+        <div style="margin-bottom:20px">
+          <label style="display:block;margin-bottom:8px;font-weight:500">İçerik</label>
+          <textarea id="kb-content" rows="6" placeholder="Not veya belge içeriği..."
+                    style="width:100%;padding:10px;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:6px;color:var(--color-text);resize:vertical"></textarea>
+        </div>
+        
+        <div style="margin-bottom:20px">
+          <label style="display:block;margin-bottom:8px;font-weight:500">Etiketler (virgülle ayır)</label>
+          <input id="kb-tags" type="text" placeholder="python, listeler, ipucu"
+                 style="width:100%;padding:10px;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:6px;color:var(--color-text)">
+        </div>
+        
+        <div style="display:flex;gap:10px">
+          <button id="kb-save" class="btn btn--primary">Kaydet</button>
+          <button id="kb-search" class="btn btn--secondary">Ara</button>
+          <button onclick="window.Modals?.close()" class="btn btn--ghost">İptal</button>
+        </div>
+        
+        <div id="kb-results" style="margin-top:24px"></div>
+      </div>
+    `;
+    window.Modals?.open("Bilgi Tabanı", html);
+    
+    document.getElementById("kb-save")?.addEventListener("click", async () => {
+      const title = document.getElementById("kb-title").value.trim();
+      const content = document.getElementById("kb-content").value.trim();
+      const tags = document.getElementById("kb-tags").value.split(",").map(t => t.trim()).filter(Boolean);
+      
+      if (!title || !content) {
+        alert("Başlık ve içerik gerekli!");
+        return;
+      }
+      
+      const resp = await fetch("/api/knowledge/add", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({title, content, tags, source: "manual"})
+      }).then(r => r.json());
+      
+      if (resp.success) {
+        alert("✓ Bilgi tabanına eklendi!");
+        document.getElementById("kb-title").value = "";
+        document.getElementById("kb-content").value = "";
+        document.getElementById("kb-tags").value = "";
+      } else {
+        alert("Hata: " + (resp.error || "Bilinmeyen hata"));
+      }
+    });
+    
+    document.getElementById("kb-search")?.addEventListener("click", async () => {
+      const q = prompt("Aranacak kelime:");
+      if (!q) return;
+      
+      const resp = await fetch(`/api/knowledge/search?q=${encodeURIComponent(q)}`).then(r => r.json());
+      const results = resp.results || [];
+      
+      const html = results.length
+        ? `<h4>Sonuçlar (${results.length}):</h4>` + results.map(r => `
+            <div style="background:var(--color-surface-2);padding:12px;border-radius:8px;margin-top:10px">
+              <div style="font-weight:600;margin-bottom:6px">${r.title}</div>
+              <div style="font-size:13px;color:var(--color-text-muted)">${r.content}</div>
+              <div style="margin-top:6px;font-size:11px;color:var(--color-accent)">
+                Skor: ${r.score} · Etiketler: ${r.tags.join(", ")}
+              </div>
+            </div>
+          `).join("")
+        : "<p style='color:var(--color-text-muted);margin-top:16px'>Sonuç bulunamadı.</p>";
+      
+      document.getElementById("kb-results").innerHTML = html;
+    });
+  }
+};
+
+window.CodeDiagram = {
+  show() {
+    const html = `
+      <div style="padding:24px;max-width:900px">
+        <h2 style="margin:0 0 16px">🔀 Kod→Diyagram</h2>
+        
+        <div style="margin-bottom:20px">
+          <label style="display:block;margin-bottom:8px;font-weight:500">Kod</label>
+          <textarea id="diagram-code" rows="12" placeholder="Python, JS veya PHP kodunu yapıştır..."
+                    style="width:100%;padding:10px;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:6px;color:var(--color-text);font-family:monospace;font-size:12px;resize:vertical"></textarea>
+        </div>
+        
+        <div style="display:flex;gap:10px;margin-bottom:20px">
+          <button id="diagram-generate" class="btn btn--primary">Diyagram Oluştur</button>
+          <button onclick="window.Modals?.close()" class="btn btn--ghost">İptal</button>
+        </div>
+        
+        <div id="diagram-output" style="background:var(--color-surface-2);padding:16px;border-radius:8px;min-height:100px;display:none"></div>
+      </div>
+    `;
+    window.Modals?.open("Kod→Diyagram", html);
+    
+    document.getElementById("diagram-generate")?.addEventListener("click", async () => {
+      const code = document.getElementById("diagram-code").value.trim();
+      if (!code) {
+        alert("Kod gerekli!");
+        return;
+      }
+      
+      const output = document.getElementById("diagram-output");
+      output.style.display = "block";
+      output.innerHTML = "<p style='color:var(--color-text-muted)'>Diyagram oluşturuluyor...</p>";
+      
+      const resp = await fetch("/api/diagrams/from_code", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({code, language: "auto", diagram_type: "auto"})
+      }).then(r => r.json()).catch(e => ({error: e.message}));
+      
+      if (resp.error) {
+        output.innerHTML = `<p style='color:var(--color-danger)'>Hata: ${resp.error}</p>`;
+      } else {
+        output.innerHTML = `
+          <div style="margin-bottom:12px;font-weight:600">Mermaid Diyagram (${resp.diagram_type}):</div>
+          <pre style="background:var(--color-surface);padding:12px;border-radius:6px;overflow-x:auto;font-size:11px;line-height:1.6">${resp.mermaid}</pre>
+          <p style="margin-top:12px;font-size:12px;color:var(--color-text-muted)">
+            Bu kodu Mermaid Live Editor'de görselleştir: <a href="https://mermaid.live" target="_blank" style="color:var(--color-accent)">mermaid.live</a>
+          </p>
+        `;
+      }
+    });
+  }
+};
+
+window.UnifiedSearch = {
+  show() {
+    const html = `
+      <div style="padding:24px;max-width:800px">
+        <h2 style="margin:0 0 16px">🔍 Akıllı Arama</h2>
+        
+        <div style="margin-bottom:20px">
+          <input id="search-query" type="text" placeholder="Tüm kaynaklarda ara..." 
+                 style="width:100%;padding:12px;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:8px;color:var(--color-text);font-size:14px">
+        </div>
+        
+        <div style="display:flex;gap:10px;margin-bottom:20px">
+          <button id="search-btn" class="btn btn--primary">Ara</button>
+          <button onclick="window.Modals?.close()" class="btn btn--ghost">İptal</button>
+        </div>
+        
+        <div id="search-results"></div>
+      </div>
+    `;
+    window.Modals?.open("Akıllı Arama", html);
+    
+    const search = async () => {
+      const q = document.getElementById("search-query").value.trim();
+      if (!q) return;
+      
+      const results = document.getElementById("search-results");
+      results.innerHTML = "<p style='color:var(--color-text-muted)'>Aranıyor...</p>";
+      
+      const resp = await fetch(`/api/search?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => ({total: 0}));
+      
+      if (!resp.total) {
+        results.innerHTML = "<p style='color:var(--color-text-muted)'>Sonuç bulunamadı.</p>";
+        return;
+      }
+      
+      let html = `<div style="margin-bottom:12px;font-weight:600">${resp.total} sonuç bulundu</div>`;
+      
+      ["chats", "knowledge", "files", "code", "projects"].forEach(src => {
+        const items = resp[src] || [];
+        if (items.length) {
+          html += `<h4 style="margin-top:16px;margin-bottom:8px;text-transform:capitalize">${src} (${items.length})</h4>`;
+          items.forEach(item => {
+            html += `<div style="background:var(--color-surface-2);padding:10px;border-radius:6px;margin-bottom:8px;font-size:13px">`;
+            if (item.title) html += `<div style="font-weight:600;margin-bottom:4px">${item.title}</div>`;
+            if (item.content) html += `<div style="color:var(--color-text-muted)">${item.content}</div>`;
+            if (item.line) html += `<code style="font-size:11px">${item.line}</code>`;
+            html += `</div>`;
+          });
+        }
+      });
+      
+      results.innerHTML = html;
+    };
+    
+    document.getElementById("search-btn")?.addEventListener("click", search);
+    document.getElementById("search-query")?.addEventListener("keypress", e => {
+      if (e.key === "Enter") search();
+    });
+  }
+};
+
+// Basit modal sistem (window.Modals zaten var ama API uyumsuz olabilir)
+if (!window.Modals) {
+  window.Modals = {
+    open(title, content) {
+      let modal = document.getElementById("app-modal");
+      if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "app-modal";
+        modal.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999";
+        document.body.appendChild(modal);
+      }
+      modal.innerHTML = `
+        <div style="background:var(--color-surface);border-radius:12px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3)">
+          ${content}
+        </div>
+      `;
+      modal.style.display = "flex";
+      modal.addEventListener("click", e => {
+        if (e.target === modal) this.close();
+      });
+    },
+    close() {
+      const modal = document.getElementById("app-modal");
+      if (modal) modal.style.display = "none";
+    }
+  };
+}
+
+// ═══ Faz 56: Otomatik Onarım UI ═══
+window.AutoRepair = {
+  async start() {
+    const html = `
+      <div style="padding:24px;max-width:700px">
+        <h2 style="margin:0 0 8px">🔧 Otomatik Onarım</h2>
+        <p style="color:var(--color-text-muted);margin:0 0 20px;font-size:13px">
+          llama-cpp-python CPU-uyumlu sürümle yeniden kuruluyor. Bu işlem
+          <strong>5-15 dakika</strong> sürebilir. İnternet bağlantısı gereklidir.
+        </p>
+
+        <div style="background:var(--color-surface-2);border-radius:8px;padding:14px;margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px">
+            <span id="repair-stage">Başlatılıyor...</span>
+            <span id="repair-percent">0%</span>
+          </div>
+          <div style="background:var(--color-surface);height:8px;border-radius:4px;overflow:hidden">
+            <div id="repair-progress" style="background:var(--color-accent);height:100%;width:0;transition:width 0.4s"></div>
+          </div>
+        </div>
+
+        <div style="background:#000;color:#0f0;padding:12px;border-radius:6px;font-family:monospace;font-size:11px;height:280px;overflow-y:auto;line-height:1.5" id="repair-log">
+          Onarım başlatılıyor...
+        </div>
+
+        <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
+          <button id="repair-close" class="btn btn--ghost" disabled style="opacity:0.5">
+            Kapat
+          </button>
+        </div>
+      </div>
+    `;
+    window.Modals?.open("Otomatik Onarım", html);
+
+    const logEl = document.getElementById("repair-log");
+    const progressEl = document.getElementById("repair-progress");
+    const percentEl = document.getElementById("repair-percent");
+    const stageEl = document.getElementById("repair-stage");
+    const closeBtn = document.getElementById("repair-close");
+
+    // Onarımı başlat
+    try {
+      const resp = await fetch("/api/repair/llama", {method: "POST"}).then(r => r.json());
+      if (!resp.success) {
+        logEl.innerHTML += `\n<span style="color:#f55">HATA: ${resp.error || "Onarım başlatılamadı"}</span>`;
+        closeBtn.disabled = false;
+        closeBtn.style.opacity = "1";
+        return;
+      }
+    } catch(e) {
+      logEl.innerHTML += `\n<span style="color:#f55">HATA: ${e.message}</span>`;
+      return;
+    }
+
+    // SSE ile canlı log
+    const es = new EventSource("/api/repair/stream");
+    let allLines = [];
+    es.onmessage = (e) => {
+      const line = e.data;
+
+      if (line.startsWith("__END__:")) {
+        const status = line.replace("__END__:", "");
+        es.close();
+        if (status === "success") {
+          stageEl.textContent = "✓ Tamamlandı";
+          stageEl.style.color = "#0f0";
+          percentEl.textContent = "100%";
+          progressEl.style.width = "100%";
+          allLines.push("\n=== ONARIM BAŞARILI ===");
+          allLines.push("Uygulamayı yeniden başlatın.");
+        } else {
+          stageEl.textContent = "✗ Başarısız";
+          stageEl.style.color = "#f55";
+          allLines.push("\n=== ONARIM BAŞARISIZ ===");
+        }
+        logEl.innerHTML = allLines.map(l => l.replace("<", "&lt;")).join("\n");
+        logEl.scrollTop = logEl.scrollHeight;
+        closeBtn.disabled = false;
+        closeBtn.style.opacity = "1";
+        return;
+      }
+
+      allLines.push(line);
+      logEl.innerHTML = allLines.map(l => l.replace("<", "&lt;")).join("\n");
+      logEl.scrollTop = logEl.scrollHeight;
+
+      // Aşama tespiti
+      if (line.includes("Adim 1")) {
+        stageEl.textContent = "Adım 1/3: Kaldırma";
+        progressEl.style.width = "15%";
+        percentEl.textContent = "15%";
+      } else if (line.includes("Adim 2")) {
+        stageEl.textContent = "Adım 2/3: Kurulum";
+        progressEl.style.width = "50%";
+        percentEl.textContent = "50%";
+      } else if (line.includes("Adim 3") || line.includes("Test")) {
+        stageEl.textContent = "Adım 3/3: Test";
+        progressEl.style.width = "85%";
+        percentEl.textContent = "85%";
+      }
+    };
+
+    es.onerror = () => {
+      es.close();
+      closeBtn.disabled = false;
+      closeBtn.style.opacity = "1";
+    };
+
+    closeBtn.addEventListener("click", () => window.Modals?.close());
+  }
+};
