@@ -826,3 +826,26 @@ window.AutoRepair = {
     closeBtn.addEventListener("click", () => window.Modals?.close());
   }
 };
+
+// ── v4.2.1: View hot-reload — sayfaya her giriste verileri yenile ─────
+document.addEventListener("DOMContentLoaded", () => {
+  if (!window.Views?.on) return;
+
+  window.Views.on((viewName) => {
+    try {
+      if (viewName === "weblearn" && window.WebLearn) {
+        window.WebLearn.loadStatus?.();
+        // Loglarda yutulmus hatalar konsolda gorunsun
+        console.debug("WebLearn yenilendi");
+      } else if (viewName === "autolearn" && window.AutoLearn) {
+        window.AutoLearn.load?.();
+        console.debug("AutoLearn yenilendi");
+      } else if (viewName === "system") {
+        // Sistem view'ina geldiginde system.js reload tetikle
+        if (window.System?.refresh) window.System.refresh();
+      }
+    } catch (e) {
+      console.warn("View reload hatasi:", viewName, e);
+    }
+  });
+});

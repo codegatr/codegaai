@@ -14,11 +14,21 @@ const WebLearn = (() => {
   async function loadStatus() {
     try {
       const r = await fetch("/api/learn/status");
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       renderStatus(d);
       if (d.state !== "idle") startPoll();
       else stopPoll();
-    } catch (e) {}
+    } catch (e) {
+      if (elStatus) {
+        elStatus.innerHTML = `
+          <div class="learn-stat" style="grid-column:1/-1">
+            <span class="learn-stat__label" style="color:var(--color-danger)">Hata</span>
+            <span class="learn-stat__val" style="font-size:11px">${e.message || 'Endpoint hatası'} — F5 ile yenileyin</span>
+          </div>`;
+      }
+      console.warn("loadStatus hatası:", e);
+    }
   }
 
   function renderStatus(d) {
@@ -139,7 +149,7 @@ const WebLearn = (() => {
       const r = await fetch("/api/learn/log?limit=20");
       const d = await r.json();
       renderLog(d.log || []);
-    } catch (e) {}
+    } catch (e) { console.warn('weblearn:', e); }
   }
 
   function renderLog(entries) {
@@ -168,7 +178,7 @@ const WebLearn = (() => {
       const r = await fetch("/api/learn/feeds");
       const d = await r.json();
       renderFeeds(d.feeds || []);
-    } catch (e) {}
+    } catch (e) { console.warn('weblearn:', e); }
   }
 
   function renderFeeds(feeds) {
@@ -239,7 +249,7 @@ const WebLearn = (() => {
       const r = await fetch("/api/learn/scheduler");
       const d = await r.json();
       renderScheduler(d.jobs || []);
-    } catch (e) {}
+    } catch (e) { console.warn('weblearn:', e); }
   }
 
   function renderScheduler(jobs) {

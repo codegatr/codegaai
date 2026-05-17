@@ -515,3 +515,36 @@ Sync to KB (Faz 51) — semantic search'te bulunur
   ↓
 Sohbette retrieve edilebilir (RAG)
 ```
+
+---
+
+## ✅ v4.2.1 — Yol Haritası ve UI Reload (17 May 2026)
+
+### Sorun 1: Yol Haritası Faz 13'te kalmış
+
+`index.html`'de hardcoded roadmap Faz 13'te bitiyordu, "şu anda buradasın v1.8.x" diyordu.
+Halbuki gerçek durum: 59 faz tamamlandı, v4.2.0'dayız.
+
+### Çözüm:
+- Roadmap güncellendi: 13 → 14-21 → 22-30 → 31-33 → 34-39 → 40-45 → 46-50 → 51-59
+- "Şu anda buradasın 🚀" işareti Faz 58-59'a (v4.2.0) taşındı
+- Yol haritası ekranı artık doğru durumu gösteriyor
+
+### Sorun 2: Otonom Öğrenme + İnternet Öğrenmesi "Yükleniyor..." takılı kalıyor
+
+`weblearn.js` ve `autolearn.js` sadece app başlangıcında 1 kez init oluyordu.
+View değiştiğinde reload yapılmıyordu. Hatalar silently yutuluyordu.
+
+### Çözüm:
+- `weblearn.js`: 3 yerde `} catch (e) {}` → `} catch (e) { console.warn() }` 
+- `loadStatus()` hata durumunda UI'da gösterir (eskiden silent failure)
+- `app.js`'e view hot-reload: weblearn/autolearn'a girince otomatik yenileme
+- Views.on listener'ı kullanılıyor
+
+### Faz Durumu
+
+```
+Toplam tamamlanan: 59 faz
+v4.2.0: Faz 58-59 (Trend Refill + KB Sync)
+v4.2.1: UI sync düzeltmeleri
+```
