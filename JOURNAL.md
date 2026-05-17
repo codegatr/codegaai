@@ -334,3 +334,63 @@ fix_llama.bat kullanıcı tarafından çalıştırılmamış → model hala yük
 6. Model otomatik yüklenir (autoLoadBestModel)
 
 **Eğer onarım başarısız olursa:** Simülasyon modunda çalışmaya devam eder, en azından selam/saat/bilgi tabanı çalışır.
+
+---
+
+## ✅ v4.1.1 — GERÇEK AVX2 ÇÖZÜMÜ (17 May 2026)
+
+### Asıl Sorun (Geç Anlaşıldı)
+
+Workflow'da `--prefer-binary --extra-index-url ...abetlen/cpu` kullanılıyordu.
+Ancak abetlen'in "cpu" wheel kanalı **hâlâ AVX2 destekli** (sadece CUDA'sız).
+Bu yüzden kullanıcının AVX2'siz CPU'sunda build crash veriyordu.
+
+### Kesin Çözüm
+
+`.github/workflows/build-windows.yml`:
+
+```yaml
+$env:CMAKE_ARGS = "-DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_AVX512=OFF -DLLAMA_F16C=OFF -DLLAMA_FMA=OFF -DLLAMA_BLAS=OFF"
+$env:FORCE_CMAKE = "1"
+python -m pip install llama-cpp-python --no-binary llama-cpp-python --no-cache-dir
+```
+
+**Anahtar:** `--no-binary llama-cpp-python` ZORUNLU kaynaktan derleme.
+Build süresi: 15-25 dakika (önceki 2-3 dk yerine).
+Sonuç: SSE3/SSE4 ile çalışan, AVX2 gerektirmeyen DLL.
+
+### Frozen Build'de fix_llama.bat Neden Çalışmıyordu
+
+Kullanıcının deneyiminde:
+1. `fix_llama.bat` → pip install dene
+2. Sistem Python yok → "Python bulunamadı"
+3. codegaai.exe -m pip → "argümanlar tanınmadı"
+4. Tüm fallback'ler başarısız → "ONARIM BAŞARISIZ"
+
+**Çözüm:** fix_llama.bat artık gerekli değil. Build aşamasında AVX'siz
+derlendiği için kullanıcı zaten çalışan bir EXE indiriyor.
+
+### Build Süreci
+
+```
+v4.1.1 tag push'landı
+→ GitHub Actions tetiklendi
+→ llama-cpp-python kaynaktan AVX'siz derlendi (~20 dk)
+→ PyInstaller bundle (~10 dk)
+→ ZIP asset GitHub Releases'a yüklendi
+→ Kullanıcı v4.1.1.zip indirip kurar
+→ Model otomatik yüklenir, sohbet çalışır
+```
+
+### Test Edilmesi Gerekenler
+
+- v4.1.1 release asset'i hazır olduğunda kur
+- AVX2 uyarısı görünmemeli (zaten AVX'siz build)
+- Otomatik model yüklenmeli (qwen2.5-3b)
+- Sohbet çalışmalı
+
+### Eğer Build Yine de Başarısız Olursa
+
+- Simulation Mode (v4.1.0'da eklendi) devreye girer
+- Selamlama, saat, bilgi tabanı çalışır
+- Otomatik Onar butonu zorunlu olmaz
