@@ -2,12 +2,16 @@
 
 Small PHP 8.3+ coordinator for the CODEGA AI federated learning network.
 It is designed for shared DirectAdmin hosting with PHP-FPM and MySQL/MariaDB.
+Protocol v2 aggregates the same topic across multiple installed CODEGA AI
+nodes and returns `source_count`, `confidence`, `quality`, and
+`protocol_version` with every distributed learning signal.
 
 The desktop app already calls:
 
 - `POST https://ai.codega.com.tr/api/federation/stats`
 - `GET  https://ai.codega.com.tr/api/federation/knowledge`
 - `GET  https://ai.codega.com.tr/api/federation/nodes`
+- `GET  https://ai.codega.com.tr/api/federation/capabilities`
 
 Upload this folder's `public/` contents to `public_html/api/federation/`.
 
@@ -39,10 +43,14 @@ Nodes do not send raw chats. This coordinator stores:
 The `/knowledge` endpoint distributes lightweight learning signals to other
 nodes so they can prioritize local RAG/web learning.
 
+Quality filters reject generic one-word signals such as `change`, and obvious
+secret-like content such as GitHub, HuggingFace, OpenAI-style tokens, API keys,
+passwords, and local secrets. This keeps the network useful without turning it
+into a raw data collection point.
+
 ## Security Notes
 
 - Use HTTPS only.
 - Keep `config.php` out of web listings and never commit it.
 - Set a long random `admin_token`.
 - Rotate the token if you accidentally share it.
-

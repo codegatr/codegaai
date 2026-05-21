@@ -2,7 +2,10 @@
 declare(strict_types=1);
 
 const APP_NAME = 'CODEGA AI Federation Coordinator';
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
+const PROTOCOL_VERSION = 2;
+const PRIVACY_MODE = 'anonymous_topic_signals_only';
+const MIN_TOPIC_QUALITY = 0.45;
 
 $configPath = __DIR__ . '/config.php';
 if (!is_file($configPath)) {
@@ -162,6 +165,44 @@ function sanitize_topic(mixed $topic): string
         : substr($topic, 0, 120);
 }
 
+function topic_quality(string $topic): float
+{
+    $topic = sanitize_topic($topic);
+    if ($topic === '' || strlen($topic) < 4) {
+        return 0.0;
+    }
+    if (preg_match('/\bgh[pousr]_[A-Za-z0-9_]{20,}\b/', $topic)
+        || preg_match('/\bhf_[A-Za-z0-9]{20,}\b/', $topic)
+        || preg_match('/\bsk-[A-Za-z0-9_-]{20,}\b/', $topic)
+        || preg_match('/\b(api[_-]?key|token|secret|password|passwd)\s*[:=]/i', $topic)) {
+        return 0.0;
+    }
+    $len = max(1, strlen($topic));
+    $letters = preg_match_all('/\p{L}/u', $topic);
+    $digits = preg_match_all('/\p{N}/u', $topic);
+    $words = preg_split('/\s+/u', trim($topic)) ?: [];
+    $score = 0.35;
+    $score += min(0.25, $len / 240);
+    $score += count(array_filter($words)) >= 2 ? 0.2 : 0.0;
+    $score += ($letters / $len) >= 0.35 ? 0.15 : -0.2;
+    $score += $digits <= 12 ? 0.05 : -0.1;
+    if (in_array(utf8_lower($topic), ['change', 'update', 'test', 'error', 'issue', 'bug', 'fix', 'help'], true)) {
+        $score -= 0.35;
+    }
+    return max(0.0, min(1.0, $score));
+}
+
+function topic_key(string $topic): string
+{
+    return substr(hash('sha256', utf8_lower(sanitize_topic($topic))), 0, 24);
+}
+
+function signal_confidence(int $sourceCount, float $quality): float
+{
+    $base = 0.25 + min(0.35, max(0, $sourceCount - 1) * 0.12);
+    return round(max(0.0, min(0.98, $base + ($quality * 0.4))), 3);
+}
+
 function utf8_lower(string $text): string
 {
     return function_exists('mb_strtolower')
@@ -229,6 +270,10 @@ function handle_stats(PDO $db, array $config): never
         VALUES (?, ?, ?, ?, UTC_TIMESTAMP())
     ");
     foreach (array_slice($topics, 0, 20) as $topic) {
+        $quality = topic_quality($topic);
+        if ($quality < MIN_TOPIC_QUALITY) {
+            continue;
+        }
         $itemId = hash('sha256', $label . ':' . utf8_lower($topic));
         $body = "Federated learning signal: another CODEGA AI node learned about '{$topic}'. Prioritize local web/RAG learning for this topic.";
         $insert->execute([$itemId, $label, $topic, $body]);
@@ -239,6 +284,8 @@ function handle_stats(PDO $db, array $config): never
         'status' => 'ok',
         'peer_count' => active_peer_count($db, $config),
         'knowledge_created' => $created,
+        'protocol_version' => PROTOCOL_VERSION,
+        'privacy_mode' => PRIVACY_MODE,
     ]);
 }
 
@@ -251,29 +298,47 @@ function handle_knowledge(PDO $db, array $config): never
     $limit = max(1, min(200, (int)($config['max_knowledge_items'] ?? 50)));
 
     $stmt = $db->prepare("
-        SELECT item_id, origin_hash, topic, body, UNIX_TIMESTAMP(created_at) AS ts
+        SELECT
+          MIN(item_id) AS item_id,
+          MIN(topic) AS topic,
+          GROUP_CONCAT(DISTINCT origin_hash ORDER BY origin_hash SEPARATOR ',') AS peer_hashes,
+          COUNT(DISTINCT origin_hash) AS source_count,
+          MAX(UNIX_TIMESTAMP(created_at)) AS ts
         FROM federation_knowledge
         WHERE active = 1
           AND UNIX_TIMESTAMP(created_at) > ?
           AND (? = '' OR origin_hash <> ?)
-        ORDER BY created_at ASC
+        GROUP BY LOWER(topic)
+        ORDER BY MAX(created_at) ASC
         LIMIT {$limit}
     ");
     $stmt->execute([$since, $origin, $origin]);
     $items = [];
     foreach ($stmt->fetchAll() as $row) {
+        $topic = (string)$row['topic'];
+        $quality = topic_quality($topic);
+        if ($quality < MIN_TOPIC_QUALITY) {
+            continue;
+        }
+        $sourceCount = max(1, (int)$row['source_count']);
         $items[] = [
-            'id' => $row['item_id'],
-            'text' => $row['body'],
-            'topic' => $row['topic'],
-            'peer_hash' => $row['origin_hash'],
+            'id' => topic_key($topic),
+            'text' => "Federated learning signal: CODEGA AI network observed {$sourceCount} node(s) learning about '{$topic}'. Prioritize local web/RAG verification for this topic before using it in answers.",
+            'topic' => $topic,
+            'peer_hash' => $row['peer_hashes'],
+            'source_count' => $sourceCount,
+            'confidence' => signal_confidence($sourceCount, $quality),
+            'quality' => round($quality, 3),
             'ts' => (float)$row['ts'],
+            'protocol_version' => PROTOCOL_VERSION,
         ];
     }
 
     json_response([
         'items' => $items,
         'peer_count' => active_peer_count($db, $config),
+        'protocol_version' => PROTOCOL_VERSION,
+        'privacy_mode' => PRIVACY_MODE,
     ]);
 }
 
@@ -346,7 +411,22 @@ try {
 
     $route = route_path();
     if ($route === '/health') {
-        json_response(['status' => 'ok', 'service' => APP_NAME, 'version' => APP_VERSION]);
+        json_response([
+            'status' => 'ok',
+            'service' => APP_NAME,
+            'version' => APP_VERSION,
+            'protocol_version' => PROTOCOL_VERSION,
+            'privacy_mode' => PRIVACY_MODE,
+        ]);
+    }
+    if ($route === '/capabilities') {
+        json_response([
+            'protocol_version' => PROTOCOL_VERSION,
+            'privacy_mode' => PRIVACY_MODE,
+            'shares' => ['anonymous node heartbeat', 'aggregate counters', 'sanitized public topic signals'],
+            'never_shares' => ['raw chat text', 'files', 'API keys or tokens', 'local paths', 'full node id'],
+            'quality_gate' => ['min_topic_quality' => MIN_TOPIC_QUALITY],
+        ]);
     }
     if ($route === '/stats' || $route === '/coordinator/stats') {
         handle_stats($db, $config);

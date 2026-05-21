@@ -37,6 +37,16 @@ COORDINATOR_KNOWLEDGE_FILE = COORDINATOR_DIR / "knowledge.jsonl"
 DEFAULT_COORDINATOR = "https://ai.codega.com.tr/api/federation"
 ACTIVE_PEER_WINDOW_SECONDS = 60 * 60 * 24 * 7
 MAX_TOPIC_SIGNALS = 20
+MAX_RECEIVED_PER_SYNC = 50
+FEDERATION_PROTOCOL_VERSION = 2
+PRIVACY_MODE = "anonymous_topic_signals_only"
+MIN_TOPIC_QUALITY = 0.45
+SECRET_PATTERNS = (
+    re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{20,}\b"),
+    re.compile(r"\bhf_[A-Za-z0-9]{20,}\b"),
+    re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b"),
+    re.compile(r"(?i)\b(api[_-]?key|token|secret|password|passwd)\s*[:=]"),
+)
 
 
 def _read_json(path, default: Any) -> Any:
@@ -73,6 +83,65 @@ def _sanitize_topic(topic: str) -> str:
     return topic[:120]
 
 
+def _topic_key(topic: str) -> str:
+    clean = _sanitize_topic(topic).lower()
+    clean = re.sub(r"\s+", " ", clean).strip()
+    return _hash_text(clean)[:24] if clean else ""
+
+
+def _topic_quality_score(topic: str) -> float:
+    clean = _sanitize_topic(topic)
+    if not clean:
+        return 0.0
+    if any(pattern.search(clean) for pattern in SECRET_PATTERNS):
+        return 0.0
+    if len(clean) < 4:
+        return 0.0
+    letters = sum(1 for ch in clean if ch.isalpha())
+    digits = sum(1 for ch in clean if ch.isdigit())
+    alpha_ratio = letters / max(1, len(clean))
+    words = [w for w in re.split(r"\s+", clean) if w]
+    generic = {"change", "update", "test", "error", "issue", "bug", "fix", "help"}
+    score = 0.35
+    score += min(0.25, len(clean) / 240)
+    score += 0.2 if len(words) >= 2 else 0.0
+    score += 0.15 if alpha_ratio >= 0.35 else -0.2
+    score += 0.05 if digits <= 12 else -0.1
+    if clean.lower() in generic:
+        score -= 0.35
+    return max(0.0, min(1.0, score))
+
+
+def _confidence_for_signal(peer_count: int, quality: float) -> float:
+    base = 0.25 + min(0.35, max(0, peer_count - 1) * 0.12)
+    return round(max(0.0, min(0.98, base + (quality * 0.4))), 3)
+
+
+def federation_capabilities() -> dict:
+    return {
+        "protocol_version": FEDERATION_PROTOCOL_VERSION,
+        "privacy_mode": PRIVACY_MODE,
+        "shares": [
+            "anonymous node heartbeat",
+            "version and aggregate counters",
+            "sanitized public topic signals",
+            "quality/confidence metadata",
+        ],
+        "never_shares": [
+            "raw chat text",
+            "files",
+            "API keys or tokens",
+            "local paths",
+            "full node id",
+        ],
+        "quality_gate": {
+            "min_topic_quality": MIN_TOPIC_QUALITY,
+            "max_topic_signals": MAX_TOPIC_SIGNALS,
+            "max_received_per_sync": MAX_RECEIVED_PER_SYNC,
+        },
+    }
+
+
 @dataclass
 class NodeStats:
     node_id: str
@@ -104,6 +173,8 @@ class FederationStatus:
             "enabled": self.enabled,
             "node_id": self.node_id[:8] + "..." if self.node_id else "",
             "coordinator": self.coordinator,
+            "protocol_version": FEDERATION_PROTOCOL_VERSION,
+            "privacy_mode": PRIVACY_MODE,
             "peers_count": self.peers_count,
             "last_sync": self.last_sync,
             "last_send": self.last_send,
@@ -111,6 +182,7 @@ class FederationStatus:
             "knowledge_received": self.knowledge_received,
             "state": self.state,
             "last_error": self.last_error,
+            "sync_health": "ok" if self.enabled and self.state == "connected" else self.state,
         }
 
 
@@ -133,12 +205,14 @@ class FederationCoordinator:
             nodes[safe_node_id] = {
                 "node_hash": _peer_hash(safe_node_id),
                 "version": str(data.get("version") or ""),
+                "protocol_version": int(data.get("protocol_version") or 1),
                 "last_seen": ts,
                 "stats": {
                     "conversation_count": int(data.get("conversation_count") or 0),
                     "feedbacks": data.get("feedbacks") or {},
                     "adapter_count": int(data.get("adapter_count") or 0),
                     "topic_hashes": list(data.get("topic_hashes") or [])[:MAX_TOPIC_SIGNALS],
+                    "privacy_mode": str(data.get("privacy_mode") or PRIVACY_MODE),
                 },
             }
             _write_json(COORDINATOR_NODES_FILE, nodes)
@@ -148,6 +222,8 @@ class FederationCoordinator:
             "status": "ok",
             "peer_count": self.active_peer_count(),
             "knowledge_created": created,
+            "protocol_version": FEDERATION_PROTOCOL_VERSION,
+            "privacy_mode": PRIVACY_MODE,
         }
 
     def active_peer_count(self) -> int:
@@ -162,6 +238,7 @@ class FederationCoordinator:
             {
                 "node_hash": item.get("node_hash", ""),
                 "version": item.get("version", ""),
+                "protocol_version": item.get("protocol_version", 1),
                 "last_seen": item.get("last_seen"),
             }
             for item in nodes.values()
@@ -170,7 +247,8 @@ class FederationCoordinator:
         return {"nodes": visible, "peer_count": len(visible)}
 
     def knowledge(self, node_id: str, since: float = 0) -> dict:
-        items: list[dict] = []
+        grouped: dict[str, dict] = {}
+        requester_hash = _peer_hash(node_id)
         if COORDINATOR_KNOWLEDGE_FILE.exists():
             for line in COORDINATOR_KNOWLEDGE_FILE.read_text(encoding="utf-8").splitlines():
                 try:
@@ -179,18 +257,55 @@ class FederationCoordinator:
                     continue
                 if float(item.get("ts") or 0) <= since:
                     continue
-                if item.get("origin_hash") == _peer_hash(node_id):
+                origin_hash = str(item.get("origin_hash") or "")
+                if origin_hash == requester_hash:
                     continue
-                items.append({
-                    "id": item.get("id"),
-                    "text": item.get("text", ""),
-                    "topic": item.get("topic", ""),
-                    "peer_hash": item.get("origin_hash", ""),
-                    "ts": item.get("ts"),
+                topic = _sanitize_topic(str(item.get("topic") or ""))
+                key = _topic_key(topic)
+                if not key:
+                    continue
+                quality = float(item.get("quality") or _topic_quality_score(topic))
+                if quality < MIN_TOPIC_QUALITY:
+                    continue
+                entry = grouped.setdefault(key, {
+                    "id": key,
+                    "topic": topic,
+                    "peer_hashes": set(),
+                    "ts": 0.0,
+                    "quality": quality,
                 })
-                if len(items) >= 50:
-                    break
-        return {"items": items, "peer_count": self.active_peer_count()}
+                entry["peer_hashes"].add(origin_hash)
+                entry["ts"] = max(float(entry["ts"]), float(item.get("ts") or 0))
+                entry["quality"] = max(float(entry["quality"]), quality)
+
+        items: list[dict] = []
+        for entry in sorted(grouped.values(), key=lambda e: e["ts"]):
+            source_count = len(entry["peer_hashes"])
+            confidence = _confidence_for_signal(source_count, float(entry["quality"]))
+            topic = str(entry["topic"])
+            items.append({
+                "id": entry["id"],
+                "text": (
+                    "Federated learning signal: CODEGA AI network observed "
+                    f"{source_count} node(s) learning about '{topic}'. "
+                    "Prioritize local web/RAG verification for this topic before using it in answers."
+                ),
+                "topic": topic,
+                "peer_hash": ",".join(sorted(entry["peer_hashes"])[:5]),
+                "source_count": source_count,
+                "confidence": confidence,
+                "quality": round(float(entry["quality"]), 3),
+                "ts": entry["ts"],
+                "protocol_version": FEDERATION_PROTOCOL_VERSION,
+            })
+            if len(items) >= MAX_RECEIVED_PER_SYNC:
+                break
+        return {
+            "items": items,
+            "peer_count": self.active_peer_count(),
+            "protocol_version": FEDERATION_PROTOCOL_VERSION,
+            "privacy_mode": PRIVACY_MODE,
+        }
 
     def _store_topic_signals(self, data: dict, node_id: str, ts: float) -> int:
         topics = []
@@ -219,11 +334,17 @@ class FederationCoordinator:
                 item_id = _hash_text(f"{origin_hash}:{topic.lower()}")[:24]
                 if item_id in existing_ids:
                     continue
+                quality = _topic_quality_score(topic)
+                if quality < MIN_TOPIC_QUALITY:
+                    continue
                 item = {
                     "id": item_id,
                     "ts": ts,
                     "origin_hash": origin_hash,
                     "topic": topic,
+                    "topic_key": _topic_key(topic),
+                    "quality": round(quality, 3),
+                    "protocol_version": FEDERATION_PROTOCOL_VERSION,
                     "text": (
                         "Federated learning signal: another CODEGA AI node "
                         f"learned about '{topic}'. Prioritize local web/RAG "
@@ -310,6 +431,8 @@ class FederationManager:
             "node_id": self.node_id,
             "version": "",
             "timestamp": _now(),
+            "protocol_version": FEDERATION_PROTOCOL_VERSION,
+            "privacy_mode": PRIVACY_MODE,
         }
 
         try:
@@ -457,35 +580,66 @@ class FederationManager:
             from codegaai.core.memory import MemoryStore
             mem = MemoryStore.get()
             stored = 0
+            seen = self._received_ids()
+            stored_records: list[dict] = []
 
-            for item in items:
+            for item in items[:MAX_RECEIVED_PER_SYNC]:
+                item_id = str(item.get("id") or _topic_key(str(item.get("topic") or "")))
+                if not item_id or item_id in seen:
+                    continue
                 text = str(item.get("text") or "").strip()
                 if not text:
+                    continue
+                quality = float(item.get("quality") or _topic_quality_score(str(item.get("topic") or "")))
+                if quality < MIN_TOPIC_QUALITY:
                     continue
                 mem.add(
                     text=text,
                     metadata={
                         "source": "federation",
+                        "id": item_id,
                         "peer_hash": item.get("peer_hash", ""),
                         "topic": item.get("topic", ""),
+                        "source_count": item.get("source_count", 1),
+                        "confidence": item.get("confidence", 0),
+                        "quality": round(quality, 3),
+                        "protocol_version": item.get("protocol_version", FEDERATION_PROTOCOL_VERSION),
                     },
                     collection="archive",
                 )
+                seen.add(item_id)
+                stored_records.append({**item, "id": item_id})
                 stored += 1
 
             if stored:
                 RECEIVED_FILE.parent.mkdir(parents=True, exist_ok=True)
                 with RECEIVED_FILE.open("a", encoding="utf-8") as f:
-                    for item in items[:stored]:
+                    for item in stored_records:
                         f.write(json.dumps({
                             "ts": _now(),
+                            "id": item.get("id"),
                             "topic": item.get("topic", ""),
                             "peer_hash": item.get("peer_hash", ""),
+                            "source_count": item.get("source_count", 1),
+                            "confidence": item.get("confidence", 0),
                         }, ensure_ascii=False) + "\n")
             return stored
         except Exception as exc:
             log.warning("Federation store hatasi: %s", exc)
             return 0
+
+    def _received_ids(self) -> set[str]:
+        ids: set[str] = set()
+        if not RECEIVED_FILE.exists():
+            return ids
+        for line in RECEIVED_FILE.read_text(encoding="utf-8").splitlines():
+            try:
+                item = json.loads(line)
+                if item.get("id"):
+                    ids.add(str(item["id"]))
+            except Exception:
+                continue
+        return ids
 
     def share_adapter_gradients(self, adapter_path: str) -> bool:
         if not self._enabled:
@@ -567,4 +721,6 @@ class FederationManager:
             "state": self._status.state,
             "peers": self._status.peers_count,
             "last_error": self._status.last_error,
+            "protocol_version": FEDERATION_PROTOCOL_VERSION,
+            "privacy_mode": PRIVACY_MODE,
         }

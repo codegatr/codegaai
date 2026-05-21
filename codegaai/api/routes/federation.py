@@ -35,11 +35,18 @@ class CoordinatorStatsRequest(BaseModel):
 
 @router.get("/status")
 async def status() -> dict:
-    from codegaai.core.federation import FederationManager
+    from codegaai.core.federation import FederationManager, federation_capabilities
     return {
         **FederationManager.get().status,
         "phase": "Faz 12",
+        "capabilities": federation_capabilities(),
     }
+
+
+@router.get("/capabilities")
+async def capabilities() -> dict:
+    from codegaai.core.federation import federation_capabilities
+    return federation_capabilities()
 
 
 @router.post("/enable")
