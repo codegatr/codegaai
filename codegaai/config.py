@@ -224,6 +224,25 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "lora_alpha": 32,
         "training_schedule": "weekly",  # off | daily | weekly
     },
+    "ai_platform": {
+        "mode": "multi_model_agent",
+        "prefer_local_for_private_data": True,
+        "require_approval_for_risky_tools": True,
+        "default_provider_chain": [
+            "local:qwen",
+            "openai:gpt-5",
+            "openai:gpt-4.1",
+            "anthropic:claude",
+            "google:gemini",
+        ],
+        "memory_sources": [
+            "working_chat",
+            "rag_archive",
+            "core_profile",
+            "recent_errors",
+        ],
+        "auto_plan_before_answer": True,
+    },
     "update": {
         "auto_check": True,
         "channel": "stable",  # stable | beta

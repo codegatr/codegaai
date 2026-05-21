@@ -268,7 +268,7 @@ async def voice_chat(audio: UploadFile = File(...),
 async def stream_tts(text: str, language: str = "tr"):
     """TTS'i streaming olarak döndür (WAV chunks)."""
     from fastapi.responses import StreamingResponse
-    from codegaai.core.tts_engine import TTSEngine as _TTS
+    from codegaai.core.audio_engine import TTSEngine as _TTS
     import io
 
     eng = _TTS.get()

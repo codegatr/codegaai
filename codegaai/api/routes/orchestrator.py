@@ -1,21 +1,21 @@
-"""
+﻿"""
 codegaai.api.routes.orchestrator
 ==================================
 
-Çoklu Model Orkestrasyonu (Faz 25).
+Ã‡oklu Model Orkestrasyonu (Faz 25).
 
-Gelen isteği analiz eder, en uygun modeli seçer, gerekirse birden
-fazla modeli paralel çalıştırır, sonuçları birleştirir.
+Gelen isteÄŸi analiz eder, en uygun modeli seÃ§er, gerekirse birden
+fazla modeli paralel Ã§alÄ±ÅŸtÄ±rÄ±r, sonuÃ§larÄ± birleÅŸtirir.
 
 Desteklenen mod:
-  auto   — Otomatik model seçimi (AgentBrain'e göre)
-  chain  — Model zinciri: LLM → Vision → TTS
-  vote   — Birden fazla LLM sonucu karşılaştır (en iyisini seç)
-  expert — Uzmanlık alanına göre yönlendir
+  auto   â€” Otomatik model seÃ§imi (AgentBrain'e gÃ¶re)
+  chain  â€” Model zinciri: LLM â†’ Vision â†’ TTS
+  vote   â€” Birden fazla LLM sonucu karÅŸÄ±laÅŸtÄ±r (en iyisini seÃ§)
+  expert â€” UzmanlÄ±k alanÄ±na gÃ¶re yÃ¶nlendir
 
-POST /api/orchestrate/auto    — En iyi modeli seç ve çalıştır
-POST /api/orchestrate/chain   — Model zinciri
-POST /api/orchestrate/vote    — Çoğunluk oyu
+POST /api/orchestrate/auto    â€” En iyi modeli seÃ§ ve Ã§alÄ±ÅŸtÄ±r
+POST /api/orchestrate/chain   â€” Model zinciri
+POST /api/orchestrate/vote    â€” Ã‡oÄŸunluk oyu
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ from typing import Optional
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from codegaai.core.agent_platform import plan_agent_task, platform_status
 from codegaai.utils.logger import get_logger
 
 log = get_logger(__name__)
@@ -42,41 +43,65 @@ class OrchestrateRequest(BaseModel):
     chat_id: Optional[int] = None
 
 
+class PlanRequest(BaseModel):
+    message: str
+    history: list[dict] = []
+    available_models: list[str] = []
+
+
+@router.get("/platform")
+async def get_platform_status() -> dict:
+    """Multi-model agent platform capabilities."""
+    return platform_status()
+
+
+@router.post("/plan")
+async def plan_orchestration(req: PlanRequest) -> dict:
+    """Plan provider, specialist, memory and tools before answering."""
+    blueprint = plan_agent_task(
+        req.message,
+        history=req.history,
+        available_models=req.available_models or None,
+    )
+    return blueprint.to_dict()
+
+
 @router.post("/auto")
 async def auto_orchestrate(req: OrchestrateRequest) -> dict:
     """
-    Mesajı analiz et, en uygun modeli/araçları seç, çalıştır.
-    - Kod sorusu → Qwen Coder
-    - Görsel soru → moondream2 + LLM
-    - Matematik → LLM + Python sandbox
-    - Genel → Default LLM
+    MesajÄ± analiz et, en uygun modeli/araÃ§larÄ± seÃ§, Ã§alÄ±ÅŸtÄ±r.
+    - Kod sorusu â†’ Qwen Coder
+    - GÃ¶rsel soru â†’ moondream2 + LLM
+    - Matematik â†’ LLM + Python sandbox
+    - Genel â†’ Default LLM
     """
     from codegaai.core.agent_brain import decide_response
     from codegaai.core.engine import LLMEngine, GenerationConfig
 
     t0 = time.time()
     decision = decide_response(req.message)
+    blueprint = plan_agent_task(req.message)
     pipeline_used = []
     results = {}
 
-    # Görsel gerekiyor mu?
-    if decision.response_type == "vision" or req.include_vision:
+    # GÃ¶rsel gerekiyor mu?
+    if decision.intent == "vision" or req.include_vision:
         pipeline_used.append("vision")
-        results["vision_note"] = "Görsel analiz için görsel yükle: /api/vision/screenshot"
+        results["vision_note"] = "GÃ¶rsel analiz iÃ§in gÃ¶rsel yÃ¼kle: /api/vision/screenshot"
 
-    # Matematik/kod → sandbox
-    if decision.response_type in ("code", "calculation"):
+    # Matematik/kod â†’ sandbox
+    if decision.intent in ("coding", "calculation"):
         pipeline_used.append("sandbox")
-        code = f"# {req.message}\nprint('Hesaplanıyor...')"
+        code = f"# {req.message}\nprint('HesaplanÄ±yor...')"
         results["sandbox_ready"] = True
 
-    # Ana LLM cevabı
+    # Ana LLM cevabÄ±
     engine = LLMEngine.get()
     if engine.is_ready:
         pipeline_used.append("llm")
-        sys = "Sen CODEGA AI'sın. " + (
-            "Kod sorusunda çalışan kod ver." if decision.response_type == "code" else
-            "Kısa ve net cevap ver."
+        sys = "Sen CODEGA AI'sÄ±n. " + (
+            "Kod sorusunda Ã§alÄ±ÅŸan kod ver." if decision.intent == "coding" else
+            "KÄ±sa ve net cevap ver."
         )
         msgs = [{"role": "system", "content": sys},
                 {"role": "user", "content": req.message}]
@@ -85,13 +110,13 @@ async def auto_orchestrate(req: OrchestrateRequest) -> dict:
             response += tok
         results["response"] = response
     else:
-        results["error"] = "LLM yüklü değil"
+        results["error"] = "LLM yÃ¼klÃ¼ deÄŸil"
 
     # TTS isteniyorsa
     if req.include_tts and results.get("response"):
         pipeline_used.append("tts")
         try:
-            from codegaai.core.tts_engine import TTSEngine
+            from codegaai.core.audio_engine import TTSEngine
             tts = TTSEngine.get()
             if tts.is_ready:
                 tts_r = tts.synthesize(results["response"][:300], language="tr")
@@ -103,9 +128,10 @@ async def auto_orchestrate(req: OrchestrateRequest) -> dict:
         "response": results.get("response", ""),
         "pipeline": pipeline_used,
         "decision": {
-            "type": decision.response_type,
+            "type": decision.intent,
             "uses_tools": decision.uses_tools,
         },
+        "blueprint": blueprint.to_dict(),
         "elapsed_ms": int((time.time() - t0) * 1000),
         **{k: v for k, v in results.items() if k not in ("response",)},
     }
@@ -114,20 +140,20 @@ async def auto_orchestrate(req: OrchestrateRequest) -> dict:
 @router.post("/vote")
 async def vote_orchestrate(req: OrchestrateRequest) -> dict:
     """
-    Farklı temperature ayarlarıyla birden fazla yanıt üret,
-    en tutarlı/kaliteli olanı seç.
+    FarklÄ± temperature ayarlarÄ±yla birden fazla yanÄ±t Ã¼ret,
+    en tutarlÄ±/kaliteli olanÄ± seÃ§.
     """
     from codegaai.core.engine import LLMEngine, GenerationConfig
 
     engine = LLMEngine.get()
     if not engine.is_ready:
-        return {"error": "LLM yüklü değil"}
+        return {"error": "LLM yÃ¼klÃ¼ deÄŸil"}
 
     temps = [0.3, 0.6, 0.9]
     candidates = []
 
     msgs = [
-        {"role": "system", "content": "Sen CODEGA AI'sın. Doğru ve yararlı cevap ver."},
+        {"role": "system", "content": "Sen CODEGA AI'sÄ±n. DoÄŸru ve yararlÄ± cevap ver."},
         {"role": "user", "content": req.message},
     ]
 
@@ -137,7 +163,7 @@ async def vote_orchestrate(req: OrchestrateRequest) -> dict:
             out += tok
         candidates.append({"temp": temp, "response": out.strip()})
 
-    # En uzun yanıtı seç (genellikle en kapsamlı)
+    # En uzun yanÄ±tÄ± seÃ§ (genellikle en kapsamlÄ±)
     best = max(candidates, key=lambda x: len(x["response"]))
     return {
         "response": best["response"],
@@ -150,8 +176,8 @@ async def vote_orchestrate(req: OrchestrateRequest) -> dict:
 @router.post("/chain")
 async def chain_orchestrate(req: OrchestrateRequest) -> dict:
     """
-    Model zinciri: Her model bir öncekinin çıktısını alır.
-    Örnek: LLM → [Sandbox] → [Vision] → TTS
+    Model zinciri: Her model bir Ã¶ncekinin Ã§Ä±ktÄ±sÄ±nÄ± alÄ±r.
+    Ã–rnek: LLM â†’ [Sandbox] â†’ [Vision] â†’ TTS
     """
     from codegaai.core.engine import LLMEngine, GenerationConfig
 
@@ -161,7 +187,7 @@ async def chain_orchestrate(req: OrchestrateRequest) -> dict:
     # 1. LLM
     engine = LLMEngine.get()
     if engine.is_ready:
-        msgs = [{"role": "system", "content": "Sen CODEGA AI'sın."},
+        msgs = [{"role": "system", "content": "Sen CODEGA AI'sÄ±n."},
                 {"role": "user", "content": context}]
         llm_out = ""
         for tok in engine.stream(msgs, cfg=GenerationConfig(max_tokens=500)):
@@ -169,7 +195,7 @@ async def chain_orchestrate(req: OrchestrateRequest) -> dict:
         chain_log.append({"model": "llm", "output_len": len(llm_out)})
         context = llm_out
 
-    # 2. Python kodu varsa sandbox'ta çalıştır
+    # 2. Python kodu varsa sandbox'ta Ã§alÄ±ÅŸtÄ±r
     import re
     code_match = re.search(r'```python\n(.*?)```', context, re.DOTALL)
     if code_match:
@@ -179,14 +205,14 @@ async def chain_orchestrate(req: OrchestrateRequest) -> dict:
         if ok:
             result = _run_code(code, timeout=10)
             if result.get("output"):
-                context += f"\n\n[Kod Çıktısı]\n{result['output']}"
+                context += f"\n\n[Kod Ã‡Ä±ktÄ±sÄ±]\n{result['output']}"
                 chain_log.append({"model": "sandbox", "output_len": len(result["output"])})
 
     # 3. TTS (isteniyorsa)
     audio_url = ""
     if req.include_tts:
         try:
-            from codegaai.core.tts_engine import TTSEngine
+            from codegaai.core.audio_engine import TTSEngine
             tts = TTSEngine.get()
             if tts.is_ready:
                 r = tts.synthesize(context[:200], language="tr")
@@ -204,12 +230,12 @@ async def chain_orchestrate(req: OrchestrateRequest) -> dict:
 
 @router.get("/models")
 async def list_active_models() -> dict:
-    """Şu an yüklü olan tüm modeller."""
+    """Åu an yÃ¼klÃ¼ olan tÃ¼m modeller."""
     models = {}
     try:
         from codegaai.core.engine import LLMEngine
         e = LLMEngine.get()
-        models["llm"] = {"active": e.is_ready, "id": getattr(e, "_model_id", "—")}
+        models["llm"] = {"active": e.is_ready, "id": getattr(e, "_model_id", "â€”")}
     except Exception:
         models["llm"] = {"active": False}
 
@@ -228,7 +254,7 @@ async def list_active_models() -> dict:
         models["vision"] = {"active": False}
 
     try:
-        from codegaai.core.tts_engine import TTSEngine
+        from codegaai.core.audio_engine import TTSEngine
         tts = TTSEngine.get()
         models["tts"] = {"active": tts.is_ready}
     except Exception:
@@ -243,3 +269,4 @@ async def list_active_models() -> dict:
 
     active_count = sum(1 for m in models.values() if m.get("active"))
     return {"models": models, "active_count": active_count, "total": len(models)}
+

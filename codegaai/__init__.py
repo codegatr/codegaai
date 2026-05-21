@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "4.3.3"
-__phase__ = "v4.3.3 - Clipboard Vision + Model Prepare Flow"
+__version__ = "4.3.4"
+__phase__ = "v4.3.4 - Multi-Model Agent Platform Core"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"
