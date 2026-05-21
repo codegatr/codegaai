@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="tr" data-theme="dark">
 <head>
   <meta charset="UTF-8">
@@ -168,7 +168,7 @@
     <div class="sidebar__footer">
       <div class="phase-indicator" id="phase-indicator">
         <span class="phase-dot"></span>
-        <span class="phase-text">Faz 8 / 8 ✓</span>
+        <span class="phase-text" id="phase-text">CODEGA AI hazır</span>
       </div>
     </div>
   </aside>
@@ -288,9 +288,9 @@
 
             <!-- Daha fazla seçenek (alttaki linkler) -->
             <div class="codex-quick-links">
-              <a href="#" onclick="document.querySelector('[data-view=\'system\']').click(); return false;">⚙️ Sistem ayarları</a>
-              <a href="#" onclick="document.querySelector('[data-view=\'projects\']')?.click(); return false;">📋 Projeler</a>
-              <a href="#" onclick="window.MultiModel?.show(); return false;">🔀 Çoklu model karşılaştır</a>
+              <a href="#" onclick="document.querySelector('[data-view=\'system\']').click(); return false;">Sistem durumu</a>
+              <a href="#" onclick="document.querySelector('[data-view=\'settings\']').click(); return false;">Ayarlar</a>
+              <a href="#" onclick="document.querySelector('[data-view=\'autolearn\']')?.click(); return false;">Otonom öğrenme</a>
             </div>
           </div>
         </div>
@@ -1293,9 +1293,9 @@
 
       <div class="system-grid">
 
-        <!-- Gelişmiş Özellikler (Faz 51-55) -->
+        <!-- Ajan Araçları (Faz 51-55) -->
         <div class="system-section" style="grid-column:1/-1;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:12px;padding:20px;">
-          <h3 style="margin-bottom:14px;font-size:15px">🚀 Gelişmiş Özellikler</h3>
+          <h3 style="margin-bottom:14px;font-size:15px">Ajan Araçları</h3>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
             
             <button class="codex-card" onclick="window.KnowledgeBase?.show(); return false;" style="margin:0">
@@ -1709,3 +1709,4 @@
   <script src="/js/app.js"></script>
 </body>
 </html>
+

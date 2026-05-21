@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "4.3.4"
-__phase__ = "v4.3.4 - Multi-Model Agent Platform Core"
+__version__ = "4.3.5"
+__phase__ = "v4.3.5 - CODEGA Workbench UI Polish"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

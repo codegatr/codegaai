@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    CODEGA AI - Sistem sayfası (sifirdan)
    ============================================================ */
 const System = (() => {
@@ -284,6 +284,12 @@ const System = (() => {
       setText("settings-version", `v${d.version||"?"}`);
       setText("settings-phase", d.phase||"");
       setText("brand-version", `v${d.version||"?"}`);
+      const phaseText = el("phase-text");
+      if (phaseText) {
+        const phase = d.phase || "Agent Platform";
+        phaseText.textContent = `v${d.version || "?"} · ${phase.replace(/^v?[0-9.]+\s*-\s*/i, "")}`;
+        phaseText.title = phase;
+      }
       const llm = el("settings-llm");
       if (llm) llm.textContent = d.models?.llm||"—";
     } catch(e) {}
@@ -440,3 +446,4 @@ document.addEventListener("DOMContentLoaded", () => {
   // İlk yükleme
   setTimeout(loadGPUStatus, 2000);
 });
+

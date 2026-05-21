@@ -43,6 +43,16 @@ def _cur_ver() -> str:
         from codegaai import __version__; return __version__
     except Exception: return "?"
 
+def _version_tuple(v: str) -> tuple[int, ...]:
+    nums = []
+    for part in str(v or "").lstrip("vV").split("."):
+        digits = "".join(ch for ch in part if ch.isdigit())
+        nums.append(int(digits or 0))
+    return tuple(nums or [0])
+
+def _is_newer_version(candidate: str, current: str) -> bool:
+    return _version_tuple(candidate) > _version_tuple(current)
+
 def _load_history() -> list:
     try:
         if HISTORY_FILE.exists():
@@ -352,8 +362,14 @@ def _launch_auto_checker(hours: int = 6) -> None:
 @router.get("/pending")
 async def pending() -> dict:
     if PENDING_FILE.exists():
-        try: return {"pending": True, **json.loads(PENDING_FILE.read_text("utf-8"))}
-        except Exception: pass
+        try:
+            data = json.loads(PENDING_FILE.read_text("utf-8"))
+            if not _is_newer_version(data.get("version", ""), _cur_ver()):
+                PENDING_FILE.unlink(missing_ok=True)
+                return {"pending": False}
+            return {"pending": True, **data}
+        except Exception:
+            PENDING_FILE.unlink(missing_ok=True)
     return {"pending": False}
 
 @router.post("/dismiss-pending")

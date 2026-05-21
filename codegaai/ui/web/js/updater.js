@@ -4,10 +4,31 @@
  */
 const Updater = (() => {
   let _poll = null;
+  let _initialized = false;
 
   // ── Yardımcı ─────────────────────────────────────────────────────────
   const $ = id => document.getElementById(id);
   const set = (id, html) => { const el = $(id); if (el) el.innerHTML = html; };
+  function versionTuple(v) {
+    return String(v || "").replace(/^v/i, "").split(".")
+      .map(p => parseInt(String(p).replace(/\D/g, "") || "0", 10));
+  }
+  function isNewer(candidate, current) {
+    const a = versionTuple(candidate), b = versionTuple(current);
+    const n = Math.max(a.length, b.length);
+    for (let i = 0; i < n; i++) {
+      const av = a[i] || 0, bv = b[i] || 0;
+      if (av !== bv) return av > bv;
+    }
+    return false;
+  }
+  function setUpdateBadge(show, label = "") {
+    const badge = $("update-badge");
+    const txt = $("update-badge-text");
+    if (!badge) return;
+    badge.hidden = !show;
+    if (txt && show) txt.textContent = label || "Yeni sürüm";
+  }
 
   // ── Kontrol ──────────────────────────────────────────────────────────
   async function check(force = false) {
@@ -23,7 +44,9 @@ const Updater = (() => {
           `<span style='color:var(--color-text-muted)'>Güncelleme sunucusuna ulaşılamadı</span>`);
         return null;
       }
-      _renderStatus(d); return d;
+      _renderStatus(d);
+      setUpdateBadge(!!d.update_available && isNewer(d.latest_version, d.current_version), `v${d.latest_version} hazır`);
+      return d;
     } catch(e) {
       set("updater-status", `<span style='color:var(--color-danger)'>❌ ${e.message}</span>`);
     }
@@ -234,14 +257,15 @@ ${d.release_notes || 'Yok'}</pre>
   // ── Bekleyen bildirim ─────────────────────────────────────────────────
   async function checkPending() {
     const d = await fetch("/api/updater/pending").then(r=>r.json()).catch(()=>({pending:false}));
-    const badge = $("update-badge");
-    const txt   = $("update-badge-text");
-    if (badge) badge.hidden = !d.pending;
-    if (txt && d.pending) txt.textContent = `v${d.version} hazır`;
+    const current = (($("brand-version")?.textContent || "").match(/[0-9]+(?:\.[0-9]+)*/)||[""])[0];
+    const show = !!d.pending && (!current || isNewer(d.version, current));
+    setUpdateBadge(show, `v${d.version} hazır`);
   }
 
   // ── Init ─────────────────────────────────────────────────────────────
-  document.addEventListener("DOMContentLoaded", () => {
+  function init() {
+    if (_initialized) return;
+    _initialized = true;
     check();
     loadBackups();
     loadHistory();
@@ -250,9 +274,11 @@ ${d.release_notes || 'Yok'}</pre>
     document.querySelectorAll('[data-view="system"]').forEach(btn =>
       btn.addEventListener("click", () => { check(); loadBackups(); loadHistory(); })
     );
-  });
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
 
   return { check, download, cancelDownload, apply,
            createBackup, loadBackups, rollback,
-           showChangelog, loadHistory, setAutoUpdate };
+           showChangelog, loadHistory, setAutoUpdate, init };
 })();
