@@ -25,7 +25,11 @@ const System = (() => {
       method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify(body ?? {})
     });
-    return r.json();
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      throw new Error(data.detail || data.error || data.message || ("HTTP " + r.status));
+    }
+    return data;
   }
 
   // ── Donanım ──
@@ -172,7 +176,7 @@ const System = (() => {
           btn = `<button class="btn btn--primary" style="font-size:12px" onclick="System.loadModel('${m.id}')">Yükle</button>`;
         } else {
           badge = `<span class="status-pill status-pill--off" style="font-size:11px"><span class="status-pill__dot"></span>İndirilmedi</span>`;
-          btn = `<button class="btn btn--ghost" style="font-size:12px" onclick="System.downloadModel('${m.id}')">İndir (~${m.size_gb} GB)</button>`;
+          btn = `<button class="btn btn--primary" style="font-size:12px" onclick="System.prepareModel('${m.id}')">İndir + Yükle (~${m.size_gb} GB)</button>`;
         }
         return `<div class="model-card" id="mc-${m.id}">
           <div class="model-card__header">
@@ -195,7 +199,7 @@ const System = (() => {
     }
   }
 
-  async function downloadModel(id) {
+  async function downloadModel(id, opts = {}) {
     const ma = el("ma-"+id);
     if (ma) ma.innerHTML = '<span style="font-size:12px;color:#f59e0b">Başlatılıyor...</span>';
     try {
@@ -213,16 +217,35 @@ const System = (() => {
               <div style="height:4px;width:${pct}%;background:#f59e0b;border-radius:2px;transition:width .5s"></div></div>
               <div style="font-size:11px;color:var(--color-text-muted)">${((dl.downloaded||0)/1e9).toFixed(2)} / ${s.size_gb||"?"} GB</div>`;
           } else if (s.downloaded||dl.status==="completed") {
-            clearInterval(polls[id]); delete polls[id]; loadModels();
+            clearInterval(polls[id]); delete polls[id];
+            if (opts.loadAfter) loadModel(id);
+            else loadModels();
           } else if (dl.status==="error") {
             clearInterval(polls[id]); delete polls[id];
-            if(ma2) ma2.innerHTML=`<span style="color:#ef4444">Hata</span>
-              <button class="btn btn--ghost" style="font-size:12px;margin-left:8px" onclick="System.downloadModel('${id}')">Tekrar</button>`;
+            if(ma2) ma2.innerHTML=`<div style="font-size:12px;color:#ef4444;line-height:1.35">Hata: ${esc(dl.error || "İndirme tamamlanamadı")}</div>
+              <button class="btn btn--ghost" style="font-size:12px;margin-top:6px" onclick="System.prepareModel('${id}')">Tekrar Dene</button>`;
           }
-        } catch(e) { clearInterval(polls[id]); delete polls[id]; }
+        } catch(e) {
+          clearInterval(polls[id]); delete polls[id];
+          const ma2 = el("ma-"+id);
+          if (ma2) ma2.innerHTML = `<div style="font-size:12px;color:#ef4444;line-height:1.35">Durum okunamadı: ${esc(e.message)}</div>`;
+        }
       }, 1500);
     } catch(e) {
-      if (ma) ma.innerHTML=`<button class="btn btn--ghost" style="font-size:12px" onclick="System.downloadModel('${id}')">İndir</button>`;
+      if (ma) ma.innerHTML=`<div style="font-size:12px;color:#ef4444;line-height:1.35">İndirme başlatılamadı: ${esc(e.message)}</div>
+        <button class="btn btn--ghost" style="font-size:12px;margin-top:6px" onclick="System.prepareModel('${id}')">Tekrar Dene</button>`;
+    }
+  }
+
+  async function prepareModel(id) {
+    const ma = el("ma-"+id);
+    if (ma) ma.innerHTML = '<span style="font-size:12px;color:#f59e0b">Model hazırlanıyor...</span>';
+    try {
+      const status = await get(`/api/models/${id}/status`);
+      if (status.downloaded) await loadModel(id);
+      else await downloadModel(id, {loadAfter: true});
+    } catch(e) {
+      if (ma) ma.innerHTML = `<div style="font-size:12px;color:#ef4444;line-height:1.35">Hazırlama hatası: ${esc(e.message)}</div>`;
     }
   }
 
@@ -234,7 +257,7 @@ const System = (() => {
   }
 
   async function unloadModel(id) {
-    try { await post("/api/models/unload"); setTimeout(()=>{loadModels();loadEngines();},1000); }
+    try { await post(`/api/models/${id}/unload`); setTimeout(()=>{loadModels();loadEngines();},1000); }
     catch(e) { loadModels(); }
   }
 
@@ -307,6 +330,7 @@ const System = (() => {
   }
 
   return { init, loadModels, loadEngines, loadAll, loadLogs,
+           prepareModel,
            downloadModel, loadModel, unloadModel, setDisk,
            refresh: loadAll };
 })();

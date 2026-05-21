@@ -35,7 +35,7 @@ class AgentBrain:
 
     _WEB_PATTERNS = [
         r"https?://",
-        r"(internette ara|webde ara|internet|web|araştır|güncel|guncel|son dakika|haber)",
+        r"(internette ara|nternette ara|webde ara|internet|web|araştır|güncel|guncel|son dakika|haber)",
         r"\b(latest|current|today|news|browse|search|look up)\b",
     ]
     _SELF_PATTERNS = [
@@ -63,7 +63,8 @@ class AgentBrain:
 
     def decide(self, message: str, history: list[dict] | None = None) -> AgentDecision:
         text = str(message or "")
-        low = text.lower()
+        raw_low = text.lower()
+        low = self._fold_tr(text)
         decision = AgentDecision()
 
         if self._matches(low, self._CODE_PATTERNS):
@@ -89,6 +90,8 @@ class AgentBrain:
         if any(w in low for w in ["çalıştır", "test et", "run ", "execute", "koştur"]):
             if decision.intent == "coding":
                 decision.needs_tools.append("run_python")
+        elif decision.intent == "coding" and any(w in raw_low for w in ["Ã§al", "çalıştır", "calistir"]):
+            decision.needs_tools.append("run_python")
 
         self_ref = self._matches(low, self._SELF_PATTERNS)
         decision.needs_web = self._matches(low, self._WEB_PATTERNS) and not (
@@ -124,6 +127,14 @@ class AgentBrain:
 
     def _matches(self, text: str, patterns: list[str]) -> bool:
         return any(re.search(pattern, text, re.IGNORECASE) for pattern in patterns)
+
+    def _fold_tr(self, text: str) -> str:
+        table = str.maketrans({
+            "İ": "i", "I": "i", "ı": "i", "ğ": "g", "Ğ": "g",
+            "ü": "u", "Ü": "u", "ş": "s", "Ş": "s",
+            "ö": "o", "Ö": "o", "ç": "c", "Ç": "c",
+        })
+        return str(text or "").translate(table).casefold().replace("i̇", "i")
 
 
 _BRAIN = AgentBrain()

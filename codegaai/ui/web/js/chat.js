@@ -350,14 +350,57 @@ const Chat = (() => {
     return window._chatAttachedImage || null;
   }
 
+  function setAttachedImage(file) {
+    if (!file || !String(file.type || "").startsWith("image/")) return false;
+    const previewDiv = document.getElementById("chat-image-preview");
+    const imgInput = document.getElementById("chat-image-input");
+    const thumb = document.getElementById("chat-image-thumb");
+    if (window._chatAttachedImageUrl) {
+      URL.revokeObjectURL(window._chatAttachedImageUrl);
+      window._chatAttachedImageUrl = null;
+    }
+    const url = URL.createObjectURL(file);
+    window._chatAttachedImageUrl = url;
+    window._chatAttachedImage = file;
+    if (thumb) {
+      thumb.src = url;
+      thumb.title = file.name || "Yapıştırılan görsel";
+    }
+    if (previewDiv) previewDiv.style.display = "flex";
+    if (imgInput) imgInput.value = "";
+    return true;
+  }
+
   function clearAttachedImage() {
     window._chatAttachedImage = null;
+    if (window._chatAttachedImageUrl) {
+      URL.revokeObjectURL(window._chatAttachedImageUrl);
+      window._chatAttachedImageUrl = null;
+    }
     const previewDiv = document.getElementById("chat-image-preview");
     const imgInput = document.getElementById("chat-image-input");
     const thumb = document.getElementById("chat-image-thumb");
     if (previewDiv) previewDiv.style.display = "none";
     if (imgInput) imgInput.value = "";
     if (thumb) thumb.removeAttribute("src");
+  }
+
+  function handleClipboardImagePaste(e) {
+    const items = Array.from(e.clipboardData?.items || []);
+    const imageItem = items.find(item => String(item.type || "").startsWith("image/"));
+    if (!imageItem) return;
+    const rawFile = imageItem.getAsFile();
+    if (!rawFile) return;
+    const ext = rawFile.type === "image/jpeg" ? "jpg" : rawFile.type === "image/webp" ? "webp" : "png";
+    const file = new File(
+      [rawFile],
+      rawFile.name || `clipboard-screenshot-${Date.now()}.${ext}`,
+      { type: rawFile.type || "image/png" },
+    );
+    if (setAttachedImage(file)) {
+      e.preventDefault();
+      elInput?.focus();
+    }
   }
 
   function makePayload(input) {
@@ -818,6 +861,13 @@ const Chat = (() => {
     });
 
     elInput.addEventListener("input", autoResize);
+    elInput.addEventListener("paste", handleClipboardImagePaste);
+
+    document.addEventListener("paste", (e) => {
+      if (document.activeElement === elInput) return;
+      const activeView = typeof Views !== "undefined" ? Views.current?.() : "chat";
+      if (activeView === "chat") handleClipboardImagePaste(e);
+    });
 
     // Header butonları
     elDelete?.addEventListener("click", deleteCurrent);
@@ -860,10 +910,11 @@ const Chat = (() => {
     updateQueueStatus();
   }
 
-  return { init, send, rename, deleteCurrent };
+  return { init, send, rename, deleteCurrent, attachImage: setAttachedImage };
 })();
 
 window.Chat = Chat;
+window.attachChatImage = (file) => Chat.attachImage(file);
 
 // Alt çubuktan embedding yükleme
 window.loadEmbedding = async function() {
