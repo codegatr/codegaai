@@ -34,6 +34,10 @@ const Views = (() => {
     document.querySelectorAll(".nav-item[data-view]").forEach((btn) => {
       btn.addEventListener("click", () => activate(btn.dataset.view));
     });
+
+    document.querySelectorAll(".app-menu-item[data-view]").forEach((btn) => {
+      btn.addEventListener("click", () => activate(btn.dataset.view));
+    });
   }
 
   return { init, activate, on, current: () => state.current };
