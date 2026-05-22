@@ -26,11 +26,13 @@ class TestMacOSFederationReadme(unittest.TestCase):
 
     def test_readme_documents_current_agent_os_capabilities(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        self.assertIn("v4.3.8", readme)
+        self.assertIn("codega_logo.png", readme)
+        self.assertIn("img.shields.io", readme)
         self.assertIn("Agent OS", readme)
         self.assertIn("macOS Apple Silicon", readme)
         self.assertIn("/api/federation/metrics", readme)
         self.assertIn("/api/orchestrate/agent-os", readme)
+        self.assertIn("MIT lisansı", readme)
 
 
 if __name__ == "__main__":

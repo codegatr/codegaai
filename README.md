@@ -1,76 +1,130 @@
-# CODEGA AI
+<p align="center">
+  <img src="https://raw.githubusercontent.com/codegatr/codegaai/main/codegaai/ui/web/assets/codega_logo.png" width="520" alt="CODEGA AI - Otonom Yapay Zeka Platformu" />
+</p>
 
-**CODEGA AI**, hafızalı ve araç kullanabilen otonom dijital personel platformudur. Amaç tek bir yerel modeli “her şeyi bilir” gibi göstermek değil; yerel modelleri, güçlü bulut modellerini, RAG hafızasını, dosya/terminal/GitHub araçlarını ve güvenli federe ağı tek bir ajan omurgasında birleştirmektir.
+<h1 align="center">CODEGA AI</h1>
 
-## Güncel Durum
+<p align="center">
+  <strong>Hafızalı, araç kullanabilen, federe ağa bağlı otonom dijital personel sistemi.</strong>
+</p>
 
-- Sürüm: `v4.3.8`
-- Platform: Windows portable, macOS Apple Silicon portable
-- Backend: Python FastAPI
-- UI: PyWebView + web arayüzü
-- Yerel motor: Qwen / llama.cpp GGUF
-- Hafıza: SQLite + RAG/ChromaDB + proje beyni
-- Federe ağ: `https://ai.codega.com.tr/api/federation`
+<p align="center">
+  <a href="https://github.com/codegatr/codegaai/releases"><img alt="Release" src="https://img.shields.io/github/v/release/codegatr/codegaai?style=for-the-badge&color=f59e0b&label=release"></a>
+  <a href="https://github.com/codegatr/codegaai/actions/workflows/build-windows.yml"><img alt="Windows Build" src="https://img.shields.io/github/actions/workflow/status/codegatr/codegaai/build-windows.yml?branch=main&style=for-the-badge&label=Windows"></a>
+  <a href="https://github.com/codegatr/codegaai/actions/workflows/build-macos.yml"><img alt="macOS Build" src="https://img.shields.io/github/actions/workflow/status/codegatr/codegaai/build-macos.yml?branch=main&style=for-the-badge&label=macOS%20ARM64"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-MIT-10b981?style=for-the-badge"></a>
+</p>
 
-## Temel Yetenekler
+<p align="center">
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.12+-3776ab?style=flat-square&logo=python&logoColor=white">
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-Backend-009688?style=flat-square&logo=fastapi&logoColor=white">
+  <img alt="Windows" src="https://img.shields.io/badge/Windows-Portable-0078d4?style=flat-square&logo=windows&logoColor=white">
+  <img alt="Apple Silicon" src="https://img.shields.io/badge/macOS-Apple%20Silicon-111827?style=flat-square&logo=apple&logoColor=white">
+  <img alt="Local AI" src="https://img.shields.io/badge/Local%20AI-Qwen%20%7C%20llama.cpp-f59e0b?style=flat-square">
+  <img alt="Federation" src="https://img.shields.io/badge/Federated-ai.codega.com.tr-06b6d4?style=flat-square">
+</p>
 
-- Çoklu model orkestrasyonu: GPT-5, GPT-4.1, Claude, Gemini, Qwen, Whisper, BGE-M3 ve yerel vision sağlayıcıları için provider manifest.
-- Agent OS planner: mesajdan niyet, uzman, model zinciri, araç seti, proje hafızası ve doğrulama adımlarını çıkarır.
-- Project Brain: CODEGA AI, CODEGA ERP, cMiner, Tekcan Metal gibi projeler için ayrı hafıza kapsamı.
-- Araç kullanımı: web araştırması, RAG hatırlama, görsel analiz, OCR, Python sandbox, dosya/ZIP üretimi, GitHub akışları.
-- Otonom öğrenme: web kaynaklarını puanlayarak özetler, embedding üretir ve hafızaya alır.
-- Federe öğrenme ağı: ham sohbet veya dosya göndermeden anonim konu sinyali, kalite puanı, kaynak sayısı ve güven skoru paylaşır.
-- Güncelleme sistemi: GitHub release kontrolü, portable build ve yeniden başlatma akışı.
-- Multimodal giriş: görsel, ekran görüntüsü, OCR, ses ve video altyapısı.
+<p align="center">
+  <a href="https://codega.com.tr">Website</a>
+  ·
+  <a href="https://github.com/codegatr/codegaai/releases/latest">Download</a>
+  ·
+  <a href="#-agent-os">Agent OS</a>
+  ·
+  <a href="#-federe-ogrenme-agi">Federe Ağ</a>
+  ·
+  <a href="#-api">API</a>
+</p>
 
-## Agent OS Katmanları
+---
 
-CODEGA AI artık klasik chatbot olarak değil, şu katmanları olan ajan işletim sistemi olarak tasarlanır:
+## CODEGA AI Nedir?
 
-1. Çoklu model sistemi
-2. Gerçek hafıza ve proje beyni
-3. Kendini geliştirme ve feedback hafızası
-4. Araç kullanımı
-5. Planner + Executor döngüsü
-6. Uzman AI modları
-7. Kod tabanı okuma
-8. Test etme ve kendini düzeltme
-9. Prompt mühendisliği motoru
-10. Session + Project Brain izolasyonu
-11. Kaynak puanlı gerçek zamanlı öğrenme
-12. Sandbox VM / güvenli komut yürütme
-13. Görsel, ses ve video anlama
-14. Kontrollü deployment
-15. AI Operating System yaklaşımı
+CODEGA AI klasik bir chatbot değildir. Yerel modeller, güçlü bulut model sağlayıcıları, proje hafızası, RAG, araç kullanımı, dosya üretimi, kod analizi, görsel/ses/video anlama ve federe öğrenme ağını tek bir ajan omurgasında birleştiren masaüstü AI platformudur.
 
-Manifest endpoint’i:
+> Slogan: **AI çalışanı gibi davranan, hafızalı ve araç kullanabilen otonom dijital personel sistemi.**
+
+## Öne Çıkanlar
+
+| Alan | Yetenek |
+| --- | --- |
+| Multi-Model AI | GPT-5, GPT-4.1, Claude, Gemini, Qwen, Whisper, BGE-M3 ve yerel vision provider manifesti |
+| Agent OS | Planner, executor, verifier, uzman profili, model router ve tool policy |
+| Project Brain | CODEGA AI, CODEGA ERP, cMiner, Tekcan Metal gibi projeler için ayrılmış hafıza |
+| RAG Hafıza | Sohbet, proje, hata, çözüm, web öğrenmesi ve federe sinyaller |
+| Araç Kullanımı | Web, GitHub, dosya, ZIP, PDF, Excel, Python sandbox, OCR, görsel analiz |
+| Federe Ağ | Ham sohbet göndermeden anonim konu sinyali, kalite puanı, kaynak sayısı ve güven skoru |
+| macOS ARM64 | Apple Silicon hedefli `macos-15` build ve `macos-arm64.zip` artifact |
+| Windows Portable | Tek klasör portable Windows build |
+
+## Agent OS
+
+CODEGA AI içindeki ajan çekirdeği her görev için şu blueprint’i üretir:
 
 ```text
-GET /api/orchestrate/agent-os
+Kullanıcı mesajı
+  -> niyet tespiti
+  -> uzman profil seçimi
+  -> model zinciri
+  -> proje beyni
+  -> hafıza kaynakları
+  -> araç seti
+  -> güvenlik/onay politikası
+  -> doğrulama ve öğrenme adımları
 ```
 
-Planlama endpoint’i:
+Agent OS katmanları:
+
+| Katman | Durum |
+| --- | --- |
+| Çoklu model sistemi | Aktif |
+| Gerçek hafıza ve proje beyni | Aktif |
+| Kendini geliştirme / feedback hafızası | Kademeli |
+| Araç kullanımı | Aktif |
+| Planner + Executor | Aktif |
+| Uzman AI modları | Aktif |
+| Kod tabanı okuma | Kademeli |
+| Test ve self-repair döngüsü | Kademeli |
+| Prompt mühendisliği motoru | Tasarımda |
+| Sandbox VM | Kademeli |
+| Multimodal anlama | Kademeli |
+| Auto deployment | Tasarımda |
+
+Endpoint:
 
 ```text
+GET  /api/orchestrate/agent-os
 POST /api/orchestrate/plan
 ```
 
-Örnek plan çıktısı; uzman profili, model zinciri, araçlar, proje beyni, öğrenme politikası ve doğrulama adımlarını içerir.
+## Uzman Modları
 
-## Federe Ağ
+| Uzman | Odak |
+| --- | --- |
+| PHP 8.3 / DirectAdmin | Hosting, Laravel, WordPress, MySQL, PHP-FPM |
+| Docker / Ubuntu | VPS, Nginx, systemd, deployment |
+| Play Console / AAB | Android release, signing, versionCode, keystore |
+| ERP / Cari Takip | Fatura, stok, tahsilat, rapor, Excel |
+| Kripto Güvenlik | Wallet, API key, hot/cold storage, rate limit |
+| SEO / Kurumsal Metin | Marka dili, landing page, blog, dönüşüm |
+| 3D Baskı / STL | Ölçü, tolerans, filament, slicer |
+| Kod Tabanı Ajanı | Repo tarama, hata bulma, test, rapor |
+| AI Sistem Mimarı | Model router, RAG, araç ve güvenlik omurgası |
 
-CODEGA AI kurulu her bilgisayar, isteğe bağlı olarak federe ağa katılabilir. Ağın hedefi cihazların öğrendiği konu sinyallerini birleştirip diğer cihazlara “şunu yerel olarak doğrula ve öğren” yönlendirmesi vermektir.
+## Federe Öğrenme Ağı
 
-Federe ağ gizlilik sözleşmesi:
+CODEGA AI kurulu bilgisayarlar isteğe bağlı olarak `ai.codega.com.tr` koordinatörüne bağlanır. Amaç ham veriyi toplamak değil; cihazların öğrendiği konuları anonim ve kalite filtresinden geçmiş sinyaller olarak birleştirmektir.
+
+Gizlilik sözleşmesi:
 
 - Ham sohbet gönderilmez.
 - Dosya gönderilmez.
 - API key, token, `.env`, local path ve tam node ID gönderilmez.
-- Yalnızca anonim sayaçlar ve temizlenmiş konu sinyalleri gönderilir.
 - Konular kalite filtresinden geçer.
-- Aynı konuyu birden çok node öğrenirse `source_count` ve `confidence` artar.
+- Aynı konu birden fazla cihazda öğrenilirse güven skoru yükselir.
+- Rate limit ve admin prune desteği vardır.
 
-DirectAdmin/PHP koordinatör endpoint’leri:
+Koordinatör endpoint’leri:
 
 ```text
 GET  /api/federation/health
@@ -83,36 +137,37 @@ GET  /api/federation/admin?token=...
 GET  /api/federation/admin/prune?token=...
 ```
 
-Sunucu kurulumu:
+DirectAdmin kurulumu:
 
 ```text
-deploy/federation-php/public/
+deploy/federation-php/public/  ->  public_html/api/federation/
+config.sample.php              ->  config.php
+schema.sql                     ->  manuel tablo kurulumu için
 ```
 
-klasörünü DirectAdmin üzerinde `public_html/api/federation/` altına yükleyin, `config.sample.php` dosyasını `config.php` yapıp veritabanı bilgilerini girin.
+## Platform ve Build
 
-## macOS Apple Silicon
+| Platform | Artifact | Hedef |
+| --- | --- | --- |
+| Windows | `codegaai-vX.Y.Z-windows.zip` | Portable desktop |
+| macOS Apple Silicon | `codegaai-vX.Y.Z-macos-arm64.zip` | M1, M2, M3, M4 |
 
-macOS workflow açıkça Apple Silicon hedefler:
+macOS workflow açıkça Apple Silicon doğrular:
 
 ```yaml
 runs-on: macos-15
 ```
 
-Workflow `uname -m` sonucunun `arm64` olduğunu doğrular ve release dosyasını şu formatta üretir:
-
-```text
-codegaai-vX.Y.Z-macos-arm64.zip
+```bash
+test "$(uname -m)" = "arm64"
 ```
-
-Bu paket M1, M2, M3 ve M4 Apple Silicon MacBook’lar için hedeflenmiştir. Intel Mac için ayrı x64 build istenirse ayrıca `macos-13` / x64 hedefli ikinci workflow eklenmelidir.
 
 ## Kurulum
 
 Windows:
 
 ```text
-Releases sayfasından codegaai-vX.Y.Z-windows.zip indir
+Releases sayfasından Windows ZIP indir
 D:\2-CODEGAAI\ altına çıkar
 codegaai.exe çalıştır
 ```
@@ -120,12 +175,12 @@ codegaai.exe çalıştır
 macOS Apple Silicon:
 
 ```text
-Releases sayfasından codegaai-vX.Y.Z-macos-arm64.zip indir
+Releases sayfasından macos-arm64 ZIP indir
 Arşivi çıkar
 dist/codegaai/codegaai çalıştır
 ```
 
-Geliştirici kurulumu:
+Geliştirici:
 
 ```bash
 git clone https://github.com/codegatr/codegaai.git
@@ -134,7 +189,7 @@ python -m pip install -r requirements.txt
 python launcher.py
 ```
 
-## Önemli API Grupları
+## API
 
 | Grup | Endpoint |
 | --- | --- |
@@ -145,10 +200,10 @@ python launcher.py
 | Görsel | `/api/vision/analyze`, `/api/vision/ocr` |
 | Dosya | `/api/files/upload`, `/api/files/pack`, `/api/files/project` |
 | Sandbox | `/api/sandbox/run`, `/api/sandbox/analyze` |
-| GitHub/Kod | `/api/codebase/*`, `/api/devtools/*`, `/api/powertools/*` |
+| Kod | `/api/codebase/*`, `/api/devtools/*`, `/api/powertools/*` |
 | Sistem | `/api/system/info`, `/api/system/health`, `/api/models/*` |
 
-## Güvenlik İlkeleri
+## Güvenlik
 
 - Token ve API key değerleri maskelenir.
 - `.env` ve gizli config içerikleri modele ham verilmez.
@@ -158,4 +213,16 @@ python launcher.py
 
 ## Lisans
 
-MIT License - Copyright 2026 CODEGA
+Bu proje MIT lisansı ile yayınlanır. Detaylar için [LICENSE](LICENSE) dosyasına bakın.
+
+---
+
+<p align="center">
+  <strong>CODEGA AI - yerel, hafızalı, araç kullanan ve federe ağ ile büyüyen otonom yapay zeka platformu.</strong>
+</p>
+
+<p align="center">
+  <a href="https://starchart.cc/codegatr/codegaai">
+    <img alt="Stargazers over time" src="https://starchart.cc/codegatr/codegaai.svg?variant=adaptive" />
+  </a>
+</p>
