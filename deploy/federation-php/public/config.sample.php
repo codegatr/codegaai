@@ -20,5 +20,11 @@ return [
 
     // Max knowledge items returned per node sync.
     'max_knowledge_items' => 50,
-];
 
+    // Basic abuse guard for public shared hosting coordinators.
+    'rate_limit_window_seconds' => 300,
+    'rate_limit_stats_per_window' => 120,
+
+    // Old event rows are pruned automatically to keep shared hosting small.
+    'event_retention_days' => 30,
+];

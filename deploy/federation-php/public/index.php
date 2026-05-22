@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 const APP_NAME = 'CODEGA AI Federation Coordinator';
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 const PROTOCOL_VERSION = 2;
 const PRIVACY_MODE = 'anonymous_topic_signals_only';
 const MIN_TOPIC_QUALITY = 0.45;
@@ -84,12 +84,15 @@ function migrate(PDO $db): void
           id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
           item_id CHAR(64) NOT NULL,
           origin_hash VARCHAR(16) NOT NULL,
+          topic_key CHAR(24) DEFAULT NULL,
           topic VARCHAR(160) NOT NULL,
           body TEXT NOT NULL,
+          quality DECIMAL(5,3) NOT NULL DEFAULT 0.000,
           active TINYINT(1) NOT NULL DEFAULT 1,
           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           PRIMARY KEY (id),
           UNIQUE KEY uq_federation_knowledge_item (item_id),
+          KEY idx_federation_knowledge_topic (topic_key),
           KEY idx_federation_knowledge_created (created_at),
           KEY idx_federation_knowledge_origin (origin_hash)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -105,6 +108,33 @@ function migrate(PDO $db): void
           KEY idx_federation_events_created (created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
+    ensure_column($db, 'federation_knowledge', 'topic_key', "ALTER TABLE federation_knowledge ADD COLUMN topic_key CHAR(24) DEFAULT NULL AFTER origin_hash");
+    ensure_column($db, 'federation_knowledge', 'quality', "ALTER TABLE federation_knowledge ADD COLUMN quality DECIMAL(5,3) NOT NULL DEFAULT 0.000 AFTER body");
+    ensure_index($db, 'federation_knowledge', 'idx_federation_knowledge_topic', "ALTER TABLE federation_knowledge ADD INDEX idx_federation_knowledge_topic (topic_key)");
+}
+
+function ensure_column(PDO $db, string $table, string $column, string $sql): void
+{
+    $stmt = $db->prepare("
+        SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?
+    ");
+    $stmt->execute([$table, $column]);
+    if ((int)$stmt->fetchColumn() === 0) {
+        $db->exec($sql);
+    }
+}
+
+function ensure_index(PDO $db, string $table, string $index, string $sql): void
+{
+    $stmt = $db->prepare("
+        SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?
+    ");
+    $stmt->execute([$table, $index]);
+    if ((int)$stmt->fetchColumn() === 0) {
+        $db->exec($sql);
+    }
 }
 
 function route_path(): string
@@ -218,6 +248,36 @@ function active_peer_count(PDO $db, array $config): int
     return (int)$stmt->fetchColumn();
 }
 
+function log_event(PDO $db, string $eventType, ?string $nodeLabel, string $message = ''): void
+{
+    $stmt = $db->prepare("INSERT INTO federation_events (event_type, node_label, message, created_at) VALUES (?, ?, ?, UTC_TIMESTAMP())");
+    $stmt->execute([substr($eventType, 0, 32), $nodeLabel, substr($message, 0, 255)]);
+}
+
+function prune_old_events(PDO $db, array $config): int
+{
+    $days = max(1, (int)($config['event_retention_days'] ?? 30));
+    $stmt = $db->prepare("DELETE FROM federation_events WHERE created_at < DATE_SUB(UTC_TIMESTAMP(), INTERVAL ? DAY)");
+    $stmt->execute([$days]);
+    return $stmt->rowCount();
+}
+
+function enforce_rate_limit(PDO $db, array $config, string $ipHash): void
+{
+    $window = max(30, (int)($config['rate_limit_window_seconds'] ?? 300));
+    $limit = max(10, (int)($config['rate_limit_stats_per_window'] ?? 120));
+    $stmt = $db->prepare("
+        SELECT COUNT(*) FROM federation_events
+        WHERE event_type = 'stats'
+          AND message = ?
+          AND created_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL ? SECOND)
+    ");
+    $stmt->execute([$ipHash, $window]);
+    if ((int)$stmt->fetchColumn() >= $limit) {
+        fail('rate limit exceeded', 429);
+    }
+}
+
 function handle_stats(PDO $db, array $config): never
 {
     $payload = body_json();
@@ -228,6 +288,9 @@ function handle_stats(PDO $db, array $config): never
     $topicHashes = array_values(array_slice((array)($data['topic_hashes'] ?? []), 0, 50));
     $ip = $_SERVER['REMOTE_ADDR'] ?? '';
     $ipHash = $ip ? hash('sha256', $ip . ':' . (string)$config['admin_token']) : null;
+    if ($ipHash) {
+        enforce_rate_limit($db, $config, $ipHash);
+    }
 
     $stmt = $db->prepare("
         INSERT INTO federation_nodes
@@ -266,8 +329,8 @@ function handle_stats(PDO $db, array $config): never
     $topics = array_values(array_unique(array_filter(array_map('sanitize_topic', (array)($data['topic_summaries'] ?? [])))));
     $insert = $db->prepare("
         INSERT IGNORE INTO federation_knowledge
-          (item_id, origin_hash, topic, body, created_at)
-        VALUES (?, ?, ?, ?, UTC_TIMESTAMP())
+          (item_id, origin_hash, topic_key, topic, body, quality, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())
     ");
     foreach (array_slice($topics, 0, 20) as $topic) {
         $quality = topic_quality($topic);
@@ -275,9 +338,13 @@ function handle_stats(PDO $db, array $config): never
             continue;
         }
         $itemId = hash('sha256', $label . ':' . utf8_lower($topic));
+        $key = topic_key($topic);
         $body = "Federated learning signal: another CODEGA AI node learned about '{$topic}'. Prioritize local web/RAG learning for this topic.";
-        $insert->execute([$itemId, $label, $topic, $body]);
+        $insert->execute([$itemId, $label, $key, $topic, $body, $quality]);
         $created += $insert->rowCount() > 0 ? 1 : 0;
+    }
+    if ($ipHash) {
+        log_event($db, 'stats', $label, $ipHash);
     }
 
     json_response([
@@ -300,15 +367,17 @@ function handle_knowledge(PDO $db, array $config): never
     $stmt = $db->prepare("
         SELECT
           MIN(item_id) AS item_id,
+          COALESCE(MIN(topic_key), SUBSTRING(SHA2(LOWER(MIN(topic)), 256), 1, 24)) AS topic_key,
           MIN(topic) AS topic,
           GROUP_CONCAT(DISTINCT origin_hash ORDER BY origin_hash SEPARATOR ',') AS peer_hashes,
           COUNT(DISTINCT origin_hash) AS source_count,
+          MAX(quality) AS stored_quality,
           MAX(UNIX_TIMESTAMP(created_at)) AS ts
         FROM federation_knowledge
         WHERE active = 1
           AND UNIX_TIMESTAMP(created_at) > ?
           AND (? = '' OR origin_hash <> ?)
-        GROUP BY LOWER(topic)
+        GROUP BY COALESCE(topic_key, LOWER(topic))
         ORDER BY MAX(created_at) ASC
         LIMIT {$limit}
     ");
@@ -316,13 +385,13 @@ function handle_knowledge(PDO $db, array $config): never
     $items = [];
     foreach ($stmt->fetchAll() as $row) {
         $topic = (string)$row['topic'];
-        $quality = topic_quality($topic);
+        $quality = max(topic_quality($topic), (float)($row['stored_quality'] ?? 0));
         if ($quality < MIN_TOPIC_QUALITY) {
             continue;
         }
         $sourceCount = max(1, (int)$row['source_count']);
         $items[] = [
-            'id' => topic_key($topic),
+            'id' => $row['topic_key'] ?: topic_key($topic),
             'text' => "Federated learning signal: CODEGA AI network observed {$sourceCount} node(s) learning about '{$topic}'. Prioritize local web/RAG verification for this topic before using it in answers.",
             'topic' => $topic,
             'peer_hash' => $row['peer_hashes'],
@@ -340,6 +409,24 @@ function handle_knowledge(PDO $db, array $config): never
         'protocol_version' => PROTOCOL_VERSION,
         'privacy_mode' => PRIVACY_MODE,
     ]);
+}
+
+function coordinator_metrics(PDO $db, array $config): array
+{
+    $activePeers = active_peer_count($db, $config);
+    $nodeCount = (int)$db->query("SELECT COUNT(*) FROM federation_nodes")->fetchColumn();
+    $knowledgeCount = (int)$db->query("SELECT COUNT(*) FROM federation_knowledge WHERE active=1")->fetchColumn();
+    $topicCount = (int)$db->query("SELECT COUNT(DISTINCT COALESCE(topic_key, LOWER(topic))) FROM federation_knowledge WHERE active=1")->fetchColumn();
+    $lastSync = $db->query("SELECT MAX(last_seen) FROM federation_nodes")->fetchColumn() ?: null;
+    return [
+        'active_peers' => $activePeers,
+        'total_nodes' => $nodeCount,
+        'knowledge_signals' => $knowledgeCount,
+        'unique_topics' => $topicCount,
+        'last_node_seen' => $lastSync,
+        'protocol_version' => PROTOCOL_VERSION,
+        'privacy_mode' => PRIVACY_MODE,
+    ];
 }
 
 function handle_nodes(PDO $db, array $config): never
@@ -381,13 +468,13 @@ function handle_admin(PDO $db, array $config): never
     $nodeCount = (int)$db->query("SELECT COUNT(*) FROM federation_nodes")->fetchColumn();
     $knowledgeCount = (int)$db->query("SELECT COUNT(*) FROM federation_knowledge WHERE active=1")->fetchColumn();
     $nodes = $db->query("SELECT node_label, version, last_seen, conversation_count, feedback_total, adapter_count FROM federation_nodes ORDER BY last_seen DESC LIMIT 50")->fetchAll();
-    $knowledge = $db->query("SELECT topic, origin_hash, created_at FROM federation_knowledge WHERE active=1 ORDER BY created_at DESC LIMIT 50")->fetchAll();
+    $knowledge = $db->query("SELECT topic, origin_hash, quality, created_at FROM federation_knowledge WHERE active=1 ORDER BY created_at DESC LIMIT 50")->fetchAll();
 
     header('Content-Type: text/html; charset=utf-8');
     echo '<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">';
     echo '<title>CODEGA Federation Admin</title>';
     echo '<style>body{margin:0;font-family:system-ui;background:#0b0d10;color:#eef2f7}main{max-width:1100px;margin:0 auto;padding:32px}h1{margin:0 0 24px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.card,table{background:#151922;border:1px solid #2a3140;border-radius:8px}.card{padding:18px}.num{font-size:32px;color:#f59e0b;font-weight:800}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{text-align:left;padding:10px;border-bottom:1px solid #2a3140}th{color:#94a3b8}.muted{color:#94a3b8}</style>';
-    echo '<main><h1>CODEGA AI Federation Admin</h1><div class="grid">';
+    echo '<main><h1>CODEGA AI Federation Admin</h1><p class="muted">Protocol v' . PROTOCOL_VERSION . ' · ' . htmlspecialchars(PRIVACY_MODE) . '</p><div class="grid">';
     echo '<div class="card"><div class="muted">Active peers</div><div class="num">' . $peerCount . '</div></div>';
     echo '<div class="card"><div class="muted">Total nodes</div><div class="num">' . $nodeCount . '</div></div>';
     echo '<div class="card"><div class="muted">Knowledge signals</div><div class="num">' . $knowledgeCount . '</div></div>';
@@ -395,9 +482,9 @@ function handle_admin(PDO $db, array $config): never
     foreach ($nodes as $n) {
         echo '<tr><td>' . htmlspecialchars($n['node_label']) . '</td><td>' . htmlspecialchars($n['version']) . '</td><td>' . htmlspecialchars($n['last_seen']) . '</td><td>' . (int)$n['conversation_count'] . '</td><td>' . (int)$n['feedback_total'] . '</td><td>' . (int)$n['adapter_count'] . '</td></tr>';
     }
-    echo '</table><h2>Recent knowledge</h2><table><tr><th>Topic</th><th>Origin</th><th>Created</th></tr>';
+    echo '</table><h2>Recent knowledge</h2><table><tr><th>Topic</th><th>Origin</th><th>Quality</th><th>Created</th></tr>';
     foreach ($knowledge as $k) {
-        echo '<tr><td>' . htmlspecialchars($k['topic']) . '</td><td>' . htmlspecialchars($k['origin_hash']) . '</td><td>' . htmlspecialchars($k['created_at']) . '</td></tr>';
+        echo '<tr><td>' . htmlspecialchars($k['topic']) . '</td><td>' . htmlspecialchars($k['origin_hash']) . '</td><td>' . htmlspecialchars((string)$k['quality']) . '</td><td>' . htmlspecialchars($k['created_at']) . '</td></tr>';
     }
     echo '</table></main>';
     exit;
@@ -417,6 +504,7 @@ try {
             'version' => APP_VERSION,
             'protocol_version' => PROTOCOL_VERSION,
             'privacy_mode' => PRIVACY_MODE,
+            'metrics' => coordinator_metrics($db, $config),
         ]);
     }
     if ($route === '/capabilities') {
@@ -427,6 +515,13 @@ try {
             'never_shares' => ['raw chat text', 'files', 'API keys or tokens', 'local paths', 'full node id'],
             'quality_gate' => ['min_topic_quality' => MIN_TOPIC_QUALITY],
         ]);
+    }
+    if ($route === '/metrics') {
+        json_response(coordinator_metrics($db, $config));
+    }
+    if ($route === '/admin/prune') {
+        require_admin($config);
+        json_response(['ok' => true, 'deleted_events' => prune_old_events($db, $config)]);
     }
     if ($route === '/stats' || $route === '/coordinator/stats') {
         handle_stats($db, $config);

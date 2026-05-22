@@ -23,12 +23,15 @@ CREATE TABLE IF NOT EXISTS federation_knowledge (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   item_id CHAR(64) NOT NULL,
   origin_hash VARCHAR(16) NOT NULL,
+  topic_key CHAR(24) DEFAULT NULL,
   topic VARCHAR(160) NOT NULL,
   body TEXT NOT NULL,
+  quality DECIMAL(5,3) NOT NULL DEFAULT 0.000,
   active TINYINT(1) NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_federation_knowledge_item (item_id),
+  KEY idx_federation_knowledge_topic (topic_key),
   KEY idx_federation_knowledge_created (created_at),
   KEY idx_federation_knowledge_origin (origin_hash)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -42,4 +45,3 @@ CREATE TABLE IF NOT EXISTS federation_events (
   PRIMARY KEY (id),
   KEY idx_federation_events_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-

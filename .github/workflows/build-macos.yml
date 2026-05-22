@@ -16,8 +16,8 @@ permissions:
 
 jobs:
   build-macos:
-    name: Build macOS portable
-    runs-on: macos-latest
+    name: Build macOS Apple Silicon portable
+    runs-on: macos-15
     timeout-minutes: 60
 
     steps:
@@ -32,6 +32,9 @@ jobs:
 
       - name: Print versions
         run: |
+          uname -a
+          uname -m
+          test "$(uname -m)" = "arm64"
           python --version
           pip --version
 
@@ -99,7 +102,7 @@ jobs:
         id: zip
         run: |
           tag="${{ steps.version.outputs.tag }}"
-          zip_name="codegaai-$tag-macos.zip"
+          zip_name="codegaai-$tag-macos-arm64.zip"
           ditto -c -k --sequesterRsrc --keepParent dist/codegaai "$zip_name"
           ls -lh "$zip_name"
           echo "zip_name=$zip_name" >> "$GITHUB_OUTPUT"

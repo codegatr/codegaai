@@ -1,222 +1,161 @@
-<div align="center">
-  <img src="https://raw.githubusercontent.com/codegatr/codegaai/main/codegaai/ui/web/assets/codega_logo.png" 
-       width="480" alt="CODEGA AI — Powering Innovation" style="border-radius:12px">
+# CODEGA AI
 
-  <h1>CODEGA AI</h1>
-  <p><strong>Türkiye'nin Yerel, Otonom & Ücretsiz Yapay Zeka Asistanı</strong></p>
+**CODEGA AI**, hafızalı ve araç kullanabilen otonom dijital personel platformudur. Amaç tek bir yerel modeli “her şeyi bilir” gibi göstermek değil; yerel modelleri, güçlü bulut modellerini, RAG hafızasını, dosya/terminal/GitHub araçlarını ve güvenli federe ağı tek bir ajan omurgasında birleştirmektir.
 
-  <p>
-    <img src="https://img.shields.io/badge/versiyon-v3.3.0-orange" alt="v3.3.0">
-    <img src="https://img.shields.io/badge/python-3.12-blue" alt="Python 3.12">
-    <img src="https://img.shields.io/badge/platform-Windows-lightgrey" alt="Windows">
-    <img src="https://img.shields.io/badge/lisans-MIT-green" alt="MIT">
-    <img src="https://img.shields.io/badge/endpoints-30%2B-purple" alt="30+ API">
-    <img src="https://img.shields.io/badge/rakip-ChatGPT%20%7C%20Gemini%20%7C%20Claude%20%7C%20CODEX-red" alt="Rakipler">
-  </p>
+## Güncel Durum
 
-  <p>
-    <a href="https://codega.com.tr">🌐 codega.com.tr</a> ·
-    <a href="https://github.com/codegatr/codegaai/releases">⬇️ İndir</a> ·
-    <a href="#api">📡 API</a> ·
-    <a href="#harita">🗺️ Yol Haritası</a>
-  </p>
-</div>
+- Sürüm: `v4.3.8`
+- Platform: Windows portable, macOS Apple Silicon portable
+- Backend: Python FastAPI
+- UI: PyWebView + web arayüzü
+- Yerel motor: Qwen / llama.cpp GGUF
+- Hafıza: SQLite + RAG/ChromaDB + proje beyni
+- Federe ağ: `https://ai.codega.com.tr/api/federation`
 
----
+## Temel Yetenekler
 
-## 🧠 Nedir?
+- Çoklu model orkestrasyonu: GPT-5, GPT-4.1, Claude, Gemini, Qwen, Whisper, BGE-M3 ve yerel vision sağlayıcıları için provider manifest.
+- Agent OS planner: mesajdan niyet, uzman, model zinciri, araç seti, proje hafızası ve doğrulama adımlarını çıkarır.
+- Project Brain: CODEGA AI, CODEGA ERP, cMiner, Tekcan Metal gibi projeler için ayrı hafıza kapsamı.
+- Araç kullanımı: web araştırması, RAG hatırlama, görsel analiz, OCR, Python sandbox, dosya/ZIP üretimi, GitHub akışları.
+- Otonom öğrenme: web kaynaklarını puanlayarak özetler, embedding üretir ve hafızaya alır.
+- Federe öğrenme ağı: ham sohbet veya dosya göndermeden anonim konu sinyali, kalite puanı, kaynak sayısı ve güven skoru paylaşır.
+- Güncelleme sistemi: GitHub release kontrolü, portable build ve yeniden başlatma akışı.
+- Multimodal giriş: görsel, ekran görüntüsü, OCR, ses ve video altyapısı.
 
-**CODEGA AI**; tamamen **yerel** çalışan, **internet bağlantısı gerektirmeyen**, kendi kendine öğrenen masaüstü yapay zeka platformudur. ChatGPT, Gemini, Claude ve CODEX'in sahip olduğu özelliklerin büyük çoğunluğunu **ücretsiz ve gizlilik odaklı** sunar.
+## Agent OS Katmanları
 
-| | ChatGPT | Gemini | CODEX | Claude | **CODEGA** |
-|--|:--:|:--:|:--:|:--:|:--:|
-| Yerel / Offline | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Gizlilik | ❌ Bulut | ❌ Bulut | ❌ Bulut | ❌ Bulut | ✅ Tam Yerel |
-| Otonom Öğrenme | ❌ | ❌ | ❌ | ❌ | ✅ Benzersiz |
-| Self-Learning/DPO | ❌ | ❌ | ❌ | ❌ | ✅ Benzersiz |
-| Diffusion Fine-Tune | ❌ | ❌ | ❌ | ❌ | ✅ Benzersiz |
-| Çoklu Model Orkestrasyon | ❌ | ❌ | ❌ | ❌ | ✅ Benzersiz |
-| **Ücret** | $20/ay | $20/ay | Kurumsal | $20/ay | ✅ **Ücretsiz** |
+CODEGA AI artık klasik chatbot olarak değil, şu katmanları olan ajan işletim sistemi olarak tasarlanır:
 
----
+1. Çoklu model sistemi
+2. Gerçek hafıza ve proje beyni
+3. Kendini geliştirme ve feedback hafızası
+4. Araç kullanımı
+5. Planner + Executor döngüsü
+6. Uzman AI modları
+7. Kod tabanı okuma
+8. Test etme ve kendini düzeltme
+9. Prompt mühendisliği motoru
+10. Session + Project Brain izolasyonu
+11. Kaynak puanlı gerçek zamanlı öğrenme
+12. Sandbox VM / güvenli komut yürütme
+13. Görsel, ses ve video anlama
+14. Kontrollü deployment
+15. AI Operating System yaklaşımı
 
-## ✅ Tamamlanan Fazlar
+Manifest endpoint’i:
 
-### Faz 1–8: Temel Altyapı
-- [x] **Faz 1** — Python/FastAPI/PyWebView masaüstü iskelet
-- [x] **Faz 2** — Dark theme UI, sohbet geçmişi, SQLite
-- [x] **Faz 3** — llama.cpp LLM motoru, Qwen 3B/7B, RAG (ChromaDB)
-- [x] **Faz 4** — SDXL/FLUX görsel üretimi
-- [x] **Faz 5** — Faster-Whisper ASR + Piper TTS ses motoru
-- [x] **Faz 6** — CogVideoX video üretimi ve analizi
-- [x] **Faz 7** — Self-Learning: 👍/👎 feedback → DPO/LoRA eğitimi
-- [x] **Faz 8** — PyInstaller `.exe`, GitHub Smart Update, kurulum sihirbazı
-
-### Faz 9–16: Zeka & Entegrasyon
-- [x] **Faz 9** — Constitutional AI, Chain of Thought (CoT) reasoning
-- [x] **Faz 10** — İnternet öğrenmesi: Wikipedia/ArXiv/HackerNews/StackOverflow/GitHub
-- [x] **Faz 11** — Vision + OCR: moondream2, LLaVA, EasyOCR
-- [x] **Faz 12** — Federe ağ: ai.codega.com.tr koordinatörü
-- [x] **Faz 13** — Otonom öğrenme: idle'da ChromaDB'ye yazar, RAG bağlamı
-- [x] **Faz 14** — ZIP upload/download, PHP proje üretici (config+SQL+htaccess)
-- [x] **Faz 15** — GitHub push + PR oluşturma
-- [x] **Faz 16** — AgentBrain: intent tespiti, araç yönlendirme
-
-### Faz 17–25: Rakip Özellikleri
-- [x] **Faz 17** — Canvas/Artifact: HTML/JS canlı önizleme + Python sandbox
-- [x] **Faz 18** — PDF okuma (PyMuPDF/pdfplumber), CSV/Excel analizi (pandas)
-- [x] **Faz 19** — Derin düşünme modu (o1/o3 karşılığı, CoT görünür)
-- [x] **Faz 20** — Çok adımlı ajan: planla → web arama → kod çalıştır → dosya yaz → push
-- [x] **Faz 21** — Bağımlılık analizi: requirements.txt/package.json güvenlik taraması
-- [x] **Faz 22** — Gerçek zamanlı ses sohbeti: Mikrofon→ASR→LLM→TTS→ses döngüsü
-- [x] **Faz 23** — Ekran görüntüsü anlama: UI/belge/kod analizi, OCR kod çıkarma
-- [x] **Faz 24** — Diffusion fine-tuning: DreamBooth + Textual Inversion (LoRA)
-- [x] **Faz 25** — Çoklu model orkestrasyon: auto/vote/chain modları
-
----
-
-## ⏳ Bekleyen Fazlar
-
-### Faz 26: Wake Word ✅
-- OpenWakeWord / Porcupine / Whisper keyword fallback
-- GET/POST /api/wakeword/start|stop|status|deps
-
-### Faz 27: Plugin Sistemi ✅
-- plugins/ dizini: manifest.json + handler.py
-- Yerleşik: Hava durumu (wttr.in) + Hesap makinesi
-- POST /api/plugins/install — URL'den kur
-
-### Faz 28: Çeviri Sistemi ✅
-- Helsinki-NLP → LLM fallback
-- TR↔EN↔DE↔FR↔AR gerçek zamanlı
-- POST /api/translate/text|document
-
-### Faz 29: Takvim & Görevler ✅
-- Lokal SQLite, etkinlik+görev yönetimi
-- AI ile metinden çıkarma
-- POST /api/calendar/events|tasks|extract
-
-### Faz 30: Mobil API & QR ✅
-- GET /api/mobile/status — yerel IP
-- GET /api/mobile/qr — QR kod PNG
-
-### Faz 31: Canlı Ekran Paylaşımı ✅
-- mss + PIL ile ekran yakalama
-- Vision motoru ile analiz
-- POST /api/screen/capture|watch|stop
-
-### Faz 32: GPU Hızlandırma ✅
-- CUDA tespit, VRAM bilgisi, hız testi
-- GPU katman sayısı ayarı
-- GET /api/gpu/status|benchmark|vram
-
----
-
-## 🚀 Kurulum
-
-```bash
-# 1. Releases'tan indir
-# https://github.com/codegatr/codegaai/releases/latest
-
-# 2. D:\2-CODEGAAI\ klasörüne çıkart
-
-# 3. codegaai.exe çalıştır
-#    → Kurulum sihirbazı: disk seç → Qwen 3B indir → başla
+```text
+GET /api/orchestrate/agent-os
 ```
 
-### Manuel (Geliştirici)
+Planlama endpoint’i:
+
+```text
+POST /api/orchestrate/plan
+```
+
+Örnek plan çıktısı; uzman profili, model zinciri, araçlar, proje beyni, öğrenme politikası ve doğrulama adımlarını içerir.
+
+## Federe Ağ
+
+CODEGA AI kurulu her bilgisayar, isteğe bağlı olarak federe ağa katılabilir. Ağın hedefi cihazların öğrendiği konu sinyallerini birleştirip diğer cihazlara “şunu yerel olarak doğrula ve öğren” yönlendirmesi vermektir.
+
+Federe ağ gizlilik sözleşmesi:
+
+- Ham sohbet gönderilmez.
+- Dosya gönderilmez.
+- API key, token, `.env`, local path ve tam node ID gönderilmez.
+- Yalnızca anonim sayaçlar ve temizlenmiş konu sinyalleri gönderilir.
+- Konular kalite filtresinden geçer.
+- Aynı konuyu birden çok node öğrenirse `source_count` ve `confidence` artar.
+
+DirectAdmin/PHP koordinatör endpoint’leri:
+
+```text
+GET  /api/federation/health
+GET  /api/federation/capabilities
+GET  /api/federation/metrics
+POST /api/federation/stats
+GET  /api/federation/knowledge
+GET  /api/federation/nodes
+GET  /api/federation/admin?token=...
+GET  /api/federation/admin/prune?token=...
+```
+
+Sunucu kurulumu:
+
+```text
+deploy/federation-php/public/
+```
+
+klasörünü DirectAdmin üzerinde `public_html/api/federation/` altına yükleyin, `config.sample.php` dosyasını `config.php` yapıp veritabanı bilgilerini girin.
+
+## macOS Apple Silicon
+
+macOS workflow açıkça Apple Silicon hedefler:
+
+```yaml
+runs-on: macos-15
+```
+
+Workflow `uname -m` sonucunun `arm64` olduğunu doğrular ve release dosyasını şu formatta üretir:
+
+```text
+codegaai-vX.Y.Z-macos-arm64.zip
+```
+
+Bu paket M1, M2, M3 ve M4 Apple Silicon MacBook’lar için hedeflenmiştir. Intel Mac için ayrı x64 build istenirse ayrıca `macos-13` / x64 hedefli ikinci workflow eklenmelidir.
+
+## Kurulum
+
+Windows:
+
+```text
+Releases sayfasından codegaai-vX.Y.Z-windows.zip indir
+D:\2-CODEGAAI\ altına çıkar
+codegaai.exe çalıştır
+```
+
+macOS Apple Silicon:
+
+```text
+Releases sayfasından codegaai-vX.Y.Z-macos-arm64.zip indir
+Arşivi çıkar
+dist/codegaai/codegaai çalıştır
+```
+
+Geliştirici kurulumu:
+
 ```bash
 git clone https://github.com/codegatr/codegaai.git
 cd codegaai
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 python launcher.py
 ```
 
----
+## Önemli API Grupları
 
-## 🗺️ Dizin Yapısı {#harita}
+| Grup | Endpoint |
+| --- | --- |
+| Sohbet | `/api/jobs/chat`, `/api/stream/chat` |
+| Hafıza | `/api/memory/search`, `/api/memory/learn`, `/api/memory/ensure-embedding` |
+| Orkestrasyon | `/api/orchestrate/platform`, `/api/orchestrate/agent-os`, `/api/orchestrate/plan` |
+| Federe Ağ | `/api/federation/status`, `/api/federation/sync`, `/api/federation/capabilities` |
+| Görsel | `/api/vision/analyze`, `/api/vision/ocr` |
+| Dosya | `/api/files/upload`, `/api/files/pack`, `/api/files/project` |
+| Sandbox | `/api/sandbox/run`, `/api/sandbox/analyze` |
+| GitHub/Kod | `/api/codebase/*`, `/api/devtools/*`, `/api/powertools/*` |
+| Sistem | `/api/system/info`, `/api/system/health`, `/api/models/*` |
 
-```
-D:\2-CODEGAAI\
-├── codegaai.exe
-├── CODEGA_Models\llm\          ← GGUF model dosyaları
-└── CODEGA_Data\
-    └── memory\
-        ├── chats.db            ← Sohbet geçmişi
-        ├── user_profile.json   ← Uzun dönem bellek
-        └── chroma\             ← RAG vektör veritabanı
-```
+## Güvenlik İlkeleri
 
----
+- Token ve API key değerleri maskelenir.
+- `.env` ve gizli config içerikleri modele ham verilmez.
+- Riskli araçlar onay politikasıyla ayrılır.
+- İnternetten gelen içerik doğrudan komut olarak çalıştırılmaz.
+- Federe ağ yalnızca anonim ve kalite filtresinden geçmiş sinyal taşır.
 
-## 📡 API Endpoint'leri {#api}
+## Lisans
 
-<details>
-<summary><strong>30+ endpoint — genişlet</strong></summary>
-
-| Grup | Method | Endpoint | Açıklama |
-|------|--------|----------|----------|
-| **Sohbet** | POST | /api/jobs/chat | LLM sohbet (job polling) |
-| | GET | /api/jobs/{id} | Yanıt durumu + içerik |
-| **Dosya** | POST | /api/files/upload | ZIP/dosya yükle → AI bağlamı |
-| | POST | /api/files/project | PHP projesi üret + ZIP |
-| | POST | /api/files/pack | Cevaptaki kodları ZIP yap |
-| | GET | /api/files/download/{id} | ZIP indir |
-| | POST | /api/files/read-pdf | PDF → metin |
-| | POST | /api/files/github/push | GitHub'a dosya push |
-| | POST | /api/files/github/pr | PR oluştur |
-| | POST | /api/files/generate/tests | PHPUnit/pytest/Jest test yaz |
-| **Sandbox** | POST | /api/sandbox/run | Python güvenli çalıştır |
-| | POST | /api/sandbox/chart | matplotlib grafik üret |
-| | POST | /api/sandbox/analyze | CSV/Excel pandas analizi |
-| | POST | /api/sandbox/deps | Bağımlılık güvenlik taraması |
-| **Ajan** | POST | /api/agent/start | Çok adımlı ajan başlat |
-| | GET | /api/agent/{id} | Ajan adım durumu |
-| **Vision** | POST | /api/vision/screenshot | Ekran/görsel analizi |
-| | POST | /api/vision/screenshot/code | Görselden kod çıkar |
-| **Ses** | POST | /api/audio/voice-chat | Tam ses sohbet döngüsü |
-| | POST | /api/audio/tts | Metin → ses |
-| | POST | /api/audio/asr | Ses → metin |
-| | GET | /api/audio/stream-tts | Streaming WAV |
-| **Fine-tune** | POST | /api/finetune/upload | Görsel yükle |
-| | POST | /api/finetune/dreambooth | DreamBooth eğitimi |
-| | POST | /api/finetune/textual | Textual Inversion |
-| | GET | /api/finetune/status | Eğitim ilerlemesi |
-| **Orkestrasyon** | POST | /api/orchestrate/auto | En iyi modeli seç |
-| | POST | /api/orchestrate/vote | 3 yanıt → en iyi |
-| | POST | /api/orchestrate/chain | Model zinciri |
-| | GET | /api/orchestrate/models | Aktif modeller |
-| **Sistem** | GET | /api/system/health | Sistem durumu |
-| | GET | /api/models/llm | Model listesi |
-| **Bellek** | GET | /api/memory/search | RAG arama |
-| | POST | /api/memory/learn | Bilgi ekle |
-| **Öğrenme** | GET | /api/autolearn/status | Otonom öğrenme durumu |
-| | POST | /api/autolearn/trigger | Hemen öğren |
-| **Profil** | GET | /api/profile | Kullanıcı profili |
-| | PATCH | /api/profile | Profil güncelle |
-
-</details>
-
----
-
-## 🔧 Sorun Giderme
-
-| Sorun | Çözüm |
-|-------|-------|
-| `llama.dll yüklenemedi` | `fix_llama.bat` çalıştır |
-| Model çok yavaş | Qwen 3B kullan (CPU için) |
-| Embedding yüklenmiyor | Ayarlar → HF Token gir |
-| Vision çalışmıyor | `pip install einops torchvision` |
-| DPO butonu gri | `pip install peft trl datasets` |
-
----
-
-## 📜 Lisans
-
-MIT License — © 2026 CODEGA Yazılım Ajansı, Yunus Aksoy — Konya, Türkiye
-
----
-
-<div align="center">
-  <p>🇹🇷 <strong>Türkiye'nin Yerel Yapay Zekası — Buluta Sızdırmaz, Bedava Çalışır</strong> 🇹🇷</p>
-</div>
+MIT License - Copyright 2026 CODEGA
