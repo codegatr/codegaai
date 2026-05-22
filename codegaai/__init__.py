@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "4.4.1"
-__phase__ = "v4.4.1 - Futuristic Shell Polish"
+__version__ = "4.4.2"
+__phase__ = "v4.4.2 - Fast Response Mode"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

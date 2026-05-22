@@ -543,9 +543,10 @@ const Chat = (() => {
       body: JSON.stringify({
         message: text,
         chat_id: state.chatId,
-        max_tokens: (_thinkMode ? 1024 : 512),
+        max_tokens: (_thinkMode ? 1024 : (_speedMode ? 384 : 512)),
         file_context: _pendingFileContext || "",
         deep_think: !!_thinkMode,
+        speed_mode: !!_speedMode,
       }),
     });
     const startData = await startResp.json();
@@ -1006,6 +1007,18 @@ window.packAndDownload = async function(text, projectName) {
 // ── Derin Düşünme & Ajan Modu ────────────────────────────────────────────
 let _thinkMode = false;
 let _agentMode = false;
+let _speedMode = true;
+
+window.toggleSpeedMode = function() {
+  _speedMode = !_speedMode;
+  const btn = document.getElementById("speed-toggle");
+  if (btn) {
+    btn.style.background = _speedMode ? "rgba(0, 194, 168, .14)" : "none";
+    btn.style.borderColor = _speedMode ? "rgba(0, 194, 168, .5)" : "var(--color-border)";
+    btn.style.color = _speedMode ? "var(--color-success)" : "var(--color-text-muted)";
+    btn.textContent = _speedMode ? "⚡ Hızlı" : "⚡ Dengeli";
+  }
+};
 
 window.toggleThinkMode = function() {
   _thinkMode = !_thinkMode;

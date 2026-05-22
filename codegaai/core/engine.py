@@ -231,8 +231,10 @@ class LLMEngine:
                 return   # crash olmadan çık
 
             # Düşük sistem parametreleri
+            import os
+            cpu_count = os.cpu_count() or 4
             n_batch = 128 if low_end else 512
-            n_threads = 2 if low_end else None
+            n_threads = 2 if low_end else max(2, min(cpu_count - 1, 8))
 
             self._llm = Llama(
                 model_path=str(path),

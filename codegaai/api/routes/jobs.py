@@ -351,12 +351,14 @@ async def _maybe_web_search(message: str) -> str:
 
 class ChatJob:
     def __init__(self, job_id: str, message: str, chat_id: Optional[int],
-                 max_tokens: int, file_context: str = "", deep_think: bool = False):
+                 max_tokens: int, file_context: str = "", deep_think: bool = False,
+                 speed_mode: bool = True):
         self.job_id = job_id
         self.message = message
         self.chat_id = chat_id
         self.max_tokens = max_tokens
         self.file_context = file_context
+        self.speed_mode = speed_mode
         self.deep_think = deep_think   # o1/o3 tarzı CoT
         self.thought = ""              # İç düşünce (kullanıcıya gösterilebilir)
         self.status = "pending"
@@ -392,6 +394,7 @@ class ChatJob:
                 "stage": self.stage,
                 "content": self.content,
                 "thought": self.thought,    # Derin düşünme içeriği
+                "speed_mode": self.speed_mode,
                 "error": self.error,
                 "done": self.status in ("done", "error"),
                 "elapsed_ms": int(elapsed * 1000),
@@ -426,10 +429,12 @@ async def _run_chat_job(job: ChatJob) -> None:
 
         # Akıllı max_tokens: kısa sorulara kısa cevap (hız için)
         msg_len = len(job.message.strip())
+        if job.speed_mode and not job.deep_think:
+            job.max_tokens = min(job.max_tokens, 384)
         if msg_len < 30:        # "Merhaba", "Nasılsın"
-            job.max_tokens = min(job.max_tokens, 128)
+            job.max_tokens = min(job.max_tokens, 96 if job.speed_mode else 128)
         elif msg_len < 80:       # Tek satır soru
-            job.max_tokens = min(job.max_tokens, 256)
+            job.max_tokens = min(job.max_tokens, 192 if job.speed_mode else 256)
         # Uzun soru / açıklama isteği → orijinal max_tokens kullan
 
         engine = LLMEngine.get()
@@ -437,7 +442,7 @@ async def _run_chat_job(job: ChatJob) -> None:
         if job.chat_id:
             try:
                 store = ChatStore.open()
-                msgs = store.get_messages(job.chat_id, limit=30)
+                msgs = store.get_messages(job.chat_id, limit=8 if job.speed_mode else 30)
                 for m in msgs:
                     history.append({"role": m["role"], "content": m["content"]})
             except Exception:
@@ -450,11 +455,15 @@ async def _run_chat_job(job: ChatJob) -> None:
             from codegaai.core.models_registry import ModelRegistry
 
             router = ModelRouter.get()
-            target_model = router.select_model(job.message, history=history)
+            registry = ModelRegistry.get()
+            target_model = None
+            if job.speed_mode and not job.deep_think and registry.is_llm_downloaded("qwen2.5-3b-instruct-q4_k_m"):
+                target_model = "qwen2.5-3b-instruct-q4_k_m"
+            else:
+                target_model = router.select_model(job.message, history=history)
             if target_model:
                 router.switch_model_if_needed(target_model)
             elif not engine.is_ready:
-                registry = ModelRegistry.get()
                 for model in registry.list_llm_models():
                     if registry.is_llm_downloaded(model["id"]):
                         engine.load(model["id"])
@@ -515,10 +524,10 @@ async def _run_chat_job(job: ChatJob) -> None:
                     if prev:
                         rag_query = f"{prev} {job.message}"
 
-                hits = mem.search(rag_query, n_results=5)
+                hits = mem.search(rag_query, n_results=2 if job.speed_mode else 5)
                 if hits:
                     # Skorla sırala, en alakalı 3'ü al
-                    top = sorted(hits, key=lambda h: h.get("score", 0), reverse=True)[:3]
+                    top = sorted(hits, key=lambda h: h.get("score", 0), reverse=True)[:1 if job.speed_mode else 3]
                     rag_text = "\n---\n".join(
                         f"[{h.get('metadata', {}).get('title', 'Bellek')}]\n{h.get('text', '')[:400]}"
                         for h in top
@@ -610,7 +619,7 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
             job.content = await _execute_inline_tools(job.content, job)
 
         # ── Self-Evaluation — Kısa/belirsiz yanıtları yeniden yaz ────
-        if _needs_retry(job.message, job.content):
+        if (not job.speed_mode) and _needs_retry(job.message, job.content):
             log.info("Self-eval: yanıt yetersiz, yeniden üretiliyor")
             job.set_stage("✏️ Yanıt iyileştiriliyor...")
 
@@ -672,6 +681,7 @@ class ChatJobRequest(BaseModel):
     max_tokens: int = 384   # v4.3.0: Daha hızlı yanıt için düşürüldü (eski 512)
     file_context: str = ""
     deep_think: bool = False   # o1/o3 modu — yanıt vermeden önce düşün
+    speed_mode: bool = True
 
 
 @router.post("/chat")
@@ -684,6 +694,7 @@ async def start_chat_job(req: ChatJobRequest) -> dict:
         max_tokens=req.max_tokens,
         file_context=req.file_context,
         deep_think=req.deep_think,
+        speed_mode=req.speed_mode,
     )
     _store_job(job)
 

@@ -345,6 +345,16 @@
                 <button type="button" onclick="removeChatFile()" style="border:none;background:none;cursor:pointer;color:var(--color-danger);font-size:14px">×</button>
               </div>
 
+              <!-- Hızlı Mod -->
+              <button type="button" id="speed-toggle"
+                title="Hızlı Mod — kısa görevlerde daha az bağlam, daha az token ve varsa 3B model kullanır"
+                onclick="toggleSpeedMode()"
+                style="padding:6px 10px;border:1px solid rgba(0,194,168,.5);border-radius:6px;
+                       background:rgba(0,194,168,.14);color:var(--color-success);font-size:12px;cursor:pointer;
+                       display:flex;align-items:center;gap:4px;white-space:nowrap">
+                ⚡ Hızlı
+              </button>
+
               <!-- Derin Düşünme Modu (o1/o3 karşılığı) -->
               <button type="button" id="think-toggle"
                 title="Derin Düşünme Modu — Yanıt vermeden önce adım adım düşünür"
