@@ -70,7 +70,10 @@ def test_advanced_tools_remain_reachable_from_command_center():
 
 def test_menu_buttons_are_wired_to_view_switcher():
     js = read(VIEWS)
-    assert ".app-menu-item[data-view]" in js
+    assert 'button[data-view]' in js
+    assert '".sidebar .nav-item"' in js
+    assert "sidebarGroups" in js
+    assert 'image: "tools"' in js
     assert "activate(btn.dataset.view)" in js
 
 
@@ -80,7 +83,23 @@ def test_shell_css_supports_menu_and_command_center():
         assert selector in css
 
 
+def test_settings_view_keeps_full_readable_content():
+    css = read(THEME)
+    assert '.view[data-view="settings"].active' in css
+    assert "display: block" in css
+    assert ".view[data-view=\"settings\"] .settings-group" in css
+    assert "overflow: visible" in css
+
+
+def test_chat_toolbar_uses_readable_tool_chips():
+    html = read(INDEX)
+    assert 'class="chat-toolbar"' in html
+    assert 'class="tool-chip toolbar-nav"' in html
+    for label in ["Görsel", "Canvas", "Ses", "Ekran", "Çeviri", "Bellek", "Öğrenme"]:
+        assert f"<span>{label}</span>" in html
+
+
 def test_version_marks_codex_shell_release():
     init = read(INIT)
-    assert '__version__ = "4.4.0"' in init
-    assert "Codex Shell Navigation" in init
+    assert '__version__ = "4.4.1"' in init
+    assert "Futuristic Shell Polish" in init

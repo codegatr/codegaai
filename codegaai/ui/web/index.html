@@ -188,30 +188,37 @@
           </span>
         </div>
         <!-- Hızlı erişim araç çubuğu (eski navbar öğeleri) -->
-        <div class="chat-toolbar" style="display:flex;gap:4px;align-items:center;margin-left:auto;flex-shrink:0">
-          <button class="icon-btn toolbar-nav" data-view="image" title="Görsel Üret">
+        <div class="chat-toolbar">
+          <button class="tool-chip toolbar-nav" data-view="image" title="Görsel Üret">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+            <span>Görsel</span>
           </button>
-          <button class="icon-btn toolbar-nav" data-view="canvas" title="Canvas / Artifact">
+          <button class="tool-chip toolbar-nav" data-view="canvas" title="Canvas / Artifact">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            <span>Canvas</span>
           </button>
-          <button class="icon-btn toolbar-nav" data-view="audio" title="Ses Sohbeti">
+          <button class="tool-chip toolbar-nav" data-view="audio" title="Ses Sohbeti">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8"/></svg>
+            <span>Ses</span>
           </button>
-          <button class="icon-btn toolbar-nav" data-view="vision" title="Vision / Ekran">
+          <button class="tool-chip toolbar-nav" data-view="vision" title="Vision / Ekran">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span>Ekran</span>
           </button>
-          <button class="icon-btn toolbar-nav" data-view="translate" title="Çeviri">
+          <button class="tool-chip toolbar-nav" data-view="translate" title="Çeviri">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+            <span>Çeviri</span>
           </button>
-          <div style="width:1px;height:16px;background:var(--color-border);margin:0 2px"></div>
-          <button class="icon-btn toolbar-nav" data-view="memory" title="Bellek">
+          <div class="toolbar-divider"></div>
+          <button class="tool-chip toolbar-nav" data-view="memory" title="Bellek">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg>
+            <span>Bellek</span>
           </button>
-          <button class="icon-btn toolbar-nav" data-view="autolearn" title="Öğrenme">
+          <button class="tool-chip toolbar-nav" data-view="autolearn" title="Öğrenme">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="m17 2 5 5-5 5"/></svg>
+            <span>Öğrenme</span>
           </button>
-          <div style="width:1px;height:16px;background:var(--color-border);margin:0 2px"></div>
+          <div class="toolbar-divider"></div>
           <button class="icon-btn" id="chat-rename" title="Başlığı değiştir" disabled>
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
@@ -224,7 +231,15 @@
       <div class="chat-container">
         <div class="chat-messages" id="chat-messages">
           <div class="welcome welcome--codex">
-            <h2 class="welcome__codex-title">Ne üzerinde çalışalım?</h2>
+            <div class="welcome-orbit">
+              <span>CODEGA AI</span>
+              <strong>Otonom çalışma konsolu</strong>
+            </div>
+            <h2 class="welcome__codex-title">Ne inşa edelim?</h2>
+            <p class="welcome__codex-copy">
+              Dosya oku, web araştır, görsel analiz et, kod yaz, test et ve sonucu raporla.
+              CODEGA AI artık sohbetten çok bir görev merkezi gibi çalışır.
+            </p>
 
             <!-- AVX2 uyarısı (gerekirse görünür) -->
             <div id="avx2-warning" style="display:none;max-width:680px;margin:0 auto 24px;padding:18px 20px;background:rgba(245,158,11,.08);border:1px solid var(--color-accent);border-radius:10px;font-size:13px;color:var(--color-text)">

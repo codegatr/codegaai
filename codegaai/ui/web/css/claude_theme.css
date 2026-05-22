@@ -51,14 +51,16 @@ body {
 }
 
 .app-menubar {
-  height: 34px;
-  flex: 0 0 34px;
+  height: 38px;
+  flex: 0 0 38px;
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 0 14px;
   border-bottom: 1px solid var(--color-border);
-  background: #111214;
+  background:
+    linear-gradient(90deg, rgba(16, 185, 129, 0.06), transparent 34%),
+    #111214;
   color: var(--color-text-muted);
   -webkit-app-region: drag;
 }
@@ -88,6 +90,37 @@ body {
 
 .view[data-view="chat"] {
   height: auto;
+}
+
+.view[data-view="settings"].active {
+  display: block;
+  overflow: auto;
+}
+
+.view[data-view="settings"] .settings-group {
+  width: min(100% - 48px, 1120px);
+  margin: 0 auto 16px;
+  flex: none;
+  overflow: visible;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent),
+    var(--color-surface);
+}
+
+.view[data-view="settings"] .settings-group h3 {
+  letter-spacing: 0.11em;
+}
+
+.view[data-view="settings"] .settings-group > p,
+.view[data-view="settings"] .settings-group > .setting-row,
+.view[data-view="settings"] .settings-group > ol {
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.view[data-view="settings"] .settings-group:first-of-type {
+  margin-top: 22px;
 }
 
 /* ─── Sidebar — Claude düzeni, CODEGA renkleri ─── */
@@ -407,7 +440,42 @@ button[onclick*="newChat"] {
 /* ─── Toolbar üstte: ikonları organize et ─── */
 .toolbar,
 .chat-toolbar {
-  gap: 4px !important;
+  display: flex;
+  align-items: center;
+  gap: 6px !important;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.tool-chip {
+  height: 32px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 11px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.14s, background 0.14s, color 0.14s, transform 0.14s;
+}
+
+.tool-chip:hover {
+  border-color: rgba(16, 185, 129, 0.55);
+  background: rgba(16, 185, 129, 0.09);
+  color: var(--color-text);
+  transform: translateY(-1px);
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--color-border);
+  margin: 0 2px;
 }
 
 .icon-btn,
@@ -526,7 +594,8 @@ button[onclick*="newChat"] {
 /* CODEGA AI workbench polish (v4.3.5) */
 .view[data-view="chat"] .chat-container {
   background:
-    linear-gradient(180deg, rgba(245, 158, 11, 0.03), transparent 180px),
+    linear-gradient(180deg, rgba(16, 185, 129, 0.045), transparent 210px),
+    linear-gradient(90deg, rgba(245, 158, 11, 0.032), transparent 34%),
     var(--color-bg);
 }
 
@@ -540,12 +609,18 @@ button[onclick*="newChat"] {
 }
 
 .view[data-view="chat"] .message {
-  max-width: 980px;
+  max-width: 940px;
   margin: 0;
+  padding: 18px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.045) !important;
+  border-radius: 14px;
+  background: rgba(19, 20, 24, 0.62) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
 }
 
 .view[data-view="chat"] .message--assistant {
-  margin-left: 48px;
+  margin-left: 52px;
+  border-color: rgba(245, 158, 11, 0.11) !important;
 }
 
 .view[data-view="chat"] .message--user {
@@ -555,15 +630,46 @@ button[onclick*="newChat"] {
 .view[data-view="chat"] .welcome--codex {
   max-width: 1040px;
   margin: 0;
-  padding: 48px 0 32px !important;
+  padding: 54px 0 34px !important;
   text-align: left;
+}
+
+.welcome-orbit {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 11px;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.08);
+  color: var(--color-success);
+  margin-bottom: 18px;
+}
+
+.welcome-orbit span {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.welcome-orbit strong {
+  color: var(--color-text);
+  font-size: 12px;
 }
 
 .view[data-view="chat"] .welcome__codex-title {
   max-width: 760px;
-  margin: 0 0 28px !important;
-  font-size: 28px !important;
+  margin: 0 0 12px !important;
+  font-size: 34px !important;
   font-weight: 600 !important;
+}
+
+.welcome__codex-copy {
+  max-width: 760px;
+  color: var(--color-text-muted);
+  font-size: 15px;
+  line-height: 1.65;
+  margin-bottom: 26px;
 }
 
 .view[data-view="chat"] .codex-suggestions {
@@ -591,7 +697,10 @@ button[onclick*="newChat"] {
 .view[data-view="chat"] .chat-input-wrap {
   border-radius: 12px;
   background: #15171b;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.26);
+  border-color: rgba(245, 158, 11, 0.32);
+  box-shadow:
+    0 12px 36px rgba(0, 0, 0, 0.26),
+    0 0 0 1px rgba(245, 158, 11, 0.08);
 }
 
 .update-badge[hidden] {

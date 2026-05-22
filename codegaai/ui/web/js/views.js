@@ -8,11 +8,30 @@ const Views = (() => {
     listeners: [],
   };
 
+  const sidebarGroups = {
+    image: "tools",
+    canvas: "tools",
+    audio: "tools",
+    vision: "tools",
+    translate: "tools",
+    memory: "tools",
+    autolearn: "tools",
+    video: "tools",
+    federation: "tools",
+    system: "tools",
+    "devtools-ui": "tools",
+  };
+
+  function sidebarTarget(name) {
+    return sidebarGroups[name] || name;
+  }
+
   function activate(name) {
     if (state.current === name) return;
 
-    document.querySelectorAll(".nav-item").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.view === name);
+    const navName = sidebarTarget(name);
+    document.querySelectorAll(".sidebar .nav-item").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.view === navName);
     });
 
     document.querySelectorAll(".view").forEach((view) => {
@@ -31,11 +50,7 @@ const Views = (() => {
   }
 
   function init() {
-    document.querySelectorAll(".nav-item[data-view]").forEach((btn) => {
-      btn.addEventListener("click", () => activate(btn.dataset.view));
-    });
-
-    document.querySelectorAll(".app-menu-item[data-view]").forEach((btn) => {
+    document.querySelectorAll("button[data-view]").forEach((btn) => {
       btn.addEventListener("click", () => activate(btn.dataset.view));
     });
   }
