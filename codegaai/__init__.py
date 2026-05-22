@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "4.3.6"
-__phase__ = "v4.3.6 - Federated Autonomous Intelligence Network"
+__version__ = "4.3.7"
+__phase__ = "v4.3.7 - Agent OS Planner and Project Brain"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

@@ -27,7 +27,7 @@ from typing import Optional
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from codegaai.core.agent_platform import plan_agent_task, platform_status
+from codegaai.core.agent_platform import agent_os_manifest, plan_agent_task, platform_status
 from codegaai.utils.logger import get_logger
 
 log = get_logger(__name__)
@@ -53,6 +53,12 @@ class PlanRequest(BaseModel):
 async def get_platform_status() -> dict:
     """Multi-model agent platform capabilities."""
     return platform_status()
+
+
+@router.get("/agent-os")
+async def get_agent_os_manifest() -> dict:
+    """CODEGA AI digital employee architecture contract."""
+    return agent_os_manifest()
 
 
 @router.post("/plan")
