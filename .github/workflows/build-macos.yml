@@ -117,12 +117,14 @@ jobs:
           path: ${{ steps.zip.outputs.zip_name }}
           retention-days: 30
 
-      - name: Attach to GitHub Release (tag push için)
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Attach to GitHub Release
+        if: ${{ startsWith(github.ref, 'refs/tags/') || github.event.inputs.release_tag != '' }}
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           files: ${{ steps.zip.outputs.zip_name }}
           fail_on_unmatched_files: true
-          generate_release_notes: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
