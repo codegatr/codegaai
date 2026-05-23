@@ -330,3 +330,66 @@ async def list_projects() -> dict:
             for pid, p in _projects.items()
         ]
     }
+
+
+# ── Agentic Core v1: local indexing + context packs ─────────────────────
+
+class IndexLocalRequest(BaseModel):
+    root: str
+    project_id: str = "local"
+
+
+_local_indexes: dict[str, object] = {}
+
+
+@router.post("/index-local")
+async def index_local_project(req: IndexLocalRequest) -> dict:
+    """Yerel proje klasörünü .codegaaiignore kurallarıyla indeksle."""
+    from codegaai.core.code_indexer import CodeIndexer
+
+    index = CodeIndexer(req.root).build()
+    _local_indexes[req.project_id] = index
+    return {
+        "project_id": req.project_id,
+        "root": index.root,
+        "file_count": index.file_count,
+        "chunk_count": len(index.chunks),
+        "graph_count": len(index.graphs),
+    }
+
+
+class CodeSearchRequest(BaseModel):
+    project_id: str = "local"
+    query: str
+    max_chunks: int = 5
+
+
+@router.post("/search")
+async def search_local_code(req: CodeSearchRequest) -> dict:
+    """İndekslenmiş yerel kodda alakalı chunk ara."""
+    index = _local_indexes.get(req.project_id)
+    if not index:
+        return {"error": "Index bulunamadı. Önce /index-local çalıştırın."}
+    chunks = index.search(req.query, max_chunks=max(1, min(req.max_chunks, 20)))
+    return {"project_id": req.project_id, "results": [c.__dict__ for c in chunks]}
+
+
+@router.post("/context-pack")
+async def build_context_pack(req: CodeSearchRequest) -> dict:
+    """Soruya göre modele verilecek kompakt context-pack üret."""
+    index = _local_indexes.get(req.project_id)
+    if not index:
+        return {"error": "Index bulunamadı. Önce /index-local çalıştırın."}
+    return {
+        "project_id": req.project_id,
+        **index.context_pack(req.query, max_chunks=max(1, min(req.max_chunks, 20))),
+    }
+
+
+@router.get("/graph/{project_id}")
+async def local_code_graph(project_id: str) -> dict:
+    """İndekslenmiş projenin AST grafiğini döndür."""
+    index = _local_indexes.get(project_id)
+    if not index:
+        return {"error": "Index bulunamadı. Önce /index-local çalıştırın."}
+    return {"project_id": project_id, "graphs": index.graphs}
