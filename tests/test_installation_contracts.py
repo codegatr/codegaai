@@ -46,6 +46,15 @@ class TestInstallationContracts(unittest.TestCase):
         self.assertFalse(marker.evaluate({"python_version": "3.12"}))
         self.assertTrue(marker.evaluate({"python_version": "3.11"}))
 
+    def test_platform_build_workflows_can_publish_manual_releases(self) -> None:
+        for workflow_name in ("build-macos.yml", "build-windows.yml"):
+            workflow = (ROOT / ".github" / "workflows" / workflow_name).read_text(encoding="utf-8-sig")
+            self.assertIn("release_tag:", workflow)
+            self.assertIn("tag_name: ${{ steps.version.outputs.tag }}", workflow)
+            self.assertIn("target_commitish: ${{ github.sha }}", workflow)
+            self.assertIn("github.event.inputs.release_tag != ''", workflow)
+            self.assertIn("generate_release_notes: true", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
