@@ -97,6 +97,21 @@ GET  /api/orchestrate/agent-os
 POST /api/orchestrate/plan
 ```
 
+## Agentic Core
+
+CODEGA AI Agentic Core; `.codegaaiignore`, güvenlik sınıflandırması,
+prompt injection filtresi, AST tabanlı kod grafiği ve context-pack üretimiyle
+ajan kararlarını daha güvenli ve daha isabetli hale getirir.
+
+Endpoint:
+
+```text
+POST /api/codebase/index-local
+POST /api/codebase/search
+POST /api/codebase/context-pack
+GET  /api/codebase/graph/{project_id}
+```
+
 ## Uzman Modları
 
 | Uzman | Odak |
