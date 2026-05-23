@@ -39,7 +39,7 @@ llama-cpp-python>=0.3.2,<0.4.0
 sentence-transformers>=3.0.0,<4.0.0
 
 # sentence-transformers transitive deps — bazen PyInstaller'da
-# otomatik bundle olmuyor, açıkça ekliyoruz
+otomatik bundle olmuyor, açıkça ekliyoruz
 scipy>=1.10.0,<2.0.0
 scikit-learn>=1.3.0,<2.0.0
 torch>=2.2.0,<3.0.0
@@ -63,7 +63,9 @@ safetensors>=0.4.5,<1.0.0
 # Faz 5 (Ses TTS+ASR) - AKTİF
 # ============================================================
 faster-whisper>=1.0.0,<2.0.0
-TTS>=0.22.0,<0.23.0
+# Coqui TTS 0.22.x Python 3.12 için wheel yayınlamıyor. Python 3.12
+# kurulumlarında çekirdek uygulama çalışır; XTTS için Python 3.11 kullanın.
+TTS>=0.22.0,<0.23.0; python_version < "3.12"
 soundfile>=0.12.0,<1.0.0
 
 # Piper TTS opsiyonel (hafif TR-only)
@@ -110,7 +112,6 @@ lxml>=5.0.0
 Pillow>=10.0.0,<12.0.0          # Görüntü işleme (zaten transformers dep)
 easyocr>=1.7.0                  # OCR - opsiyonel (pip install easyocr)
 opencv-python-headless>=4.9.0   # Video frame çıkarma (headless = no GUI)
--e 
 # PDF Okuma
 pymupdf>=1.24.0
 pdfplumber>=0.11.0
