@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img alt="Python" src="https://img.shields.io/badge/Python-3.12+-3776ab?style=flat-square&logo=python&logoColor=white">
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.10--3.12-3776ab?style=flat-square&logo=python&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-Backend-009688?style=flat-square&logo=fastapi&logoColor=white">
   <img alt="Windows" src="https://img.shields.io/badge/Windows-Portable-0078d4?style=flat-square&logo=windows&logoColor=white">
   <img alt="Apple Silicon" src="https://img.shields.io/badge/macOS-Apple%20Silicon-111827?style=flat-square&logo=apple&logoColor=white">
@@ -188,6 +188,23 @@ cd codegaai
 python -m pip install -r requirements.txt
 python launcher.py
 ```
+
+macOS Apple Silicon geliştirici kurulumu (MacBook Pro M1/M2/M3/M4):
+
+```bash
+xcode-select --install
+brew install python@3.12 cmake
+git clone https://github.com/codegatr/codegaai.git
+cd codegaai
+bash installer/macos/install.sh
+source .venv/bin/activate
+python launcher.py
+```
+
+Not: Python 3.12 kurulumunda Coqui `TTS` paketi atlanır; ana uygulama, sohbet,
+görsel, OCR, dosya ve backend özellikleri kurulmaya devam eder. XTTS/Coqui TTS
+özelliğine ihtiyacınız varsa `brew install python@3.11` kurup sanal ortamı
+Python 3.11 ile oluşturun.
 
 ## API
 
