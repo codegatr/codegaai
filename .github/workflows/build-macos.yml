@@ -2,6 +2,8 @@
 
 on:
   push:
+    branches:
+      - "build/**"
     tags:
       - "v*"
   workflow_dispatch:
@@ -107,8 +109,8 @@ jobs:
           ls -lh "$zip_name"
           echo "zip_name=$zip_name" >> "$GITHUB_OUTPUT"
 
-      - name: Upload artifact (workflow_dispatch için)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Upload artifact (manual/build branch için)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
           name: codegaai-macos
