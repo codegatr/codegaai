@@ -640,7 +640,7 @@ class TrainingEngine:
         from codegaai.core.models_registry import ModelRegistry
         reg = ModelRegistry.get()
         spec = reg.get_llm_spec(base_model_id)
-        hf_repo = spec.hf_repo if spec else "Qwen/Qwen2.5-7B-Instruct"
+        hf_repo = spec.hf_repo if spec else "Qwen/Qwen3-4B-GGUF"
 
         adapter_id = f"adapter-{int(time.time())}-{uuid.uuid4().hex[:6]}"
         adapter_dir = AdapterManager.get().adapters_dir / adapter_id

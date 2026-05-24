@@ -89,7 +89,7 @@ QUICK_PATTERNS = [
 RULES: list[ModelRule] = [
     # PHP/Web/Kod → Coder 7B (en yüksek öncelik)
     ModelRule(
-        model_id="qwen2.5-coder-7b-instruct-q4_k_m",
+        model_id="qwen3-8b-q4_k_m",
         priority=100,
         min_vram_gb=5.5,
         keywords=["php", "laravel", "wordpress", "mysql", "nginx",
@@ -108,7 +108,7 @@ RULES: list[ModelRule] = [
     ),
     # Kısa/hızlı sohbet → Qwen 3B (az VRAM, hızlı)
     ModelRule(
-        model_id="qwen2.5-3b-instruct-q4_k_m",
+        model_id="qwen3-4b-q4_k_m",
         priority=90,
         min_vram_gb=2.5,
         keywords=[],
@@ -128,7 +128,7 @@ RULES: list[ModelRule] = [
     ),
     # Genel/zor → Qwen 7B (varsayılan fallback)
     ModelRule(
-        model_id="qwen2.5-7b-instruct-q4_k_m",
+        model_id="qwen3-8b-q4_k_m",
         priority=50,
         min_vram_gb=5.5,
         keywords=[],

@@ -124,7 +124,7 @@ def _build_rag_context(query: str, exclude_chat_id: int | None = None,
 
 _STUB_NOT_LOADED = (
     "LLM motoru henüz yüklü değil. Üst menüden **Sistem** sekmesine git, "
-    "Qwen 2.5 7B modelini indir (~5 GB), sonra yükle. Tek seferlik bir "
+    "Qwen3 4B modelini indir (~2.6 GB), sonra yükle. Tek seferlik bir "
     "işlem; sonraki açılışlarda otomatik yüklenecek.\n\n"
     "İndirme tamamlandıktan sonra bu sohbete devam edebilirsin."
 )

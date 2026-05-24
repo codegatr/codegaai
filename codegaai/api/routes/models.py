@@ -30,11 +30,16 @@ def _enrich_llm(model: dict[str, Any], registry: ModelRegistry,
     """LLM model bilgisine indirme/yükleme durumunu ekle."""
     model_id = model["id"]
     progress = registry.get_progress(model_id)
+    load_error = ""
+    if (engine_status.get("model_id") == model_id
+            and engine_status.get("state") == "error"):
+        load_error = engine_status.get("error", "") or "Model yuklenemedi."
     return {
         **model,
         "downloaded": registry.is_llm_downloaded(model_id),
         "loaded": (engine_status.get("model_id") == model_id
                    and engine_status.get("ready", False)),
+        "load_error": load_error,
         "download": progress.to_dict(),
     }
 
@@ -362,6 +367,10 @@ async def load_model(model_id: str,
         engine = LLMEngine.get()
         try:
             engine.load(model_id, n_ctx=n_ctx, n_gpu_layers=n_gpu_layers)
+            if not engine.is_ready:
+                status = engine.status
+                err = status.get("error") or "Model yuklenemedi; motor hazir duruma gecmedi."
+                raise RuntimeError(err)
         except RuntimeError as exc:
             raise HTTPException(409, str(exc))
         except Exception as exc:

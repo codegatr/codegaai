@@ -151,6 +151,43 @@ class VideoModelSpec:
 # ============================================================
 
 LLM_MODELS: tuple[LLMModelSpec, ...] = (
+    # === Yeni nesil Qwen3 ailesi (Qwen2.5 yerine varsayilan) ===
+    LLMModelSpec(
+        id="qwen3-4b-q4_k_m",
+        name="Qwen3 4B (Q4_K_M) - Yeni Varsayilan",
+        default=True,
+        hf_repo="Qwen/Qwen3-4B-GGUF",
+        hf_file="Qwen3-4B-Q4_K_M.gguf",
+        size_gb=2.60,
+        vram_gb=3.2,
+        languages=("tr", "en", "zh", "ar", "fr", "de", "es", "ja"),
+        context_length=32768,
+        description="Qwen3 nesli: daha iyi muhakeme, tool/agent kullanimi ve 100+ dil. CPU/6GB GPU icin dengeli.",
+    ),
+    LLMModelSpec(
+        id="qwen3-8b-q4_k_m",
+        name="Qwen3 8B (Q4_K_M) - Guclu Akil Yurutme",
+        hf_repo="Qwen/Qwen3-8B-GGUF",
+        hf_file="Qwen3-8B-Q4_K_M.gguf",
+        size_gb=5.20,
+        vram_gb=6.4,
+        languages=("tr", "en", "zh", "ar", "fr", "de", "es", "ja"),
+        context_length=32768,
+        description="Qwen2.5 7B yerine onerilen guclu yerel model. Kod, mantik ve Turkce yanitlarda daha ileri seviye.",
+    ),
+    LLMModelSpec(
+        id="qwen3-next-80b-a3b-instruct-q4_k_m",
+        name="Qwen3 Next 80B-A3B Instruct (Q4_K_M) - MoE",
+        hf_repo="Qwen/Qwen3-Next-80B-A3B-Instruct-GGUF",
+        hf_file="Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf",
+        size_gb=45.00,
+        vram_gb=24.0,
+        languages=("tr", "en", "zh", "ar", "fr", "de", "es", "ja"),
+        context_length=262144,
+        description="Ust seviye MoE model. Buyuk RAM/VRAM isteyen ileri seviye ajan ve muhakeme isleri icin.",
+    ),
+
+    # === Eski uyumluluk modelleri ===
     # === 6 GB VRAM (RTX 3060 Laptop) için önerilen ===
     LLMModelSpec(
         id="qwen2.5-3b-instruct-q4_k_m",
@@ -166,7 +203,6 @@ LLM_MODELS: tuple[LLMModelSpec, ...] = (
     LLMModelSpec(
         id="qwen2.5-7b-instruct-q4_k_m",
         name="Qwen 2.5 7B Instruct (Q4_K_M)",
-        default=True,
         hf_repo="bartowski/Qwen2.5-7B-Instruct-GGUF",
         hf_file="Qwen2.5-7B-Instruct-Q4_K_M.gguf",
         size_gb=4.68,

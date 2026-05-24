@@ -173,7 +173,10 @@ const System = (() => {
             <div style="font-size:11px;color:var(--color-text-muted);margin-top:3px">${(prog.downloaded_gb||0).toFixed(2)} / ${m.size_gb} GB</div>`;
         } else if (dl) {
           badge = `<span class="status-pill" style="font-size:11px"><span class="status-pill__dot"></span>İndirildi</span>`;
-          btn = `<button class="btn btn--primary" style="font-size:12px" onclick="System.loadModel('${m.id}')">Yükle</button>`;
+          const loadErr = m.load_error
+            ? `<div style="font-size:12px;color:#ef4444;line-height:1.35;margin-top:6px">Son yükleme hatası: ${esc(m.load_error)}</div>`
+            : "";
+          btn = `<button class="btn btn--primary" style="font-size:12px" onclick="System.loadModel('${m.id}')">Yükle</button>${loadErr}`;
         } else {
           badge = `<span class="status-pill status-pill--off" style="font-size:11px"><span class="status-pill__dot"></span>İndirilmedi</span>`;
           btn = `<button class="btn btn--primary" style="font-size:12px" onclick="System.prepareModel('${m.id}')">İndir + Yükle (~${m.size_gb} GB)</button>`;
@@ -252,8 +255,14 @@ const System = (() => {
   async function loadModel(id) {
     const ma = el("ma-"+id);
     if (ma) ma.innerHTML = '<span style="font-size:12px;color:#f59e0b">Yükleniyor...</span>';
-    try { await post(`/api/models/${id}/load`); setTimeout(()=>{loadModels();loadEngines();},2000); }
-    catch(e) { loadModels(); }
+    try {
+      await post(`/api/models/${id}/load`);
+      setTimeout(()=>{loadModels();loadEngines();},2000);
+    } catch(e) {
+      if (ma) ma.innerHTML = `<div style="font-size:12px;color:#ef4444;line-height:1.35">Yükleme hatası: ${esc(e.message)}</div>
+        <button class="btn btn--ghost" style="font-size:12px;margin-top:6px" onclick="System.loadModel('${id}')">Tekrar Dene</button>`;
+      setTimeout(()=>{loadEngines();},500);
+    }
   }
 
   async function unloadModel(id) {

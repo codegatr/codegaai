@@ -169,7 +169,7 @@ const Learning = (() => {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
-          base_model_id: "qwen2.5-7b-instruct-q4_k_m",
+          base_model_id: "qwen3-4b-q4_k_m",
           adapter_name: name,
           epochs: 1,
           learning_rate: 5e-5,

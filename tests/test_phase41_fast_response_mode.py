@@ -23,7 +23,8 @@ class FastResponseModeTests(unittest.TestCase):
     def test_fast_mode_prefers_downloaded_3b_model(self):
         jobs = read("codegaai/api/routes/jobs.py")
 
-        self.assertIn('registry.is_llm_downloaded("qwen2.5-3b-instruct-q4_k_m")', jobs)
+        self.assertIn('registry.is_llm_downloaded("qwen3-4b-q4_k_m")', jobs)
+        self.assertIn('target_model = "qwen3-4b-q4_k_m"', jobs)
         self.assertIn('target_model = "qwen2.5-3b-instruct-q4_k_m"', jobs)
 
     def test_fast_mode_ui_toggle_and_payload(self):
@@ -45,5 +46,5 @@ class FastResponseModeTests(unittest.TestCase):
     def test_version_bumped_to_442(self):
         init = read("codegaai/__init__.py")
 
-        self.assertIn('__version__ = "4.4.2"', init)
-        self.assertIn("Fast Response Mode", init)
+        self.assertIn('__version__ = "4.4.3"', init)
+        self.assertIn("Qwen3 Model Upgrade", init)

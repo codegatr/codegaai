@@ -268,8 +268,8 @@
       <div class="card-title">📦 Ne İndirileceğini Bilmek İster misiniz?</div>
       <p class="card-desc">
         Modeller <strong>2–6 GB</strong> arasında değişir. Tek seferlik indirilir, sonra tamamen çevrimdışı çalışır.<br><br>
-        <strong>RTX 3060 (6 GB VRAM)</strong> → Qwen 2.5 3B (~2 GB, hızlı) veya Qwen 2.5 7B (~5 GB, daha akıllı)<br>
-        <strong>CPU kullanıcıları</strong> → Qwen 2.5 3B önerilir
+        <strong>RTX 3060 (6 GB VRAM)</strong> → Qwen3 4B (~2.6 GB, hızlı) veya Qwen3 8B (~5.2 GB, daha akıllı)<br>
+        <strong>CPU kullanıcıları</strong> → Qwen3 4B önerilir
       </p>
     </div>
 
@@ -466,7 +466,7 @@ async function startDownloadPoll() {
   if (wrap) wrap.style.display = "block";
   _pollTimer = setInterval(async () => {
     try {
-      const r = await fetch("/api/models/qwen2.5-7b-instruct-q4_k_m/status");
+      const r = await fetch("/api/models/qwen3-4b-q4_k_m/status");
       const d = await r.json();
       const dl = d.download || {};
       const pct = Math.round(dl.percent || 0);

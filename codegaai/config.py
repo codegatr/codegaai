@@ -195,7 +195,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "models": {
         # Faz 2+ ile aktive olacak; isimler manifest.json ile senkron
-        "llm": "qwen2.5-7b-instruct-q4_k_m",
+        "llm": "qwen3-4b-q4_k_m",
         "embedding": "bge-m3",
         "image": "stable-diffusion-xl-base-1.0",
         "video": "cogvideox-2b",

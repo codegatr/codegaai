@@ -457,7 +457,9 @@ async def _run_chat_job(job: ChatJob) -> None:
             router = ModelRouter.get()
             registry = ModelRegistry.get()
             target_model = None
-            if job.speed_mode and not job.deep_think and registry.is_llm_downloaded("qwen2.5-3b-instruct-q4_k_m"):
+            if job.speed_mode and not job.deep_think and registry.is_llm_downloaded("qwen3-4b-q4_k_m"):
+                target_model = "qwen3-4b-q4_k_m"
+            elif job.speed_mode and not job.deep_think and registry.is_llm_downloaded("qwen2.5-3b-instruct-q4_k_m"):
                 target_model = "qwen2.5-3b-instruct-q4_k_m"
             else:
                 target_model = router.select_model(job.message, history=history)

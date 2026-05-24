@@ -1116,9 +1116,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // Donanıma göre en iyi modeli seç (CPU'da küçük, GPU'da büyük)
     let target;
     if (vram >= 5) {
-      target = downloaded.find(m => m.id.includes("7b") || m.id.includes("8b")) || downloaded[0];
+      target = downloaded.find(m => m.id === "qwen3-8b-q4_k_m")
+        || downloaded.find(m => m.id.includes("8b") || m.id.includes("7b"))
+        || downloaded[0];
     } else if (vram >= 2 || ram >= 8) {
-      target = downloaded.find(m => m.id.includes("3b")) || downloaded[0];
+      target = downloaded.find(m => m.id === "qwen3-4b-q4_k_m")
+        || downloaded.find(m => m.id.includes("4b") || m.id.includes("3b"))
+        || downloaded[0];
     } else {
       // Çok düşük sistem — en küçük model
       target = downloaded.sort((a,b) => (a.size_gb||999) - (b.size_gb||999))[0];
