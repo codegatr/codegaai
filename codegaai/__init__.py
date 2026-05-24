@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "4.4.3"
-__phase__ = "v4.4.3 - Qwen3 Model Upgrade"
+__version__ = "4.4.4"
+__phase__ = "v4.4.4 - Silent Runtime and Neural Chat UI"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

@@ -26,6 +26,16 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 
+CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
+
+
+def _check_output_hidden(cmd: list[str], **kwargs) -> bytes:
+    """Run a short probe without flashing a console window on Windows."""
+    if CREATE_NO_WINDOW:
+        kwargs.setdefault("creationflags", CREATE_NO_WINDOW)
+    return subprocess.check_output(cmd, **kwargs)
+
+
 # ============================================================
 # Veri yapıları
 # ============================================================
@@ -197,7 +207,7 @@ def check_gpu() -> CheckResult:
     nvidia_smi = shutil.which("nvidia-smi")
     if nvidia_smi:
         try:
-            output = subprocess.check_output(
+            output = _check_output_hidden(
                 [nvidia_smi,
                  "--query-gpu=name,memory.total,driver_version",
                  "--format=csv,noheader,nounits"],
@@ -248,7 +258,7 @@ def check_cuda() -> CheckResult:
     nvcc = shutil.which("nvcc")
     if nvcc:
         try:
-            output = subprocess.check_output(
+            output = _check_output_hidden(
                 [nvcc, "--version"],
                 stderr=subprocess.STDOUT,
                 timeout=5,
@@ -265,7 +275,7 @@ def check_cuda() -> CheckResult:
     nvidia_smi = shutil.which("nvidia-smi")
     if nvidia_smi:
         try:
-            output = subprocess.check_output(
+            output = _check_output_hidden(
                 [nvidia_smi], stderr=subprocess.STDOUT, timeout=5,
             ).decode("utf-8", errors="replace")
             for ln in output.splitlines():

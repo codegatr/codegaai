@@ -311,7 +311,8 @@ async def rollback(req: RollbackReq) -> dict:
         )
         import subprocess, os
         subprocess.Popen(["cmd.exe", "/c", str(bat)],
-                         creationflags=0x00000008, close_fds=True)
+                         creationflags=0x00000008 | 0x08000000,
+                         close_fds=True)
         _add_history("rollback", bk_path.name)
         os.kill(os.getpid(), 15)
         return {"ok": True, "backup": bk_path.name, "message": "Rollback başlatıldı…"}

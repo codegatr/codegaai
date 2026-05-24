@@ -550,12 +550,13 @@ echo %date% %time% - Guncelleme tamamlandi >> "{log_file}"
 
         # DETACHED_PROCESS ile başlat (Windows-only)
         DETACHED_PROCESS = 0x00000008
+        CREATE_NO_WINDOW = 0x08000000
         CREATE_NEW_PROCESS_GROUP = 0x00000200
 
         try:
             subprocess.Popen(
                 ["cmd.exe", "/c", str(bat_path)],
-                creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+                creationflags=DETACHED_PROCESS | CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP,
                 close_fds=True,
                 cwd=str(install_dir),
             )

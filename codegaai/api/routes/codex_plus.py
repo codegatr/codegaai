@@ -15,7 +15,7 @@ Faz 21: Proje Şablon Motoru       — Boilerplate proje oluştur
 """
 
 from __future__ import annotations
-import io, json, re, subprocess, tempfile, time, uuid
+import io, json, re, subprocess, sys, tempfile, time, uuid
 from pathlib import Path
 from fastapi import APIRouter, File, UploadFile
 from pydantic import BaseModel
@@ -24,6 +24,7 @@ from codegaai.utils.logger import get_logger
 
 log = get_logger(__name__)
 router = APIRouter()
+CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
 
 
 # ── FAZ 14: Terminal Entegrasyonu ────────────────────────────────────────
@@ -45,7 +46,8 @@ async def terminal_run(req: TerminalRequest) -> dict:
     try:
         result = subprocess.run(
             cmd, shell=True, capture_output=True, text=True,
-            timeout=15, encoding="utf-8", errors="replace"
+            timeout=15, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
         )
         stdout = result.stdout[:3000]
         stderr = result.stderr[:1000]
@@ -193,7 +195,8 @@ async def apply_patch(req: PatchRequest) -> dict:
             patch.write_text(req.patch,   encoding="utf-8")
             r = subprocess.run(
                 ["patch", str(orig), str(patch)],
-                capture_output=True, text=True, timeout=5
+                capture_output=True, text=True, timeout=5,
+                creationflags=CREATE_NO_WINDOW,
             )
             if r.returncode == 0:
                 return {"ok": True, "result": orig.read_text("utf-8")}

@@ -43,8 +43,8 @@ class FastResponseModeTests(unittest.TestCase):
         self.assertIn("cpu_count = os.cpu_count() or 4", engine)
         self.assertIn("n_threads = 2 if low_end else max(2, min(cpu_count - 1, 8))", engine)
 
-    def test_version_bumped_to_442(self):
+    def test_version_bumped_to_444(self):
         init = read("codegaai/__init__.py")
 
-        self.assertIn('__version__ = "4.4.3"', init)
-        self.assertIn("Qwen3 Model Upgrade", init)
+        self.assertIn('__version__ = "4.4.4"', init)
+        self.assertIn("Silent Runtime and Neural Chat UI", init)
