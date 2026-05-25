@@ -89,11 +89,17 @@ const System = (() => {
       if (errBox && d.llm?.error?.includes("AVX2")) {
         errBox.hidden = false;
         errBox.innerHTML = `<strong>⚠️ CPU AVX2 Uyumsuzluğu</strong><br>
-          <code>fix_llama.bat</code> dosyasını çalıştırın.`;
+          Sistem > Otomatik Onar ile AVX kapalı kaynak derlemeyi başlatın.`;
       }
       // Chat altbar
             const st = el("status-engine");
       if (st) st.textContent = d.llm?.active ? `Motor: ${d.llm.model_id||""}` : "Motor: bekleniyor";
+      const welcomeModel = el("welcome-model-state");
+      if (welcomeModel) {
+        welcomeModel.textContent = d.llm?.active
+          ? (d.llm.model_id || "hazır")
+          : d.llm?.state === "loading" ? "yükleniyor" : "beklemede";
+      }
       const pill = el("chat-engine-pill");
       if (pill) {
         pill.className = "status-pill " + (d.llm?.active ? "status-pill--ok" : "");
@@ -455,4 +461,3 @@ document.addEventListener("DOMContentLoaded", () => {
   // İlk yükleme
   setTimeout(loadGPUStatus, 2000);
 });
-

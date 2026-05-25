@@ -230,16 +230,33 @@
 
       <div class="chat-container">
         <div class="chat-messages" id="chat-messages">
-          <div class="welcome welcome--codex">
-            <div class="welcome-orbit">
+          <div class="welcome welcome--codex welcome--command">
+            <div class="welcome-kicker">
+              <span class="welcome-kicker__pulse"></span>
               <span>CODEGA AI</span>
-              <strong>Otonom çalışma konsolu</strong>
+              <strong>Agentic Workbench</strong>
             </div>
-            <h2 class="welcome__codex-title">Ne inşa edelim?</h2>
+            <h2 class="welcome__codex-title">Bugün hangi işi birlikte büyütelim?</h2>
             <p class="welcome__codex-copy">
-              Dosya oku, web araştır, görsel analiz et, kod yaz, test et ve sonucu raporla.
-              CODEGA AI artık sohbetten çok bir görev merkezi gibi çalışır.
+              Kod tabanı oku, model seç, dosya üret, web araştır, test yaz ve sonucu
+              uygulanabilir bir plana dönüştür. CODEGA AI tek bir sohbet ekranından
+              çalışma arkadaşın gibi hareket eder.
             </p>
+
+            <div class="mission-strip" aria-label="CODEGA AI durum özeti">
+              <div class="mission-strip__item">
+                <span>Model</span>
+                <strong id="welcome-model-state">hazırlanıyor</strong>
+              </div>
+              <div class="mission-strip__item">
+                <span>Bağlam</span>
+                <strong>proje + hafıza</strong>
+              </div>
+              <div class="mission-strip__item">
+                <span>Güvenlik</span>
+                <strong>onay kontrollü</strong>
+              </div>
+            </div>
 
             <!-- AVX2 uyarısı (gerekirse görünür) -->
             <div id="avx2-warning" style="display:none;max-width:680px;margin:0 auto 24px;padding:18px 20px;background:rgba(245,158,11,.08);border:1px solid var(--color-accent);border-radius:10px;font-size:13px;color:var(--color-text)">
@@ -248,10 +265,10 @@
                 <div style="flex:1">
                   <div style="font-weight:600;color:var(--color-accent);margin-bottom:6px;font-size:14px">CPU Uyumsuzluğu Tespit Edildi</div>
                   <div style="color:var(--color-text-muted);font-size:12px;line-height:1.6">
-                    İşlemciniz AVX2 talimat setini desteklemiyor. Bu yüzden bu sürümdeki ana model yüklenemiyor.
+                    İşlemciniz AVX2 talimat setini desteklemiyor. Bu yüzden AVX2 ile derlenmiş llama runtime ana modeli yükleyemiyor.
                     <br><br>
                     <strong style="color:var(--color-text)">Çözüm:</strong>
-                    v4.1.1 ve sonrası sürümler AVX2 gerektirmiyor. Aşağıdaki butondan en son sürümü indirin.
+                    Sistem ekranındaki Otomatik Onar ile AVX kapalı kaynak derlemeyi başlatın veya en son AVX'siz Windows paketini indirin.
                     <br><br>
                     <strong style="color:var(--color-text)">Şu an Simülasyon Modu'ndasınız</strong> — temel sohbet,
                     saat, bilgi tabanı ve sistem özellikleri çalışıyor.
@@ -260,7 +277,7 @@
               </div>
               <a href="https://github.com/codegatr/codegaai/releases/latest" target="_blank"
                  style="display:block;text-align:center;padding:12px;background:var(--color-accent);color:#000;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
-                ⬇ En Son Sürümü İndir (v4.1.1+)
+                En Son AVX'siz Sürümü İndir
               </a>
               <div style="margin-top:10px;text-align:center;font-size:11px;color:var(--color-text-muted)">
                 Build durumu:
@@ -281,22 +298,34 @@
             </div>
 
             <!-- Tıklanabilir örnek prompt'lar -->
-            <div class="codex-suggestions">
-              <button class="codex-card" data-suggest="Bana güzel bir manzara resmi oluştur" data-intent="image_gen">
-                <span class="codex-card__icon">🖼</span>
-                <span class="codex-card__text">Görsel oluştur</span>
+            <div class="codex-suggestions mission-actions">
+              <button class="codex-card mission-action" data-suggest="Bu repoyu incele, mimari riskleri ve ilk düzeltme planını çıkar" data-intent="coding">
+                <span class="codex-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M4 7h16M7 4v6M17 4v6M6 14h5M6 18h8M15 14h3"/></svg>
+                </span>
+                <span class="codex-card__text">Repo denetimi</span>
+                <small>Kod, test ve mimari rapor</small>
               </button>
-              <button class="codex-card" data-suggest="PHP ile basit bir REST API yaz" data-intent="coding">
-                <span class="codex-card__icon">💻</span>
-                <span class="codex-card__text">Kod yaz</span>
+              <button class="codex-card mission-action" data-suggest="Windows ve macOS için güvenli release planı hazırla, eksikleri listele" data-intent="general">
+                <span class="codex-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>
+                </span>
+                <span class="codex-card__text">Release hazırla</span>
+                <small>Build, artifact ve sürüm akışı</small>
               </button>
-              <button class="codex-card" data-suggest="Bu metni İngilizce'ye çevir: " data-intent="translate">
-                <span class="codex-card__icon">🌐</span>
-                <span class="codex-card__text">Çeviri yap</span>
+              <button class="codex-card mission-action" data-suggest="Yeni ürün fikrini landing metni, özellik seti ve teknik yol haritasına dönüştür" data-intent="general">
+                <span class="codex-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 3l7 4v5c0 4-3 7-7 9-4-2-7-5-7-9V7l7-4Z"/><path d="M9 12l2 2 4-5"/></svg>
+                </span>
+                <span class="codex-card__text">Ürünleştir</span>
+                <small>Fikirden plana, plandan ürüne</small>
               </button>
-              <button class="codex-card" data-suggest="Bir CSV dosyasından istatistik nasıl çıkarılır, anlat" data-intent="general">
-                <span class="codex-card__icon">📊</span>
-                <span class="codex-card__text">Veri analizi</span>
+              <button class="codex-card mission-action" data-suggest="Bir görsel, dosya veya metni analiz et; aksiyon listesi çıkar" data-intent="vision">
+                <span class="codex-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="m4 15 4-4 4 4 3-3 5 5"/><circle cx="9" cy="9" r="1.5"/></svg>
+                </span>
+                <span class="codex-card__text">Analiz et</span>
+                <small>Görsel, belge ve veri okuma</small>
               </button>
             </div>
 
@@ -1821,4 +1850,3 @@
   <script src="/js/app.js"></script>
 </body>
 </html>
-

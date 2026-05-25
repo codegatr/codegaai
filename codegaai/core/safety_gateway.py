@@ -30,6 +30,7 @@ BLOCKED_COMMAND_PATTERNS = [
     "rm -rf /",
     "sudo rm",
     "chmod -r 777 /",
+    "chmod -R 777 /".lower(),
     "mkfs",
     "dd if=",
 ]

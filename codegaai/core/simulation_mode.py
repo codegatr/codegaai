@@ -60,10 +60,10 @@ AVX2_EXPLANATION = """
 
 **Çözüm:**
 1. Sistem → Otomatik Onar butonuna tıkla, veya
-2. Uygulama klasöründeki `fix_llama.bat` dosyasını çalıştır (5-15 dakika sürer)
+2. En güncel AVX'siz Windows paketini Releases sayfasından indir
 3. Bittikten sonra uygulamayı yeniden başlat
 
-Bu işlem CPU-uyumlu bir llama-cpp wheel'i kuracak.
+Otomatik Onar, llama-cpp-python paketini AVX kapalı kaynak derleme ile yeniden kurar.
 """.strip()
 
 
@@ -117,7 +117,7 @@ class SimulationEngine:
             return AVX2_EXPLANATION
 
         if "onar" in q or "repair" in q or "düzelt" in q:
-            return "Otomatik onarımı başlatmak için **Sistem → Gelişmiş → Otomatik Onar** butonuna tıkla. Süreç 5-15 dakika sürer."
+            return "Otomatik onarımı başlatmak için **Sistem → Gelişmiş → Otomatik Onar** butonuna tıkla. Süreç 10-25 dakika sürebilir."
 
         # Bilgi tabanından bul
         kb_result = self._try_knowledge_base(query)

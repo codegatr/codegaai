@@ -98,34 +98,32 @@ async def repair_llama() -> dict:
             )
 
             state.append_log("")
-            state.append_log("Adim 2/3: CPU-only wheel kuruluyor (5-10 dakika)...")
+            state.append_log("Adim 2/3: AVX'siz kaynak derleme başlıyor (10-25 dakika)...")
             state.progress = 30
+
+            import os
+            env = os.environ.copy()
+            env["CMAKE_ARGS"] = (
+                "-DGGML_NATIVE=OFF "
+                "-DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_AVX512=OFF "
+                "-DGGML_F16C=OFF -DGGML_FMA=OFF "
+                "-DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_AVX512=OFF "
+                "-DLLAMA_F16C=OFF -DLLAMA_FMA=OFF -DLLAMA_BLAS=OFF"
+            )
+            env["FORCE_CMAKE"] = "1"
 
             ret1 = _stream_subprocess(
                 [python_exe, "-m", "pip", "install", "llama-cpp-python",
-                 "--prefer-binary",
-                 "--extra-index-url",
-                 "https://abetlen.github.io/llama-cpp-python/whl/cpu",
-                 "--no-cache-dir"],
-                state,
+                 "--no-binary", "llama-cpp-python",
+                 "--no-cache-dir", "--force-reinstall", "--verbose"],
+                state, env=env,
             )
-
-            state.progress = 70
             if ret1 != 0:
-                state.append_log("")
-                state.append_log("CPU wheel kurulamadi, kaynaktan derleniyor...")
-                state.append_log("Bu 10-20 dakika alabilir!")
-
-                import os
-                env = os.environ.copy()
-                env["CMAKE_ARGS"] = "-DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_F16C=OFF -DLLAMA_FMA=OFF"
-                env["FORCE_CMAKE"] = "1"
-
-                _stream_subprocess(
-                    [python_exe, "-m", "pip", "install", "llama-cpp-python",
-                     "--no-cache-dir", "--force-reinstall"],
-                    state, env=env,
-                )
+                state.append_log("✗ AVX'siz kaynak derleme başarısız oldu.")
+                state.status = "failed"
+                state.error = "AVX-free source build failed"
+                state.is_running = False
+                return
 
             state.progress = 90
             state.append_log("")
