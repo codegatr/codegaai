@@ -1115,8 +1115,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 `${recData.recommendation?.tier || "auto"} · ${vram ? `GPU ${Number(vram).toFixed(1)}GB` : profile.backend || "CPU"} · ${target.size_gb || "?"} GB`,
                 "⏳");
 
-    // Yüklemeyi başlat — DOĞRU endpoint: /api/models/{id}/load
-    const loadResp = await fetch(`/api/models/${target.id}/load`, {
+    // Yüklemeyi arka planda başlat; sohbet yanıtını model yüklemesine kilitleme.
+    const loadResp = await fetch("/api/models/recommended/warmup", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({})
@@ -1132,11 +1132,18 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } else {
       // Başarı — banner'ı 3 saniye sonra gizle
-      _showBanner(`✓ ${target.name || target.id} hazır`, "Sohbet etmeye başlayabilirsiniz", "✅");
-      setTimeout(() => {
-        const b = document.getElementById("auto-model-banner");
-        if (b) b.style.display = "none";
-      }, 3000);
+      const started = loadResp.status === "started" || loadResp.status === "already_loading";
+      _showBanner(
+        started ? `${target.name || target.id} hazırlanıyor` : `✓ ${target.name || target.id} hazır`,
+        started ? "Sohbet beklemez; model arka planda açılıyor" : "Sohbet etmeye başlayabilirsiniz",
+        started ? "⚡" : "✅"
+      );
+      if (!started) {
+        setTimeout(() => {
+          const b = document.getElementById("auto-model-banner");
+          if (b) b.style.display = "none";
+        }, 3000);
+      }
     }
   } catch(e) {
     console.debug("Otomatik model yükleme atlandı:", e);

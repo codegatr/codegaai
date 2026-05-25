@@ -4,6 +4,7 @@ Model yönetimi uç noktaları (Faz 3).
 GET  /api/models                     — tüm modellerin durumu
 GET  /api/models/llm                 — LLM kataloğu
 GET  /api/models/embedding           — embedding kataloğu
+POST /api/models/recommended/warmup  — önerilen modeli arka planda hazırla
 GET  /api/models/{id}/status         — indirme/yükleme durumu
 POST /api/models/{id}/download       — indirmeyi başlat (arkaplan)
 POST /api/models/{id}/cancel         — indirmeyi iptal et
@@ -255,6 +256,38 @@ async def recommended_model() -> dict[str, Any]:
         "profile": profile.__dict__,
         "recommendation": rec.__dict__,
         "downloaded": rec.model_id in downloaded_ids,
+        "model": spec.__dict__ if spec else None,
+    }
+
+
+@router.post("/recommended/warmup")
+async def warmup_recommended_model() -> dict[str, Any]:
+    """Önerilen LLM'i arka planda hazırla; HTTP yanıtını bekletme."""
+    registry = ModelRegistry.get()
+    from codegaai.core.device_model_policy import detect_device_profile, recommend_llm_model
+    from codegaai.core.model_warmup import warm_model_async
+
+    profile = detect_device_profile()
+    downloaded_ids = {
+        m["id"] for m in registry.list_llm_models()
+        if registry.is_llm_downloaded(m["id"])
+    }
+    rec = recommend_llm_model(profile, downloaded_ids)
+    spec = registry.get_llm_spec(rec.model_id)
+    if rec.model_id not in downloaded_ids:
+        return {
+            "status": "not_downloaded",
+            "model_id": rec.model_id,
+            "profile": profile.__dict__,
+            "recommendation": rec.__dict__,
+            "model": spec.__dict__ if spec else None,
+        }
+
+    warm = warm_model_async(rec.model_id)
+    return {
+        **warm,
+        "profile": profile.__dict__,
+        "recommendation": rec.__dict__,
         "model": spec.__dict__ if spec else None,
     }
 

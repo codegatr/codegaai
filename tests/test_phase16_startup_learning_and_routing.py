@@ -31,7 +31,7 @@ class TestStartupLearningAndRouting(unittest.TestCase):
 
         self.assertIn("ModelRouter", jobs_py)
         self.assertIn("select_model(job.message, history=history)", jobs_py)
-        self.assertIn("switch_model_if_needed", jobs_py)
+        self.assertIn("warm_model_async", jobs_py)
 
 
 if __name__ == "__main__":

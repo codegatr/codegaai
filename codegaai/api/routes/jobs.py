@@ -90,10 +90,11 @@ _SOCIAL_PATTERNS = [
 ]
 
 _SELF_REFERENCE_PATTERNS = [
-    # Yalnız Claude'un kendisi hakkında — "sen ziyaret et" gibi komutlar HARİÇ
+    # CODEGA AI'nin kendisi hakkında — "sen ziyaret et" gibi komutlar HARİÇ
     r"\b(kendin(den|i)|cevabın|cevabin|seni\s+(yapan|geliştiren|kim))\b",
     r"\b(neler\s+yapabilirsin|özelliklerin|yeteneklerin)\b",
     r"\b(codega\s+(ai|nedir|kim))\b",
+    r"\b(codex|code\s*x|claude|gemini|chatgpt|gpt)\b",
 ]
 
 
@@ -124,7 +125,7 @@ def _needs_web_search(message: str) -> bool:
         if re.search(p, message):   # case-sensitive: proper noun
             return True
 
-    # 3. Self-referential ise (Claude'un kendisi hakkında) ve explicit web yoksa → False
+    # 3. Self-referential ise (CODEGA AI'nin kendisi hakkında) ve explicit web yoksa → False
     if _looks_self_referential(msg):
         return False
 
@@ -204,7 +205,7 @@ def _needs_retry(question: str, answer: str) -> bool:
     - Belirsiz/kaçamak ifadeler ('bilmiyorum', 'üzgünüm' tek başına)
     - Hata mesajı içeriyor
     - Sadece soruyu tekrarlıyor
-    - YASAK kalıplar (Claude-tarzı yanıt için engelleme)
+    - YASAK kalıplar (CODEGA AI tarzı yanıt için engelleme)
     """
     if not answer or not answer.strip():
         return True
@@ -215,7 +216,7 @@ def _needs_retry(question: str, answer: str) -> bool:
     if len(ans) < 15:
         return True
 
-    # YASAK kalıplar — Claude-tarzı için engellenir
+    # YASAK kalıplar — CODEGA AI tarzı için engellenir
     # Bu kalıplardan biri varsa MUTLAKA retry
     forbidden_patterns = [
         "doğrudan internet üzerinde gezinem",   # gezinemem / gezinemiyorum
@@ -478,11 +479,16 @@ async def _run_chat_job(job: ChatJob) -> None:
                         task=decision.intent,
                     ).model_id
             if target_model:
-                router.switch_model_if_needed(target_model)
+                if engine.is_ready and engine.status.get("model_id") != target_model:
+                    log.debug("Model geçişi arka plana bırakıldı: %s", target_model)
+                elif not engine.is_ready and target_model in downloaded_ids:
+                    from codegaai.core.model_warmup import warm_model_async
+                    warm_model_async(target_model)
             elif not engine.is_ready:
                 rec = recommend_llm_model(detect_device_profile(), downloaded_ids, task=decision.intent)
                 if rec.model_id in downloaded_ids:
-                    engine.load(rec.model_id)
+                    from codegaai.core.model_warmup import warm_model_async
+                    warm_model_async(rec.model_id)
         except Exception as exc:
             log.debug("Model routing atlandı: %s", exc)
 
@@ -638,7 +644,7 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
             log.info("Self-eval: yanıt yetersiz, yeniden üretiliyor")
             job.set_stage("✏️ Yanıt iyileştiriliyor...")
 
-            # Sert yeniden yazma talimatı — Claude tarzı
+            # Sert yeniden yazma talimatı — CODEGA AI tarzı
             retry_instruction = (
                 "Bir önceki yanıt YETERSİZ veya yasak kalıp içeriyor. Şu kuralları uygula:\n"
                 "1. 'Ben yapay zeka asistanıyım', 'internet üzerinde gezinemiyorum' "
@@ -647,7 +653,7 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
                 "ihtiyacın varsa, bu mesaj geldikten sonra backend zaten web araması "
                 "yapacak — sen sadece sentezle.\n"
                 "3. Bilmiyorsan 'Hemen araştırıyorum' de — ASLA pes etme.\n"
-                "4. Claude gibi cevapla: doğrudan, net, yardımsever, dolgusuz.\n\n"
+                "4. CODEGA AI gibi cevapla: doğrudan, net, yardımsever, dolgusuz.\n\n"
                 "Şimdi soruyu YENİDEN cevapla:\n\n"
                 f"Soru: {job.message}"
             )
