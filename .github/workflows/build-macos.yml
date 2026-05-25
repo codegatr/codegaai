@@ -112,12 +112,22 @@ jobs:
           ditto dist/codegaai "$staging_dir/CODEGA AI"
           ln -s /Applications "$staging_dir/Applications"
 
-          hdiutil create \
-            -volname "CODEGA AI" \
-            -srcfolder "$staging_dir" \
-            -ov \
-            -format UDZO \
-            "$dmg_name"
+          create_dmg() {
+            hdiutil create \
+              -volname "CODEGA AI" \
+              -srcfolder "$staging_dir" \
+              -ov \
+              -format UDZO \
+              "$dmg_name"
+          }
+
+          create_dmg || {
+            echo "DMG create failed once; cleaning stale disk image helpers and retrying..."
+            hdiutil detach "/Volumes/CODEGA AI" -force || true
+            pkill diskimages-helper || true
+            sleep 8
+            create_dmg
+          }
 
           hdiutil verify "$dmg_name"
           ls -lh "$dmg_name"

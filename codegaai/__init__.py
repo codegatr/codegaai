@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "4.4.6"
-__phase__ = "v4.4.6 - Device-Aware Model Loading"
+__version__ = "4.4.7"
+__phase__ = "v4.4.7 - Device-Aware Model Loading and DMG Retry"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

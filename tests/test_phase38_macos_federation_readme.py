@@ -16,6 +16,7 @@ class TestMacOSFederationReadme(unittest.TestCase):
         self.assertIn('test "$(uname -m)" = "arm64"', workflow)
         self.assertIn("macos-arm64.dmg", workflow)
         self.assertIn("hdiutil create", workflow)
+        self.assertIn("pkill diskimages-helper", workflow)
         self.assertIn("codegaai-macos-arm64-dmg", workflow)
 
     def test_federation_php_exposes_metrics_and_prune(self) -> None:

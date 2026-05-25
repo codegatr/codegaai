@@ -43,8 +43,8 @@ class FastResponseModeTests(unittest.TestCase):
         self.assertIn("cpu_count = os.cpu_count() or 4", engine)
         self.assertIn("n_threads = 2 if low_end else max(2, min(cpu_count - 1, 8))", engine)
 
-    def test_version_bumped_to_446(self):
+    def test_version_bumped_to_447(self):
         init = read("codegaai/__init__.py")
 
-        self.assertIn('__version__ = "4.4.6"', init)
-        self.assertIn("Device-Aware Model Loading", init)
+        self.assertIn('__version__ = "4.4.7"', init)
+        self.assertIn("Device-Aware Model Loading and DMG Retry", init)
