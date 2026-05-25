@@ -456,20 +456,33 @@ async def _run_chat_job(job: ChatJob) -> None:
 
             router = ModelRouter.get()
             registry = ModelRegistry.get()
+            from codegaai.core.device_model_policy import detect_device_profile, recommend_llm_model
+
             target_model = None
-            if job.speed_mode and not job.deep_think and registry.is_llm_downloaded("qwen3-4b-q4_k_m"):
-                target_model = "qwen3-4b-q4_k_m"
-            elif job.speed_mode and not job.deep_think and registry.is_llm_downloaded("qwen2.5-3b-instruct-q4_k_m"):
-                target_model = "qwen2.5-3b-instruct-q4_k_m"
+            downloaded_ids = {
+                m["id"] for m in registry.list_llm_models()
+                if registry.is_llm_downloaded(m["id"])
+            }
+            if job.speed_mode and not job.deep_think:
+                target_model = recommend_llm_model(
+                    detect_device_profile(),
+                    downloaded_ids,
+                    task=decision.intent,
+                ).model_id
             else:
                 target_model = router.select_model(job.message, history=history)
+                if not target_model and downloaded_ids:
+                    target_model = recommend_llm_model(
+                        detect_device_profile(),
+                        downloaded_ids,
+                        task=decision.intent,
+                    ).model_id
             if target_model:
                 router.switch_model_if_needed(target_model)
             elif not engine.is_ready:
-                for model in registry.list_llm_models():
-                    if registry.is_llm_downloaded(model["id"]):
-                        engine.load(model["id"])
-                        break
+                rec = recommend_llm_model(detect_device_profile(), downloaded_ids, task=decision.intent)
+                if rec.model_id in downloaded_ids:
+                    engine.load(rec.model_id)
         except Exception as exc:
             log.debug("Model routing atlandı: %s", exc)
 

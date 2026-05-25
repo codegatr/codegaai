@@ -22,6 +22,10 @@ class Qwen3ModelUpgradeTests(unittest.TestCase):
         self.assertIn('id="qwen3-next-80b-a3b-instruct-q4_k_m"', registry)
         self.assertIn('hf_repo="Qwen/Qwen3-Next-80B-A3B-Instruct-GGUF"', registry)
         self.assertIn('hf_file="Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf"', registry)
+        self.assertIn('id="qwen3-30b-a3b-q4_k_m"', registry)
+        self.assertIn('hf_repo="Qwen/Qwen3-30B-A3B-GGUF"', registry)
+        self.assertIn('id="qwen3-coder-30b-a3b-q4_k_m"', registry)
+        self.assertIn('hf_repo="lmstudio-community/Qwen3-Coder-30B-A3B-Instruct-GGUF"', registry)
 
     def test_qwen3_4b_is_default_and_config_default(self):
         registry = read("codegaai/core/models_registry.py")
@@ -52,11 +56,12 @@ class Qwen3ModelUpgradeTests(unittest.TestCase):
     def test_auto_loader_prefers_qwen3(self):
         chat = read("codegaai/ui/web/js/chat.js")
         router = read("codegaai/core/model_router.py")
+        server = read("codegaai/api/server.py")
 
-        self.assertIn('m.id === "qwen3-4b-q4_k_m"', chat)
-        self.assertIn('m.id === "qwen3-8b-q4_k_m"', chat)
+        self.assertIn("/api/models/recommended", chat)
         self.assertIn('model_id="qwen3-4b-q4_k_m"', router)
         self.assertIn('model_id="qwen3-8b-q4_k_m"', router)
+        self.assertIn("recommend_llm_model", server)
 
 
 if __name__ == "__main__":

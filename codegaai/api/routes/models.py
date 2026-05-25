@@ -238,6 +238,27 @@ async def list_embedding() -> dict[str, Any]:
         return {"models": [], "_timeout": True}
 
 
+@router.get("/recommended")
+async def recommended_model() -> dict[str, Any]:
+    registry = ModelRegistry.get()
+    from codegaai.core.device_model_policy import detect_device_profile, recommend_llm_model
+
+    profile = detect_device_profile()
+    downloaded_ids = {
+        m["id"] for m in registry.list_llm_models()
+        if registry.is_llm_downloaded(m["id"])
+    }
+    rec = recommend_llm_model(profile, downloaded_ids)
+    spec = registry.get_llm_spec(rec.model_id)
+
+    return {
+        "profile": profile.__dict__,
+        "recommendation": rec.__dict__,
+        "downloaded": rec.model_id in downloaded_ids,
+        "model": spec.__dict__ if spec else None,
+    }
+
+
 @router.get("/{model_id}/status")
 async def get_status(model_id: str) -> dict[str, Any]:
     registry = ModelRegistry.get()

@@ -23,9 +23,9 @@ class FastResponseModeTests(unittest.TestCase):
     def test_fast_mode_prefers_downloaded_3b_model(self):
         jobs = read("codegaai/api/routes/jobs.py")
 
-        self.assertIn('registry.is_llm_downloaded("qwen3-4b-q4_k_m")', jobs)
-        self.assertIn('target_model = "qwen3-4b-q4_k_m"', jobs)
-        self.assertIn('target_model = "qwen2.5-3b-instruct-q4_k_m"', jobs)
+        self.assertIn("recommend_llm_model", jobs)
+        self.assertIn("detect_device_profile", jobs)
+        self.assertIn("downloaded_ids", jobs)
 
     def test_fast_mode_ui_toggle_and_payload(self):
         index = read("codegaai/ui/web/index.html")
@@ -43,8 +43,8 @@ class FastResponseModeTests(unittest.TestCase):
         self.assertIn("cpu_count = os.cpu_count() or 4", engine)
         self.assertIn("n_threads = 2 if low_end else max(2, min(cpu_count - 1, 8))", engine)
 
-    def test_version_bumped_to_445(self):
+    def test_version_bumped_to_446(self):
         init = read("codegaai/__init__.py")
 
-        self.assertIn('__version__ = "4.4.5"', init)
-        self.assertIn("AVX-Free Windows Loading and macOS ARM DMG", init)
+        self.assertIn('__version__ = "4.4.6"', init)
+        self.assertIn("Device-Aware Model Loading", init)

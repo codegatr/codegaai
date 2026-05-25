@@ -186,6 +186,28 @@ LLM_MODELS: tuple[LLMModelSpec, ...] = (
         context_length=262144,
         description="Ust seviye MoE model. Buyuk RAM/VRAM isteyen ileri seviye ajan ve muhakeme isleri icin.",
     ),
+    LLMModelSpec(
+        id="qwen3-30b-a3b-q4_k_m",
+        name="Qwen3 30B-A3B (Q4_K_M) - Workstation MoE",
+        hf_repo="Qwen/Qwen3-30B-A3B-GGUF",
+        hf_file="Qwen3-30B-A3B-Q4_K_M.gguf",
+        size_gb=18.0,
+        vram_gb=16.0,
+        languages=("tr", "en", "zh", "ar", "fr", "de", "es", "ja"),
+        context_length=32768,
+        description="Yeni nesil MoE; 24GB GPU veya yüksek RAM'li Apple Silicon/workstation için.",
+    ),
+    LLMModelSpec(
+        id="qwen3-coder-30b-a3b-q4_k_m",
+        name="Qwen3 Coder 30B-A3B (Q4_K_M)",
+        hf_repo="lmstudio-community/Qwen3-Coder-30B-A3B-Instruct-GGUF",
+        hf_file="Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf",
+        size_gb=18.0,
+        vram_gb=16.0,
+        languages=("en", "tr"),
+        context_length=262144,
+        description="Kod ajanları ve büyük repo görevleri için güncel Qwen3 Coder MoE modeli.",
+    ),
 
     # === Eski uyumluluk modelleri ===
     # === 6 GB VRAM (RTX 3060 Laptop) için önerilen ===

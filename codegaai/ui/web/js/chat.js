@@ -1101,37 +1101,18 @@ document.addEventListener("DOMContentLoaded", () => {
       return;   // AVX2 yoksa otomatik yükleme deneme — crash olur
     }
 
-    // RAM/VRAM'e göre en uygun modeli seç
-    const ram = sys.system?.ram_total_gb || 8;
-    const vram = sys.gpu?.vram_total_mb ? sys.gpu.vram_total_mb / 1024 : 0;
-
-    // İndirilmiş modelleri al — DOĞRU endpoint: /api/models/llm
-    const models = await fetch("/api/models/llm").then(r => r.json()).catch(() => ({models:[]}));
-    const downloaded = (models.models || []).filter(m => m.downloaded || m.is_downloaded);
-    if (!downloaded.length) {
-      _showBanner("Henüz model indirilmedi", "Sistem → Modeller'den bir model indirin", "📥");
+    const recData = await fetch("/api/models/recommended").then(r => r.json()).catch(() => null);
+    if (!recData?.model) return;
+    if (!recData.downloaded) {
+      _showBanner("Önerilen model hazır değil", `${recData.model.name || recData.recommendation.model_id} indirilmeli`, "📥");
       return;
     }
-
-    // Donanıma göre en iyi modeli seç (CPU'da küçük, GPU'da büyük)
-    let target;
-    if (vram >= 5) {
-      target = downloaded.find(m => m.id === "qwen3-8b-q4_k_m")
-        || downloaded.find(m => m.id.includes("8b") || m.id.includes("7b"))
-        || downloaded[0];
-    } else if (vram >= 2 || ram >= 8) {
-      target = downloaded.find(m => m.id === "qwen3-4b-q4_k_m")
-        || downloaded.find(m => m.id.includes("4b") || m.id.includes("3b"))
-        || downloaded[0];
-    } else {
-      // Çok düşük sistem — en küçük model
-      target = downloaded.sort((a,b) => (a.size_gb||999) - (b.size_gb||999))[0];
-    }
-
-    if (!target) return;
+    const target = recData.model;
+    const profile = recData.profile || {};
+    const vram = profile.vram_gb || 0;
 
     _showBanner(`${target.name || target.id}`,
-                `${vram >= 2 ? `GPU ${vram.toFixed(1)}GB` : `CPU mod`} · ${target.size_gb || "?"} GB`,
+                `${recData.recommendation?.tier || "auto"} · ${vram ? `GPU ${Number(vram).toFixed(1)}GB` : profile.backend || "CPU"} · ${target.size_gb || "?"} GB`,
                 "⏳");
 
     // Yüklemeyi başlat — DOĞRU endpoint: /api/models/{id}/load

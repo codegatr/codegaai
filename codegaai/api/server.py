@@ -369,6 +369,7 @@ def create_app() -> FastAPI:
                     from codegaai.core.models_registry import ModelRegistry
                     from codegaai.core.engine import LLMEngine
                     from codegaai.core.embeddings import EmbeddingService
+                    from codegaai.core.device_model_policy import detect_device_profile, recommend_llm_model
 
                     reg = ModelRegistry.get()
                     engine = LLMEngine.get()
@@ -388,15 +389,12 @@ def create_app() -> FastAPI:
                     elif engine.is_ready:
                         log.info("Motor zaten hazır: %s", engine._status.model_id)
                     else:
-                        # Önce varsayılan, yoksa ilk indirilen
-                        default = next(
-                            (m for m in downloaded if m.get("default")),
-                            downloaded[0],
-                        )
-                        log.info("Otomatik model yükleme: %s", default["id"])
-                        engine.load(default["id"])
+                        downloaded_ids = {m["id"] for m in downloaded}
+                        rec = recommend_llm_model(detect_device_profile(), downloaded_ids)
+                        log.info("Otomatik model yükleme: %s (%s)", rec.model_id, rec.reason)
+                        engine.load(rec.model_id)
                         log.info("Otomatik yükleme tamamlandı: %s",
-                                 default["id"])
+                                 rec.model_id)
 
                     # BGE-M3 otomatik yükle — embedding şart
                     if server_cfg.get("auto_load_embedding", True):
