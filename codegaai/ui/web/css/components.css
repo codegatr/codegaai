@@ -211,7 +211,7 @@
   font-weight: 400;
   color: var(--color-text);
   margin: 0 0 40px 0;
-  letter-spacing: -0.5px;
+  letter-spacing: 0;
 }
 
 .codex-suggestions {

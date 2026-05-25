@@ -56,7 +56,7 @@
   font-weight: var(--fw-medium);
   font-size: var(--fs-3xl);
   margin-bottom: var(--space-3);
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .welcome__subtitle {

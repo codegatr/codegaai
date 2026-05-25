@@ -361,7 +361,7 @@ button[onclick*="newChat"] {
   font-weight: 400 !important;
   color: var(--color-text) !important;
   margin-bottom: 36px !important;
-  letter-spacing: -0.5px !important;
+  letter-spacing: 0 !important;
 }
 
 /* Suggestion kartları */
@@ -634,25 +634,60 @@ button[onclick*="newChat"] {
   text-align: left;
 }
 
-.welcome-orbit {
+.view[data-view="chat"] .welcome--command {
+  position: relative;
+  min-height: 58vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.view[data-view="chat"] .welcome--command::before {
+  content: "";
+  position: absolute;
+  inset: 8px 0 auto auto;
+  width: 46%;
+  height: 320px;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgba(245, 158, 11, 0.13), transparent 58%),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.045) 0 1px, transparent 1px 38px),
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.035) 0 1px, transparent 1px 38px);
+  border: 1px solid rgba(245, 158, 11, 0.12);
+  border-radius: 6px;
+  opacity: 0.58;
+  transform: skewX(-8deg);
+}
+
+.welcome-kicker {
+  width: fit-content;
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 11px;
-  border: 1px solid rgba(16, 185, 129, 0.28);
+  margin-bottom: 18px;
+  padding: 8px 12px;
+  border: 1px solid rgba(16, 185, 129, 0.34);
   border-radius: 999px;
   background: rgba(16, 185, 129, 0.08);
   color: var(--color-success);
-  margin-bottom: 18px;
 }
 
-.welcome-orbit span {
+.welcome-kicker__pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+  box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.14);
+}
+
+.welcome-kicker span:not(.welcome-kicker__pulse) {
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.08em;
 }
 
-.welcome-orbit strong {
+.welcome-kicker strong {
   color: var(--color-text);
   font-size: 12px;
 }
@@ -672,9 +707,101 @@ button[onclick*="newChat"] {
   margin-bottom: 26px;
 }
 
+.mission-strip {
+  width: min(100%, 760px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0 0 28px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.mission-strip__item {
+  min-height: 72px;
+  padding: 14px 16px;
+  background: rgba(19, 20, 24, 0.82);
+}
+
+.mission-strip__item span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.mission-strip__item strong {
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .view[data-view="chat"] .codex-suggestions {
   max-width: 1040px;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.view[data-view="chat"] .mission-actions {
+  position: relative;
+  z-index: 1;
+  margin-top: 0 !important;
+}
+
+.view[data-view="chat"] .mission-action {
+  min-height: 126px;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  align-content: start;
+  gap: 10px;
+  padding: 18px !important;
+  border-radius: 8px !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent),
+    rgba(19, 20, 24, 0.92) !important;
+  border-color: rgba(255, 255, 255, 0.075) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.view[data-view="chat"] .mission-action:hover {
+  border-color: rgba(245, 158, 11, 0.48) !important;
+  transform: translateY(-2px);
+}
+
+.mission-action .codex-card__icon {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  border-radius: 8px;
+  color: var(--color-accent);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.mission-action .codex-card__icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mission-action .codex-card__text {
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.mission-action small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .view[data-view="chat"] .codex-quick-links {
@@ -841,6 +968,18 @@ button[onclick*="newChat"] {
 
   .view[data-view="chat"] .message--assistant {
     margin-left: 0;
+  }
+
+  .view[data-view="chat"] .welcome--command::before {
+    display: none;
+  }
+
+  .mission-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .view[data-view="chat"] .welcome__codex-title {
+    font-size: 28px !important;
   }
 }
 

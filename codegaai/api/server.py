@@ -437,7 +437,7 @@ def create_app() -> FastAPI:
                     if "0xc000001d" in str(exc).lower() or "-1073741795" in str(exc):
                         log.error(
                             "OTOMATİK YÜKLEME BAŞARISIZ — CPU AVX2 uyumsuzluğu! "
-                            "fix_llama.bat dosyasını çalıştırın."
+                            "Sistem > Otomatik Onar veya AVX'siz Windows paketini kullanın."
                         )
                     else:
                         log.error("Otomatik model yükleme OSError: %s", exc)

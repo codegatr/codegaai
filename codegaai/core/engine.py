@@ -218,9 +218,8 @@ class LLMEngine:
             if not self._check_avx2_compat():
                 err = (
                     "CPU uyumsuzluğu: llama-cpp-python AVX2 gerektiriyor ama CPU'nuz desteklemiyor.\n"
-                    "fix_llama.bat dosyasını çalıştırın veya terminalde:\n"
-                    "pip install llama-cpp-python --prefer-binary "
-                    "--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu"
+                    "AVX'siz Windows paketini kullanın veya Sistem > Otomatik Onarım ile "
+                    "llama-cpp-python'u kaynak koddan AVX kapalı derleyin."
                 )
                 log.error("AVX2 uyumsuzluğu tespit edildi — yükleme iptal edildi")
                 self._write_fix_script()
@@ -266,16 +265,15 @@ class LLMEngine:
             if "0xc000001d" in err_str.lower() or "-1073741795" in err_str:
                 fix_msg = (
                     "CPU'nuz AVX2 desteği içermeyen llama-cpp-python build'i gerektiriyor.\n"
-                    "Otomatik düzeltme için uygulama dizinindeki 'fix_llama.bat' dosyasını çalıştırın.\n"
-                    "Ya da terminalde: pip install llama-cpp-python --prefer-binary "
-                    "--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu"
+                    "Yeni AVX'siz Windows paketini kullanın veya Sistem > Otomatik Onarım ile "
+                    "kaynak derleme başlatın."
                 )
                 log.error("CPU UYUMSUZLUĞU (0xC000001D): %s", fix_msg)
                 self._write_fix_script()
                 self._status = EngineStatus(
                     state="error", model_id=model_id,
                     model_path=str(path),
-                    error=f"CPU uyumsuzluğu (AVX2). fix_llama.bat'ı çalıştırın.\n{fix_msg}",
+                    error=f"CPU uyumsuzluğu (AVX2). Sistem > Otomatik Onar çalıştırın.\n{fix_msg}",
                 )
             else:
                 log.exception("LLM yüklemesi başarısız: %s", exc)
@@ -290,8 +288,7 @@ class LLMEngine:
             if "llama.dll" in err_str or "dynlib" in err_str or "shared library" in err_str:
                 dll_msg = (
                     "llama.dll yüklenemedi.\n"
-                    "Çözüm: fix_llama.bat dosyasını çalıştırın veya\n"
-                    "Visual C++ Redistributable kurun:\n"
+                    "Çözüm: Sistem > Otomatik Onar çalıştırın veya Visual C++ Redistributable kurun:\n"
                     "https://aka.ms/vs/17/release/vc_redist.x64.exe"
                 )
                 log.error("LLM DLL hatası: %s", dll_msg)

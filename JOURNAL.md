@@ -4,6 +4,15 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## Agentic Core v1
+
+- `.codegaaiignore` desteğiyle yerel kod tabanı indeksleme tasarlandı.
+- Dış içerikler için prompt injection tespiti ve secret redaction çekirdeği eklendi.
+- Riskli ajan aksiyonları için safety gateway sınıflandırması eklendi.
+- Python AST grafiği, kod chunking ve context-pack üretimi eklendi.
+
+---
+
 ## 📍 Şu An (v4.0.3)
 
 **Aktif Sorunlar (kullanıcının bildirdiği):**

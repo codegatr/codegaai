@@ -25,6 +25,28 @@ from codegaai.core.models_registry import ModelRegistry
 router = APIRouter()
 
 
+def _llm_load_error_response(engine: LLMEngine, exc: BaseException) -> HTTPException:
+    """Turn low-level llama crashes into actionable user guidance."""
+    status_error = engine.status.get("error")
+    err = str(exc)
+    err_lower = err.lower()
+    if (
+        "0xc000001d" in err_lower
+        or "-1073741795" in err
+        or "illegal instruction" in err_lower
+        or (status_error and ("AVX2" in status_error or "Otomatik Onar" in status_error))
+    ):
+        return HTTPException(
+            409,
+            status_error or (
+                "Bu Windows paketi CPU'nuzla uyumsuz bir llama.cpp çalışma zamanı "
+                "yükledi. Sistem > Otomatik Onar ile AVX'siz derlemeyi kurun veya "
+                "son AVX'siz Windows sürümünü indirin."
+            ),
+        )
+    return HTTPException(500, f"Yükleme başarısız: {exc}")
+
+
 def _enrich_llm(model: dict[str, Any], registry: ModelRegistry,
                 engine_status: dict[str, Any]) -> dict[str, Any]:
     """LLM model bilgisine indirme/yükleme durumunu ekle."""
@@ -373,8 +395,10 @@ async def load_model(model_id: str,
                 raise RuntimeError(err)
         except RuntimeError as exc:
             raise HTTPException(409, str(exc))
+        except OSError as exc:
+            raise _llm_load_error_response(engine, exc)
         except Exception as exc:
-            raise HTTPException(500, f"Yükleme başarısız: {exc}")
+            raise _llm_load_error_response(engine, exc)
         return {"loaded": True, "engine": engine.status}
 
     if registry.get_embedding_spec(model_id):
