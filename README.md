@@ -54,7 +54,7 @@ CODEGA AI klasik bir chatbot değildir. Yerel modeller, güçlü bulut model sa�
 | RAG Hafıza | Sohbet, proje, hata, çözüm, web öğrenmesi ve federe sinyaller |
 | Araç Kullanımı | Web, GitHub, dosya, ZIP, PDF, Excel, Python sandbox, OCR, görsel analiz |
 | Federe Ağ | Ham sohbet göndermeden anonim konu sinyali, kalite puanı, kaynak sayısı ve güven skoru |
-| macOS ARM64 | Apple Silicon hedefli `macos-15` build ve `macos-arm64.zip` artifact |
+| macOS ARM64 | Apple Silicon hedefli `macos-15` build ve `macos-arm64.dmg` artifact |
 | Windows Portable | Tek klasör portable Windows build |
 
 ## Agent OS
@@ -164,8 +164,8 @@ schema.sql                     ->  manuel tablo kurulumu için
 
 | Platform | Artifact | Hedef |
 | --- | --- | --- |
-| Windows | `codegaai-vX.Y.Z-windows.zip` | Portable desktop |
-| macOS Apple Silicon | `codegaai-vX.Y.Z-macos-arm64.zip` | M1, M2, M3, M4 |
+| Windows | `codegaai-vX.Y.Z-windows-cpu.zip` | Portable desktop |
+| macOS Apple Silicon | `codegaai-vX.Y.Z-macos-arm64.dmg` | M1, M2, M3, M4 |
 
 macOS workflow açıkça Apple Silicon doğrular:
 
@@ -190,9 +190,9 @@ codegaai.exe çalıştır
 macOS Apple Silicon:
 
 ```text
-Releases sayfasından macos-arm64 ZIP indir
-Arşivi çıkar
-dist/codegaai/codegaai çalıştır
+Releases sayfasından macos-arm64 DMG indir
+DMG dosyasını aç
+CODEGA AI klasörünü Applications'a sürükle veya içindeki codegaai dosyasını çalıştır
 ```
 
 Geliştirici:

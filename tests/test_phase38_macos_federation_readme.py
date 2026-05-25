@@ -14,7 +14,9 @@ class TestMacOSFederationReadme(unittest.TestCase):
         workflow = (ROOT / ".github" / "workflows" / "build-macos.yml").read_text(encoding="utf-8")
         self.assertIn("runs-on: macos-15", workflow)
         self.assertIn('test "$(uname -m)" = "arm64"', workflow)
-        self.assertIn("macos-arm64.zip", workflow)
+        self.assertIn("macos-arm64.dmg", workflow)
+        self.assertIn("hdiutil create", workflow)
+        self.assertIn("codegaai-macos-arm64-dmg", workflow)
 
     def test_federation_php_exposes_metrics_and_prune(self) -> None:
         php = (ROOT / "deploy" / "federation-php" / "public" / "index.php").read_text(encoding="utf-8")
@@ -30,6 +32,7 @@ class TestMacOSFederationReadme(unittest.TestCase):
         self.assertIn("img.shields.io", readme)
         self.assertIn("Agent OS", readme)
         self.assertIn("macOS Apple Silicon", readme)
+        self.assertIn("macos-arm64.dmg", readme)
         self.assertIn("/api/federation/metrics", readme)
         self.assertIn("/api/orchestrate/agent-os", readme)
         self.assertIn("MIT lisansı", readme)
