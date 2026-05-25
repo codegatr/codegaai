@@ -423,6 +423,19 @@
               </button>
             </div>
           </div>
+          <div class="ai-state-rail" id="ai-state-rail" hidden>
+            <span class="ai-state-rail__pulse"></span>
+            <div>
+              <strong id="ai-state-title">CODEGA AI hazırlanıyor</strong>
+              <span id="ai-state-detail">Görev durumu burada görünür.</span>
+            </div>
+          </div>
+          <div class="prompt-starter-row" aria-label="Örnek komutlar">
+            <button type="button" class="prompt-starter" data-prompt="Bu projeyi incele, riskleri ve ilk 5 düzeltmeyi sırala">Repo kontrol</button>
+            <button type="button" class="prompt-starter" data-prompt="Bu hatayı kullanıcı diliyle açıkla ve çözüm adımlarını yaz">Hata çöz</button>
+            <button type="button" class="prompt-starter" data-prompt="Bu metni daha profesyonel ve kısa hale getir">Metni iyileştir</button>
+            <button type="button" class="prompt-starter" data-prompt="Bir dosya yükledim; özetle, eksikleri çıkar ve aksiyon listesi yap">Dosya analiz</button>
+          </div>
           <div class="chat-input-hint">
             <span id="chat-model-label">Model: <code id="chat-model-code">—</code></span>
             <span class="separator">·</span>
@@ -430,6 +443,7 @@
             <span class="separator" id="elapsed-sep" style="display:none">·</span>
             <span id="rag-status-label">RAG bellek: <span class="muted">kontrol ediliyor...</span></span>
           </div>
+          <div class="ai-disclaimer">CODEGA AI hata yapabilir; kritik bilgi, kod ve kararları uygulamadan önce kontrol edin.</div>
           <div class="chat-queue-status" id="chat-queue-status" hidden></div>
         </form>
       </div>

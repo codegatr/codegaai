@@ -12,6 +12,7 @@ const Chat = (() => {
   };
 
   let elInput, elMessages, elForm, elSend, elTitle, elDelete, elRename, elQueueStatus;
+  let elAiState, elAiStateTitle, elAiStateDetail;
 
   // ---------- DOM yardımcıları ----------
 
@@ -67,10 +68,99 @@ const Chat = (() => {
         !isUser && msg.id && state.chatId
           ? renderFeedbackBar(msg)
           : null,
+        !isUser
+          ? renderOutputActions(msg)
+          : null,
       ),
     ].filter(Boolean);
 
     return el("div", { class: `message message--${msg.role}` }, ...children);
+  }
+
+  function renderOutputActions(msg) {
+    return el("div", { class: "message__actions" },
+      el("button", {
+        class: "message-action",
+        title: "Yanıtı kopyala",
+        onclick: () => copyMessage(msg),
+      }, "Kopyala"),
+      el("button", {
+        class: "message-action",
+        title: "Son kullanıcı komutunu tekrar çalıştır",
+        onclick: () => regenerateFromMessage(msg),
+      }, "Yeniden üret"),
+      el("button", {
+        class: "message-action",
+        title: "Son komutu giriş alanına al",
+        onclick: () => editPromptForMessage(msg),
+      }, "Düzenle"),
+      el("button", {
+        class: "message-action",
+        title: "Yanıtı paylaş veya panoya al",
+        onclick: () => shareMessage(msg),
+      }, "Paylaş"),
+      el("span", { class: "message-confidence", title: "Yerel çalışma, RAG ve web bağlamı durumuna göre genel güven notu" },
+        msg.model ? `Model: ${msg.model}` : "Güven: bağlamı kontrol et"
+      ),
+    );
+  }
+
+  async function copyMessage(msg) {
+    try {
+      await navigator.clipboard?.writeText(msg.content || "");
+      setAIState("success", "Yanıt kopyalandı", "Metin panoya alındı.");
+      setTimeout(clearAIState, 1800);
+    } catch (_) {
+      setAIState("error", "Kopyalama olmadı", "Tarayıcı pano izni vermedi.");
+    }
+  }
+
+  function previousUserMessageFor(msg) {
+    const idx = state.messages.indexOf(msg);
+    for (let i = idx - 1; i >= 0; i--) {
+      if (state.messages[i]?.role === "user") return state.messages[i].content || "";
+    }
+    return "";
+  }
+
+  function regenerateFromMessage(msg) {
+    const prompt = previousUserMessageFor(msg);
+    if (!prompt) return;
+    send(prompt);
+  }
+
+  function editPromptForMessage(msg) {
+    const prompt = previousUserMessageFor(msg);
+    if (!prompt || !elInput) return;
+    elInput.value = prompt.replace(/\n\n\[Ekli gorsel:[\s\S]*$/i, "").trim();
+    autoResize();
+    elInput.focus();
+    setAIState("idle", "Komut düzenlenebilir", "Gerekirse değiştirip tekrar gönder.");
+  }
+
+  async function shareMessage(msg) {
+    const text = msg.content || "";
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "CODEGA AI yanıtı", text });
+        return;
+      } catch (_) {}
+    }
+    await copyMessage(msg);
+  }
+
+  function setAIState(kind, title, detail) {
+    if (!elAiState) return;
+    elAiState.hidden = false;
+    elAiState.dataset.state = kind || "idle";
+    if (elAiStateTitle) elAiStateTitle.textContent = title || "CODEGA AI çalışıyor";
+    if (elAiStateDetail) elAiStateDetail.textContent = detail || "";
+  }
+
+  function clearAIState() {
+    if (!elAiState) return;
+    elAiState.hidden = true;
+    elAiState.dataset.state = "idle";
   }
 
   function renderFeedbackBar(msg) {
@@ -145,7 +235,7 @@ const Chat = (() => {
       el("div", { class: "message__body" },
         el("div", { class: "message__role" }, "CODEGA AI"),
         el("div", { class: "message__content" },
-          el("span", { class: "typing" },
+          el("div", { class: "ai-skeleton" },
             el("span"), el("span"), el("span"),
           ),
         ),
@@ -459,6 +549,7 @@ const Chat = (() => {
     }
 
     state.sending = true;
+    setAIState("thinking", "İstek hazırlanıyor", "Bağlam, ekler ve model durumu kontrol ediliyor.");
     if (elSend) elSend.disabled = false;
     updateQueueStatus();
 
@@ -516,8 +607,9 @@ const Chat = (() => {
       hideTyping();
       appendMessage({
         role: "assistant",
-        content: `**Hata:** ${err.message || "Bilinmeyen hata"}`,
+        content: `**Bir aksama oldu:** ${err.message || "Bilinmeyen hata"}\n\n10 saniye sonra tekrar deneyebilir veya Hızlı Mod ile daha kısa yanıt alabilirsin.`,
       });
+      setAIState("error", "İşlem tamamlanamadı", "Bağlantı, model veya görev kuyruğu geçici olarak yoğun olabilir.");
     } finally {
       state.sending = false;
       if (elSend) elSend.disabled = false;
@@ -569,6 +661,7 @@ const Chat = (() => {
 
           // Stage göster (web aramada, RAG'da, vs.) — content yokken durum bildirici
           if (!d.content && d.stage && contentEl) {
+            setAIState("thinking", d.stage.replace(/[🔍✏️]/g, "").trim() || "CODEGA AI çalışıyor", "Sonuç hazır olunca burada akmaya başlayacak.");
             contentEl.innerHTML = `<div style="color:var(--color-text-muted);font-size:13px;font-style:italic;display:flex;align-items:center;gap:8px">
               <span style="display:inline-block;width:12px;height:12px;border:2px solid var(--color-accent);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></span>
               ${d.stage}
@@ -580,6 +673,7 @@ const Chat = (() => {
             const shouldStick = isNearBottom();
             lastLen = d.content.length;
             assistantMsg.content = d.content;
+            setAIState("writing", "Yanıt yazılıyor", `${lastLen} karakter üretildi; istersen okumaya başlayabilirsin.`);
             if (contentEl) {
               let thoughtHtml = d.thought ? `<details style="margin-bottom:8px;opacity:.7"><summary style="cursor:pointer;font-size:12px;color:var(--color-accent)">💭 Düşünce (${d.thought.split(' ').length} kelime)</summary><pre style="font-size:11px;padding:8px;background:var(--color-surface-2);border-radius:6px;white-space:pre-wrap">${d.thought}</pre></details>` : '';
               contentEl.innerHTML = thoughtHtml + renderMarkdown(d.content) + (d.done ? "" : '<span class="stream-cursor">▊</span>');
@@ -597,6 +691,7 @@ const Chat = (() => {
             const statMs = document.getElementById("chat-elapsed-ms");
             if (statMs) statMs.textContent = d.elapsed_ms + "ms";
             Chats.reload();
+            clearAIState();
             if (d.error) reject(new Error(d.error));
             else resolve();
           }
@@ -800,6 +895,9 @@ const Chat = (() => {
     elDelete = document.getElementById("chat-delete");
     elRename = document.getElementById("chat-rename");
     elQueueStatus = document.getElementById("chat-queue-status");
+    elAiState = document.getElementById("ai-state-rail");
+    elAiStateTitle = document.getElementById("ai-state-title");
+    elAiStateDetail = document.getElementById("ai-state-detail");
 
     if (!elInput || !elMessages || !elForm) return;
 
@@ -863,6 +961,15 @@ const Chat = (() => {
 
     elInput.addEventListener("input", autoResize);
     elInput.addEventListener("paste", handleClipboardImagePaste);
+
+    document.querySelectorAll(".prompt-starter[data-prompt]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        elInput.value = btn.dataset.prompt || "";
+        autoResize();
+        elInput.focus();
+        setAIState("idle", "Komut taslağı hazır", "İstersen değiştir, dosya ekle veya doğrudan gönder.");
+      });
+    });
 
     document.addEventListener("paste", (e) => {
       if (document.activeElement === elInput) return;

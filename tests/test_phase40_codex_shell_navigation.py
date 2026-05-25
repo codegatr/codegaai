@@ -101,5 +101,5 @@ def test_chat_toolbar_uses_readable_tool_chips():
 
 def test_version_marks_codex_shell_release():
     init = read(INIT)
-    assert '__version__ = "4.5.1"' in init
-    assert "Silent Updates and Command Home" in init
+    assert '__version__ = "4.5.2"' in init
+    assert "Guided AI Experience" in init
