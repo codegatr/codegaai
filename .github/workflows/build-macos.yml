@@ -21,6 +21,8 @@ jobs:
     name: Build macOS Apple Silicon DMG
     runs-on: macos-15
     timeout-minutes: 60
+    env:
+      APP_BUNDLE: "dist/CODEGA AI.app"
 
     steps:
       - name: Checkout
@@ -100,6 +102,80 @@ jobs:
           echo "Tag: $tag"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
+      - name: Create macOS app bundle
+        run: |
+          rm -rf "$APP_BUNDLE"
+          mkdir -p "$APP_BUNDLE/Contents/MacOS"
+          mkdir -p "$APP_BUNDLE/Contents/Resources"
+          ditto dist/codegaai "$APP_BUNDLE/Contents/Resources/codegaai"
+          cat > "$APP_BUNDLE/Contents/MacOS/CODEGA AI" <<'EOF'
+          #!/bin/bash
+          set -e
+          APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+          exec "$APP_DIR/Resources/codegaai/codegaai"
+          EOF
+          chmod +x "$APP_BUNDLE/Contents/MacOS/CODEGA AI"
+          cat > "$APP_BUNDLE/Contents/Info.plist" <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key>
+            <string>CODEGA AI</string>
+            <key>CFBundleDisplayName</key>
+            <string>CODEGA AI</string>
+            <key>CFBundleIdentifier</key>
+            <string>tr.com.codega.codegaai</string>
+            <key>CFBundleVersion</key>
+            <string>${{ steps.version.outputs.tag }}</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${{ steps.version.outputs.tag }}</string>
+            <key>CFBundleExecutable</key>
+            <string>CODEGA AI</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>13.0</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+          plutil -lint "$APP_BUNDLE/Contents/Info.plist"
+
+      - name: Import Apple signing certificate
+        id: signing
+        if: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_BASE64 != '' }}
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}
+        run: |
+          echo "$CERTIFICATE_BASE64" | base64 --decode > certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security import certificate.p12 -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          identity="$(security find-identity -v -p codesigning build.keychain | awk -F '"' '/Developer ID Application/ {print $2; exit}')"
+          if [[ -z "$identity" ]]; then
+            echo "Developer ID Application certificate not found"
+            exit 1
+          fi
+          echo "identity=$identity" >> "$GITHUB_OUTPUT"
+
+      - name: Sign macOS app bundle
+        run: |
+          if [[ -n "${{ steps.signing.outputs.identity }}" ]]; then
+            codesign --force --deep --options runtime --timestamp \
+              --sign "${{ steps.signing.outputs.identity }}" "$APP_BUNDLE"
+          else
+            echo "Apple Developer ID certificate secret missing; using ad-hoc signature."
+            codesign --force --deep --sign - "$APP_BUNDLE"
+          fi
+          codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
+
       - name: Create macOS ARM64 DMG
         id: dmg
         run: |
@@ -108,8 +184,8 @@ jobs:
           staging_dir="dist/dmg-root"
 
           rm -rf "$staging_dir"
-          mkdir -p "$staging_dir/CODEGA AI"
-          ditto dist/codegaai "$staging_dir/CODEGA AI"
+          mkdir -p "$staging_dir"
+          ditto "$APP_BUNDLE" "$staging_dir/CODEGA AI.app"
           ln -s /Applications "$staging_dir/Applications"
 
           create_dmg() {
@@ -130,8 +206,28 @@ jobs:
           }
 
           hdiutil verify "$dmg_name"
+          if [[ -n "${{ steps.signing.outputs.identity }}" ]]; then
+            codesign --force --timestamp --sign "${{ steps.signing.outputs.identity }}" "$dmg_name"
+          else
+            codesign --force --sign - "$dmg_name" || true
+          fi
           ls -lh "$dmg_name"
           echo "dmg_name=$dmg_name" >> "$GITHUB_OUTPUT"
+
+      - name: Notarize and staple DMG
+        if: ${{ secrets.APPLE_NOTARIZATION_APPLE_ID != '' && secrets.APPLE_NOTARIZATION_PASSWORD != '' && secrets.APPLE_NOTARIZATION_TEAM_ID != '' && steps.signing.outputs.identity != '' }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_NOTARIZATION_APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_NOTARIZATION_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_NOTARIZATION_TEAM_ID }}
+        run: |
+          xcrun notarytool submit "${{ steps.dmg.outputs.dmg_name }}" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "${{ steps.dmg.outputs.dmg_name }}"
+          spctl -a -t open --context context:primary-signature -v "${{ steps.dmg.outputs.dmg_name }}"
 
       - name: Upload artifact (manual/build branch için)
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}

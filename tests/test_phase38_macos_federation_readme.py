@@ -15,8 +15,13 @@ class TestMacOSFederationReadme(unittest.TestCase):
         self.assertIn("runs-on: macos-15", workflow)
         self.assertIn('test "$(uname -m)" = "arm64"', workflow)
         self.assertIn("macos-arm64.dmg", workflow)
+        self.assertIn("CODEGA AI.app", workflow)
+        self.assertIn("CFBundleIdentifier", workflow)
+        self.assertIn("codesign --verify", workflow)
         self.assertIn("hdiutil create", workflow)
         self.assertIn("pkill diskimages-helper", workflow)
+        self.assertIn("xcrun notarytool submit", workflow)
+        self.assertIn("xcrun stapler staple", workflow)
         self.assertIn("codegaai-macos-arm64-dmg", workflow)
 
     def test_federation_php_exposes_metrics_and_prune(self) -> None:
