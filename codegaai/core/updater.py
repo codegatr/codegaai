@@ -4,9 +4,9 @@ codegaai.core.updater
 
 Akıllı Güncelleme (Faz 8).
 
-GitHub Releases üzerinden uygulamanın yeni sürümünü tespit eder, kullanıcı
-onay verirse yeni ZIP'i indirir, ve isteğe bağlı olarak self-replace ile
-uygulamayı yeniden başlatır.
+GitHub Releases üzerinden uygulamanın yeni sürümünü sessizce tespit eder,
+kullanıcı onay verirse Windows ZIP veya macOS DMG asset'ini indirir, ve
+Windows'ta isteğe bağlı olarak self-replace ile uygulamayı yeniden başlatır.
 
 Klasör mimarisi:
 - INSTALL_DIR: kullanıcının .exe'yi çıkardığı yer (frozen modda
@@ -22,9 +22,9 @@ Self-replace stratejisi (Windows):
 
 Güvenlik:
 - Sadece codegatr/codegaai resmi GitHub repo'sundan yayımlanmış release'ler
-- Asset adı pattern: codegaai-v*-windows-*.zip
+- Asset adı pattern: codegaai-v*-windows-*.zip veya codegaai-v*-macos-arm64.dmg
 - HTTPS only
-- Kullanıcı her zaman onaylamak zorunda (otomatik güncelleme yok)
+- Kullanıcı kurulum/uygulama için her zaman onay vermek zorunda
 - Frozen modda olmayan (Python source) sürümlerde uygulama disabled
 
 Kullanım:
@@ -64,6 +64,10 @@ GITHUB_API_BASE = "https://api.github.com"
 # Asset adı pattern: codegaai-v0.7.0-windows-cpu.zip gibi
 ASSET_PATTERN = re.compile(
     r"codegaai-v[\d\.]+-windows-(?:cpu|cuda)\.zip$",
+    re.IGNORECASE,
+)
+MACOS_ASSET_PATTERN = re.compile(
+    r"codegaai-v[\d\.]+-macos-arm64\.dmg$",
     re.IGNORECASE,
 )
 
@@ -215,6 +219,14 @@ class Updater:
 
     def check_for_updates(self, force: bool = False) -> UpdateInfo:
         """En son release'i sorgular, mevcut sürümle karşılaştırır."""
+        if (
+            not force
+            and self._last_check
+            and self._last_check.checked_at
+            and time.time() - self._last_check.checked_at < 8
+        ):
+            return self._last_check
+
         info = UpdateInfo(current_version=__version__,
                            checked_at=time.time())
         try:
@@ -242,10 +254,14 @@ class Updater:
             info.published_at = data.get("published_at")
             info.release_notes = (data.get("body") or "")[:5000]
 
-            # Windows ZIP asset'ini bul
+            asset_patterns = (
+                [MACOS_ASSET_PATTERN, ASSET_PATTERN]
+                if sys.platform == "darwin"
+                else [ASSET_PATTERN, MACOS_ASSET_PATTERN]
+            )
             for asset in data.get("assets", []):
                 name = asset.get("name", "")
-                if ASSET_PATTERN.match(name):
+                if any(pattern.match(name) for pattern in asset_patterns):
                     info.asset_name = name
                     info.asset_url = asset.get("browser_download_url")
                     info.asset_size = asset.get("size", 0)
@@ -343,6 +359,16 @@ class Updater:
             if zip_path.exists():
                 zip_path.unlink()
             os.replace(partial, zip_path)
+
+            if asset_name.lower().endswith(".dmg"):
+                self._download.state = "ready"
+                self._download.completed_at = time.time()
+                self._download.zip_path = str(zip_path)
+                self._download.extracted_dir = str(target_dir)
+                self._download.percent = 100.0
+                self._download.can_apply = False
+                log.info("macOS DMG indirme tamam: %s", zip_path)
+                return
 
             # Doğrulama: ZIP geçerli mi?
             if not zipfile.is_zipfile(str(zip_path)):

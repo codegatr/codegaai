@@ -127,14 +127,18 @@ async def progress() -> dict:
     d = Updater.get().status                 # DownloadStatus.to_dict() çağrısı içinde
     total  = d.get("total", 0) or 0
     dl     = d.get("downloaded", 0) or 0
+    state = d.get("state", "idle")
+    public_status = "completed" if state == "ready" else state
     return {
-        "status":        d.get("state", "idle"),
+        "status":        public_status,
+        "state":         state,
         "version":       d.get("version", ""),
         "downloaded_mb": round(dl   / 1_048_576, 1),
         "total_mb":      round(total/ 1_048_576, 1),
         "percent":       d.get("percent", 0),
         "error":         d.get("error", "") or "",
-        "done":          d.get("state") in ("completed", "error", "cancelled"),
+        "can_apply":     bool(d.get("can_apply")),
+        "done":          state in ("ready", "completed", "error", "cancelled"),
     }
 
 
@@ -208,7 +212,7 @@ async def apply() -> dict:
     from codegaai.core.updater import Updater
     upd = Updater.get()
     d   = upd.status
-    if d.get("state") != "completed":
+    if d.get("state") != "ready":
         from fastapi import HTTPException
         raise HTTPException(409, f"İndirme tamamlanmamış: {d.get('state')}")
     _auto_backup_silent()
@@ -325,6 +329,7 @@ async def rollback(req: RollbackReq) -> dict:
 class AutoReq(BaseModel):
     enabled: bool
     check_interval_hours: int = 6
+    check_interval_seconds: int = 10
 
 @router.post("/auto")
 async def auto_update(req: AutoReq) -> dict:
@@ -332,16 +337,21 @@ async def auto_update(req: AutoReq) -> dict:
         AUTO_FLAG.parent.mkdir(parents=True, exist_ok=True)
         AUTO_FLAG.write_text(json.dumps({
             "interval_hours": req.check_interval_hours,
+            "interval_seconds": max(10, req.check_interval_seconds),
             "enabled_at": time.strftime("%Y-%m-%d %H:%M"),
         }), "utf-8")
-        _launch_auto_checker(req.check_interval_hours)
-        return {"auto_update": True, "interval_hours": req.check_interval_hours}
+        _launch_auto_checker(max(10, req.check_interval_seconds))
+        return {
+            "auto_update": True,
+            "interval_hours": req.check_interval_hours,
+            "interval_seconds": max(10, req.check_interval_seconds),
+        }
     else:
         AUTO_FLAG.unlink(missing_ok=True)
         return {"auto_update": False}
 
 
-def _launch_auto_checker(hours: int = 6) -> None:
+def _launch_auto_checker(interval_seconds: int = 10) -> None:
     def _loop():
         while AUTO_FLAG.exists():
             try:
@@ -356,7 +366,7 @@ def _launch_auto_checker(hours: int = 6) -> None:
                     log.info("Otomatik güncelleme tespit edildi: %s", info.latest_version)
             except Exception as e:
                 log.debug("Oto-kontrol hatası: %s", e)
-            time.sleep(hours * 3600)
+            time.sleep(max(10, interval_seconds))
     threading.Thread(target=_loop, daemon=True, name="auto-update").start()
 
 

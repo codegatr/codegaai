@@ -5,6 +5,8 @@
 const Updater = (() => {
   let _poll = null;
   let _initialized = false;
+  let _silentPoll = null;
+  let _lastNotifiedVersion = "";
 
   // ── Yardımcı ─────────────────────────────────────────────────────────
   const $ = id => document.getElementById(id);
@@ -28,6 +30,20 @@ const Updater = (() => {
     if (!badge) return;
     badge.hidden = !show;
     if (txt && show) txt.textContent = label || "Yeni sürüm";
+    if (show) badge.title = "Yeni CODEGA AI sürümü hazır";
+  }
+
+  function openModal() {
+    const modal = $("update-modal");
+    if (modal) modal.hidden = false;
+    const notesWrap = $("update-notes-wrap");
+    if (notesWrap) notesWrap.hidden = false;
+    check(true);
+  }
+
+  function closeModal() {
+    const modal = $("update-modal");
+    if (modal) modal.hidden = true;
   }
 
   // ── Kontrol ──────────────────────────────────────────────────────────
@@ -100,7 +116,10 @@ ${d.release_notes || 'Yok'}</pre>
   async function download(version = "") {
     const prog = $("updater-progress");
     if (prog) prog.style.display = "block";
+    const modalProg = $("update-progress");
+    if (modalProg) modalProg.hidden = false;
     set("updater-bar-label", "İndirme başlatılıyor…");
+    set("update-progress-label", "İndirme başlatılıyor…");
     try {
       const d = await fetch("/api/updater/download", {
         method: "POST", headers: {"Content-Type":"application/json"},
@@ -118,30 +137,43 @@ ${d.release_notes || 'Yok'}</pre>
       if (!d) return;
       const bar = $("updater-bar");
       if (bar) bar.style.width = (d.percent || 0) + "%";
+      const modalBar = $("update-progress-fill");
+      if (modalBar) modalBar.style.width = (d.percent || 0) + "%";
       if (d.status === "downloading") {
         set("updater-bar-label",
           `${d.downloaded_mb} / ${d.total_mb} MB · ${d.percent}%`);
-      } else if (d.status === "completed") {
+        set("update-progress-label",
+          `${d.downloaded_mb} / ${d.total_mb} MB · ${d.percent}%`);
+      } else if (d.status === "completed" || d.state === "ready") {
         set("updater-bar-label", `✅ v${d.version} hazır`);
+        set("update-progress-label", `v${d.version} hazır`);
         clearInterval(_poll);
-        _showApply(d.version);
+        _showApply(d.version, d.can_apply);
+        const applyBtn = $("update-apply-btn");
+        const folderBtn = $("update-open-folder-btn");
+        if (applyBtn) applyBtn.hidden = !d.can_apply;
+        if (folderBtn) folderBtn.hidden = !!d.can_apply;
       } else if (d.status === "error") {
         set("updater-bar-label", `❌ ${d.error}`);
+        set("update-progress-label", d.error || "İndirme hatası");
         clearInterval(_poll);
       }
       if (d.done) clearInterval(_poll);
     }, 600);
   }
 
-  function _showApply(version) {
+  function _showApply(version, canApply = true) {
     const prog = $("updater-progress");
     if (!prog) return;
     const div = document.createElement("div");
     div.style.marginTop = "10px";
-    div.innerHTML = `<button class="btn" onclick="Updater.apply()">
-      🔄 v${version} Uygula (yeniden başlar)
-    </button>`;
+    div.innerHTML = canApply
+      ? `<button class="btn" onclick="Updater.apply()">🔄 v${version} Uygula (yeniden başlar)</button>`
+      : `<button class="btn" id="update-open-folder-inline">Finder'da Göster</button>
+         <span class="muted" style="font-size:12px;margin-left:8px">macOS DMG indirildi; kurulum için dosyayı açın.</span>`;
     prog.appendChild(div);
+    const open = $("update-open-folder-inline");
+    if (open) open.addEventListener("click", () => fetch("/api/updater/install-dir").catch(()=>{}));
   }
 
   async function cancelDownload() {
@@ -246,10 +278,10 @@ ${d.release_notes || 'Yok'}</pre>
   async function setAutoUpdate(enabled) {
     const d = await fetch("/api/updater/auto",{
       method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({enabled, check_interval_hours:6})
+      body:JSON.stringify({enabled, check_interval_seconds:10})
     }).then(r=>r.json());
     const lbl = $("auto-update-label");
-    if (lbl) lbl.textContent = d.auto_update ? "Otomatik: açık (6 saatte bir)" : "Otomatik: kapalı";
+    if (lbl) lbl.textContent = d.auto_update ? "Otomatik: açık (10 sn sessiz kontrol)" : "Otomatik: kapalı";
     const cb = $("auto-update-cb");
     if (cb) cb.checked = !!d.auto_update;
   }
@@ -262,6 +294,26 @@ ${d.release_notes || 'Yok'}</pre>
     setUpdateBadge(show, `v${d.version} hazır`);
   }
 
+  async function silentCheck() {
+    try {
+      const d = await fetch("/api/updater/check?force=false").then(r => r.json());
+      const update = !!d.update_available && isNewer(d.latest_version, d.current_version);
+      setUpdateBadge(update, update ? `v${d.latest_version} hazır` : "");
+      if (update && d.latest_version !== _lastNotifiedVersion) {
+        _lastNotifiedVersion = d.latest_version;
+        set("update-current-ver", `v${d.current_version}`);
+        set("update-latest-ver", `v${d.latest_version}`);
+        set("update-size", d.asset_size_mb ? `${d.asset_size_mb.toFixed(1)} MB` : "");
+        set("update-notes", d.release_notes || "Sürüm notu yok");
+        const notesWrap = $("update-notes-wrap");
+        if (notesWrap) notesWrap.hidden = false;
+      }
+      return d;
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ── Init ─────────────────────────────────────────────────────────────
   function init() {
     if (_initialized) return;
@@ -269,8 +321,20 @@ ${d.release_notes || 'Yok'}</pre>
     check();
     loadBackups();
     loadHistory();
-    setInterval(checkPending, 30 * 60 * 1000);
+    clearInterval(_silentPoll);
+    _silentPoll = setInterval(silentCheck, 10 * 1000);
     checkPending();
+    silentCheck();
+    $("update-badge")?.addEventListener("click", openModal);
+    $("update-modal-close")?.addEventListener("click", closeModal);
+    $("update-modal-x")?.addEventListener("click", closeModal);
+    $("update-close-btn")?.addEventListener("click", closeModal);
+    $("update-download-btn")?.addEventListener("click", () => {
+      const version = (($("update-latest-ver")?.textContent || "").match(/[0-9]+(?:\.[0-9]+)*/)||[""])[0];
+      download(version);
+    });
+    $("update-cancel-btn")?.addEventListener("click", cancelDownload);
+    $("update-apply-btn")?.addEventListener("click", apply);
     document.querySelectorAll('[data-view="system"]').forEach(btn =>
       btn.addEventListener("click", () => { check(); loadBackups(); loadHistory(); })
     );
@@ -280,5 +344,6 @@ ${d.release_notes || 'Yok'}</pre>
 
   return { check, download, cancelDownload, apply,
            createBackup, loadBackups, rollback,
-           showChangelog, loadHistory, setAutoUpdate, init };
+           showChangelog, loadHistory, setAutoUpdate, silentCheck,
+           openModal, closeModal, init };
 })();

@@ -231,16 +231,18 @@
       <div class="chat-container">
         <div class="chat-messages" id="chat-messages">
           <div class="welcome welcome--codex welcome--command">
+            <div class="welcome-stage" aria-hidden="true">
+              <span></span><span></span><span></span><span></span>
+            </div>
             <div class="welcome-kicker">
               <span class="welcome-kicker__pulse"></span>
               <span>CODEGA AI</span>
-              <strong>Agentic Workbench</strong>
+              <strong>Canlı Komuta Merkezi</strong>
             </div>
-            <h2 class="welcome__codex-title">Bugün hangi işi birlikte büyütelim?</h2>
+            <h2 class="welcome__codex-title">Fikrini al, koda çevir, yayına hazırla.</h2>
             <p class="welcome__codex-copy">
-              Kod tabanı oku, model seç, dosya üret, web araştır, test yaz ve sonucu
-              uygulanabilir bir plana dönüştür. CODEGA AI tek bir sohbet ekranından
-              çalışma arkadaşın gibi hareket eder.
+              CODEGA AI yerelde çalışan akıllı geliştirme masan: cevap üretir, kodu okur,
+              modelini seçer, release akışını izler ve işi tamamlanabilir parçalara böler.
             </p>
 
             <div class="mission-strip" aria-label="CODEGA AI durum özeti">
@@ -255,6 +257,18 @@
               <div class="mission-strip__item">
                 <span>Güvenlik</span>
                 <strong>onay kontrollü</strong>
+              </div>
+            </div>
+
+            <div class="welcome-console" aria-label="CODEGA AI canlı özet">
+              <div class="welcome-console__header">
+                <span>local runtime</span>
+                <strong id="welcome-runtime-state">hazır</strong>
+              </div>
+              <div class="welcome-console__grid">
+                <div><span>Yanıt modu</span><strong>hızlı</strong></div>
+                <div><span>Güncelleme</span><strong>10 sn sessiz kontrol</strong></div>
+                <div><span>Kimlik</span><strong>CODEGA AI</strong></div>
               </div>
             </div>
 
@@ -304,28 +318,28 @@
                   <svg viewBox="0 0 24 24"><path d="M4 7h16M7 4v6M17 4v6M6 14h5M6 18h8M15 14h3"/></svg>
                 </span>
                 <span class="codex-card__text">Repo denetimi</span>
-                <small>Kod, test ve mimari rapor</small>
+                <small>Kod, test, mimari risk</small>
               </button>
               <button class="codex-card mission-action" data-suggest="Windows ve macOS için güvenli release planı hazırla, eksikleri listele" data-intent="general">
                 <span class="codex-card__icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>
                 </span>
                 <span class="codex-card__text">Release hazırla</span>
-                <small>Build, artifact ve sürüm akışı</small>
+                <small>Build, artifact, sürüm</small>
               </button>
               <button class="codex-card mission-action" data-suggest="Yeni ürün fikrini landing metni, özellik seti ve teknik yol haritasına dönüştür" data-intent="general">
                 <span class="codex-card__icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24"><path d="M12 3l7 4v5c0 4-3 7-7 9-4-2-7-5-7-9V7l7-4Z"/><path d="M9 12l2 2 4-5"/></svg>
                 </span>
                 <span class="codex-card__text">Ürünleştir</span>
-                <small>Fikirden plana, plandan ürüne</small>
+                <small>Fikir, özellik, yol haritası</small>
               </button>
               <button class="codex-card mission-action" data-suggest="Bir görsel, dosya veya metni analiz et; aksiyon listesi çıkar" data-intent="vision">
                 <span class="codex-card__icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="m4 15 4-4 4 4 3-3 5 5"/><circle cx="9" cy="9" r="1.5"/></svg>
                 </span>
                 <span class="codex-card__text">Analiz et</span>
-                <small>Görsel, belge ve veri okuma</small>
+                <small>Görsel, belge, veri</small>
               </button>
             </div>
 

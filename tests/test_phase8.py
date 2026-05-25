@@ -34,9 +34,10 @@ class TestVersionParsing(unittest.TestCase):
 class TestAssetPattern(unittest.TestCase):
 
     def test_asset_pattern_matches(self) -> None:
-        from codegaai.core.updater import ASSET_PATTERN
+        from codegaai.core.updater import ASSET_PATTERN, MACOS_ASSET_PATTERN
         self.assertTrue(ASSET_PATTERN.match("codegaai-v0.7.0-windows-cpu.zip"))
         self.assertTrue(ASSET_PATTERN.match("codegaai-v1.0.0-windows-cuda.zip"))
+        self.assertTrue(MACOS_ASSET_PATTERN.match("codegaai-v4.5.1-macos-arm64.dmg"))
         self.assertFalse(ASSET_PATTERN.match("source.tar.gz"))
         self.assertFalse(ASSET_PATTERN.match("codegaai-v0.7.0-linux.tar.gz"))
 

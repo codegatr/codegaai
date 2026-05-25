@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "4.5.0"
-__phase__ = "v4.5.0 - Non-blocking Model Warmup and CODEGA Identity"
+__version__ = "4.5.1"
+__phase__ = "v4.5.1 - Silent Updates and Command Home"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"
