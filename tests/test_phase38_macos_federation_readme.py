@@ -22,6 +22,7 @@ class TestMacOSFederationReadme(unittest.TestCase):
         self.assertIn("pkill diskimages-helper", workflow)
         self.assertIn("xcrun notarytool submit", workflow)
         self.assertIn("xcrun stapler staple", workflow)
+        self.assertNotIn("if: ${{ secrets.", workflow)
         self.assertIn("codegaai-macos-arm64-dmg", workflow)
 
     def test_federation_php_exposes_metrics_and_prune(self) -> None:
