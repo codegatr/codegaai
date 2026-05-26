@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CODEGA AI</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <aside class="history-panel">
+      <div class="brand">
+        <div class="brand-mark">C</div>
+        <div>
+          <strong>CODEGA AI</strong>
+          <span id="version-label">hazırlanıyor</span>
+        </div>
+      </div>
+      <button class="new-chat" id="new-chat">+ Yeni Sohbet</button>
+      <p class="section-label">Sohbet Geçmişi</p>
+      <div class="history-list" id="history-list"></div>
+    </aside>
+
+    <main class="shell">
+      <button class="settings-button" id="settings-button" title="Ayarlar">⚙</button>
+
+      <section class="conversation" id="conversation">
+        <div class="welcome" id="welcome">
+          <h1>CODEGA AI</h1>
+          <p>Ne yapmak istiyorsun?</p>
+        </div>
+      </section>
+
+      <section class="composer">
+        <div class="model-pill" id="model-pill">Model durumu kontrol ediliyor</div>
+        <form class="prompt-box" id="chat-form">
+          <textarea id="prompt-input" rows="1" placeholder="Ne yapmak istiyorsun?"></textarea>
+          <button type="submit" title="Gönder">➤</button>
+        </form>
+      </section>
+    </main>
+
+    <dialog class="settings" id="settings-dialog">
+      <form method="dialog">
+        <header>
+          <h2>Ayarlar</h2>
+          <button value="close">×</button>
+        </header>
+        <div class="settings-row">
+          <div>
+            <strong>Yerel model</strong>
+            <p id="model-detail">Kontrol ediliyor</p>
+          </div>
+          <button type="button" id="prepare-model">Modeli Hazırla</button>
+        </div>
+        <div class="settings-row">
+          <div>
+            <strong>Güncellemeler</strong>
+            <p id="update-detail">Sessiz kontrol aktif</p>
+          </div>
+          <button type="button" id="check-update">Kontrol Et</button>
+        </div>
+        <div class="update-actions" id="update-actions" hidden>
+          <button type="button" id="download-update">İndir</button>
+          <button type="button" id="install-update" hidden>Uygula ve Yeniden Başlat</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>

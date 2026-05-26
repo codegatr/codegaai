@@ -1,0 +1,63 @@
+{
+  "name": "codega-ai-desktop",
+  "productName": "CODEGA AI",
+  "version": "0.1.0",
+  "description": "CODEGA AI clean Windows-first desktop app.",
+  "author": "CODEGA",
+  "private": true,
+  "main": "src/main/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "electron .",
+    "start": "electron .",
+    "check": "node scripts/check.mjs",
+    "pack": "electron-builder --dir",
+    "dist:win": "electron-builder --win nsis --x64"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "tr.com.codega.codegaai",
+    "artifactName": "CODEGA-AI-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "publisherName": "CODEGA",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "CODEGA AI",
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "codegatr",
+        "repo": "codegaai",
+        "releaseType": "release"
+      }
+    ]
+  }
+}

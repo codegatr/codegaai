@@ -74,3 +74,8 @@ logs/
 # ---- Üretim çıktıları (test sırasında) ----
 test_outputs/
 generated/
+
+# ---- CODEGA AI clean desktop build outputs ----
+apps/codegaai-desktop/release/
+apps/codegaai-desktop/dist/
+apps/codegaai-desktop/node_modules/

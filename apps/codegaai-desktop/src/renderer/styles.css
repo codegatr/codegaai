@@ -1,0 +1,287 @@
+:root {
+  color-scheme: dark;
+  --bg: #000;
+  --panel: rgba(255, 255, 255, 0.055);
+  --panel-strong: rgba(255, 255, 255, 0.09);
+  --line: rgba(255, 255, 255, 0.1);
+  --text: #f7f7f7;
+  --muted: rgba(255, 255, 255, 0.52);
+  --accent: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 286px 1fr;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+.history-panel {
+  border-right: 1px solid var(--line);
+  padding: 24px 18px;
+  background: rgba(5, 5, 5, 0.96);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.brand-mark {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #fff;
+  color: #000;
+  font-weight: 800;
+}
+
+.brand span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.new-chat,
+.history-item,
+.settings button,
+.settings-button {
+  border: 1px solid var(--line);
+  color: var(--text);
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.new-chat {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 999px;
+  text-align: left;
+  padding: 0 18px;
+}
+
+.section-label {
+  margin: 28px 8px 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.history-list {
+  display: grid;
+  gap: 5px;
+}
+
+.history-item {
+  min-height: 38px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 14px;
+  text-align: left;
+  color: rgba(255, 255, 255, 0.72);
+  background: transparent;
+}
+
+.history-item.active,
+.history-item:hover {
+  color: #fff;
+  background: var(--panel-strong);
+}
+
+.shell {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  background:
+    radial-gradient(circle at 50% 36%, rgba(255, 255, 255, 0.055), transparent 18%),
+    radial-gradient(circle at 50% 70%, rgba(255, 255, 255, 0.035), transparent 24%),
+    #000;
+}
+
+.settings-button {
+  position: fixed;
+  top: 24px;
+  right: 28px;
+  z-index: 10;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+}
+
+.conversation {
+  width: min(100%, 940px);
+  margin: 0 auto;
+  padding: 9vh 24px 190px;
+  overflow-y: auto;
+}
+
+.welcome {
+  min-height: 48vh;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+.welcome h1 {
+  margin: 0;
+  font-size: clamp(54px, 8vw, 96px);
+  line-height: 0.98;
+}
+
+.welcome p {
+  margin: 20px 0 0;
+  color: var(--muted);
+  font-size: 20px;
+}
+
+.message {
+  width: fit-content;
+  max-width: min(760px, 92%);
+  margin: 18px 0;
+  padding: 22px 24px;
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.message.assistant {
+  width: min(900px, 100%);
+}
+
+.message.user {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.075);
+}
+
+.role {
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.composer {
+  position: fixed;
+  left: 286px;
+  right: 0;
+  bottom: 0;
+  padding: 0 24px 34px;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.9) 34%, #000);
+}
+
+.model-pill {
+  width: fit-content;
+  max-width: min(680px, 100%);
+  margin: 0 auto 12px;
+  padding: 8px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.055);
+  font-size: 12px;
+}
+
+.prompt-box {
+  width: min(100%, 920px);
+  min-height: 72px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 22px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.prompt-box textarea {
+  flex: 1;
+  resize: none;
+  border: 0;
+  outline: 0;
+  min-height: 28px;
+  max-height: 140px;
+  color: var(--text);
+  background: transparent;
+  font-size: 18px;
+}
+
+.prompt-box button {
+  width: 54px;
+  height: 54px;
+  border: 0;
+  border-radius: 999px;
+  color: #000;
+  background: #fff;
+  cursor: pointer;
+}
+
+.settings {
+  width: min(640px, calc(100vw - 40px));
+  color: var(--text);
+  background: #101010;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+
+.settings::backdrop {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.settings header,
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.settings p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.settings button {
+  border-radius: 999px;
+  padding: 10px 16px;
+}
+
+.settings-row {
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 760px) {
+  body {
+    grid-template-columns: 1fr;
+  }
+
+  .history-panel {
+    display: none;
+  }
+
+  .composer {
+    left: 0;
+  }
+}
