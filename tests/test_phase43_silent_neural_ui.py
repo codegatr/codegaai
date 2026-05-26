@@ -37,11 +37,11 @@ class SilentRuntimeAndNeuralUITests(unittest.TestCase):
         self.assertIn(".view[data-view=\"chat\"] .message::before", css)
         self.assertIn(".view[data-view=\"chat\"] .chat-input-wrap:focus-within", css)
 
-    def test_version_bumped_to_453(self):
+    def test_version_bumped_to_454(self):
         init = read("codegaai/__init__.py")
 
-        self.assertIn('__version__ = "4.5.3"', init)
-        self.assertIn("Minimal Auto Intent Chat", init)
+        self.assertIn('__version__ = "4.5.4"', init)
+        self.assertIn("Grok Minimal Home", init)
 
 
 if __name__ == "__main__":

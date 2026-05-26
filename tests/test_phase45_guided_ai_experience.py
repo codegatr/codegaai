@@ -41,8 +41,8 @@ class GuidedAIExperienceTests(unittest.TestCase):
         self.assertIn(".message__actions", css)
         self.assertIn(".message-confidence", css)
 
-    def test_version_bumped_to_453(self):
+    def test_version_bumped_to_454(self):
         init = read("codegaai/__init__.py")
 
-        self.assertIn('__version__ = "4.5.3"', init)
-        self.assertIn("Minimal Auto Intent Chat", init)
+        self.assertIn('__version__ = "4.5.4"', init)
+        self.assertIn("Grok Minimal Home", init)

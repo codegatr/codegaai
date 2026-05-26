@@ -38,12 +38,12 @@ class SilentUpdatesCommandHomeTests(unittest.TestCase):
         self.assertIn("welcome-stage", html)
         self.assertIn("welcome-console", html)
         self.assertIn("10 sn sessiz kontrol", html)
-        self.assertIn("Fikrini al, koda çevir, yayına hazırla.", html)
+        self.assertIn("Ne yapmak istiyorsun?", html)
         self.assertIn("CODEGA Command Home (v4.5.1)", css)
         self.assertIn("@keyframes codegaScan", css)
 
     def test_version_bumped_to_451(self):
         init = read("codegaai/__init__.py")
 
-        self.assertIn('__version__ = "4.5.3"', init)
-        self.assertIn("Minimal Auto Intent Chat", init)
+        self.assertIn('__version__ = "4.5.4"', init)
+        self.assertIn("Grok Minimal Home", init)

@@ -431,7 +431,9 @@ class LLMEngine:
 
         cfg = cfg or GenerationConfig()
 
-        with self._gen_lock:
+        if not self._gen_lock.acquire(timeout=2.0):
+            raise RuntimeError("Model şu an önceki isteği bitiriyor. Birkaç saniye sonra tekrar dene.")
+        try:
             t0 = time.time()
             result = self._llm.create_chat_completion(
                 messages=messages,
@@ -444,6 +446,8 @@ class LLMEngine:
                 stream=False,
             )
             elapsed_ms = int((time.time() - t0) * 1000)
+        finally:
+            self._gen_lock.release()
 
         choice = result["choices"][0]
         msg = choice["message"]
@@ -487,7 +491,8 @@ class LLMEngine:
         cfg = cfg or GenerationConfig()
 
         # Manuel lock — finally'de bırak
-        self._gen_lock.acquire()
+        if not self._gen_lock.acquire(timeout=2.0):
+            raise RuntimeError("Model şu an önceki isteği bitiriyor. Birkaç saniye sonra tekrar dene.")
         try:
             iterator = self._llm.create_chat_completion(
                 messages=messages,

@@ -135,6 +135,24 @@ def _quick_social_response(message: str) -> str:
     return f"{greeting}. Buradayım, nasıl yardımcı olayım?"
 
 
+def _quick_capability_response(message: str) -> str:
+    msg = message.lower().strip()
+    if any(k in msg for k in ["internet", "web", "arama", "araştır", "arastir"]):
+        return (
+            "Evet. Güncel bilgi gerektiğinde internet aramasını otomatik kullanırım; "
+            "sen sadece neyi öğrenmek istediğini yaz."
+        )
+    if any(k in msg for k in ["resim", "görsel", "gorsel", "image", "çiz", "ciz"]):
+        return (
+            "Evet. Resim veya görsel istediğinde komutunu otomatik görsel üretim motoruna yönlendiririm."
+        )
+    if any(k in msg for k in ["kod", "yazılım", "yazilim", "debug", "hata"]):
+        return (
+            "Evet. Kod yazma, hata çözme, repo inceleme ve test üretme işlerinde kod moduna otomatik geçerim."
+        )
+    return ""
+
+
 def _needs_web_search(message: str) -> bool:
     msg = message.lower()
 
@@ -489,6 +507,24 @@ async def _run_chat_job(job: ChatJob) -> None:
                 try:
                     store = ChatStore.open()
                     store.add_message(job.chat_id, "assistant", answer)
+                except Exception:
+                    pass
+            job.finish()
+            return
+
+        capability = _quick_capability_response(job.message)
+        if capability and msg_len < 120 and any(k in job.message.lower() for k in ["yapabilir", "edebilir", "mısın", "misin", "musun", "müsün"]):
+            if job.chat_id:
+                try:
+                    store = ChatStore.open()
+                    store.add_message(job.chat_id, "user", job.message)
+                except Exception:
+                    pass
+            job.append(capability)
+            if job.chat_id:
+                try:
+                    store = ChatStore.open()
+                    store.add_message(job.chat_id, "assistant", capability)
                 except Exception:
                     pass
             job.finish()

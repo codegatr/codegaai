@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "4.5.3"
-__phase__ = "v4.5.3 - Minimal Auto Intent Chat"
+__version__ = "4.5.4"
+__phase__ = "v4.5.4 - Grok Minimal Home"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

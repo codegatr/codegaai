@@ -1581,3 +1581,211 @@ button[onclick*="newChat"] {
     border-bottom: 1px solid rgba(255,255,255,0.06);
   }
 }
+
+/* CODEGA Grok Minimal Home (v4.5.4) */
+body {
+  grid-template-columns: 1fr !important;
+  grid-template-rows: 1fr !important;
+  grid-template-areas: "main" !important;
+  background: #000 !important;
+}
+
+.sidebar,
+.statusbar,
+.app-menubar,
+.view[data-view="chat"] .view-header,
+.view[data-view="chat"] .chat-input-hint,
+.view[data-view="chat"] .ai-disclaimer,
+.view[data-view="chat"] .prompt-starter-row,
+.view[data-view="chat"] .ai-state-rail {
+  display: none !important;
+}
+
+.main {
+  grid-area: main !important;
+  min-width: 0;
+  background:
+    radial-gradient(circle at 50% 36%, rgba(255, 255, 255, 0.055), transparent 18%),
+    radial-gradient(circle at 50% 68%, rgba(245, 158, 11, 0.055), transparent 22%),
+    #000 !important;
+}
+
+.view[data-view="chat"] {
+  background: transparent !important;
+}
+
+.view[data-view="chat"] .chat-container {
+  min-height: 100vh;
+  background: #000 !important;
+}
+
+.view[data-view="chat"] .chat-container::before {
+  display: none;
+}
+
+.view[data-view="chat"] .chat-messages {
+  width: min(100%, 980px) !important;
+  padding: 9vh 24px 190px !important;
+  margin: 0 auto;
+}
+
+.view[data-view="chat"] .welcome--command {
+  min-height: 54vh !important;
+  padding: 0 !important;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.welcome-stage,
+.welcome-kicker,
+.mission-strip,
+.welcome-console,
+.codex-suggestions,
+.codex-quick-links,
+#auto-model-banner,
+#avx2-warning {
+  display: none !important;
+}
+
+.view[data-view="chat"] .welcome__codex-title {
+  max-width: none;
+  margin: 0 !important;
+  color: #fff;
+  font-size: clamp(50px, 8vw, 92px) !important;
+  line-height: 0.98;
+  font-weight: 700 !important;
+}
+
+.view[data-view="chat"] .welcome__codex-copy {
+  max-width: none;
+  margin: 18px 0 0 !important;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 20px;
+  line-height: 1.4;
+}
+
+.view[data-view="chat"] .chat-input-bar {
+  position: sticky;
+  left: 0;
+  right: 0;
+  padding: 0 24px 34px !important;
+  background:
+    linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.86) 34%, #000) !important;
+  border-top: 0 !important;
+}
+
+.view[data-view="chat"] .chat-container:has(.welcome--command) .chat-input-bar {
+  position: absolute;
+  top: calc(50vh + 96px);
+  bottom: auto;
+  width: 100%;
+  transform: translateY(-50%);
+  background: transparent !important;
+}
+
+.view[data-view="chat"] .chat-input-wrap {
+  width: min(100%, 920px) !important;
+  min-height: 72px !important;
+  margin: 0 auto;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.085) !important;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter: blur(18px);
+}
+
+.view[data-view="chat"] .chat-input-wrap:focus-within {
+  border-color: rgba(255, 255, 255, 0.34) !important;
+  box-shadow:
+    0 28px 90px rgba(0, 0, 0, 0.54),
+    0 0 0 4px rgba(255, 255, 255, 0.055),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.view[data-view="chat"] .chat-input {
+  min-height: 36px;
+  padding-left: 4px;
+  color: #fff;
+  font-size: 20px;
+}
+
+.view[data-view="chat"] .chat-input::placeholder {
+  color: rgba(255, 255, 255, 0.46);
+}
+
+.view[data-view="chat"] .chat-input-actions {
+  gap: 8px;
+}
+
+.view[data-view="chat"] .icon-btn,
+.view[data-view="chat"] .btn-send {
+  border-radius: 999px !important;
+}
+
+.view[data-view="chat"] .icon-btn {
+  width: 42px;
+  height: 42px;
+  background: transparent !important;
+  border-color: transparent !important;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.view[data-view="chat"] #chat-file-btn {
+  display: inline-grid !important;
+}
+
+.view[data-view="chat"] .btn-send {
+  width: 56px;
+  height: 56px;
+  color: #000;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+.view[data-view="chat"] .message {
+  max-width: 920px;
+  border-radius: 28px !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  border-color: rgba(255, 255, 255, 0.09) !important;
+  box-shadow: none !important;
+}
+
+.view[data-view="chat"] .message::before,
+.view[data-view="chat"] .message__avatar,
+.view[data-view="chat"] .message__actions,
+.view[data-view="chat"] .message-confidence {
+  display: none !important;
+}
+
+.view[data-view="chat"] .message__role {
+  color: rgba(255, 255, 255, 0.42) !important;
+}
+
+.view[data-view="chat"] .message--assistant {
+  margin-left: 0;
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+.view[data-view="chat"] .message--user {
+  margin-left: auto;
+  margin-right: 0;
+  width: fit-content;
+  max-width: min(760px, 92%);
+}
+
+@media (max-width: 720px) {
+  .view[data-view="chat"] .welcome__codex-title {
+    font-size: 48px !important;
+  }
+
+  .view[data-view="chat"] .welcome__codex-copy {
+    font-size: 17px;
+  }
+
+  .view[data-view="chat"] .chat-input {
+    font-size: 17px;
+  }
+}
