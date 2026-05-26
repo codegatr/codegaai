@@ -174,6 +174,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "log_level": "info",
         "auto_open_ui": True,
         "auto_load_model": True,      # Açılışta son kullanılan modeli otomatik yükle
+        "auto_download_model": True,  # Eksikse önerilen LLM'i arka planda indir
         "auto_load_embedding": True,  # BGE-M3'ü de otomatik yükle
         "auto_download_embedding": True,  # Eksikse BGE-M3'ü arka planda indir
         # Server modu (Linux sunucu, headless): UI başlatmaz, public bind

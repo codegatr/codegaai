@@ -530,6 +530,36 @@ const Chat = (() => {
     return true;
   }
 
+  function quickLocalSocialResponse(text) {
+    const t = String(text || "").trim().toLowerCase();
+    if (!/^(merhaba|selam|hi|hello|hey|günaydın|iyi\s+(akşam|akşamlar|gece|geceler)|nasılsın|naber|teşekkür|sağol|sagol)\b/.test(t)) {
+      return "";
+    }
+    if (t.includes("teşekkür") || t.includes("sağol") || t.includes("sagol")) {
+      return "Rica ederim. Buradayım, devam edebiliriz.";
+    }
+    if (t.includes("nasılsın") || t.includes("naber")) {
+      return "İyiyim, teşekkür ederim. Senin için neyi hızla çözelim?";
+    }
+    if (t.includes("günaydın")) return "Günaydın. Buradayım, nasıl yardımcı olayım?";
+    if (t.includes("iyi gece")) return "İyi geceler. Buradayım, nasıl yardımcı olayım?";
+    if (t.includes("iyi akşam")) return "İyi akşamlar. Buradayım, nasıl yardımcı olayım?";
+    return "Merhaba. Buradayım, nasıl yardımcı olayım?";
+  }
+
+  async function persistLocalMessage(role, content, model) {
+    if (!state.chatId || !content) return;
+    try {
+      await fetch(`/api/chats/${state.chatId}/messages`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({role, content, model: model || null}),
+      });
+    } catch (e) {
+      console.debug("Yerel hızlı mesaj kaydedilemedi:", e);
+    }
+  }
+
   async function analyzeAttachedImage(file, question) {
     const form = new FormData();
     form.append("file", file);
@@ -610,6 +640,29 @@ const Chat = (() => {
     elInput.value = "";
     autoResize();
     clearAttachedImage();
+
+    const instantAnswer = payload.image ? "" : quickLocalSocialResponse(payload.text);
+    if (instantAnswer) {
+      const assistantMsg = {
+        role: "assistant",
+        content: instantAnswer,
+        model: "codega-instant",
+        rating: 0,
+      };
+      state.messages.push(assistantMsg);
+      appendMessage(assistantMsg);
+      await persistLocalMessage("user", text);
+      await persistLocalMessage("assistant", instantAnswer, "codega-instant");
+      Chats.reload();
+      clearAIState();
+      state.sending = false;
+      if (elSend) elSend.disabled = false;
+      updateQueueStatus();
+      elInput.focus();
+      processNextQueued();
+      return;
+    }
+
     showTyping();
 
     // Job polling ile gönder (SSE yerine — PyWebView'da güvenilir)
@@ -1241,7 +1294,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const recData = await fetch("/api/models/recommended").then(r => r.json()).catch(() => null);
     if (!recData?.model) return;
     if (!recData.downloaded) {
-      _showBanner("Önerilen model hazır değil", `${recData.model.name || recData.recommendation.model_id} indirilmeli`, "📥");
+      const modelId = recData.recommendation?.model_id || recData.model.id;
+      _showBanner(`${recData.model.name || modelId} indiriliyor`, "İlk kurulum otomatik hazırlanıyor; sohbet kilitlenmez", "↓");
+      await fetch(`/api/models/${encodeURIComponent(modelId)}/download`, {method: "POST"}).catch(() => null);
+      _pollDownloadThenWarm(modelId, recData.model);
       return;
     }
     const target = recData.model;
@@ -1293,6 +1349,33 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("auto-model-name").textContent = name;
     document.getElementById("auto-model-desc").textContent = desc;
     document.getElementById("auto-model-status").textContent = status;
+  }
+
+  async function _pollDownloadThenWarm(modelId, model) {
+    let tries = 0;
+    const tick = async () => {
+      tries += 1;
+      const st = await fetch(`/api/models/${encodeURIComponent(modelId)}/status`)
+        .then(r => r.json()).catch(() => null);
+      const dl = st?.download || {};
+      if (st?.downloaded || dl.status === "completed") {
+        _showBanner(`${model?.name || modelId} yükleniyor`, "Model indirildi; arka planda belleğe alınıyor", "⚡");
+        await fetch("/api/models/recommended/warmup", {method: "POST"}).catch(() => null);
+        setTimeout(() => {
+          const b = document.getElementById("auto-model-banner");
+          if (b) b.style.display = "none";
+        }, 6000);
+        return;
+      }
+      if (dl.status === "error" || dl.status === "cancelled") {
+        _showBanner("Model indirilemedi", String(dl.error || dl.status).slice(0, 90), "!");
+        return;
+      }
+      const pct = Math.max(0, Math.round(dl.percent || 0));
+      _showBanner(`${model?.name || modelId} indiriliyor`, pct ? `%${pct} tamamlandı` : "İndirme başlatıldı", "↓");
+      if (tries < 720) setTimeout(tick, 5000);
+    };
+    setTimeout(tick, 2500);
   }
 })();
 

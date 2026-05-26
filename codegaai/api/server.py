@@ -385,7 +385,29 @@ def create_app() -> FastAPI:
                             downloaded.append(m)
 
                     if not downloaded:
-                        log.info("Otomatik yükleme: İndirilmiş model yok, atlandı")
+                        rec = recommend_llm_model(detect_device_profile(), set())
+                        if server_cfg.get("auto_download_model", True):
+                            log.info("Önerilen LLM indirilmemiş — arka planda indiriliyor: %s", rec.model_id)
+
+                            def _dl_and_load_llm():
+                                try:
+                                    thread = reg.download_llm_async(rec.model_id)
+                                    thread.join()
+                                    progress = reg.get_progress(rec.model_id)
+                                    if progress.status == "completed" and not engine.is_ready:
+                                        log.info("Önerilen LLM indirildi, yükleniyor: %s", rec.model_id)
+                                        engine.load(rec.model_id)
+                                        log.info("Önerilen LLM hazır ✓")
+                                    elif progress.status != "completed":
+                                        log.warning("Önerilen LLM indirme tamamlanamadı: %s", progress.error or progress.status)
+                                except Exception as dl_exc:
+                                    log.warning("Önerilen LLM arka plan indirme/yükleme hatası: %s", dl_exc)
+
+                            import threading as _th
+                            _th.Thread(target=_dl_and_load_llm, daemon=True,
+                                       name="llm-auto-dl").start()
+                        else:
+                            log.info("Otomatik yükleme: İndirilmiş model yok, atlandı")
                     elif engine.is_ready:
                         log.info("Motor zaten hazır: %s", engine._status.model_id)
                     else:

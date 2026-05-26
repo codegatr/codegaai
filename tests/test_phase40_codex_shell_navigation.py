@@ -101,5 +101,5 @@ def test_chat_toolbar_uses_readable_tool_chips():
 
 def test_version_marks_codex_shell_release():
     init = read(INIT)
-    assert '__version__ = "4.5.4"' in init
-    assert "Grok Minimal Home" in init
+    assert '__version__ = "4.5.5"' in init
+    assert "Minimal Home Navigation" in init

@@ -1582,15 +1582,14 @@ button[onclick*="newChat"] {
   }
 }
 
-/* CODEGA Grok Minimal Home (v4.5.4) */
+/* CODEGA Minimal Home Navigation (v4.5.5) */
 body {
-  grid-template-columns: 1fr !important;
+  grid-template-columns: 286px 1fr !important;
   grid-template-rows: 1fr !important;
-  grid-template-areas: "main" !important;
+  grid-template-areas: "sidebar main" !important;
   background: #000 !important;
 }
 
-.sidebar,
 .statusbar,
 .app-menubar,
 .view[data-view="chat"] .view-header,
@@ -1601,6 +1600,81 @@ body {
   display: none !important;
 }
 
+.sidebar {
+  display: flex !important;
+  grid-area: sidebar !important;
+  background: rgba(4, 4, 5, 0.92) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 20px 0 80px rgba(0, 0, 0, 0.28);
+}
+
+.sidebar__brand {
+  padding: 22px 18px 12px !important;
+}
+
+.brand-mark {
+  width: 34px !important;
+  height: 34px !important;
+}
+
+.brand-name {
+  color: #fff !important;
+  letter-spacing: 0 !important;
+}
+
+.brand-version,
+.phase-text {
+  color: rgba(255, 255, 255, 0.44) !important;
+}
+
+.sidebar__top-actions {
+  padding: 8px 18px 14px !important;
+}
+
+.new-chat-btn {
+  min-height: 44px !important;
+  border-radius: 999px !important;
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.new-chat-btn kbd,
+.sidebar__nav,
+.sidebar__footer {
+  display: none !important;
+}
+
+.sidebar__chats {
+  padding: 8px 12px 18px !important;
+}
+
+.sidebar__section-label {
+  color: rgba(255, 255, 255, 0.36) !important;
+  letter-spacing: 0.06em !important;
+}
+
+.chat-list {
+  gap: 4px !important;
+}
+
+.chat-list-item {
+  min-height: 38px !important;
+  border-radius: 10px !important;
+  color: rgba(255, 255, 255, 0.68) !important;
+  background: transparent !important;
+}
+
+.chat-list-item:hover,
+.chat-list-item.active {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.chat-list__empty {
+  color: rgba(255, 255, 255, 0.38) !important;
+}
+
 .main {
   grid-area: main !important;
   min-width: 0;
@@ -1608,6 +1682,35 @@ body {
     radial-gradient(circle at 50% 36%, rgba(255, 255, 255, 0.055), transparent 18%),
     radial-gradient(circle at 50% 68%, rgba(245, 158, 11, 0.055), transparent 22%),
     #000 !important;
+}
+
+.minimal-top-actions {
+  position: fixed;
+  top: 22px;
+  right: 28px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.minimal-settings-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  backdrop-filter: blur(18px);
+}
+
+.minimal-settings-btn:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.11);
 }
 
 .view[data-view="chat"] {
@@ -1643,8 +1746,37 @@ body {
 .welcome-console,
 .codex-suggestions,
 .codex-quick-links,
-#auto-model-banner,
 #avx2-warning {
+  display: none !important;
+}
+
+#auto-model-banner {
+  position: fixed;
+  left: calc(286px + 28px);
+  bottom: 24px;
+  z-index: 42;
+  width: auto !important;
+  max-width: min(420px, calc(100vw - 340px)) !important;
+  margin: 0 !important;
+  padding: 10px 14px !important;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid rgba(255, 255, 255, 0.11) !important;
+  border-radius: 999px !important;
+  backdrop-filter: blur(18px);
+}
+
+#auto-model-banner > div {
+  gap: 8px !important;
+}
+
+#auto-model-name {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  margin-bottom: 0 !important;
+}
+
+#auto-model-desc {
   display: none !important;
 }
 
@@ -1777,6 +1909,26 @@ body {
 }
 
 @media (max-width: 720px) {
+  body {
+    grid-template-columns: 1fr !important;
+    grid-template-areas: "main" !important;
+  }
+
+  .sidebar {
+    display: none !important;
+  }
+
+  .minimal-top-actions {
+    top: 14px;
+    right: 14px;
+  }
+
+  #auto-model-banner {
+    left: 14px;
+    bottom: 14px;
+    max-width: calc(100vw - 28px) !important;
+  }
+
   .view[data-view="chat"] .welcome__codex-title {
     font-size: 48px !important;
   }
