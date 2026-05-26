@@ -506,6 +506,30 @@ const Chat = (() => {
     return { text, image };
   }
 
+  function looksLikeImageGeneration(text) {
+    const t = String(text || "").toLowerCase();
+    return /(resim|görsel|gorsel|image|foto|çiz|ciz|tasarla|oluştur|olustur|generate).{0,60}(yap|oluştur|olustur|çiz|ciz|generate|tasarla)|^(resim|görsel|gorsel|image)\s/.test(t);
+  }
+
+  function routeAutomaticIntent(payload) {
+    if (!payload?.text || payload.image) return false;
+    if (!looksLikeImageGeneration(payload.text)) return false;
+    setAIState("routing", "Görsel üretim açılıyor", "Komutun otomatik olarak görsel motoruna yönlendirildi.");
+    document.querySelector('[data-view="image"]')?.click();
+    setTimeout(() => {
+      const prompt = document.getElementById("image-prompt");
+      const btn = document.getElementById("image-generate-btn");
+      if (prompt) prompt.value = payload.text;
+      btn?.click();
+      clearAIState();
+    }, 120);
+    if (elInput) {
+      elInput.value = "";
+      autoResize();
+    }
+    return true;
+  }
+
   async function analyzeAttachedImage(file, question) {
     const form = new FormData();
     form.append("file", file);
@@ -539,6 +563,7 @@ const Chat = (() => {
   async function send(input) {
     const payload = makePayload(input);
     if (!payload.text && !payload.image) return;
+    if (routeAutomaticIntent(payload)) return;
     if (state.sending) {
       enqueue(payload);
       elInput.value = "";
@@ -651,7 +676,8 @@ const Chat = (() => {
     // Poll — her 300ms job durumunu sorgula
     return new Promise((resolve, reject) => {
       const t0 = Date.now();
-      const MAX_MS = 300_000; // 5 dakika maksimum
+      const MAX_MS = 90_000; // Yerel model takılırsa kullanıcıyı bekletme
+      const FIRST_TOKEN_MS = 25_000;
       let lastLen = 0;
 
       const poll = setInterval(async () => {
@@ -697,9 +723,13 @@ const Chat = (() => {
           }
 
           // Timeout
+          if (!d.content && Date.now() - t0 > FIRST_TOKEN_MS) {
+            clearInterval(poll);
+            reject(new Error("Yanıt gecikti. Model arka planda takılmış olabilir; bu kısa görev için tekrar deneyebilirsin."));
+          }
           if (Date.now() - t0 > MAX_MS) {
             clearInterval(poll);
-            reject(new Error("Zaman aşımı (5dk)"));
+            reject(new Error("Zaman aşımı (90 sn)"));
           }
         } catch (e) {
           clearInterval(poll);

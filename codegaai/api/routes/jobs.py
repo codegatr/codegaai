@@ -85,7 +85,7 @@ _ENTITY_INFO_PATTERNS = [
 
 # Genel "selam" ve sosyal sorular — web search YAPMA
 _SOCIAL_PATTERNS = [
-    r"^\s*(merhaba|selam|hi|hello|hey|günaydın|iyi (akşam|gece)|nasılsın|naber)",
+    r"^\s*(merhaba|selam|hi|hello|hey|günaydın|iyi (akşam|akşamlar|gece|geceler)|nasılsın|naber)",
     r"^\s*(teşekkür|sağol|sagol|tamam|ok|peki)",
 ]
 
@@ -106,6 +106,33 @@ def _looks_self_referential(message: str) -> bool:
 def _is_social_chat(message: str) -> bool:
     msg = message.lower()
     return any(re.search(p, msg, re.IGNORECASE) for p in _SOCIAL_PATTERNS)
+
+
+def _quick_social_response(message: str) -> str:
+    """Very short social turns should never wait for a local model."""
+    from datetime import datetime
+
+    msg = message.lower().strip()
+    hour = datetime.now().hour
+    if "günaydın" in msg:
+        greeting = "Günaydın"
+    elif "iyi gece" in msg:
+        greeting = "İyi geceler"
+    elif "iyi akşam" in msg:
+        greeting = "İyi akşamlar"
+    elif "teşekkür" in msg or "sağol" in msg or "sagol" in msg:
+        return "Rica ederim. Buradayım, devam edebiliriz."
+    elif "nasılsın" in msg or "naber" in msg:
+        return "İyiyim, teşekkür ederim. Senin için neyi hızla çözelim?"
+    elif 5 <= hour < 12:
+        greeting = "Günaydın"
+    elif 18 <= hour < 23:
+        greeting = "İyi akşamlar"
+    elif hour >= 23 or hour < 5:
+        greeting = "İyi geceler"
+    else:
+        greeting = "Merhaba"
+    return f"{greeting}. Buradayım, nasıl yardımcı olayım?"
 
 
 def _needs_web_search(message: str) -> bool:
@@ -448,6 +475,24 @@ async def _run_chat_job(job: ChatJob) -> None:
                     history.append({"role": m["role"], "content": m["content"]})
             except Exception:
                 pass
+
+        if _is_social_chat(job.message) and msg_len < 60:
+            if job.chat_id:
+                try:
+                    store = ChatStore.open()
+                    store.add_message(job.chat_id, "user", job.message)
+                except Exception:
+                    pass
+            answer = _quick_social_response(job.message)
+            job.append(answer)
+            if job.chat_id:
+                try:
+                    store = ChatStore.open()
+                    store.add_message(job.chat_id, "assistant", answer)
+                except Exception:
+                    pass
+            job.finish()
+            return
 
         decision = decide_response(job.message, history=history)
 

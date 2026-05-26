@@ -45,5 +45,5 @@ class SilentUpdatesCommandHomeTests(unittest.TestCase):
     def test_version_bumped_to_451(self):
         init = read("codegaai/__init__.py")
 
-        self.assertIn('__version__ = "4.5.2"', init)
-        self.assertIn("Guided AI Experience", init)
+        self.assertIn('__version__ = "4.5.3"', init)
+        self.assertIn("Minimal Auto Intent Chat", init)

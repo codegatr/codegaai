@@ -1033,6 +1033,16 @@ button[onclick*="newChat"] {
   background: rgba(18, 24, 32, 0.92);
 }
 
+.view[data-view="chat"] .toolbar-actions,
+.view[data-view="chat"] #speed-toggle,
+.view[data-view="chat"] #think-toggle,
+.view[data-view="chat"] #agent-toggle,
+.view[data-view="chat"] #chat-voice-btn,
+.view[data-view="chat"] .prompt-starter-row,
+.view[data-view="chat"] .ai-disclaimer {
+  display: none !important;
+}
+
 .view[data-view="chat"] .chat-messages {
   width: min(100%, 1180px);
   padding: 30px clamp(26px, 5vw, 78px) 154px;
