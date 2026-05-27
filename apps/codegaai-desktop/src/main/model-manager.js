@@ -1,5 +1,8 @@
 const { spawn } = require("node:child_process");
-const { DEFAULT_MODEL, OLLAMA_DOWNLOAD_URL } = require("../shared/constants");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { DEFAULT_MODEL, FALLBACK_MODELS, OLLAMA_DOWNLOAD_URL } = require("../shared/constants");
 
 const READY_STATES = {
   CHECKING: "checking",
@@ -31,15 +34,24 @@ function instantAnswer(input) {
 
 function runCommand(command, args, options = {}) {
   return new Promise((resolve) => {
+    const { onData, ...spawnOptions } = options;
     const child = spawn(command, args, {
       windowsHide: true,
       shell: false,
-      ...options,
+      ...spawnOptions,
     });
     let stdout = "";
     let stderr = "";
-    child.stdout?.on("data", (chunk) => { stdout += chunk.toString(); });
-    child.stderr?.on("data", (chunk) => { stderr += chunk.toString(); });
+    child.stdout?.on("data", (chunk) => {
+      const text = chunk.toString();
+      stdout += text;
+      onData?.(text);
+    });
+    child.stderr?.on("data", (chunk) => {
+      const text = chunk.toString();
+      stderr += text;
+      onData?.(text);
+    });
     child.on("error", (error) => {
       resolve({ ok: false, stdout, stderr, error: error.message });
     });
@@ -49,14 +61,75 @@ function runCommand(command, args, options = {}) {
   });
 }
 
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function existingFile(value) {
+  try {
+    return value && fs.existsSync(value) ? value : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function ollamaCandidates() {
+  const env = process.env;
+  const home = os.homedir();
+  const executable = process.platform === "win32" ? "ollama.exe" : "ollama";
+  const pathEntries = String(env.PATH || "")
+    .split(path.delimiter)
+    .map((entry) => path.join(entry, executable));
+
+  return unique([
+    "ollama",
+    existingFile(env.OLLAMA_EXE),
+    existingFile(env.OLLAMA_PATH),
+    existingFile(path.join(env.LOCALAPPDATA || "", "Programs", "Ollama", "ollama.exe")),
+    existingFile(path.join(home || "", "AppData", "Local", "Programs", "Ollama", "ollama.exe")),
+    existingFile(path.join(env.PROGRAMFILES || "", "Ollama", "ollama.exe")),
+    existingFile(path.join(env["PROGRAMFILES(X86)"] || "", "Ollama", "ollama.exe")),
+    existingFile("/usr/local/bin/ollama"),
+    existingFile("/opt/homebrew/bin/ollama"),
+    ...pathEntries.map(existingFile),
+  ]);
+}
+
+function modelCandidates() {
+  return unique([DEFAULT_MODEL, ...FALLBACK_MODELS]);
+}
+
+function hasModel(listOutput, model) {
+  const wanted = model.toLowerCase();
+  return listOutput
+    .toLowerCase()
+    .split(/\r?\n/)
+    .some((line) => line.split(/\s+/)[0] === wanted);
+}
+
 class ModelManager {
   constructor() {
+    this.ollamaCommand = null;
     this.state = {
       provider: "instant",
       status: READY_STATES.CHECKING,
       model: DEFAULT_MODEL,
       message: "Model durumu kontrol ediliyor",
     };
+  }
+
+  async runOllama(args, options = {}) {
+    const candidates = this.ollamaCommand ? [this.ollamaCommand] : ollamaCandidates();
+    let lastResult = null;
+    for (const candidate of candidates) {
+      const result = await runCommand(candidate, args, options);
+      if (result.ok) {
+        this.ollamaCommand = candidate;
+        return result;
+      }
+      lastResult = result;
+    }
+    return lastResult || { ok: false, error: "Ollama çalıştırılamadı" };
   }
 
   getStatus() {
@@ -70,7 +143,7 @@ class ModelManager {
       message: "Ollama aranıyor",
     };
 
-    const version = await runCommand("ollama", ["--version"]);
+    const version = await this.runOllama(["--version"]);
     if (!version.ok) {
       this.state = {
         provider: "instant",
@@ -83,14 +156,16 @@ class ModelManager {
       return this.getStatus();
     }
 
-    const models = await runCommand("ollama", ["list"]);
-    const hasDefault = models.ok && models.stdout.toLowerCase().includes(DEFAULT_MODEL.toLowerCase());
+    const models = await this.runOllama(["list"]);
+    const installedModel = models.ok
+      ? modelCandidates().find((model) => hasModel(models.stdout, model))
+      : null;
     this.state = {
       provider: "ollama",
-      status: hasDefault ? READY_STATES.READY : READY_STATES.MISSING,
-      model: DEFAULT_MODEL,
-      message: hasDefault
-        ? `${DEFAULT_MODEL} hazır`
+      status: installedModel ? READY_STATES.READY : READY_STATES.MISSING,
+      model: installedModel || DEFAULT_MODEL,
+      message: installedModel
+        ? `${installedModel} hazır`
         : `${DEFAULT_MODEL} indirilmeli. Ayarlardan modeli hazırlayabilirsin.`,
     };
     return this.getStatus();
@@ -117,12 +192,22 @@ class ModelManager {
     };
     onProgress?.(this.getStatus());
 
-    const result = await runCommand("ollama", ["pull", DEFAULT_MODEL]);
+    const result = await this.runOllama(["pull", DEFAULT_MODEL], {
+      onData: (chunk) => {
+        const progress = chunk.replace(/\u001b\[[0-9;]*m/g, "").replace(/\s+/g, " ").trim();
+        if (!progress) return;
+        this.state = {
+          ...this.state,
+          message: `${DEFAULT_MODEL} indiriliyor: ${progress.slice(0, 90)}`,
+        };
+        onProgress?.(this.getStatus());
+      },
+    });
     if (!result.ok) {
       this.state = {
         ...this.state,
         status: READY_STATES.ERROR,
-        message: result.stderr || result.error || "Model indirilemedi",
+        message: result.stderr || result.error || `${DEFAULT_MODEL} indirilemedi`,
       };
       return this.getStatus();
     }
@@ -160,7 +245,7 @@ class ModelManager {
       "CODEGA AI:",
     ].join("\n");
 
-    const result = await runCommand("ollama", ["run", this.state.model, prompt]);
+    const result = await this.runOllama(["run", this.state.model, prompt]);
     if (!result.ok) {
       this.state = {
         ...this.state,

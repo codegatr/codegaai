@@ -1,11 +1,13 @@
 const APP_NAME = "CODEGA AI";
-const DEFAULT_MODEL = "qwen2.5:3b-instruct";
+const DEFAULT_MODEL = "qwen2.5-coder:3b-instruct";
+const FALLBACK_MODELS = ["qwen2.5:3b"];
 const OLLAMA_DOWNLOAD_URL = "https://ollama.com/download/windows";
 const UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
 module.exports = {
   APP_NAME,
   DEFAULT_MODEL,
+  FALLBACK_MODELS,
   OLLAMA_DOWNLOAD_URL,
   UPDATE_INTERVAL_MS,
 };

@@ -19,7 +19,9 @@ npm run dist:win
 - Instant fallback answers for greetings and identity questions
 - Ollama provider detection
 - Ollama download handoff when the provider is missing
-- Default model preparation through `ollama pull qwen2.5:3b-instruct`
+- Windows Ollama path discovery outside PATH
+- Default model preparation through `ollama pull qwen2.5-coder:3b-instruct`
+- Existing `qwen2.5:3b` fallback detection
 - GitHub release based updater wiring through `electron-updater`
 - NSIS Windows installer configuration
 
