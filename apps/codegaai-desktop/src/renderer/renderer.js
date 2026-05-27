@@ -142,9 +142,14 @@ els.input.addEventListener("input", () => {
 document.getElementById("new-chat").addEventListener("click", () => createChat());
 els.settingsButton.addEventListener("click", () => els.settings.showModal());
 els.prepareModel.addEventListener("click", async () => {
+  els.prepareModel.disabled = true;
   els.modelDetail.textContent = "Model hazırlanıyor...";
-  const status = await window.codega.prepareModel();
-  setModelStatus(status);
+  try {
+    const status = await window.codega.prepareModel();
+    setModelStatus(status);
+  } finally {
+    els.prepareModel.disabled = false;
+  }
 });
 els.checkUpdate.addEventListener("click", () => window.codega.checkForUpdates());
 els.downloadUpdate.addEventListener("click", () => window.codega.downloadUpdate());

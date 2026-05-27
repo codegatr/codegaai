@@ -31,12 +31,17 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
     def test_ai_layer_has_instant_and_ollama_providers(self):
         model_manager = read("apps/codegaai-desktop/src/main/model-manager.js")
         constants = read("apps/codegaai-desktop/src/shared/constants.js")
+        main = read("apps/codegaai-desktop/src/main/main.js")
         renderer = read("apps/codegaai-desktop/src/renderer/renderer.js")
 
         self.assertIn("function instantAnswer", model_manager)
         self.assertIn("ollama", model_manager)
         self.assertIn("qwen2.5:3b-instruct", constants)
+        self.assertIn("https://ollama.com/download/windows", constants)
+        self.assertIn('action: "install_ollama"', model_manager)
+        self.assertIn("shell.openExternal(status.actionUrl)", main)
         self.assertIn("prepareDefaultModel", model_manager)
+        self.assertIn("els.prepareModel.disabled = true", renderer)
         self.assertIn("window.codega.sendMessage", renderer)
 
     def test_minimal_ui_keeps_history_settings_and_prompt(self):

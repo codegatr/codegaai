@@ -18,6 +18,7 @@ npm run dist:win
 - Conversation list and settings dialog
 - Instant fallback answers for greetings and identity questions
 - Ollama provider detection
+- Ollama download handoff when the provider is missing
 - Default model preparation through `ollama pull qwen2.5:3b-instruct`
 - GitHub release based updater wiring through `electron-updater`
 - NSIS Windows installer configuration

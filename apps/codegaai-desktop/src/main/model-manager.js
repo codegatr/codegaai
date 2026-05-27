@@ -1,5 +1,5 @@
 const { spawn } = require("node:child_process");
-const { DEFAULT_MODEL } = require("../shared/constants");
+const { DEFAULT_MODEL, OLLAMA_DOWNLOAD_URL } = require("../shared/constants");
 
 const READY_STATES = {
   CHECKING: "checking",
@@ -77,6 +77,8 @@ class ModelManager {
         status: READY_STATES.MISSING,
         model: DEFAULT_MODEL,
         message: "Ollama bulunamadı. CODEGA AI temel modda hazır; yerel model için Ollama kurulmalı.",
+        action: "install_ollama",
+        actionUrl: OLLAMA_DOWNLOAD_URL,
       };
       return this.getStatus();
     }
@@ -97,7 +99,12 @@ class ModelManager {
   async prepareDefaultModel(onProgress) {
     await this.detect();
     if (this.state.provider !== "ollama") {
-      return this.getStatus();
+      return {
+        ...this.getStatus(),
+        message: "Ollama kurulu değil. Modeli hazırlamak için önce Ollama kurulumu açılıyor.",
+        action: "install_ollama",
+        actionUrl: OLLAMA_DOWNLOAD_URL,
+      };
     }
     if (this.state.status === READY_STATES.READY) {
       return this.getStatus();

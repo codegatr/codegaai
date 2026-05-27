@@ -1,5 +1,5 @@
 const path = require("node:path");
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, shell } = require("electron");
 const { APP_NAME } = require("../shared/constants");
 const { ModelManager } = require("./model-manager");
 const { UpdateService } = require("./update-service");
@@ -44,9 +44,17 @@ function registerIpc() {
   });
 
   ipcMain.handle("model:prepare", async (event) => {
-    return modelManager.prepareDefaultModel((status) => {
-      event.sender.send("model:status", status);
+    const status = await modelManager.prepareDefaultModel((progress) => {
+      event.sender.send("model:status", progress);
     });
+    if (status.action === "install_ollama" && status.actionUrl) {
+      await shell.openExternal(status.actionUrl);
+      return {
+        ...status,
+        message: "Ollama indirme sayfası açıldı. Kurulumdan sonra CODEGA AI'yi yeniden aç veya Modeli Hazırla'ya tekrar bas.",
+      };
+    }
+    return status;
   });
 
   ipcMain.handle("updates:check", async () => updateService.check());
