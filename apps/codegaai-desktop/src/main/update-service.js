@@ -38,7 +38,6 @@ class UpdateService {
   }
 
   start() {
-    setTimeout(() => this.check(), 3500);
     setInterval(() => this.check(), UPDATE_INTERVAL_MS);
   }
 
