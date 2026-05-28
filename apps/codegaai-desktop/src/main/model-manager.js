@@ -20,9 +20,9 @@ const READY_STATES = {
 };
 
 const TASK_MODELS = {
-  code: ["qwen2.5-coder:7b-instruct", "qwen2.5-coder:3b-instruct", "qwen3:8b", DEFAULT_MODEL],
-  image: ["qwen3:8b", "qwen2.5:3b", "gemma3:4b", DEFAULT_MODEL],
-  writing: ["qwen3:8b", "mistral:7b", "qwen2.5:3b", DEFAULT_MODEL],
+  code: ["qwen2.5-coder:3b-instruct", "qwen2.5-coder:7b-instruct", "qwen3:8b", DEFAULT_MODEL],
+  image: ["qwen2.5:3b", "gemma3:4b", "qwen3:8b", DEFAULT_MODEL],
+  writing: ["qwen3:4b", "qwen2.5:3b", "qwen3:8b", "mistral:7b", DEFAULT_MODEL],
   chat: [DEFAULT_MODEL, "qwen2.5:1.5b", "llama3.2:3b"],
 };
 
@@ -196,6 +196,30 @@ function chooseModelForTask(task, installed) {
     || modelCandidates().find((model) => installedSet.has(model))
     || preferred[0]
     || DEFAULT_MODEL;
+}
+
+function candidateModelsForTask(task, installed) {
+  const installedSet = new Set(installed);
+  const preferred = TASK_MODELS[task] || TASK_MODELS.chat;
+  return unique([
+    ...preferred,
+    DEFAULT_MODEL,
+    "qwen2.5:1.5b",
+    "llama3.2:3b",
+    ...modelCandidates(),
+  ]).filter((model) => installedSet.has(model));
+}
+
+function buildPrompt(task, input) {
+  return [
+    "Sen CODEGA AI'sın. Türkçe, net, samimi ve uygulanabilir cevap ver.",
+    "ChatGPT ve Claude kalitesinde davran: talebi anla, gerekirse kısa plan yap, sonra doğrudan faydalı cevabı ver.",
+    "İç model/paket adlarını kullanıcıya söyleme; sadece doğal şekilde yanıt ver.",
+    "Yanıtı gereksiz uzatma. Önce sonucu ver, sonra gerekiyorsa kısa açıklama ekle.",
+    `Görev türü: ${task}`,
+    `Kullanıcı: ${input}`,
+    "CODEGA AI:",
+  ].join("\n");
 }
 
 class ModelManager {
@@ -374,15 +398,15 @@ class ModelManager {
 
     const installed = await this.installedModels();
     const task = detectTask(input);
-    const selectedModel = chooseModelForTask(task, installed);
-    const selected = modelOption(selectedModel);
-    if (!installed.includes(selectedModel)) {
+    const attemptModels = candidateModelsForTask(task, installed);
+    const selectedModel = attemptModels[0] || chooseModelForTask(task, installed);
+    if (!attemptModels.length) {
       this.state = {
         provider: "ollama",
         status: READY_STATES.MISSING,
         model: selectedModel,
         task,
-        message: `${selected.label} gerekli. Ayarlardan indirilebilir.`,
+        message: "Gerekli zeka paketi hazır değil.",
       };
       return {
         provider: "instant",
@@ -399,19 +423,34 @@ class ModelManager {
       message: "Düşünüyorum...",
     };
 
-    const prompt = [
-      "Sen CODEGA AI'sın. Türkçe, net, samimi ve uygulanabilir cevap ver.",
-      `Görev türü: ${task}`,
-      "İç model/paket adlarını kullanıcıya söyleme; sadece doğal şekilde yanıt ver.",
-      `Kullanıcı: ${input}`,
-      "CODEGA AI:",
-    ].join("\n");
+    const prompt = buildPrompt(task, input);
+    let lastResult = null;
+    let usedModel = selectedModel;
 
-    const result = await this.runOllama(["run", selectedModel, prompt], {
-      timeoutMs: OLLAMA_CHAT_TIMEOUT_MS,
-    });
-    if (!result.ok) {
-      if (result.timedOut) {
+    for (const model of attemptModels.slice(0, 4)) {
+      this.state = {
+        provider: "ollama",
+        status: READY_STATES.READY,
+        model,
+        task,
+        message: "Düşünüyorum...",
+      };
+      const result = await this.runOllama(["run", model, prompt], {
+        timeoutMs: OLLAMA_CHAT_TIMEOUT_MS,
+      });
+      lastResult = result;
+      if (result.ok && String(result.stdout || "").trim()) {
+        usedModel = model;
+        return {
+          provider: "ollama",
+          model: usedModel,
+          text: result.stdout.trim(),
+        };
+      }
+    }
+
+    if (lastResult && !lastResult.ok) {
+      if (lastResult.timedOut) {
         this.state = {
           ...this.state,
           status: READY_STATES.READY,
@@ -420,25 +459,25 @@ class ModelManager {
         return {
           provider: "instant",
           model: "codega-timeout",
-          text: "Bu istekte zamanında cevap veremedim. Uygulama takılmadı; Ayarlar'dan daha küçük/hızlı zeka paketini indirirsen benzer isteklerde arka planda daha hızlı çalışabilirim.",
+          text: "Bu istekte yerel zeka motoru zamanında sonuç üretemedi. Uygulama çalışıyor; arka planda hazır alternatifleri denedim ama yanıt tamamlanmadı. Daha kısa bir komutla tekrar denersem daha hızlı toparlayabilirim.",
         };
       }
       this.state = {
         ...this.state,
         status: READY_STATES.ERROR,
-        message: result.stderr || result.error || "Model yanıt veremedi",
+        message: lastResult.stderr || lastResult.error || "Model yanıt veremedi",
       };
       return {
         provider: "instant",
         model: "codega-error",
-        text: "Model şu an yanıt veremedi. Uygulama çalışıyor; sorun yerel model tarafında.",
+        text: "Yerel zeka motoru şu an yanıt üretemedi. Uygulama çalışıyor; sorun çalışma motoru tarafında.",
       };
     }
 
     return {
-      provider: "ollama",
-      model: selectedModel,
-      text: result.stdout.trim() || "Yanıt boş döndü.",
+      provider: "instant",
+      model: "codega-empty",
+      text: "Yanıt boş döndü. Komutu biraz daha kısa yazarak tekrar deneyebilirim.",
     };
   }
 }
@@ -448,4 +487,5 @@ module.exports = {
   READY_STATES,
   instantAnswer,
   detectTask,
+  candidateModelsForTask,
 };
