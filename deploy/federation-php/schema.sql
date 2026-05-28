@@ -45,3 +45,32 @@ CREATE TABLE IF NOT EXISTS federation_events (
   PRIMARY KEY (id),
   KEY idx_federation_events_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS shared_chats (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  share_slug CHAR(12) NOT NULL,
+  title VARCHAR(160) NOT NULL,
+  messages_json JSON NOT NULL,
+  message_count INT UNSIGNED NOT NULL DEFAULT 0,
+  created_ip_hash CHAR(64) DEFAULT NULL,
+  view_count INT UNSIGNED NOT NULL DEFAULT 0,
+  last_viewed_at DATETIME DEFAULT NULL,
+  expires_at DATETIME DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_shared_chats_slug (share_slug),
+  KEY idx_shared_chats_created (created_at),
+  KEY idx_shared_chats_expires (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS federation_learning_audit (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  event_type VARCHAR(48) NOT NULL,
+  subject VARCHAR(160) DEFAULT NULL,
+  score DECIMAL(5,3) DEFAULT NULL,
+  detail_json JSON NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_learning_audit_created (created_at),
+  KEY idx_learning_audit_type (event_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
