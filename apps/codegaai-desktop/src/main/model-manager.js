@@ -11,6 +11,11 @@ const {
   OLLAMA_DOWNLOAD_URL,
   OLLAMA_PULL_TIMEOUT_MS,
 } = require("../shared/constants");
+const { ollamaChat, ollamaReachable } = require("./agent/ollama-client");
+const { runReact } = require("./agent/agent-loop");
+const { buildSystemPrompt } = require("./agent/system-prompt");
+
+const MAX_HISTORY_MESSAGES = 12; // son ~6 turu hatırla
 
 const READY_STATES = {
   CHECKING: "checking",
@@ -222,9 +227,19 @@ function buildPrompt(task, input) {
   ].join("\n");
 }
 
+// HTTP /api/chat erişilemezse, CLI `ollama run` için messages dizisini tek
+// prompt'a düzleştir (system + geçmiş + kullanıcı korunur).
+function flattenMessages(messages) {
+  const label = { system: "[SISTEM]", user: "[KULLANICI]", assistant: "[CODEGA]" };
+  const lines = messages.map((m) => `${label[m.role] || m.role}: ${m.content}`);
+  lines.push("[CODEGA]:");
+  return lines.join("\n\n");
+}
+
 class ModelManager {
   constructor() {
     this.ollamaCommand = null;
+    this.history = []; // sunucu-tarafı çok-turlu hafıza ({role, content})
     this.state = {
       provider: "instant",
       status: READY_STATES.CHECKING,
@@ -423,62 +438,98 @@ class ModelManager {
       message: "Düşünüyorum...",
     };
 
-    const prompt = buildPrompt(task, input);
-    let lastResult = null;
-    let usedModel = selectedModel;
+    // Mesaj dizisi: system (karakter + araç protokolü) + geçmiş + kullanıcı
+    const messages = [
+      { role: "system", content: buildSystemPrompt(task) },
+      ...this.history,
+      { role: "user", content: input },
+    ];
 
-    for (const model of attemptModels.slice(0, 4)) {
-      this.state = {
-        provider: "ollama",
-        status: READY_STATES.READY,
-        model,
-        task,
-        message: "Düşünüyorum...",
-      };
-      const result = await this.runOllama(["run", model, prompt], {
-        timeoutMs: OLLAMA_CHAT_TIMEOUT_MS,
-      });
-      lastResult = result;
-      if (result.ok && String(result.stdout || "").trim()) {
-        usedModel = model;
-        return {
-          provider: "ollama",
-          model: usedModel,
-          text: result.stdout.trim(),
-        };
-      }
-    }
+    const generateFn = (msgs) => this.generate(selectedModel, msgs, attemptModels);
 
-    if (lastResult && !lastResult.ok) {
-      if (lastResult.timedOut) {
-        this.state = {
-          ...this.state,
-          status: READY_STATES.READY,
-          message: "Yanıt zaman aşımına uğradı",
-        };
-        return {
-          provider: "instant",
-          model: "codega-timeout",
-          text: "Bu istekte yerel zeka motoru zamanında sonuç üretemedi. Uygulama çalışıyor; arka planda hazır alternatifleri denedim ama yanıt tamamlanmadı. Daha kısa bir komutla tekrar denersem daha hızlı toparlayabilirim.",
-        };
-      }
+    let agent;
+    try {
+      agent = await runReact(messages, generateFn, { maxIters: 3 });
+    } catch (e) {
       this.state = {
         ...this.state,
         status: READY_STATES.ERROR,
-        message: lastResult.stderr || lastResult.error || "Model yanıt veremedi",
+        message: (e && e.message) || "Ajan hatası",
       };
       return {
         provider: "instant",
         model: "codega-error",
-        text: "Yerel zeka motoru şu an yanıt üretemedi. Uygulama çalışıyor; sorun çalışma motoru tarafında.",
+        text: "Yerel zeka motoru şu an yanıt üretemedi. Ollama açık mı ve model indirildi mi diye kontrol edebilirsin.",
       };
     }
 
-    return {
-      provider: "instant",
-      model: "codega-empty",
-      text: "Yanıt boş döndü. Komutu biraz daha kısa yazarak tekrar deneyebilirim.",
+    const text = String(agent.content || "").trim();
+    if (!text || agent.stoppedReason === "error") {
+      this.state = {
+        ...this.state,
+        status: READY_STATES.READY,
+        message: text ? "Hazır" : "Yanıt boş döndü",
+      };
+      return {
+        provider: "instant",
+        model: "codega-empty",
+        text:
+          text ||
+          "Yanıt üretemedim. Ollama servisi açık mı ve ilgili model indirildi mi diye kontrol edebilirsin.",
+      };
+    }
+
+    // Çok-turlu hafıza: kullanıcı + final cevabı sakla (araç gözlemleri hariç)
+    this.history.push({ role: "user", content: input });
+    this.history.push({ role: "assistant", content: text });
+    if (this.history.length > MAX_HISTORY_MESSAGES) {
+      this.history = this.history.slice(-MAX_HISTORY_MESSAGES);
+    }
+
+    this.state = {
+      provider: "ollama",
+      status: READY_STATES.READY,
+      model: selectedModel,
+      task,
+      message: "Hazır",
     };
+
+    return {
+      provider: "ollama",
+      model: selectedModel,
+      text,
+      iterations: agent.iterations,
+      tools: agent.toolCalls.map((t) => t.name),
+    };
+  }
+
+  /**
+   * Tek bir üretim: önce Ollama HTTP /api/chat (messages + system + araç döngüsü
+   * için gerekli), erişilemezse CLI `run`'a fallback (messages düzleştirilir).
+   * runReact bunu generateFn olarak çağırır.
+   */
+  async generate(model, messages, fallbackModels = []) {
+    if (await ollamaReachable()) {
+      try {
+        const content = await ollamaChat(model, messages, {
+          timeoutMs: OLLAMA_CHAT_TIMEOUT_MS,
+        });
+        if (content && content.trim()) return content;
+      } catch (_e) {
+        // HTTP başarısız -> CLI fallback
+      }
+    }
+    const prompt = flattenMessages(messages);
+    const models = [model, ...fallbackModels.filter((m) => m !== model)].slice(0, 3);
+    for (const m of models) {
+      const result = await this.runOllama(["run", m, prompt], {
+        timeoutMs: OLLAMA_CHAT_TIMEOUT_MS,
+      });
+      if (result.ok && String(result.stdout || "").trim()) {
+        return result.stdout.trim();
+      }
+    }
+    return "";
   }
 }
 

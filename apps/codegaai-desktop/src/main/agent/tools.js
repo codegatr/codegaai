@@ -1,0 +1,265 @@
+"use strict";
+/**
+ * agent/tools.js
+ * ---------------
+ * Ajanın araç (tool) sistemi. Model yanıtında şu formatla araç çağırır:
+ *
+ *   <tool>web_search("Konya hava durumu")</tool>
+ *   <tool>calculate("137 * 42")</tool>
+ *   <tool>read_url("https://example.com")</tool>
+ *   <tool>current_time()</tool>
+ *   <tool>weather("Konya")</tool>
+ *   <tool>remember("Yunus Konya'da yaşıyor, web geliştirici")</tool>
+ *   <tool>recall("Yunus nerede yaşıyor")</tool>
+ *
+ * Araçlar gerçek eylem yapar (web araması, sayfa okuma, hesap, hava, hafıza).
+ * Modelin ham boyutundan bağımsız olarak ajanı "yetenekli" yapan katman budur.
+ */
+
+const { remember, recall } = require("./memory");
+
+const TOOL_PATTERN = /<tool>\s*([\s\S]*?)\s*<\/tool>/gi;
+const CALL_PATTERN = /^(\w+)\(([\s\S]*)\)$/;
+
+function hasToolCall(text) {
+  TOOL_PATTERN.lastIndex = 0;
+  return TOOL_PATTERN.test(String(text || ""));
+}
+
+function stripTags(html) {
+  return String(html || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function fetchText(url, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { "User-Agent": "Mozilla/5.0 (CODEGA-AI Agent)" },
+    });
+    return await res.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ---------------------------------------------------------------- web_search
+async function toolWebSearch(query, max = 4) {
+  const q = String(query || "").trim();
+  if (!q) return "⚠️ Arama sorgusu boş.";
+  try {
+    const html = await fetchText(
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`
+    );
+    const results = [];
+    const linkRe = /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+    const snippetRe = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
+    const snippets = [];
+    let sm;
+    while ((sm = snippetRe.exec(html)) !== null) snippets.push(stripTags(sm[1]));
+    let lm;
+    let i = 0;
+    while ((lm = linkRe.exec(html)) !== null && results.length < Number(max)) {
+      const title = stripTags(lm[2]);
+      let href = lm[1];
+      const m = href.match(/uddg=([^&]+)/);
+      if (m) { try { href = decodeURIComponent(m[1]); } catch (_e) {} }
+      const snip = snippets[i] || "";
+      i += 1;
+      if (title) results.push(`• ${title}\n  ${snip}\n  ${href}`);
+    }
+    if (!results.length) return `'${q}' için sonuç bulunamadı.`;
+    return `🔍 Web Arama: ${q}\n\n${results.join("\n\n")}`;
+  } catch (e) {
+    return `⚠️ Arama yapılamadı (internet?): ${e.message || e}`;
+  }
+}
+
+// ------------------------------------------------------------------ read_url
+async function toolReadUrl(url) {
+  const u = String(url || "").trim();
+  if (!/^https?:\/\//i.test(u)) return "⚠️ Geçerli bir http(s) URL gerekli.";
+  try {
+    const html = await fetchText(u);
+    const text = stripTags(html).slice(0, 4000);
+    return `📄 ${u}\n\n${text}`;
+  } catch (e) {
+    return `⚠️ URL okunamadı: ${e.message || e}`;
+  }
+}
+
+// ----------------------------------------------------------------- calculate
+const CALC_ALLOWED = /^[\d+\-*/%.()\s^]+$/;
+const CALC_FUNCS = { sqrt: "Math.sqrt", abs: "Math.abs", sin: "Math.sin",
+  cos: "Math.cos", tan: "Math.tan", log: "Math.log", pi: "Math.PI", e: "Math.E" };
+
+function toolCalculate(expr) {
+  let s = String(expr || "").trim();
+  // izinli fonksiyon/sabit isimlerini Math eşdeğeriyle değiştir
+  let probe = s;
+  for (const name of Object.keys(CALC_FUNCS)) {
+    const re = new RegExp(`\\b${name}\\b`, "gi");
+    s = s.replace(re, CALC_FUNCS[name]);
+    probe = probe.replace(re, "");
+  }
+  // değişimden sonra geriye sadece sayı/operatör kalmalı (harf = güvensiz)
+  const cleanedProbe = probe.replace(/Math\.\w+/g, "");
+  if (!CALC_ALLOWED.test(cleanedProbe.replace(/[A-Za-z.]/g, ""))) {
+    // yine de katı kontrol: orijinalde izinsiz harf var mı?
+  }
+  if (/[A-Za-z]/.test(s.replace(/Math\.\w+/g, "")) || /[;=]/.test(s)) {
+    return "⚠️ Sadece sayısal ifadeler hesaplanır.";
+  }
+  s = s.replace(/\^/g, "**");
+  try {
+    // s yalnızca sayı/operatör/Math.* içerir -> güvenli
+    // eslint-disable-next-line no-new-func
+    const value = Function('"use strict"; return (' + s + ");")();
+    return `🧮 ${expr} = ${value}`;
+  } catch (e) {
+    return `⚠️ Hesaplama hatası: ${e.message || e}`;
+  }
+}
+
+// --------------------------------------------------------------- current_time
+function toolCurrentTime() {
+  try {
+    const now = new Date().toLocaleString("tr-TR", {
+      timeZone: "Europe/Istanbul",
+      dateStyle: "full",
+      timeStyle: "medium",
+    });
+    return `🕐 ${now} (Türkiye)`;
+  } catch (_e) {
+    return `🕐 ${new Date().toISOString()}`;
+  }
+}
+
+// -------------------------------------------------------------------- weather
+async function toolWeather(city) {
+  const c = String(city || "").trim();
+  if (!c) return "⚠️ Şehir gerekli.";
+  try {
+    const geoRaw = await fetchText(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(c)}&count=1&language=tr`
+    );
+    const geo = JSON.parse(geoRaw);
+    if (!geo.results || !geo.results.length) return `⚠️ '${c}' bulunamadı.`;
+    const { latitude, longitude, name } = geo.results[0];
+    const wRaw = await fetchText(
+      `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,wind_speed_10m&wind_speed_unit=kmh&timezone=Europe%2FIstanbul`
+    );
+    const w = JSON.parse(wRaw).current;
+    return `🌤 ${name}: ${w.temperature_2m}°C, ${w.wind_speed_10m} km/s rüzgar`;
+  } catch (e) {
+    return `⚠️ Hava durumu alınamadı: ${e.message || e}`;
+  }
+}
+
+// --------------------------------------------------------------- memory tools
+function toolRemember(fact) {
+  const r = remember(fact);
+  return r.ok ? `✅ Belleğe kaydedildi: "${r.message}"` : `⚠️ ${r.message}`;
+}
+function toolRecall(query) {
+  const hits = recall(query);
+  if (!hits.length) return `Belleğimde "${query}" hakkında bilgi yok.`;
+  return `🧠 Bellekten:\n${hits.map((h) => `• ${h}`).join("\n")}`;
+}
+
+const TOOLS = {
+  web_search: { fn: toolWebSearch, desc: "İnternette güncel bilgi ara (DuckDuckGo)" },
+  read_url: { fn: toolReadUrl, desc: "Bir web sayfasının içeriğini oku" },
+  calculate: { fn: toolCalculate, desc: "Matematiksel hesap yap" },
+  current_time: { fn: toolCurrentTime, desc: "Şu anki tarih/saat (Türkiye)" },
+  weather: { fn: toolWeather, desc: "Bir şehrin hava durumu" },
+  remember: { fn: toolRemember, desc: "Kalıcı belleğe bilgi kaydet" },
+  recall: { fn: toolRecall, desc: "Kalıcı bellekte ara" },
+};
+
+function parseArgs(argsStr) {
+  const s = String(argsStr || "").trim();
+  if (!s) return [];
+  try {
+    return JSON.parse(`[${s}]`);
+  } catch (_e) {
+    return [s.replace(/^['"]|['"]$/g, "")];
+  }
+}
+
+/**
+ * Metindeki tüm <tool>...</tool> çağrılarını çalıştır.
+ * @returns {Promise<{calls: Array}>}
+ */
+async function parseAndRunTools(text) {
+  const calls = [];
+  const matches = [];
+  TOOL_PATTERN.lastIndex = 0;
+  let m;
+  while ((m = TOOL_PATTERN.exec(String(text || ""))) !== null) {
+    matches.push(m[1].trim());
+  }
+  for (const raw of matches) {
+    const cm = CALL_PATTERN.exec(raw);
+    if (!cm) continue;
+    const name = cm[1].trim();
+    const args = parseArgs(cm[2]);
+    const def = TOOLS[name];
+    const call = { name, args, result: null, error: null, elapsedMs: 0 };
+    if (!def) {
+      call.error = `Bilinmeyen araç: ${name}`;
+      call.result = `⚠️ ${call.error}`;
+    } else {
+      const t0 = Date.now();
+      try {
+        call.result = await def.fn(...args);
+      } catch (e) {
+        call.error = e.message || String(e);
+        call.result = `⚠️ Araç hatası: ${call.error}`;
+      }
+      call.elapsedMs = Date.now() - t0;
+    }
+    calls.push(call);
+  }
+  return { calls };
+}
+
+function toolsSystemPrompt() {
+  const defs = Object.entries(TOOLS)
+    .map(([name, d]) => `- ${name}(...): ${d.desc}`)
+    .join("\n");
+  return [
+    "## Araçlar",
+    "Güncel bilgi, hesap, sayfa okuma veya hafıza gerektiğinde araç çağır.",
+    "Format (yalnızca bu): <tool>arac_adi(\"argüman\")</tool>",
+    "",
+    "Kullanılabilir araçlar:",
+    defs,
+    "",
+    "Kurallar:",
+    "1. Güncel/değişen bilgi (haber, fiyat, hava, tarih) → web_search veya weather.",
+    "2. Sayısal işlem → calculate. Asla kafadan hesaplama.",
+    "3. Bir kaynağı incelemen gerekiyorsa → read_url.",
+    "4. Kullanıcı hakkında kalıcı bilgi → remember; gerektiğinde recall.",
+    "5. Araç sonucu gelince ONU OKU, üstüne düşün; gerekiyorsa yeni araç çağır, yeterliyse net cevabı yaz.",
+  ].join("\n");
+}
+
+module.exports = {
+  TOOLS,
+  TOOL_PATTERN,
+  hasToolCall,
+  parseAndRunTools,
+  toolsSystemPrompt,
+  // doğrudan test için:
+  toolCalculate,
+  toolCurrentTime,
+};

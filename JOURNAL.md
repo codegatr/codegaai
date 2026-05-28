@@ -4,6 +4,63 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 49 — Electron Uygulamasına Gerçek Ajan Katmanı (28 May 2026, Claude)
+
+### Bağlam (yön değişikliği netleşti)
+
+Proje yeni yöne taşındı: asıl ürün artık `apps/codegaai-desktop` — **Electron +
+Ollama**, Windows-first, çok-platform (electron-builder NSIS + electron-updater).
+Python `codegaai/` paketi (Faz 48 ReAct döngüsü dahil) bu yeni uygulama
+tarafından KULLANILMIYOR. Kullanıcı kararı: zekâyı **yeni Electron uygulamasının
+içine** kurmak (Option A).
+
+### Tespit (yeni uygulamanın eski hali)
+
+`model-manager.ask()` her mesajda tek bir `ollama run model "prompt"` (CLI,
+tek-atış) çalıştırıyordu: geçmiş yok, system mesajı yok, araç yok, döngü yok.
+Yani temiz ama "ince Ollama sohbet kabuğu" — gelişmiş ajan değil.
+
+### Eklenen (yeni `src/main/agent/` katmanı)
+
+- `ollama-client.js` — Ollama **HTTP `/api/chat`** (messages dizisi + system +
+  çok-tur). CLI tek-atışın yerine geçer; ReAct'in temeli.
+- `agent-loop.js` — **gerçek ReAct döngüsü**: üret → araç çalıştır → gözlemi
+  modele GERİ besle → tekrar düşün → ya yeni araç ya FINAL cevap. `maxIters`
+  koruması; `<think>` blokları kullanıcıdan gizlenir.
+- `tools.js` — gerçek araç registry'si: `web_search` (DuckDuckGo), `read_url`,
+  `calculate`, `current_time`, `weather` (open-meteo), `remember`/`recall`.
+  `<tool>arac("arg")</tool>` protokolü, model-agnostik (her Ollama modeliyle çalışır).
+- `memory.js` — kalıcı yerel hafıza (JSON, electron-bağımsız → test edilebilir).
+- `system-prompt.js` — Claude-tarzı karakter + çalışma yöntemi
+  (DÜŞÜN→İNCELE→DEĞERLENDİR→KARAR VER) + araç protokolü.
+
+### Entegrasyon (`model-manager.js`)
+
+- `ask()` artık: instant kısayolu → `[system + geçmiş + user]` mesajları kurar →
+  `runReact(..., {maxIters:3})` çalıştırır → final cevabı döndürür.
+- `generate(model, messages)`: önce HTTP `/api/chat`, erişilemezse CLI `run`
+  fallback (messages düzleştirilir). Eski model-seçim/instant/detect mantığı korundu.
+- Sunucu-tarafı çok-turlu geçmiş (`this.history`, son 12 mesaj).
+- IPC/renderer sözleşmesi (`{provider, model, text}`) **bozulmadı**; `text` aynı.
+
+### Test (modelsiz/internetsiz, Node ile geçiyor)
+
+`scripts/test-agent.mjs` — 7 test: gözlem geri-beslemesi, max_iters, düz cevap +
+`<think>` gizleme, üretim hatası, calculate/current_time, hafıza, parseAndRunTools.
+`scripts/check.mjs` yeni ajan dosyalarını da doğruluyor.
+
+### Sıradaki adım (kullanıcının makinesinde, Ollama açıkken)
+
+- [ ] `npm run dev` ile gerçek modelle dene (qwen2.5:3b / qwen3:8b). Küçük modeller
+      `<tool>` protokolünü tutturamazsa: few-shot örnek ekle veya Ollama native
+      `tools` parametresine geç.
+- [ ] İyi çalışınca: `package.json` version bump + `npm run release:win`
+      (electron-builder GitHub release). **Bu oturumda version bump/release YOK**
+      (canlı model doğrulaması bekliyor).
+- [ ] UI: araç turlarını adım adım göster (loop `steps`/`toolCalls` döndürüyor).
+
+---
+
 ## ✅ Faz 48 — Gerçek ReAct Ajan Döngüsü (28 May 2026, Claude)
 
 ### Teşhis (önce dürüst tespit)
