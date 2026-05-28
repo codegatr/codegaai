@@ -104,7 +104,7 @@ function appendMessage(role, text) {
 function setModelStatus(status) {
   const text = status?.message || "Model durumu bilinmiyor";
   els.modelPill.textContent = text;
-  els.modelDetail.textContent = `${status?.provider || "instant"} Â· ${status?.model || "codega-instant"} Â· ${status?.status || "unknown"}`;
+  els.modelDetail.textContent = `${status?.provider || "instant"} · ${status?.model || "codega-instant"} · ${status?.status || "unknown"}`;
 }
 
 async function refreshStatus() {
@@ -121,7 +121,7 @@ els.form.addEventListener("submit", async (event) => {
   appendMessage("user", text);
   els.input.value = "";
   els.input.style.height = "auto";
-  appendMessage("assistant", "DÃ¼ÅŸÃ¼nÃ¼yorum...");
+  appendMessage("assistant", "Düşünüyorum...");
 
   const chat = currentChat();
   const placeholder = chat.messages[chat.messages.length - 1];
@@ -150,7 +150,7 @@ document.getElementById("new-chat").addEventListener("click", () => createChat()
 els.settingsButton.addEventListener("click", () => els.settings.showModal());
 els.prepareModel.addEventListener("click", async () => {
   els.prepareModel.disabled = true;
-  els.modelDetail.textContent = "Model hazÄ±rlanÄ±yor...";
+  els.modelDetail.textContent = "Model hazırlanıyor...";
   try {
     const status = await window.codega.prepareModel();
     setModelStatus(status);
@@ -158,20 +158,57 @@ els.prepareModel.addEventListener("click", async () => {
     els.prepareModel.disabled = false;
   }
 });
-els.checkUpdate.addEventListener("click", () => window.codega.checkForUpdates());
-els.downloadUpdate.addEventListener("click", () => window.codega.downloadUpdate());
+els.checkUpdate.addEventListener("click", async () => {
+  els.checkUpdate.disabled = true;
+  els.updateDetail.textContent = "Güncelleme kontrol ediliyor...";
+  try {
+    await window.codega.checkForUpdates();
+  } catch (error) {
+    els.updateDetail.textContent = `Güncelleme kontrol edilemedi: ${error.message || error}`;
+  } finally {
+    els.checkUpdate.disabled = false;
+  }
+});
+els.downloadUpdate.addEventListener("click", async () => {
+  els.downloadUpdate.disabled = true;
+  els.updateDetail.textContent = "Güncelleme indiriliyor...";
+  try {
+    await window.codega.downloadUpdate();
+  } catch (error) {
+    els.updateDetail.textContent = `Güncelleme indirilemedi: ${error.message || error}`;
+    els.downloadUpdate.disabled = false;
+  }
+});
 els.installUpdate.addEventListener("click", () => window.codega.installUpdate());
 
 window.codega.onModelStatus(setModelStatus);
 window.codega.onUpdateStatus((payload) => {
   const state = payload?.state || "unknown";
-  els.updateDetail.textContent = `Durum: ${state}`;
+  const detail = payload?.detail || {};
+  const messages = {
+    checking: "Güncelleme kontrol ediliyor...",
+    available: "Yeni sürüm bulundu. İndirmeye hazır.",
+    "not-available": detail.reason === "development"
+      ? "Güncelleme kontrolü paketlenmiş uygulamada çalışır."
+      : "Güncel sürümü kullanıyorsun.",
+    downloading: `Güncelleme indiriliyor${detail.percent ? `: %${Math.round(detail.percent)}` : "..."}`,
+    ready: "Güncelleme indirildi. Kurulum için yeniden başlatabilirsin.",
+    error: detail.message ? `Güncelleme hatası: ${detail.message}` : "Güncelleme kontrolü tamamlanamadı.",
+  };
+  els.updateDetail.textContent = messages[state] || `Durum: ${state}`;
+  if (state === "checking" || state === "not-available" || state === "error") {
+    els.updateActions.hidden = true;
+    els.downloadUpdate.disabled = false;
+    els.installUpdate.hidden = true;
+  }
   if (state === "available") {
     els.updateActions.hidden = false;
     els.installUpdate.hidden = true;
+    els.downloadUpdate.disabled = false;
   }
   if (state === "ready") {
     els.updateActions.hidden = false;
+    els.downloadUpdate.disabled = true;
     els.installUpdate.hidden = false;
   }
 });
