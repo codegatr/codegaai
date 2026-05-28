@@ -20,13 +20,23 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn('"nsis"', package)
         self.assertIn("Build CODEGA AI Windows installer", workflow)
         self.assertIn("apps/codegaai-desktop", workflow)
+        self.assertIn('"version": "0.1.3"', package)
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertIn("npm version $version --no-git-tag-version", workflow)
+        self.assertIn("release/latest.yml", workflow)
+        self.assertIn("tag=desktop-v$version", workflow)
 
     def test_update_flow_can_close_and_install_running_app(self):
         updater = read("apps/codegaai-desktop/src/main/update-service.js")
+        renderer = read("apps/codegaai-desktop/src/renderer/renderer.js")
 
         self.assertIn("autoUpdater.autoDownload = false", updater)
         self.assertIn("autoUpdater.quitAndInstall(false, true)", updater)
+        self.assertIn("!app.isPackaged", updater)
         self.assertIn("updates:status", updater)
+        self.assertIn("Güncelleme kontrol edilemedi", renderer)
+        self.assertIn("Güncelleme hatası", renderer)
+        self.assertIn("Güncelleme indirildi", renderer)
 
     def test_ai_layer_has_instant_and_ollama_providers(self):
         model_manager = read("apps/codegaai-desktop/src/main/model-manager.js")
