@@ -272,6 +272,36 @@ textarea {
   border-top: 1px solid var(--line);
 }
 
+.model-list {
+  display: grid;
+  gap: 8px;
+  padding: 10px 0 18px;
+  border-top: 1px solid var(--line);
+}
+
+.model-row {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 0;
+}
+
+.model-row strong {
+  display: block;
+  font-size: 14px;
+}
+
+.model-row p {
+  font-size: 12px;
+}
+
+.model-row button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 @media (max-width: 760px) {
   body {
     grid-template-columns: 1fr;
