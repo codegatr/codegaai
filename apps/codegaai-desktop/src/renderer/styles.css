@@ -91,20 +91,70 @@ textarea {
   gap: 5px;
 }
 
+.history-entry {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  border-radius: 10px;
+}
+
+.history-entry.active,
+.history-entry:hover {
+  background: var(--panel-strong);
+}
+
 .history-item {
+  min-width: 0;
   min-height: 38px;
   border: 0;
   border-radius: 10px;
   padding: 0 14px;
   text-align: left;
+  overflow: hidden;
   color: rgba(255, 255, 255, 0.72);
   background: transparent;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.history-item.active,
-.history-item:hover {
+.history-entry.active .history-item,
+.history-entry:hover .history-item {
   color: #fff;
-  background: var(--panel-strong);
+}
+
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 4px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.history-entry.active .history-actions,
+.history-entry:hover .history-actions,
+.history-actions:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.history-actions button {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.68);
+  background: transparent;
+  cursor: pointer;
+}
+
+.history-actions button:hover {
+  color: #000;
+  background: #fff;
 }
 
 .shell {
