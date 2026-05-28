@@ -2,34 +2,16 @@
 codegaai.core.model_router
 ============================
 
-Akıllı Model Yönlendirici.
+Akilli model yonlendirici.
 
-Claude'un en önemli avantajlarından biri: görev tipine göre
-doğru model kullanması. CODEGA AI de aynısını yapıyor.
-
-Routing mantığı:
-  PHP/Web kodu → Qwen Coder 7B (kod için özel eğitilmiş)
-  Hızlı sohbet → Qwen 3B (VRAM tasarrufu, hız)
-  Türkçe ağır  → Aya Expanse 8B (çok dilli uzman)
-  Genel zor    → Qwen 7B (varsayılan, dengeli)
-  Vision+metin → Qwen 7B (multimodal context)
-  Matematik    → Qwen 7B veya Coder
-
-Her karar:
-  1. Sorguyu analiz et (keyword + complexity)
-  2. Mevcut indirilmiş modelleri kontrol et
-  3. VRAM yeterliliğini kontrol et
-  4. Optimum modeli seç
-  5. Gerekirse önceki modeli unload et, yenisini yükle
-
-Config ile devre dışı bırakılabilir (auto_model_routing: false).
+Kullanici model secmez; CODEGA AI talimatin niyetine, indirilen modellere
+ve cihaz bellegine gore en uygun modeli tercih eder.
 """
 
 from __future__ import annotations
 
 import re
 import threading
-import time
 from dataclasses import dataclass
 from typing import Optional
 
@@ -38,30 +20,24 @@ from codegaai.utils.logger import get_logger
 log = get_logger(__name__)
 
 
-# ============================================================
-# Kural Tanımları
-# ============================================================
-
 @dataclass
 class ModelRule:
-    """Bir model için routing kuralı."""
+    """Bir model icin routing kurali."""
     model_id: str
-    priority: int          # Yüksek = önce dene
+    priority: int
     min_vram_gb: float
-    keywords: list[str]    # Trigger kelimeler
-    patterns: list[str]    # Regex patternler
-    task_types: list[str]  # reasoning/code/factual/creative
+    keywords: list[str]
+    patterns: list[str]
+    task_types: list[str]
 
 
-# PHP/Web geliştirme tespiti
 PHP_PATTERNS = [
     r"\bphp\b", r"<\?php", r"\blaravel\b", r"\bwordpress\b",
     r"\bsymfony\b", r"\byii\b", r"\bcodeigniter\b",
     r"\bpdo\b", r"\bmysqli\b", r"\bcomposer\b",
-    r"\b\.php\b", r"\bnamespace\b.*\\\b",
-    r"\becho\s+[\"']", r"\b\$_GET\b", r"\b\$_POST\b",
-    r"\bdirectadmin\b", r"\bcpanel\b", r"\bnginx\b.*\.conf",
-    r"\bhtaccess\b", r"\.htaccess",
+    r"\b\.php\b", r"\bnamespace\b", r"\becho\s+",
+    r"\$_GET\b", r"\$_POST\b", r"\bdirectadmin\b",
+    r"\bcpanel\b", r"\bnginx\b", r"\bhtaccess\b", r"\.htaccess",
 ]
 
 CODE_PATTERNS = [
@@ -74,9 +50,10 @@ CODE_PATTERNS = [
 ]
 
 TURKISH_HEAVY = [
-    r"\btürkçe\b", r"\bturkce\b", r"\bTürkiye\b",
-    r"\bnasıl.*söylenir\b", r"\banlamı.*nedir\b",
-    r"\bçevir\b.*türkçe", r"\btürkçe.*yaz",
+    r"\bturkce\b", r"\btürkçe\b", r"\bturkiye\b", r"\bTürkiye\b",
+    r"\bnasil.*soylenir\b", r"\bnasıl.*söylenir\b",
+    r"\banlami.*nedir\b", r"\banlamı.*nedir\b",
+    r"\bcevir\b.*turkce", r"\bçevir\b.*türkçe",
 ]
 
 QUICK_PATTERNS = [
@@ -87,26 +64,35 @@ QUICK_PATTERNS = [
 ]
 
 RULES: list[ModelRule] = [
-    # PHP/Web/Kod → Coder 7B (en yüksek öncelik)
+    ModelRule(
+        model_id="qwen3-coder-30b-a3b-q4_k_m",
+        priority=120,
+        min_vram_gb=16.0,
+        keywords=["buyuk repo", "büyük repo", "large repo", "refactor",
+                  "migration", "agent", "kod ajani", "kod ajanı",
+                  "code agent", "typescript", "python", "php", "laravel",
+                  "debug", "test yaz", "program yaz", "uygulama geliştir"],
+        patterns=PHP_PATTERNS + CODE_PATTERNS,
+        task_types=["code"],
+    ),
     ModelRule(
         model_id="qwen3-8b-q4_k_m",
         priority=100,
         min_vram_gb=5.5,
         keywords=["php", "laravel", "wordpress", "mysql", "nginx",
                   "apache", "cpanel", "directadmin", "htaccess",
-                  "javascript", "typescript", "css", "html",
-                  "react", "vue", "node", "npm", "api", "endpoint",
-                  "sql", "veritabanı", "database", "sorgu", "query",
-                  "kod", "code", "debug", "hata", "error", "bug",
-                  "class", "function", "method", "interface",
-                  "composer", "pdo", "mysqli", "eloquent",
-                  "git", "github", "deploy", "migration",
-                  "json", "xml", "regex", "curl", "http",
-                  "codega", "erp", "cms", "cron", "ajax"],
+                  "javascript", "typescript", "css", "html", "react",
+                  "vue", "node", "npm", "api", "endpoint", "sql",
+                  "veritabani", "veritabanı", "database", "sorgu",
+                  "query", "kod", "code", "debug", "hata", "error",
+                  "bug", "class", "function", "method", "interface",
+                  "composer", "pdo", "mysqli", "eloquent", "git",
+                  "github", "deploy", "migration", "json", "xml",
+                  "regex", "curl", "http", "codega", "erp", "cms",
+                  "cron", "ajax"],
         patterns=PHP_PATTERNS + CODE_PATTERNS,
         task_types=["code"],
     ),
-    # Kısa/hızlı sohbet → Qwen 3B (az VRAM, hızlı)
     ModelRule(
         model_id="qwen3-4b-q4_k_m",
         priority=90,
@@ -115,18 +101,26 @@ RULES: list[ModelRule] = [
         patterns=QUICK_PATTERNS,
         task_types=["factual"],
     ),
-    # Türkçe ağır içerik → Aya 8B
     ModelRule(
         model_id="aya-expanse-8b-q4_k_m",
         priority=70,
         min_vram_gb=6.2,
-        keywords=["türkçe", "turkce", "türk", "anadolu",
-                  "çevir", "translate", "dil", "gramer",
-                  "yazım", "imla", "kelime", "anlam"],
+        keywords=["turkce", "türkçe", "turk", "türk", "anadolu",
+                  "cevir", "çevir", "translate", "dil", "gramer",
+                  "yazim", "yazım", "imla", "kelime", "anlam"],
         patterns=TURKISH_HEAVY,
         task_types=["creative"],
     ),
-    # Genel/zor → Qwen 7B (varsayılan fallback)
+    ModelRule(
+        model_id="llama-3.1-8b-instruct-q4_k_m",
+        priority=60,
+        min_vram_gb=6.0,
+        keywords=["uzun", "detayli", "detaylı", "kapsamli", "kapsamlı",
+                  "analiz", "rapor", "arastirma", "araştırma",
+                  "research", "long context", "summarize", "ozetle", "özetle"],
+        patterns=[],
+        task_types=["long_context", "reasoning"],
+    ),
     ModelRule(
         model_id="qwen3-8b-q4_k_m",
         priority=50,
@@ -135,26 +129,11 @@ RULES: list[ModelRule] = [
         patterns=[],
         task_types=["reasoning", "general"],
     ),
-    # Uzun bağlam / Karmaşık akıl yürütme → Llama 3.1 8B
-    ModelRule(
-        model_id="llama-3.1-8b-instruct-q4_k_m",
-        priority=60,
-        min_vram_gb=6.0,
-        keywords=["uzun", "detaylı", "kapsamlı", "analiz",
-                  "rapor", "araştırma", "research", "long context",
-                  "summarize", "özetle"],
-        patterns=[],
-        task_types=["long_context", "reasoning"],
-    ),
 ]
 
 
-# ============================================================
-# Router
-# ============================================================
-
 class ModelRouter:
-    """Sorguya göre model seçer. Singleton."""
+    """Sorguya gore model secer. Singleton."""
 
     _instance: Optional["ModelRouter"] = None
     _lock = threading.Lock()
@@ -178,76 +157,58 @@ class ModelRouter:
         force_model_id: Optional[str] = None,
     ) -> Optional[str]:
         """
-        Sorgu için en uygun model ID'sini döndür.
-        None → mevcut yüklü modeli kullan.
+        Sorgu icin en uygun model ID'sini dondur.
+        None mevcut hazir modeli koru anlamina gelir.
         """
         if force_model_id:
             return force_model_id
-
         if not self._enabled:
             return None
 
-        from codegaai.core.models_registry import ModelRegistry
         from codegaai.core.engine import LLMEngine
+        from codegaai.core.models_registry import ModelRegistry
 
         reg = ModelRegistry.get()
         engine = LLMEngine.get()
         current = engine._status.model_id if engine.is_ready else None
-
-        # Mevcut VRAM bilgisi
         available_vram = self._get_free_vram()
 
-        # Sorgu analizi
-        q = query.lower()
-        text_for_analysis = q
+        text_for_analysis = (query or "").lower()
         if history:
-            # Son 3 mesajı da analiz et
             recent = " ".join(
                 m.get("content", "")[:200] for m in history[-3:]
             ).lower()
-            text_for_analysis = f"{recent} {q}"
+            text_for_analysis = f"{recent} {text_for_analysis}"
 
-        # Her kuralı değerlendir
         best_model = None
         best_priority = -1
-
         for rule in RULES:
             if not reg.is_llm_downloaded(rule.model_id):
-                continue  # İndirilmemiş
-
+                continue
             if available_vram and available_vram < rule.min_vram_gb:
-                continue  # VRAM yetersiz
-
+                continue
             score = self._score_rule(text_for_analysis, rule)
             if score > 0 and rule.priority > best_priority:
                 best_model = rule.model_id
                 best_priority = rule.priority
 
         if best_model and best_model != current:
-            log.info("Model router: '%s...' → %s (skor %d)",
+            log.info("Model router: '%s...' -> %s (skor %d)",
                      query[:40], best_model, best_priority)
             return best_model
-
-        return None  # Mevcut modeli koru
+        return None
 
     def _score_rule(self, text: str, rule: ModelRule) -> int:
-        """Kural için skor hesapla."""
         score = 0
-
-        # Keyword eşleşmesi
         for kw in rule.keywords:
             if kw in text:
                 score += 2
-
-        # Pattern eşleşmesi
-        for p in rule.patterns:
-            if re.search(p, text, re.IGNORECASE):
+        for pattern in rule.patterns:
+            if re.search(pattern, text, re.IGNORECASE):
                 score += 3
-
         return score
 
     def _get_free_vram(self) -> Optional[float]:
-        """Boş GPU belleği (GB)."""
         try:
             import torch
             if not torch.cuda.is_available():
@@ -259,27 +220,21 @@ class ModelRouter:
             return None
 
     def switch_model_if_needed(self, model_id: str) -> bool:
-        """
-        Hedef model yüklü değilse geçiş yap.
-        Dönüş: True = geçiş yapıldı / zaten doğru
-        """
         from codegaai.core.engine import LLMEngine
         engine = LLMEngine.get()
 
         if engine.is_ready and engine._status.model_id == model_id:
             return True
-
         if engine._status.state == "loading":
-            log.debug("Model yükleme devam ediyor, geçiş atlandı")
+            log.debug("Model yukleme devam ediyor, gecis atlandi")
             return False
-
         try:
-            log.info("Otomatik model geçişi: %s → %s",
+            log.info("Otomatik model gecisi: %s -> %s",
                      engine._status.model_id or "yok", model_id)
             engine.load(model_id)
             return True
         except Exception as exc:
-            log.warning("Model geçişi başarısız: %s", exc)
+            log.warning("Model gecisi basarisiz: %s", exc)
             return False
 
     def enable(self) -> None:
