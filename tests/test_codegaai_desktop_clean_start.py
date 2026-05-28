@@ -48,6 +48,8 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn("prepareDefaultModel", model_manager)
         self.assertIn("els.prepareModel.disabled = true", renderer)
         self.assertIn("window.codega.sendMessage", renderer)
+        self.assertIn('event.key === "Enter"', renderer)
+        self.assertIn("els.form.requestSubmit()", renderer)
 
     def test_minimal_ui_keeps_history_settings_and_prompt(self):
         html = read("apps/codegaai-desktop/src/renderer/index.html")
