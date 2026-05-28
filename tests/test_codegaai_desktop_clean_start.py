@@ -37,10 +37,23 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn("autoUpdater.quitAndInstall(false, true)", updater)
         self.assertIn("!app.isPackaged", updater)
         self.assertIn("updates:status", updater)
+        self.assertNotIn("setTimeout(() => this.check(), 3500)", updater)
         self.assertIn("imzasız installer", updater)
         self.assertIn("Güncelleme kontrol edilemedi", renderer)
         self.assertIn("Güncelleme hatası", renderer)
         self.assertIn("Güncelleme indirildi", renderer)
+        self.assertIn("checkUpdatesAfterFirstQuery", renderer)
+        self.assertIn('showUpdatePrompt("available"', renderer)
+        self.assertIn('showUpdatePrompt("ready"', renderer)
+
+    def test_update_prompt_asks_now_or_later(self):
+        html = read("apps/codegaai-desktop/src/renderer/index.html")
+        css = read("apps/codegaai-desktop/src/renderer/styles.css")
+
+        self.assertIn('id="update-prompt"', html)
+        self.assertIn("Şimdi Güncelle", html)
+        self.assertIn("Daha Sonra", html)
+        self.assertIn(".update-prompt", css)
 
     def test_ai_layer_has_instant_and_ollama_providers(self):
         model_manager = read("apps/codegaai-desktop/src/main/model-manager.js")
@@ -74,7 +87,9 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn("els.prepareModel.disabled = true", renderer)
         self.assertIn("window.codega.getModels", renderer)
         self.assertIn("data-model", renderer)
-        self.assertIn("Uygun model seçiliyor", renderer)
+        self.assertIn("Düşünüyorum...", renderer)
+        self.assertNotIn("Uygun model seçiliyor", renderer)
+        self.assertNotIn("Kullanılan model:", model_manager)
         self.assertIn("scrollConversationToBottom", renderer)
         self.assertIn("scrollIntoView", renderer)
         self.assertIn("window.codega.sendMessage", renderer)
