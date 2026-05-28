@@ -20,7 +20,7 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn('"nsis"', package)
         self.assertIn("Build CODEGA AI Windows installer", workflow)
         self.assertIn("apps/codegaai-desktop", workflow)
-        self.assertIn('"version": "0.1.5"', package)
+        self.assertIn('"version": "0.1.6"', package)
         self.assertNotIn('"publisherName": "CODEGA"', package)
         self.assertIn("workflow_dispatch:", workflow)
         self.assertIn("npm version $version --no-git-tag-version --allow-same-version", workflow)
