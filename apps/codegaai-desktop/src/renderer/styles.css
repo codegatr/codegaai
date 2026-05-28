@@ -245,7 +245,8 @@ textarea {
   border-radius: 18px;
 }
 
-.settings::backdrop {
+.settings::backdrop,
+.update-prompt::backdrop {
   background: rgba(0, 0, 0, 0.7);
 }
 
@@ -300,6 +301,64 @@ textarea {
 .model-row button:disabled {
   opacity: 0.55;
   cursor: default;
+}
+
+.update-prompt {
+  width: min(440px, calc(100vw - 40px));
+  color: var(--text);
+  background: #111;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+}
+
+.update-prompt header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.update-prompt h2 {
+  margin: 18px 0 8px;
+  font-size: 24px;
+}
+
+.update-prompt p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.update-prompt button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 11px 16px;
+  color: var(--text);
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.update-prompt header button {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+}
+
+.update-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+#update-now {
+  color: #000;
+  background: #fff;
 }
 
 @media (max-width: 760px) {
