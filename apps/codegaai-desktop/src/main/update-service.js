@@ -1,4 +1,5 @@
 const { autoUpdater } = require("electron-updater");
+const { app } = require("electron");
 const { UPDATE_INTERVAL_MS } = require("../shared/constants");
 
 class UpdateService {
@@ -33,7 +34,7 @@ class UpdateService {
   }
 
   async check() {
-    if (process.env.NODE_ENV === "development") {
+    if (process.env.NODE_ENV === "development" || !app.isPackaged) {
       this.emit("not-available", { reason: "development" });
       return { skipped: true };
     }
