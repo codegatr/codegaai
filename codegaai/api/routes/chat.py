@@ -160,9 +160,30 @@ async def chat(req: ChatRequest) -> ChatResponse:
             except Exception as exc:
                 log.warning("Arşive yazma başarısız: %s", exc)
 
-    # ── MODEL HAZIRLIK KONTROLÜ ──────────────────────────────────
-    # Kural: Zaten yüklü model ASLA değiştirilmez.
-    # Model router sadece hiç model yüklü değilse devreye girer.
+    # ── MODEL HAZIRLIK / OTOMATİK YÖNLENDİRME ────────────────────
+    # Kullanıcı model seçmez; talimatın niyetine göre indirilen en uygun
+    # model tercih edilir. Uygun model yoksa mevcut hazır model korunur.
+    last_user_for_routing = next(
+        (m.content for m in reversed(req.messages) if m.role == "user"),
+        "",
+    )
+    try:
+        from codegaai.core.model_router import ModelRouter
+        history_for_routing = [
+            {"role": m.role, "content": m.content}
+            for m in req.messages[:-1]
+        ]
+        routed_model = ModelRouter.get().select_model(
+            last_user_for_routing,
+            history=history_for_routing,
+            force_model_id=req.model,
+        )
+        if routed_model and routed_model != engine.status.get("model_id"):
+            log.info("Otomatik model geçişi (chat): %s", routed_model)
+            engine.load(routed_model)
+    except Exception as e:
+        log.warning("Otomatik model yönlendirme başarısız: %s", e)
+
     if not engine.is_ready:
         try:
             from codegaai.core.models_registry import ModelRegistry
