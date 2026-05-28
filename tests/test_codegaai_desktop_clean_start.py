@@ -25,6 +25,7 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn("npm version $version --no-git-tag-version", workflow)
         self.assertIn("release/latest.yml", workflow)
         self.assertIn("tag=desktop-v$version", workflow)
+        self.assertIn("github.ref == 'refs/heads/main'", workflow)
 
     def test_update_flow_can_close_and_install_running_app(self):
         updater = read("apps/codegaai-desktop/src/main/update-service.js")
