@@ -1,3 +1,6 @@
+const STORAGE_KEY = "codega.desktop.chats.v1";
+const SHARE_HASH_PREFIX = "#share=";
+
 const state = {
   messages: [],
   chats: [],
@@ -42,6 +45,61 @@ function escapeHtml(value) {
   }[char]));
 }
 
+function setTransientStatus(text) {
+  const previous = els.modelPill.textContent;
+  els.modelPill.textContent = text;
+  window.clearTimeout(setTransientStatus.timer);
+  setTransientStatus.timer = window.setTimeout(() => {
+    els.modelPill.textContent = previous || "Hazır";
+  }, 2400);
+}
+
+function normalizeChat(chat) {
+  return {
+    id: chat.id || crypto.randomUUID(),
+    title: String(chat.title || "Yeni sohbet").slice(0, 80),
+    messages: Array.isArray(chat.messages)
+      ? chat.messages
+          .filter((message) => message && (message.role === "user" || message.role === "assistant"))
+          .map((message) => ({
+            role: message.role,
+            text: String(message.text || ""),
+            createdAt: Number(message.createdAt) || Date.now(),
+          }))
+      : [],
+    updatedAt: Number(chat.updatedAt) || Date.now(),
+  };
+}
+
+function saveChats() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      activeChat: state.activeChat,
+      chats: state.chats,
+    }));
+  } catch (error) {
+    console.warn("Sohbet geçmişi kaydedilemedi", error);
+  }
+}
+
+function loadChats() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const payload = JSON.parse(raw);
+    state.chats = Array.isArray(payload.chats)
+      ? payload.chats.map(normalizeChat).sort((a, b) => b.updatedAt - a.updatedAt)
+      : [];
+    state.activeChat = state.chats.some((chat) => chat.id === payload.activeChat)
+      ? payload.activeChat
+      : state.chats[0]?.id || null;
+  } catch (error) {
+    console.warn("Sohbet geçmişi okunamadı", error);
+    state.chats = [];
+    state.activeChat = null;
+  }
+}
+
 function createChat(title = "Yeni sohbet") {
   const chat = {
     id: crypto.randomUUID(),
@@ -51,6 +109,7 @@ function createChat(title = "Yeni sohbet") {
   };
   state.chats.unshift(chat);
   state.activeChat = chat.id;
+  saveChats();
   renderHistory();
   renderConversation();
 }
@@ -62,16 +121,42 @@ function currentChat() {
 
 function renderHistory() {
   els.history.innerHTML = state.chats.map((chat) => `
-    <button class="history-item ${chat.id === state.activeChat ? "active" : ""}" data-chat="${chat.id}">
-      ${escapeHtml(chat.title)}
-    </button>
+    <div class="history-entry ${chat.id === state.activeChat ? "active" : ""}">
+      <button class="history-item" data-chat="${chat.id}">
+        ${escapeHtml(chat.title)}
+      </button>
+      <div class="history-actions" aria-label="Sohbet işlemleri">
+        <button type="button" data-share-chat="${chat.id}" title="Link olarak paylaş" aria-label="Link olarak paylaş">↗</button>
+        <button type="button" data-zip-chat="${chat.id}" title="ZIP olarak indir" aria-label="ZIP olarak indir">↓</button>
+        <button type="button" data-delete-chat="${chat.id}" title="Sohbeti sil" aria-label="Sohbeti sil">×</button>
+      </div>
+    </div>
   `).join("");
 
   els.history.querySelectorAll("[data-chat]").forEach((button) => {
     button.addEventListener("click", () => {
       state.activeChat = button.dataset.chat;
+      saveChats();
       renderHistory();
       renderConversation();
+    });
+  });
+  els.history.querySelectorAll("[data-share-chat]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      shareChat(button.dataset.shareChat);
+    });
+  });
+  els.history.querySelectorAll("[data-zip-chat]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      downloadChatZip(button.dataset.zipChat);
+    });
+  });
+  els.history.querySelectorAll("[data-delete-chat]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      deleteChat(button.dataset.deleteChat);
     });
   });
 }
@@ -113,9 +198,229 @@ function appendMessage(role, text) {
   state.chats = state.chats.filter((item) => item.id !== chat.id);
   state.chats.unshift(chat);
   state.activeChat = chat.id;
+  saveChats();
   renderHistory();
   renderConversation();
   scrollConversationToBottom();
+}
+
+function chatToMarkdown(chat) {
+  const lines = [`# ${chat.title}`, "", `Tarih: ${new Date(chat.updatedAt).toLocaleString()}`, ""];
+  for (const message of chat.messages) {
+    lines.push(`## ${message.role === "user" ? "Sen" : "CODEGA AI"}`);
+    lines.push("");
+    lines.push(message.text || "");
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+
+function base64UrlEncode(value) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlDecode(value) {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  const binary = atob(base64);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+function encodeSharePayload(chat) {
+  return base64UrlEncode(JSON.stringify({
+    title: chat.title,
+    messages: chat.messages,
+    updatedAt: chat.updatedAt,
+  }));
+}
+
+function buildShareLink(chat) {
+  const base = `${window.location.origin}${window.location.pathname}`;
+  return `${base}${SHARE_HASH_PREFIX}${encodeSharePayload(chat)}`;
+}
+
+async function shareChat(chatId) {
+  const chat = state.chats.find((item) => item.id === chatId);
+  if (!chat) return;
+  const url = buildShareLink(chat);
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: chat.title, text: "CODEGA AI sohbeti", url });
+    } else {
+      await navigator.clipboard.writeText(url);
+      setTransientStatus("Paylaşım linki kopyalandı");
+    }
+  } catch (error) {
+    try {
+      await navigator.clipboard.writeText(url);
+      setTransientStatus("Paylaşım linki kopyalandı");
+    } catch {
+      setTransientStatus("Link kopyalanamadı");
+    }
+  }
+}
+
+function deleteChat(chatId) {
+  const chat = state.chats.find((item) => item.id === chatId);
+  if (!chat) return;
+  const ok = window.confirm(`"${chat.title}" sohbeti silinsin mi?`);
+  if (!ok) return;
+  state.chats = state.chats.filter((item) => item.id !== chatId);
+  state.activeChat = state.chats[0]?.id || null;
+  saveChats();
+  if (!state.activeChat) {
+    createChat();
+    return;
+  }
+  renderHistory();
+  renderConversation();
+}
+
+const ZIP_CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i += 1) {
+    let value = i;
+    for (let bit = 0; bit < 8; bit += 1) {
+      value = (value & 1) ? (0xedb88320 ^ (value >>> 1)) : (value >>> 1);
+    }
+    table[i] = value >>> 0;
+  }
+  return table;
+})();
+
+function crc32(bytes) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) crc = (crc >>> 8) ^ ZIP_CRC_TABLE[(crc ^ byte) & 0xff];
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function writeUint16(out, value) {
+  out.push(value & 0xff, (value >>> 8) & 0xff);
+}
+
+function writeUint32(out, value) {
+  out.push(value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff);
+}
+
+function dosDateTime(date = new Date()) {
+  const year = Math.max(1980, date.getFullYear());
+  return {
+    date: ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate(),
+    time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
+  };
+}
+
+function buildZip(files) {
+  const encoder = new TextEncoder();
+  const chunks = [];
+  const central = [];
+  let offset = 0;
+
+  for (const file of files) {
+    const name = encoder.encode(file.name);
+    const data = encoder.encode(file.content);
+    const crc = crc32(data);
+    const stamp = dosDateTime(new Date());
+    const local = [];
+    writeUint32(local, 0x04034b50);
+    writeUint16(local, 20);
+    writeUint16(local, 0x0800);
+    writeUint16(local, 0);
+    writeUint16(local, stamp.time);
+    writeUint16(local, stamp.date);
+    writeUint32(local, crc);
+    writeUint32(local, data.length);
+    writeUint32(local, data.length);
+    writeUint16(local, name.length);
+    writeUint16(local, 0);
+    chunks.push(new Uint8Array(local), name, data);
+
+    const entry = [];
+    writeUint32(entry, 0x02014b50);
+    writeUint16(entry, 20);
+    writeUint16(entry, 20);
+    writeUint16(entry, 0x0800);
+    writeUint16(entry, 0);
+    writeUint16(entry, stamp.time);
+    writeUint16(entry, stamp.date);
+    writeUint32(entry, crc);
+    writeUint32(entry, data.length);
+    writeUint32(entry, data.length);
+    writeUint16(entry, name.length);
+    writeUint16(entry, 0);
+    writeUint16(entry, 0);
+    writeUint16(entry, 0);
+    writeUint16(entry, 0);
+    writeUint32(entry, 0);
+    writeUint32(entry, offset);
+    central.push(new Uint8Array(entry), name);
+    offset += local.length + name.length + data.length;
+  }
+
+  const centralSize = central.reduce((sum, chunk) => sum + chunk.length, 0);
+  const end = [];
+  writeUint32(end, 0x06054b50);
+  writeUint16(end, 0);
+  writeUint16(end, 0);
+  writeUint16(end, files.length);
+  writeUint16(end, files.length);
+  writeUint32(end, centralSize);
+  writeUint32(end, offset);
+  writeUint16(end, 0);
+  return new Blob([...chunks, ...central, new Uint8Array(end)], { type: "application/zip" });
+}
+
+function safeFileName(value) {
+  return String(value || "codega-sohbet")
+    .toLowerCase()
+    .replace(/[^a-z0-9ğüşöçıİĞÜŞÖÇ_-]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "codega-sohbet";
+}
+
+function downloadBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+
+function downloadChatZip(chatId) {
+  const chat = state.chats.find((item) => item.id === chatId);
+  if (!chat) return;
+  const payload = JSON.stringify(chat, null, 2);
+  const zip = buildZip([
+    { name: "chat.json", content: payload },
+    { name: "chat.md", content: chatToMarkdown(chat) },
+  ]);
+  downloadBlob(zip, `${safeFileName(chat.title)}.zip`);
+  setTransientStatus("Sohbet ZIP olarak indirildi");
+}
+
+function restoreSharedChatFromHash() {
+  if (!window.location.hash.startsWith(SHARE_HASH_PREFIX)) return;
+  try {
+    const encoded = window.location.hash.slice(SHARE_HASH_PREFIX.length);
+    const payload = JSON.parse(base64UrlDecode(encoded));
+    const chat = normalizeChat({
+      title: `${payload.title || "Paylaşılan sohbet"}`,
+      messages: payload.messages,
+      updatedAt: payload.updatedAt || Date.now(),
+    });
+    state.chats.unshift(chat);
+    state.activeChat = chat.id;
+    saveChats();
+    history.replaceState(null, "", window.location.pathname);
+  } catch (error) {
+    console.warn("Paylaşılan sohbet açılamadı", error);
+  }
 }
 
 function setModelStatus(status) {
@@ -338,5 +643,12 @@ window.codega.onUpdateStatus((payload) => {
   }
 });
 
-createChat();
+loadChats();
+restoreSharedChatFromHash();
+if (!state.chats.length) {
+  createChat();
+} else {
+  renderHistory();
+  renderConversation();
+}
 refreshStatus();
