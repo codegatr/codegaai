@@ -185,6 +185,15 @@ class ReasoningEngine:
         if use_cot:
             full_system += f"\n\n{COT_INSTRUCTION}"
 
+        try:
+            from codegaai.core.frontier_capabilities import (
+                build_capability_prompt,
+                plan_capabilities,
+            )
+            full_system += f"\n\n{build_capability_prompt(plan_capabilities(question))}"
+        except Exception:
+            pass
+
         # Tool ihtiyacı varsa system prompt'a ekle
         if needs_tools:
             full_system += (
