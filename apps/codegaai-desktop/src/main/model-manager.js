@@ -5,6 +5,7 @@ const path = require("node:path");
 const {
   DEFAULT_MODEL,
   FALLBACK_MODELS,
+  MODEL_OPTIONS,
   OLLAMA_CHAT_TIMEOUT_MS,
   OLLAMA_COMMAND_TIMEOUT_MS,
   OLLAMA_DOWNLOAD_URL,
@@ -16,6 +17,13 @@ const READY_STATES = {
   READY: "ready",
   MISSING: "missing",
   ERROR: "error",
+};
+
+const TASK_MODELS = {
+  code: ["qwen2.5-coder:7b-instruct", "qwen2.5-coder:3b-instruct", "qwen3:8b", DEFAULT_MODEL],
+  image: ["qwen3:8b", "qwen2.5:3b", "gemma3:4b", DEFAULT_MODEL],
+  writing: ["qwen3:8b", "mistral:7b", "qwen2.5:3b", DEFAULT_MODEL],
+  chat: [DEFAULT_MODEL, "qwen2.5:1.5b", "llama3.2:3b"],
 };
 
 function instantAnswer(input) {
@@ -33,7 +41,7 @@ function instantAnswer(input) {
   }
 
   if (/(kendin(den|i)|kim(sin)?|neler\s+yapabilirsin|özelliklerin|yeteneklerin|codega\s+ai)\b/.test(text)) {
-    return "Ben CODEGA AI. Windows üzerinde çalışan, kod, araştırma, proje planlama ve günlük üretim işlerini tek sade sohbet ekranında yöneten kişisel yapay zeka asistanınım.";
+    return "Ben CODEGA AI. İsteğine göre uygun yerel modeli otomatik seçen, kod, araştırma, proje planlama ve günlük üretim işlerinde yardımcı olan kişisel yapay zeka asistanınım.";
   }
 
   return "";
@@ -142,12 +150,52 @@ function modelCandidates() {
   return unique([DEFAULT_MODEL, ...FALLBACK_MODELS]);
 }
 
+function modelOption(modelId) {
+  return MODEL_OPTIONS.find((model) => model.id === modelId) || {
+    id: modelId,
+    label: modelId,
+    description: "Özel model",
+    task: "custom",
+  };
+}
+
+function parseInstalledModels(listOutput) {
+  return String(listOutput || "")
+    .split(/\r?\n/)
+    .slice(1)
+    .map((line) => line.trim().split(/\s+/)[0])
+    .filter(Boolean);
+}
+
 function hasModel(listOutput, model) {
   const wanted = model.toLowerCase();
-  return listOutput
+  return String(listOutput || "")
     .toLowerCase()
     .split(/\r?\n/)
     .some((line) => line.split(/\s+/)[0] === wanted);
+}
+
+function detectTask(input) {
+  const text = String(input || "").toLowerCase();
+  if (/(php|python|javascript|typescript|react|node|api|site|web sitesi|program|uygulama|kod|script|fonksiyon|class|sql|html|css)\b/.test(text)) {
+    return "code";
+  }
+  if (/(resim|görsel|fotoğraf|çiz|çizim|afiş|logo|illustrasyon|illustration|image|prompt)\b/.test(text)) {
+    return "image";
+  }
+  if (/(makale|metin|içerik|mail|e-posta|özet|rapor|senaryo|hikaye|plan)\b/.test(text)) {
+    return "writing";
+  }
+  return "chat";
+}
+
+function chooseModelForTask(task, installed) {
+  const installedSet = new Set(installed);
+  const preferred = TASK_MODELS[task] || TASK_MODELS.chat;
+  return preferred.find((model) => installedSet.has(model))
+    || modelCandidates().find((model) => installedSet.has(model))
+    || preferred[0]
+    || DEFAULT_MODEL;
 }
 
 class ModelManager {
@@ -157,6 +205,7 @@ class ModelManager {
       provider: "instant",
       status: READY_STATES.CHECKING,
       model: DEFAULT_MODEL,
+      task: "chat",
       message: "Model durumu kontrol ediliyor",
     };
   }
@@ -179,6 +228,11 @@ class ModelManager {
     return { ...this.state };
   }
 
+  async installedModels() {
+    const models = await this.runOllama(["list"]);
+    return models.ok ? parseInstalledModels(models.stdout) : [];
+  }
+
   async detect() {
     this.state = {
       ...this.state,
@@ -192,57 +246,84 @@ class ModelManager {
         provider: "instant",
         status: READY_STATES.MISSING,
         model: DEFAULT_MODEL,
-        message: "Ollama bulunamadı. CODEGA AI temel modda hazır; yerel model için Ollama kurulmalı.",
+        task: "chat",
+        message: "Ollama bulunamadı. CODEGA AI temel modda hazır; yerel modeller için Ollama kurulmalı.",
         action: "install_ollama",
         actionUrl: OLLAMA_DOWNLOAD_URL,
       };
       return this.getStatus();
     }
 
-    const models = await this.runOllama(["list"]);
-    const installedModel = models.ok
-      ? modelCandidates().find((model) => hasModel(models.stdout, model))
-      : null;
+    const installed = await this.installedModels();
+    const installedModel = modelCandidates().find((model) => installed.includes(model));
+    const option = modelOption(installedModel || DEFAULT_MODEL);
     this.state = {
       provider: "ollama",
       status: installedModel ? READY_STATES.READY : READY_STATES.MISSING,
       model: installedModel || DEFAULT_MODEL,
+      task: option.task || "chat",
       message: installedModel
-        ? `${installedModel} hazır`
-        : `${DEFAULT_MODEL} indirilmeli. Ayarlardan modeli hazırlayabilirsin.`,
+        ? `${option.label} hazır. Model seçimi otomatik.`
+        : "Önerilen modeller indirilmeli. Ayarlardan model paketlerini hazırlayabilirsin.",
     };
     return this.getStatus();
   }
 
-  async prepareDefaultModel(onProgress) {
+  async getModels() {
+    await this.detect();
+    const installed = await this.installedModels();
+    return {
+      installed,
+      options: MODEL_OPTIONS.map((model) => ({
+        ...model,
+        installed: installed.includes(model.id),
+      })),
+      status: this.getStatus(),
+    };
+  }
+
+  async prepareModel(modelId, onProgress) {
+    const target = modelOption(modelId || DEFAULT_MODEL);
     await this.detect();
     if (this.state.provider !== "ollama") {
       return {
         ...this.getStatus(),
+        model: target.id,
         message: "Ollama kurulu değil. Modeli hazırlamak için önce Ollama kurulumu açılıyor.",
         action: "install_ollama",
         actionUrl: OLLAMA_DOWNLOAD_URL,
       };
     }
-    if (this.state.status === READY_STATES.READY) {
+
+    const installed = await this.installedModels();
+    if (installed.includes(target.id)) {
+      this.state = {
+        provider: "ollama",
+        status: READY_STATES.READY,
+        model: target.id,
+        task: target.task || "chat",
+        message: `${target.label} zaten hazır. Model seçimi talimata göre otomatik yapılacak.`,
+      };
       return this.getStatus();
     }
 
     this.state = {
       ...this.state,
+      model: target.id,
+      task: target.task || "chat",
       status: READY_STATES.CHECKING,
-      message: `${DEFAULT_MODEL} indiriliyor`,
+      message: `${target.label} indiriliyor`,
     };
     onProgress?.(this.getStatus());
 
-    const result = await this.runOllama(["pull", DEFAULT_MODEL], {
+    const result = await this.runOllama(["pull", target.id], {
       timeoutMs: OLLAMA_PULL_TIMEOUT_MS,
       onData: (chunk) => {
         const progress = chunk.replace(/\u001b\[[0-9;]*m/g, "").replace(/\s+/g, " ").trim();
         if (!progress) return;
         this.state = {
           ...this.state,
-          message: `${DEFAULT_MODEL} indiriliyor: ${progress.slice(0, 90)}`,
+          message: `${target.label} indiriliyor: ${progress.slice(0, 90)}`,
         };
         onProgress?.(this.getStatus());
       },
@@ -251,7 +332,7 @@ class ModelManager {
       this.state = {
         ...this.state,
         status: READY_STATES.ERROR,
-        message: result.stderr || result.error || `${DEFAULT_MODEL} indirilemedi`,
+        message: result.stderr || result.error || `${target.label} indirilemedi`,
       };
       return this.getStatus();
     }
@@ -259,10 +340,15 @@ class ModelManager {
     this.state = {
       provider: "ollama",
       status: READY_STATES.READY,
-      model: DEFAULT_MODEL,
-      message: `${DEFAULT_MODEL} hazır`,
+      model: target.id,
+      task: target.task || "chat",
+      message: `${target.label} hazır. Model seçimi talimata göre otomatik yapılacak.`,
     };
     return this.getStatus();
+  }
+
+  async prepareDefaultModel(onProgress) {
+    return this.prepareModel(DEFAULT_MODEL, onProgress);
   }
 
   async ask(input) {
@@ -275,21 +361,53 @@ class ModelManager {
       };
     }
 
-    if (this.state.provider !== "ollama" || this.state.status !== READY_STATES.READY) {
+    if (this.state.provider !== "ollama") {
+      await this.detect();
+    }
+    if (this.state.provider !== "ollama") {
       return {
         provider: "instant",
         model: "codega-setup",
-        text: "Yerel model henüz hazır değil. Ayarlardan modeli hazırlayabilirsin; bu sırada basit komutlarda temel modla yardımcı olurum.",
+        text: "Yerel model motoru hazır değil. Ayarlardan Ollama kurulumunu başlatıp önerilen modelleri indirebilirsin.",
       };
     }
 
+    const installed = await this.installedModels();
+    const task = detectTask(input);
+    const selectedModel = chooseModelForTask(task, installed);
+    const selected = modelOption(selectedModel);
+    if (!installed.includes(selectedModel)) {
+      this.state = {
+        provider: "ollama",
+        status: READY_STATES.MISSING,
+        model: selectedModel,
+        task,
+        message: `${selected.label} gerekli. Ayarlardan indirilebilir.`,
+      };
+      return {
+        provider: "instant",
+        model: "codega-model-router",
+        text: `${selected.label} bu talimat için daha uygun ama henüz indirilmemiş. Ayarlar > Model Paketleri bölümünden indirebilirsin; sonra CODEGA AI bu modele otomatik geçecek.`,
+      };
+    }
+
+    this.state = {
+      provider: "ollama",
+      status: READY_STATES.READY,
+      model: selectedModel,
+      task,
+      message: `${selected.label} seçildi (${task})`,
+    };
+
     const prompt = [
-      "Sen CODEGA AI'sın. Türkçe, net, samimi ve kısa cevap ver.",
+      "Sen CODEGA AI'sın. Türkçe, net, samimi ve uygulanabilir cevap ver.",
+      `Görev türü: ${task}`,
+      `Kullanılan model: ${selected.label}`,
       `Kullanıcı: ${input}`,
       "CODEGA AI:",
     ].join("\n");
 
-    const result = await this.runOllama(["run", this.state.model, prompt], {
+    const result = await this.runOllama(["run", selectedModel, prompt], {
       timeoutMs: OLLAMA_CHAT_TIMEOUT_MS,
     });
     if (!result.ok) {
@@ -297,12 +415,12 @@ class ModelManager {
         this.state = {
           ...this.state,
           status: READY_STATES.READY,
-          message: `${this.state.model} cevap zaman aşımına uğradı`,
+          message: `${selected.label} cevap zaman aşımına uğradı`,
         };
         return {
           provider: "instant",
           model: "codega-timeout",
-          text: "Model bu soruya zamanında cevap veremedi. Uygulama takılmadı; istersen daha kısa bir istekle tekrar dene veya Ayarlar'dan daha hızlı/küçük bir model seç.",
+          text: `${selected.label} bu istekte zamanında cevap veremedi. Uygulama takılmadı; Ayarlar'dan daha küçük/hızlı model paketini indirirsen benzer isteklerde otomatik ona geçebilirim.`,
         };
       }
       this.state = {
@@ -313,13 +431,13 @@ class ModelManager {
       return {
         provider: "instant",
         model: "codega-error",
-        text: "Model şu an yanıt veremedi. Durumu kontrol ettim; uygulama çalışıyor, sorun model sağlayıcı tarafında.",
+        text: "Model şu an yanıt veremedi. Uygulama çalışıyor; sorun yerel model tarafında.",
       };
     }
 
     return {
       provider: "ollama",
-      model: this.state.model,
+      model: selectedModel,
       text: result.stdout.trim() || "Yanıt boş döndü.",
     };
   }
@@ -329,4 +447,5 @@ module.exports = {
   ModelManager,
   READY_STATES,
   instantAnswer,
+  detectTask,
 };
