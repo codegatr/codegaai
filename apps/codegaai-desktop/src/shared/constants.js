@@ -2,6 +2,9 @@ const APP_NAME = "CODEGA AI";
 const DEFAULT_MODEL = "qwen2.5-coder:3b-instruct";
 const FALLBACK_MODELS = ["qwen2.5:3b"];
 const OLLAMA_DOWNLOAD_URL = "https://ollama.com/download/windows";
+const OLLAMA_COMMAND_TIMEOUT_MS = 15 * 1000;
+const OLLAMA_CHAT_TIMEOUT_MS = 60 * 1000;
+const OLLAMA_PULL_TIMEOUT_MS = 30 * 60 * 1000;
 const UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
 module.exports = {
@@ -9,5 +12,8 @@ module.exports = {
   DEFAULT_MODEL,
   FALLBACK_MODELS,
   OLLAMA_DOWNLOAD_URL,
+  OLLAMA_COMMAND_TIMEOUT_MS,
+  OLLAMA_CHAT_TIMEOUT_MS,
+  OLLAMA_PULL_TIMEOUT_MS,
   UPDATE_INTERVAL_MS,
 };
