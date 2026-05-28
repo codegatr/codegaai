@@ -2,7 +2,14 @@ const { spawn } = require("node:child_process");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { DEFAULT_MODEL, FALLBACK_MODELS, OLLAMA_DOWNLOAD_URL } = require("../shared/constants");
+const {
+  DEFAULT_MODEL,
+  FALLBACK_MODELS,
+  OLLAMA_CHAT_TIMEOUT_MS,
+  OLLAMA_COMMAND_TIMEOUT_MS,
+  OLLAMA_DOWNLOAD_URL,
+  OLLAMA_PULL_TIMEOUT_MS,
+} = require("../shared/constants");
 
 const READY_STATES = {
   CHECKING: "checking",
@@ -34,7 +41,7 @@ function instantAnswer(input) {
 
 function runCommand(command, args, options = {}) {
   return new Promise((resolve) => {
-    const { onData, ...spawnOptions } = options;
+    const { onData, timeoutMs = OLLAMA_COMMAND_TIMEOUT_MS, ...spawnOptions } = options;
     const child = spawn(command, args, {
       windowsHide: true,
       shell: false,
@@ -42,6 +49,35 @@ function runCommand(command, args, options = {}) {
     });
     let stdout = "";
     let stderr = "";
+    let settled = false;
+    let timedOut = false;
+    let timeoutTimer = null;
+    let forceTimer = null;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      if (forceTimer) clearTimeout(forceTimer);
+      resolve(result);
+    };
+
+    if (timeoutMs > 0) {
+      timeoutTimer = setTimeout(() => {
+        timedOut = true;
+        stderr += `\nKomut ${Math.round(timeoutMs / 1000)} saniye içinde yanıt vermedi.`;
+        child.kill();
+        forceTimer = setTimeout(() => {
+          finish({
+            ok: false,
+            stdout,
+            stderr,
+            timedOut: true,
+            error: "Ollama süreci zaman aşımından sonra kapatılamadı.",
+          });
+        }, 2000);
+      }, timeoutMs);
+    }
+
     child.stdout?.on("data", (chunk) => {
       const text = chunk.toString();
       stdout += text;
@@ -53,10 +89,17 @@ function runCommand(command, args, options = {}) {
       onData?.(text);
     });
     child.on("error", (error) => {
-      resolve({ ok: false, stdout, stderr, error: error.message });
+      finish({ ok: false, stdout, stderr, error: error.message, timedOut });
     });
     child.on("close", (code) => {
-      resolve({ ok: code === 0, code, stdout, stderr });
+      finish({
+        ok: code === 0 && !timedOut,
+        code,
+        stdout,
+        stderr,
+        timedOut,
+        error: timedOut ? "Ollama yanıtı zaman aşımına uğradı." : undefined,
+      });
     });
   });
 }
@@ -193,6 +236,7 @@ class ModelManager {
     onProgress?.(this.getStatus());
 
     const result = await this.runOllama(["pull", DEFAULT_MODEL], {
+      timeoutMs: OLLAMA_PULL_TIMEOUT_MS,
       onData: (chunk) => {
         const progress = chunk.replace(/\u001b\[[0-9;]*m/g, "").replace(/\s+/g, " ").trim();
         if (!progress) return;
@@ -245,8 +289,22 @@ class ModelManager {
       "CODEGA AI:",
     ].join("\n");
 
-    const result = await this.runOllama(["run", this.state.model, prompt]);
+    const result = await this.runOllama(["run", this.state.model, prompt], {
+      timeoutMs: OLLAMA_CHAT_TIMEOUT_MS,
+    });
     if (!result.ok) {
+      if (result.timedOut) {
+        this.state = {
+          ...this.state,
+          status: READY_STATES.READY,
+          message: `${this.state.model} cevap zaman aşımına uğradı`,
+        };
+        return {
+          provider: "instant",
+          model: "codega-timeout",
+          text: "Model bu soruya zamanında cevap veremedi. Uygulama takılmadı; istersen daha kısa bir istekle tekrar dene veya Ayarlar'dan daha hızlı/küçük bir model seç.",
+        };
+      }
       this.state = {
         ...this.state,
         status: READY_STATES.ERROR,
