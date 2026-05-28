@@ -85,7 +85,14 @@ function renderConversation() {
     `;
     els.conversation.appendChild(node);
   }
-  els.conversation.scrollTop = els.conversation.scrollHeight;
+  scrollConversationToBottom();
+}
+
+function scrollConversationToBottom() {
+  requestAnimationFrame(() => {
+    els.conversation.scrollTop = els.conversation.scrollHeight;
+    els.conversation.lastElementChild?.scrollIntoView({ block: "end" });
+  });
 }
 
 function appendMessage(role, text) {
@@ -100,6 +107,7 @@ function appendMessage(role, text) {
   state.activeChat = chat.id;
   renderHistory();
   renderConversation();
+  scrollConversationToBottom();
 }
 
 function setModelStatus(status) {
@@ -155,6 +163,7 @@ els.form.addEventListener("submit", async (event) => {
   const slowNotice = setTimeout(() => {
     placeholder.text = "Yerel model beklenenden uzun düşünüyor. Cevap gelmezse kısa süre içinde güvenli şekilde durduracağım.";
     renderConversation();
+    scrollConversationToBottom();
   }, 8000);
   try {
     const answer = await window.codega.sendMessage(text);
@@ -166,6 +175,7 @@ els.form.addEventListener("submit", async (event) => {
     clearTimeout(slowNotice);
   }
   renderConversation();
+  scrollConversationToBottom();
 });
 
 els.input.addEventListener("input", () => {
