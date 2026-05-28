@@ -245,7 +245,18 @@ function buildShareLink(chat) {
 async function shareChat(chatId) {
   const chat = state.chats.find((item) => item.id === chatId);
   if (!chat) return;
-  const url = buildShareLink(chat);
+  let url = buildShareLink(chat);
+  try {
+    const remote = await window.codega.shareChat({
+      title: chat.title,
+      messages: chat.messages,
+    });
+    if (remote?.url) {
+      url = remote.url;
+    }
+  } catch (error) {
+    console.warn("Uzak paylaşım servisi kullanılamadı, yerel link üretildi", error);
+  }
   try {
     if (navigator.share) {
       await navigator.share({ title: chat.title, text: "CODEGA AI sohbeti", url });
