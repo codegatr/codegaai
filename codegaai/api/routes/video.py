@@ -8,6 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from codegaai.core.frontier_capabilities import plan_capabilities
 from codegaai.core.video_engine import VIDEOS_DIR, VideoEngine, VideoRequest
 from codegaai.utils.logger import get_logger
 
@@ -31,15 +32,17 @@ class GenerateVideoRequest(BaseModel):
 @router.post("/generate")
 async def generate(req: GenerateVideoRequest) -> dict:
     eng = VideoEngine.get()
+    plan = plan_capabilities(req.prompt)
     if not eng.is_ready:
         raise HTTPException(
             409,
             "Video motoru yüklü değil. Sistem → Video Modelleri'nden "
-            "CogVideoX-2B indir ve yükle (~10 GB)."
+            "CogVideoX-2B veya güçlü sistemlerde CogVideoX-5B indir ve yükle. "
+            f"Önerilen hat: {', '.join(plan.video_pipeline.get('local_models', []))}"
         )
 
     try:
-        return eng.generate(VideoRequest(
+        result = eng.generate(VideoRequest(
             prompt=req.prompt,
             negative_prompt=req.negative_prompt,
             steps=req.steps,
@@ -51,11 +54,20 @@ async def generate(req: GenerateVideoRequest) -> dict:
             seed=req.seed,
             image_path=req.image_path,
         ))
+        result["capability_plan"] = plan.to_dict()
+        return result
     except RuntimeError as exc:
         raise HTTPException(409, str(exc))
     except Exception as exc:
         log.exception("Video üretim hatası: %s", exc)
         raise HTTPException(500, f"Üretim hatası: {exc}")
+
+
+@router.post("/plan")
+async def plan_video(req: GenerateVideoRequest) -> dict:
+    """Video talimatını üretim öncesi storyboard/pipeline planına çevir."""
+    plan = plan_capabilities(req.prompt)
+    return plan.to_dict()
 
 
 @router.get("/list")
