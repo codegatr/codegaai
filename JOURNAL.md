@@ -4,6 +4,21 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 49.2 — Sürüm 0.2.0 yayını (28 May 2026, Claude)
+
+Bulgu: `main`'e push, `build-codegaai-desktop-windows.yml` CI'sını otomatik
+tetikliyor; installer + latest.yml derleyip GitHub Release'e yüklüyor. Faz 49/49.1
+push'ları çalıştı AMA sürüm 0.1.9 kaldığı için aynı release güncellendi →
+electron-updater "yeni sürüm yok" dedi, bildirim çıkmadı.
+
+Düzeltme: `apps/codegaai-desktop/package.json` 0.1.9 → **0.2.0**. main push CI'yi
+tetikler → `desktop-v0.2.0` release'i (ajan katmanı dahil) yayınlanır → kurulu
+0.1.9 uygulaması ~10 dk içinde (veya yeniden açılışta) "Yeni sürüm bulundu"
+modalını gösterir.
+
+---
+
+
 ## ✅ Faz 49 — Electron Uygulamasına Gerçek Ajan Katmanı (28 May 2026, Claude)
 
 ### Bağlam (yön değişikliği netleşti)
