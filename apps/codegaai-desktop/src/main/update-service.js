@@ -12,6 +12,7 @@ class UpdateService {
     this.mainWindow = mainWindow;
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = false;
+    autoUpdater.verifyUpdateCodeSignature = false;
 
     autoUpdater.on("checking-for-update", () => this.emit("checking"));
     autoUpdater.on("update-available", (info) => this.emit("available", info));
@@ -21,7 +22,15 @@ class UpdateService {
       this.readyToInstall = true;
       this.emit("ready", info);
     });
-    autoUpdater.on("error", (error) => this.emit("error", { message: error.message }));
+    autoUpdater.on("error", (error) => {
+      const message = error.message || String(error);
+      const unsignedInstaller = /not digitally signed|not signed by the application owner/i.test(message);
+      this.emit("error", {
+        message: unsignedInstaller
+          ? "Bu kurulu sürüm imzasız installer doğrulamasına takıldı. Yeni updater düzeltmesi için bu sürümü bir kez installer ile manuel kurman gerekiyor."
+          : message,
+      });
+    });
   }
 
   emit(state, detail = {}) {
