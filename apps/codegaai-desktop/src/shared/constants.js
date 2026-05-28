@@ -1,4 +1,5 @@
 const APP_NAME = "CODEGA AI";
+const FEDERATION_BASE_URL = "https://ai.codega.com.tr/api/federation";
 const DEFAULT_MODEL = "qwen2.5:3b";
 const MODEL_OPTIONS = [
   {
@@ -65,6 +66,7 @@ const UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
 module.exports = {
   APP_NAME,
+  FEDERATION_BASE_URL,
   DEFAULT_MODEL,
   MODEL_OPTIONS,
   FALLBACK_MODELS,
