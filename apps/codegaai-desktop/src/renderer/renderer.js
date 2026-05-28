@@ -2,6 +2,8 @@ const state = {
   messages: [],
   chats: [],
   activeChat: null,
+  firstQueryUpdateChecked: false,
+  updatePromptState: null,
 };
 
 const els = {
@@ -22,6 +24,12 @@ const els = {
   updateActions: document.getElementById("update-actions"),
   downloadUpdate: document.getElementById("download-update"),
   installUpdate: document.getElementById("install-update"),
+  updatePrompt: document.getElementById("update-prompt"),
+  updatePromptTitle: document.getElementById("update-prompt-title"),
+  updatePromptDetail: document.getElementById("update-prompt-detail"),
+  updateNow: document.getElementById("update-now"),
+  updateLater: document.getElementById("update-later"),
+  updateLaterX: document.getElementById("update-later-x"),
 };
 
 function escapeHtml(value) {
@@ -157,12 +165,37 @@ async function refreshStatus() {
   await refreshModels();
 }
 
+function checkUpdatesAfterFirstQuery() {
+  if (state.firstQueryUpdateChecked) return;
+  state.firstQueryUpdateChecked = true;
+  window.codega.checkForUpdates().catch(() => {});
+}
+
+function showUpdatePrompt(mode, detail = {}) {
+  state.updatePromptState = mode;
+  if (mode === "available") {
+    els.updatePromptTitle.textContent = "Yeni güncelleme var";
+    els.updatePromptDetail.textContent = "Daha iyi ve kararlı bir sürüm bulundu. İstersen şimdi indirebilirim.";
+    els.updateNow.textContent = "Şimdi Güncelle";
+  } else {
+    els.updatePromptTitle.textContent = "Güncelleme hazır";
+    els.updatePromptDetail.textContent = "Yeni sürüm indirildi. Kurulum için CODEGA AI yeniden başlatılacak.";
+    els.updateNow.textContent = "Uygula ve Yeniden Başlat";
+  }
+  if (!els.updatePrompt.open) els.updatePrompt.showModal();
+}
+
+function closeUpdatePrompt() {
+  if (els.updatePrompt.open) els.updatePrompt.close("later");
+}
+
 els.form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const text = els.input.value.trim();
   if (!text) return;
 
   appendMessage("user", text);
+  checkUpdatesAfterFirstQuery();
   els.input.value = "";
   els.input.style.height = "auto";
   appendMessage("assistant", "Düşünüyorum...");
@@ -250,6 +283,23 @@ els.downloadUpdate.addEventListener("click", async () => {
   }
 });
 els.installUpdate.addEventListener("click", () => window.codega.installUpdate());
+els.updateLater.addEventListener("click", closeUpdatePrompt);
+els.updateLaterX.addEventListener("click", closeUpdatePrompt);
+els.updateNow.addEventListener("click", async () => {
+  els.updateNow.disabled = true;
+  try {
+    if (state.updatePromptState === "ready") {
+      await window.codega.installUpdate();
+    } else {
+      els.updatePromptDetail.textContent = "Güncelleme indiriliyor. Hazır olunca tekrar soracağım.";
+      await window.codega.downloadUpdate();
+    }
+  } catch (error) {
+    els.updatePromptDetail.textContent = `Güncelleme başlatılamadı: ${error.message || error}`;
+  } finally {
+    els.updateNow.disabled = false;
+  }
+});
 
 window.codega.onModelStatus((status) => {
   setModelStatus(status);
@@ -278,11 +328,13 @@ window.codega.onUpdateStatus((payload) => {
     els.updateActions.hidden = false;
     els.installUpdate.hidden = true;
     els.downloadUpdate.disabled = false;
+    showUpdatePrompt("available", detail);
   }
   if (state === "ready") {
     els.updateActions.hidden = false;
     els.downloadUpdate.disabled = true;
     els.installUpdate.hidden = false;
+    showUpdatePrompt("ready", detail);
   }
 });
 
