@@ -16,6 +16,7 @@ const els = {
   settingsButton: document.getElementById("settings-button"),
   prepareModel: document.getElementById("prepare-model"),
   modelDetail: document.getElementById("model-detail"),
+  modelList: document.getElementById("model-list"),
   checkUpdate: document.getElementById("check-update"),
   updateDetail: document.getElementById("update-detail"),
   updateActions: document.getElementById("update-actions"),
@@ -107,10 +108,36 @@ function setModelStatus(status) {
   els.modelDetail.textContent = `${status?.provider || "instant"} · ${status?.model || "codega-instant"} · ${status?.status || "unknown"}`;
 }
 
+function renderModelList(payload) {
+  const options = payload?.options || [];
+  els.modelList.innerHTML = options.map((model) => `
+    <div class="model-row">
+      <div>
+        <strong>${escapeHtml(model.label)}</strong>
+        <p>${escapeHtml(model.description)} · ${escapeHtml(model.task || "genel")}</p>
+      </div>
+      <button type="button" data-model="${escapeHtml(model.id)}" ${model.installed ? "disabled" : ""}>
+        ${model.installed ? "Hazır" : "İndir"}
+      </button>
+    </div>
+  `).join("");
+}
+
+async function refreshModels() {
+  try {
+    const payload = await window.codega.getModels();
+    setModelStatus(payload.status);
+    renderModelList(payload);
+  } catch (error) {
+    els.modelDetail.textContent = `Model listesi alınamadı: ${error.message || error}`;
+  }
+}
+
 async function refreshStatus() {
   const status = await window.codega.getStatus();
   els.version.textContent = `v${status.version}`;
   setModelStatus(status.model);
+  await refreshModels();
 }
 
 els.form.addEventListener("submit", async (event) => {
@@ -121,15 +148,22 @@ els.form.addEventListener("submit", async (event) => {
   appendMessage("user", text);
   els.input.value = "";
   els.input.style.height = "auto";
-  appendMessage("assistant", "Düşünüyorum...");
+  appendMessage("assistant", "Uygun model seçiliyor...");
 
   const chat = currentChat();
   const placeholder = chat.messages[chat.messages.length - 1];
+  const slowNotice = setTimeout(() => {
+    placeholder.text = "Yerel model beklenenden uzun düşünüyor. Cevap gelmezse kısa süre içinde güvenli şekilde durduracağım.";
+    renderConversation();
+  }, 8000);
   try {
     const answer = await window.codega.sendMessage(text);
     placeholder.text = answer.text;
+    await refreshModels();
   } catch (error) {
     placeholder.text = `Bir aksama oldu: ${error.message || error}`;
+  } finally {
+    clearTimeout(slowNotice);
   }
   renderConversation();
 });
@@ -147,15 +181,32 @@ els.input.addEventListener("keydown", (event) => {
 });
 
 document.getElementById("new-chat").addEventListener("click", () => createChat());
-els.settingsButton.addEventListener("click", () => els.settings.showModal());
+els.settingsButton.addEventListener("click", async () => {
+  els.settings.showModal();
+  await refreshModels();
+});
 els.prepareModel.addEventListener("click", async () => {
   els.prepareModel.disabled = true;
-  els.modelDetail.textContent = "Model hazırlanıyor...";
+  els.modelDetail.textContent = "Varsayılan model hazırlanıyor...";
   try {
     const status = await window.codega.prepareModel();
     setModelStatus(status);
+    await refreshModels();
   } finally {
     els.prepareModel.disabled = false;
+  }
+});
+els.modelList.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-model]");
+  if (!button) return;
+  button.disabled = true;
+  els.modelDetail.textContent = `${button.dataset.model} indiriliyor...`;
+  try {
+    const status = await window.codega.prepareModel(button.dataset.model);
+    setModelStatus(status);
+    await refreshModels();
+  } finally {
+    button.disabled = false;
   }
 });
 els.checkUpdate.addEventListener("click", async () => {
@@ -181,7 +232,10 @@ els.downloadUpdate.addEventListener("click", async () => {
 });
 els.installUpdate.addEventListener("click", () => window.codega.installUpdate());
 
-window.codega.onModelStatus(setModelStatus);
+window.codega.onModelStatus((status) => {
+  setModelStatus(status);
+  refreshModels();
+});
 window.codega.onUpdateStatus((payload) => {
   const state = payload?.state || "unknown";
   const detail = payload?.detail || {};
