@@ -20,7 +20,7 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn('"nsis"', package)
         self.assertIn("Build CODEGA AI Windows installer", workflow)
         self.assertIn("apps/codegaai-desktop", workflow)
-        self.assertIn('"version": "0.1.8"', package)
+        self.assertIn('"version": "0.1.9"', package)
         self.assertNotIn('"publisherName": "CODEGA"', package)
         self.assertIn("workflow_dispatch:", workflow)
         self.assertIn("npm version $version --no-git-tag-version --allow-same-version", workflow)
@@ -121,6 +121,7 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn("buildShareLink", renderer)
         self.assertIn("#share=", renderer)
         self.assertIn("navigator.clipboard.writeText", renderer)
+        self.assertIn("window.codega.shareChat", renderer)
         self.assertIn("deleteChat", renderer)
         self.assertIn("window.confirm", renderer)
         self.assertIn("downloadChatZip", renderer)
@@ -129,6 +130,17 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn("chat.md", renderer)
         self.assertIn(".history-entry", css)
         self.assertIn(".history-actions", css)
+
+    def test_desktop_share_uses_codega_federation_service(self):
+        constants = read("apps/codegaai-desktop/src/shared/constants.js")
+        main = read("apps/codegaai-desktop/src/main/main.js")
+        preload = read("apps/codegaai-desktop/src/main/preload.js")
+
+        self.assertIn("FEDERATION_BASE_URL", constants)
+        self.assertIn("https://ai.codega.com.tr/api/federation", constants)
+        self.assertIn('ipcMain.handle("chat:share"', main)
+        self.assertIn('`${FEDERATION_BASE_URL}/share`', main)
+        self.assertIn("shareChat", preload)
 
 
 if __name__ == "__main__":
