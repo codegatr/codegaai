@@ -43,8 +43,10 @@ function registerIpc() {
     return modelManager.ask(message);
   });
 
-  ipcMain.handle("model:prepare", async (event) => {
-    const status = await modelManager.prepareDefaultModel((progress) => {
+  ipcMain.handle("models:list", async () => modelManager.getModels());
+
+  ipcMain.handle("model:prepare", async (event, modelId) => {
+    const status = await modelManager.prepareModel(modelId, (progress) => {
       event.sender.send("model:status", progress);
     });
     if (status.action === "install_ollama" && status.actionUrl) {
