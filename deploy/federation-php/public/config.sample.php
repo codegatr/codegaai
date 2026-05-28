@@ -12,6 +12,12 @@ return [
     // CORS. Use '*' only if the endpoint is public HTTPS.
     'allow_origin' => '*',
 
+    // Public URL where this folder is reachable.
+    'public_base_url' => 'https://ai.codega.com.tr/api/federation',
+
+    // Optional shared secret for desktop share creation. Leave empty for public beta.
+    'share_token' => '',
+
     // Auto-create tables on first request. Disable after install if desired.
     'auto_migrate' => true,
 
@@ -27,4 +33,9 @@ return [
 
     // Old event rows are pruned automatically to keep shared hosting small.
     'event_retention_days' => 30,
+
+    // Public chat share retention.
+    'share_retention_days' => 180,
+    'max_share_messages' => 200,
+    'max_share_text_chars' => 20000,
 ];
