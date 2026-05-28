@@ -51,6 +51,29 @@ async function fetchText(url, timeoutMs = 12000) {
   }
 }
 
+// ---------------------------------------------------------- search parsing
+/** DuckDuckGo HTML sonuçlarını yapılandırılmış listeye çevir. */
+function parseSearchResults(html, max = 5) {
+  const out = [];
+  const linkRe = /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  const snippetRe = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
+  const snippets = [];
+  let sm;
+  while ((sm = snippetRe.exec(html)) !== null) snippets.push(stripTags(sm[1]));
+  let lm;
+  let i = 0;
+  while ((lm = linkRe.exec(html)) !== null && out.length < Number(max)) {
+    const title = stripTags(lm[2]);
+    let href = lm[1];
+    const m = href.match(/uddg=([^&]+)/);
+    if (m) { try { href = decodeURIComponent(m[1]); } catch (_e) {} }
+    const snippet = snippets[i] || "";
+    i += 1;
+    if (title) out.push({ title, href, snippet });
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- web_search
 async function toolWebSearch(query, max = 4) {
   const q = String(query || "").trim();
@@ -59,28 +82,53 @@ async function toolWebSearch(query, max = 4) {
     const html = await fetchText(
       `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`
     );
-    const results = [];
-    const linkRe = /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-    const snippetRe = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
-    const snippets = [];
-    let sm;
-    while ((sm = snippetRe.exec(html)) !== null) snippets.push(stripTags(sm[1]));
-    let lm;
-    let i = 0;
-    while ((lm = linkRe.exec(html)) !== null && results.length < Number(max)) {
-      const title = stripTags(lm[2]);
-      let href = lm[1];
-      const m = href.match(/uddg=([^&]+)/);
-      if (m) { try { href = decodeURIComponent(m[1]); } catch (_e) {} }
-      const snip = snippets[i] || "";
-      i += 1;
-      if (title) results.push(`• ${title}\n  ${snip}\n  ${href}`);
-    }
+    const results = parseSearchResults(html, max);
     if (!results.length) return `'${q}' için sonuç bulunamadı.`;
-    return `🔍 Web Arama: ${q}\n\n${results.join("\n\n")}`;
+    return (
+      `🔍 Web Arama: ${q}\n\n` +
+      results.map((r) => `• ${r.title}\n  ${r.snippet}\n  ${r.href}`).join("\n\n")
+    );
   } catch (e) {
     return `⚠️ Arama yapılamadı (internet?): ${e.message || e}`;
   }
+}
+
+// ------------------------------------------------------------------ research
+// Tek çağrıda çok-kaynaklı araştırma: ara -> ilk sonuçların sayfalarını çek ->
+// özetlenebilir ham içeriği birleştir. Küçük modeller araçları zincirleyemese
+// bile bununla gerçek araştırma yapabilir.
+async function toolResearch(query, maxSources = 3) {
+  const q = String(query || "").trim();
+  if (!q) return "⚠️ Araştırma konusu boş.";
+  let results;
+  try {
+    const html = await fetchText(
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`
+    );
+    results = parseSearchResults(html, Math.max(3, Number(maxSources) + 2));
+  } catch (e) {
+    return `⚠️ Araştırma için arama yapılamadı (internet?): ${e.message || e}`;
+  }
+  if (!results.length) return `'${q}' için kaynak bulunamadı.`;
+
+  const sources = [];
+  for (const r of results) {
+    if (sources.length >= Number(maxSources)) break;
+    let body = r.snippet || "";
+    try {
+      const page = await fetchText(r.href, 10000);
+      const text = stripTags(page);
+      if (text && text.length > body.length) body = text.slice(0, 1500);
+    } catch (_e) {
+      // sayfa çekilemedi: snippet ile yetin
+    }
+    sources.push(`### Kaynak ${sources.length + 1}: ${r.title}\n${r.href}\n${body}`);
+  }
+  return (
+    `📚 Araştırma: ${q}\n\n` +
+    sources.join("\n\n") +
+    "\n\nBu kaynakları karşılaştır, çelişkileri belirt ve kendi sözcüklerinle özetle."
+  );
 }
 
 // ------------------------------------------------------------------ read_url
@@ -177,6 +225,7 @@ function toolRecall(query) {
 
 const TOOLS = {
   web_search: { fn: toolWebSearch, desc: "İnternette güncel bilgi ara (DuckDuckGo)" },
+  research: { fn: toolResearch, desc: "Bir konuyu çok kaynaktan araştır (ara + sayfaları oku + birleştir)" },
   read_url: { fn: toolReadUrl, desc: "Bir web sayfasının içeriğini oku" },
   calculate: { fn: toolCalculate, desc: "Matematiksel hesap yap" },
   current_time: { fn: toolCurrentTime, desc: "Şu anki tarih/saat (Türkiye)" },
@@ -246,10 +295,11 @@ function toolsSystemPrompt() {
     "",
     "Kurallar:",
     "1. Güncel/değişen bilgi (haber, fiyat, hava, tarih) → web_search veya weather.",
-    "2. Sayısal işlem → calculate. Asla kafadan hesaplama.",
-    "3. Bir kaynağı incelemen gerekiyorsa → read_url.",
-    "4. Kullanıcı hakkında kalıcı bilgi → remember; gerektiğinde recall.",
-    "5. Araç sonucu gelince ONU OKU, üstüne düşün; gerekiyorsa yeni araç çağır, yeterliyse net cevabı yaz.",
+    "2. Bir konuyu DERİNLEMESİNE öğrenmen/karşılaştırman gerekiyorsa → research (çok kaynak).",
+    "3. Sayısal işlem → calculate. Asla kafadan hesaplama.",
+    "4. Belirli bir kaynağı incelemen gerekiyorsa → read_url.",
+    "5. Kullanıcı hakkında kalıcı bilgi → remember; gerektiğinde recall.",
+    "6. Araç sonucu gelince ONU OKU, üstüne düşün; gerekiyorsa yeni araç çağır, yeterliyse net cevabı yaz.",
   ].join("\n");
 }
 
@@ -262,4 +312,5 @@ module.exports = {
   // doğrudan test için:
   toolCalculate,
   toolCurrentTime,
+  parseSearchResults,
 };

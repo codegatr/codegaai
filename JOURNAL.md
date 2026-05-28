@@ -27,7 +27,8 @@ Yani temiz ama "ince Ollama sohbet kabuğu" — gelişmiş ajan değil.
 - `agent-loop.js` — **gerçek ReAct döngüsü**: üret → araç çalıştır → gözlemi
   modele GERİ besle → tekrar düşün → ya yeni araç ya FINAL cevap. `maxIters`
   koruması; `<think>` blokları kullanıcıdan gizlenir.
-- `tools.js` — gerçek araç registry'si: `web_search` (DuckDuckGo), `read_url`,
+- `tools.js` — gerçek araç registry'si: `web_search` (DuckDuckGo), `research`
+  (çok-kaynaklı: ara+sayfaları oku+birleştir), `read_url`,
   `calculate`, `current_time`, `weather` (open-meteo), `remember`/`recall`.
   `<tool>arac("arg")</tool>` protokolü, model-agnostik (her Ollama modeliyle çalışır).
 - `memory.js` — kalıcı yerel hafıza (JSON, electron-bağımsız → test edilebilir).

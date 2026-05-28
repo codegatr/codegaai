@@ -114,4 +114,26 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("parseAndRunTools: gerçek çalıştırma");
 }
 
+// 8) parseSearchResults: statik HTML üzerinde (internetsiz)
+{
+  const sampleHtml = `
+    <a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fornek.com%2Fsayfa">Örnek Başlık</a>
+    <a class="result__snippet">Bu bir örnek özet metnidir.</a>
+    <a class="result__a" href="https://ikinci.com">İkinci Sonuç</a>
+    <a class="result__snippet">İkinci özet.</a>`;
+  const parsed = tools.parseSearchResults(sampleHtml, 5);
+  assert.strictEqual(parsed.length, 2);
+  assert.strictEqual(parsed[0].title, "Örnek Başlık");
+  assert.strictEqual(parsed[0].href, "https://ornek.com/sayfa", "uddg çözülmeli");
+  assert.ok(parsed[0].snippet.includes("örnek özet"));
+  ok("Araştırma: arama sonucu parser (offline)");
+}
+
+// 9) research aracı kayıtlı ve loop'tan çağrılabilir
+{
+  assert.ok(tools.TOOLS.research, "research aracı kayıtlı olmalı");
+  assert.ok(tools.TOOLS.web_search && tools.TOOLS.read_url, "web araçları kayıtlı");
+  ok("Araştırma: research/web_search/read_url kayıtlı");
+}
+
 console.log(`\n${passed} test geçti ✅`);
