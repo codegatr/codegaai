@@ -47,13 +47,23 @@ class TestInstallationContracts(unittest.TestCase):
         self.assertTrue(marker.evaluate({"python_version": "3.11"}))
 
     def test_platform_build_workflows_can_publish_manual_releases(self) -> None:
-        for workflow_name in ("build-macos.yml", "build-windows.yml"):
+        for workflow_name in ("build-linux.yml", "build-macos.yml", "build-windows.yml"):
             workflow = (ROOT / ".github" / "workflows" / workflow_name).read_text(encoding="utf-8-sig")
             self.assertIn("release_tag:", workflow)
             self.assertIn("tag_name: ${{ steps.version.outputs.tag }}", workflow)
             self.assertIn("target_commitish: ${{ github.sha }}", workflow)
             self.assertIn("github.event.inputs.release_tag != ''", workflow)
             self.assertIn("generate_release_notes: true", workflow)
+
+    def test_first_run_setup_asks_for_app_and_model_folders(self) -> None:
+        setup_py = (ROOT / "codegaai" / "api" / "routes" / "setup.py").read_text(encoding="utf-8")
+        setup_html = (ROOT / "codegaai" / "ui" / "web" / "setup.html").read_text(encoding="utf-8")
+
+        self.assertIn("app_dir", setup_py)
+        self.assertIn("models_dir", setup_py)
+        self.assertIn('"setup_version"] = "2.0"', setup_py)
+        self.assertIn('id="app-path"', setup_html)
+        self.assertIn('id="custom-path"', setup_html)
 
 
 if __name__ == "__main__":
