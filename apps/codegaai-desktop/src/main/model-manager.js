@@ -263,7 +263,7 @@ class ModelManager {
       model: installedModel || DEFAULT_MODEL,
       task: option.task || "chat",
       message: installedModel
-        ? `${option.label} hazır. Model seçimi otomatik.`
+        ? "Codega AI hazır."
         : "Önerilen modeller indirilmeli. Ayarlardan model paketlerini hazırlayabilirsin.",
     };
     return this.getStatus();
@@ -302,7 +302,7 @@ class ModelManager {
         status: READY_STATES.READY,
         model: target.id,
         task: target.task || "chat",
-        message: `${target.label} zaten hazır. Model seçimi talimata göre otomatik yapılacak.`,
+        message: "Codega AI hazır.",
       };
       return this.getStatus();
     }
@@ -342,7 +342,7 @@ class ModelManager {
       status: READY_STATES.READY,
       model: target.id,
       task: target.task || "chat",
-      message: `${target.label} hazır. Model seçimi talimata göre otomatik yapılacak.`,
+      message: "Codega AI hazır.",
     };
     return this.getStatus();
   }
@@ -368,7 +368,7 @@ class ModelManager {
       return {
         provider: "instant",
         model: "codega-setup",
-        text: "Yerel model motoru hazır değil. Ayarlardan Ollama kurulumunu başlatıp önerilen modelleri indirebilirsin.",
+        text: "Yerel zeka motoru hazır değil. Ayarlardan kurulumu başlatıp önerilen zeka paketlerini indirebilirsin.",
       };
     }
 
@@ -387,7 +387,7 @@ class ModelManager {
       return {
         provider: "instant",
         model: "codega-model-router",
-        text: `${selected.label} bu talimat için daha uygun ama henüz indirilmemiş. Ayarlar > Model Paketleri bölümünden indirebilirsin; sonra CODEGA AI bu modele otomatik geçecek.`,
+        text: "Bu iş için gerekli zeka paketi henüz hazır değil. Ayarlar > Model Paketleri bölümünden ilgili paketi indirebilirsin; sonra ben arka planda kendim kullanırım.",
       };
     }
 
@@ -396,13 +396,13 @@ class ModelManager {
       status: READY_STATES.READY,
       model: selectedModel,
       task,
-      message: `${selected.label} seçildi (${task})`,
+      message: "Düşünüyorum...",
     };
 
     const prompt = [
       "Sen CODEGA AI'sın. Türkçe, net, samimi ve uygulanabilir cevap ver.",
       `Görev türü: ${task}`,
-      `Kullanılan model: ${selected.label}`,
+      "İç model/paket adlarını kullanıcıya söyleme; sadece doğal şekilde yanıt ver.",
       `Kullanıcı: ${input}`,
       "CODEGA AI:",
     ].join("\n");
@@ -415,12 +415,12 @@ class ModelManager {
         this.state = {
           ...this.state,
           status: READY_STATES.READY,
-          message: `${selected.label} cevap zaman aşımına uğradı`,
+          message: "Yanıt zaman aşımına uğradı",
         };
         return {
           provider: "instant",
           model: "codega-timeout",
-          text: `${selected.label} bu istekte zamanında cevap veremedi. Uygulama takılmadı; Ayarlar'dan daha küçük/hızlı model paketini indirirsen benzer isteklerde otomatik ona geçebilirim.`,
+          text: "Bu istekte zamanında cevap veremedim. Uygulama takılmadı; Ayarlar'dan daha küçük/hızlı zeka paketini indirirsen benzer isteklerde arka planda daha hızlı çalışabilirim.",
         };
       }
       this.state = {
