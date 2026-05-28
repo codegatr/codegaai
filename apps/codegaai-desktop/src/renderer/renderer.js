@@ -111,9 +111,18 @@ function appendMessage(role, text) {
 }
 
 function setModelStatus(status) {
-  const text = status?.message || "Model durumu bilinmiyor";
-  els.modelPill.textContent = text;
-  els.modelDetail.textContent = `${status?.provider || "instant"} · ${status?.model || "codega-instant"} · ${status?.status || "unknown"}`;
+  const ready = status?.status === "ready";
+  const missing = status?.status === "missing";
+  els.modelPill.textContent = ready
+    ? "Hazır"
+    : missing
+      ? "Temel mod hazır"
+      : "Düşünüyor";
+  els.modelDetail.textContent = status?.action === "install_ollama"
+    ? "Yerel zeka motoru kurulu değil. Model paketleri için Ollama kurulumu gerekli."
+    : ready
+      ? "Codega AI talimata göre gerekli zeka paketini arka planda kullanır."
+      : "Codega AI çalışma ortamını kontrol ediyor.";
 }
 
 function renderModelList(payload) {
@@ -156,12 +165,12 @@ els.form.addEventListener("submit", async (event) => {
   appendMessage("user", text);
   els.input.value = "";
   els.input.style.height = "auto";
-  appendMessage("assistant", "Uygun model seçiliyor...");
+  appendMessage("assistant", "Düşünüyorum...");
 
   const chat = currentChat();
   const placeholder = chat.messages[chat.messages.length - 1];
   const slowNotice = setTimeout(() => {
-    placeholder.text = "Yerel model beklenenden uzun düşünüyor. Cevap gelmezse kısa süre içinde güvenli şekilde durduracağım.";
+    placeholder.text = "Biraz uzun düşünüyorum. Cevap gelmezse kısa süre içinde güvenli şekilde durduracağım.";
     renderConversation();
     scrollConversationToBottom();
   }, 8000);
@@ -197,7 +206,7 @@ els.settingsButton.addEventListener("click", async () => {
 });
 els.prepareModel.addEventListener("click", async () => {
   els.prepareModel.disabled = true;
-  els.modelDetail.textContent = "Varsayılan model hazırlanıyor...";
+  els.modelDetail.textContent = "Zeka paketi hazırlanıyor...";
   try {
     const status = await window.codega.prepareModel();
     setModelStatus(status);
@@ -210,7 +219,7 @@ els.modelList.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-model]");
   if (!button) return;
   button.disabled = true;
-  els.modelDetail.textContent = `${button.dataset.model} indiriliyor...`;
+  els.modelDetail.textContent = "Zeka paketi indiriliyor...";
   try {
     const status = await window.codega.prepareModel(button.dataset.model);
     setModelStatus(status);
