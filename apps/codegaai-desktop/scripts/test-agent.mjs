@@ -136,4 +136,41 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Araştırma: research/web_search/read_url kayıtlı");
 }
 
+// 10) Toleranslı format: (tool), [tool], çıplak, iç içe parantez
+{
+  assert.strictEqual(tools.extractToolCalls("Bak (tool)current_time()").length, 1);
+  assert.strictEqual(tools.extractToolCalls("Bak (tool)current_time()")[0].name, "current_time");
+  assert.strictEqual(tools.extractToolCalls('[tool]calculate("12+3")').length, 1);
+  assert.strictEqual(tools.extractToolCalls('sonuç: web_search("x")')[0].name, "web_search");
+  // iç içe parantezli argüman bozulmamalı
+  const nested = tools.extractToolCalls('<tool>calculate("(1+2)*3")</tool>');
+  assert.strictEqual(nested[0].argsStr, '"(1+2)*3"');
+  assert.ok(tools.toolCalculate("(1+2)*3").includes("9"));
+  ok("Toleranslı format: (tool)/[tool]/çıplak/iç içe parantez");
+}
+
+// 11) Ekrandaki tam hata senaryosu: model "(tool)current_time()" yazıyor
+{
+  let n = 0;
+  const fake = async (messages) => {
+    n += 1;
+    if (n === 1) return "Son durumu kontrol edelim. (tool)current_time()";
+    return "Bugünkü tarih ve saat yukarıda.";
+  };
+  const res = await runReact([{ role: "user", content: "son durum?" }], fake, { maxIters: 3 });
+  assert.strictEqual(res.iterations, 2, "(tool) formatı yakalanıp döngü dönmeli");
+  assert.strictEqual(res.stoppedReason, "final_answer");
+  assert.strictEqual(res.toolCalls.length, 1);
+  assert.strictEqual(res.toolCalls[0].name, "current_time");
+  assert.ok(!res.content.includes("(tool)"), "final cevapta (tool) kalıntısı olmamalı");
+  ok("Loop: (tool)current_time() artık çalışıyor (ekran hatası çözüldü)");
+}
+
+// 12) stripToolCalls final cevabı temizliyor
+{
+  assert.strictEqual(tools.stripToolCalls("Cevap. (tool)current_time()"), "Cevap.");
+  assert.strictEqual(tools.stripToolCalls('<tool>weather("Konya")</tool>'), "");
+  ok("stripToolCalls: kalıntı temizleme");
+}
+
 console.log(`\n${passed} test geçti ✅`);

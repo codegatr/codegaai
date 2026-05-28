@@ -22,8 +22,7 @@ const TOOL_PATTERN = /<tool>\s*([\s\S]*?)\s*<\/tool>/gi;
 const CALL_PATTERN = /^(\w+)\(([\s\S]*)\)$/;
 
 function hasToolCall(text) {
-  TOOL_PATTERN.lastIndex = 0;
-  return TOOL_PATTERN.test(String(text || ""));
+  return extractToolCalls(text).length > 0;
 }
 
 function stripTags(html) {
@@ -244,38 +243,79 @@ function parseArgs(argsStr) {
   }
 }
 
+// Küçük modeller <tool>...</tool> formatını her zaman tutturamaz. Bu yüzden
+// araç çağrılarını delimiter'dan BAĞIMSIZ yakalarız: bilinen bir araç adının
+// ardından gelen `(...)` çağrısını buluruz — ister <tool>, ister (tool), ister
+// [tool], "tool:", ister çıplak yazılmış olsun. Parantez/tırnak dengesi gözetilir.
+function extractToolCalls(text) {
+  const s = String(text || "");
+  const known = new Set(Object.keys(TOOLS));
+  const nameRe = /([A-Za-z_]\w*)\s*\(/g;
+  const calls = [];
+  let m;
+  while ((m = nameRe.exec(s)) !== null) {
+    const name = m[1];
+    if (!known.has(name)) continue;
+    const open = nameRe.lastIndex - 1; // '(' konumu
+    let depth = 0;
+    let inStr = null;
+    let j = open;
+    for (; j < s.length; j++) {
+      const ch = s[j];
+      if (inStr) {
+        if (ch === inStr) inStr = null;
+        continue;
+      }
+      if (ch === '"' || ch === "'") { inStr = ch; continue; }
+      if (ch === "(") depth += 1;
+      else if (ch === ")") { depth -= 1; if (depth === 0) break; }
+    }
+    const argsStr = s.slice(open + 1, j);
+    calls.push({ name, argsStr, start: m.index, end: j + 1 });
+    nameRe.lastIndex = j + 1;
+  }
+  return calls;
+}
+
+// Final cevaptan araç çağrılarını ve delimiter kalıntılarını temizle.
+function stripToolCalls(text) {
+  const s = String(text || "");
+  const calls = extractToolCalls(s);
+  let out = s;
+  if (calls.length) {
+    let acc = "";
+    let last = 0;
+    for (const c of calls) {
+      acc += s.slice(last, c.start);
+      last = c.end;
+    }
+    acc += s.slice(last);
+    out = acc;
+  }
+  return out
+    .replace(/<\/?\s*tool\s*>|\(\s*tool\s*\)|\[\s*tool\s*\]|tool_call\s*:/gi, "")
+    .trim();
+}
+
 /**
- * Metindeki tüm <tool>...</tool> çağrılarını çalıştır.
+ * Metindeki tüm araç çağrılarını (her formatta) çalıştır.
  * @returns {Promise<{calls: Array}>}
  */
 async function parseAndRunTools(text) {
   const calls = [];
-  const matches = [];
-  TOOL_PATTERN.lastIndex = 0;
-  let m;
-  while ((m = TOOL_PATTERN.exec(String(text || ""))) !== null) {
-    matches.push(m[1].trim());
-  }
-  for (const raw of matches) {
-    const cm = CALL_PATTERN.exec(raw);
-    if (!cm) continue;
-    const name = cm[1].trim();
-    const args = parseArgs(cm[2]);
+  for (const found of extractToolCalls(text)) {
+    const name = found.name;
+    const args = parseArgs(found.argsStr);
     const def = TOOLS[name];
     const call = { name, args, result: null, error: null, elapsedMs: 0 };
-    if (!def) {
-      call.error = `Bilinmeyen araç: ${name}`;
-      call.result = `⚠️ ${call.error}`;
-    } else {
-      const t0 = Date.now();
-      try {
-        call.result = await def.fn(...args);
-      } catch (e) {
-        call.error = e.message || String(e);
-        call.result = `⚠️ Araç hatası: ${call.error}`;
-      }
-      call.elapsedMs = Date.now() - t0;
+    const t0 = Date.now();
+    try {
+      call.result = await def.fn(...args);
+    } catch (e) {
+      call.error = e.message || String(e);
+      call.result = `⚠️ Araç hatası: ${call.error}`;
     }
+    call.elapsedMs = Date.now() - t0;
     calls.push(call);
   }
   return { calls };
@@ -309,6 +349,8 @@ module.exports = {
   hasToolCall,
   parseAndRunTools,
   toolsSystemPrompt,
+  extractToolCalls,
+  stripToolCalls,
   // doğrudan test için:
   toolCalculate,
   toolCurrentTime,

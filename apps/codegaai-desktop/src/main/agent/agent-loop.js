@@ -12,15 +12,14 @@
  * test için sahte bir fonksiyona da bağlanır (bu yüzden modelsiz test edilebilir).
  */
 
-const { TOOL_PATTERN, hasToolCall, parseAndRunTools } = require("./tools");
+const { hasToolCall, parseAndRunTools, stripToolCalls } = require("./tools");
 
 const THINK_PATTERN = /<think>[\s\S]*?<\/think>/gi;
 
-/** Final cevabı kullanıcıya gösterilmeden önce <think> bloklarını ve artık araç tag'lerini temizle. */
+/** Final cevabı kullanıcıya gösterilmeden önce <think> bloklarını ve artık araç çağrılarını temizle. */
 function cleanFinal(text) {
   let t = String(text || "").replace(THINK_PATTERN, "");
-  TOOL_PATTERN.lastIndex = 0;
-  t = t.replace(TOOL_PATTERN, "");
+  t = stripToolCalls(t);
   return t.trim();
 }
 

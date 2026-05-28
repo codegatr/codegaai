@@ -4,6 +4,28 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 49.3 — Toleranslı araç-format parser + few-shot (28 May 2026, Claude)
+
+Canlı testte (0.2.0, gerçek küçük model) sorun görüldü: model aracı
+`<tool>current_time()</tool>` yerine **`(tool)current_time()`** yazdı. Döngü
+`<tool>` aradığı için yakalayamadı → yarım metin ekrana düştü (kullanıcı "aptal"
+dedi, haklı).
+
+Düzeltme:
+- `tools.extractToolCalls()`: delimiter'dan BAĞIMSIZ yakalama. Bilinen araç adı +
+  `(...)` çağrısını bulur; `<tool>`, `(tool)`, `[tool]`, "tool:" veya çıplak
+  yazım hepsi çalışır. Parantez/tırnak dengesi taranır (iç içe parantez bozulmaz).
+- `stripToolCalls()`: final cevaptan her formatta kalıntıyı temizler; `cleanFinal`
+  bunu kullanır.
+- `system-prompt.js`: katı format kuralı + 3 few-shot örneği (current_time,
+  calculate, weather) — küçük model formatı tuttursun.
+- Test: 12/12 (ekran senaryosu `(tool)current_time()` dahil).
+
+Surum 0.2.0 -> **0.2.1** (CI -> desktop-v0.2.1 -> otomatik guncelleme bildirimi).
+
+---
+
+
 ## ✅ Faz 49.2 — Sürüm 0.2.0 yayını (28 May 2026, Claude)
 
 Bulgu: `main`'e push, `build-codegaai-desktop-windows.yml` CI'sını otomatik
