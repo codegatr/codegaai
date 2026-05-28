@@ -1,7 +1,7 @@
 {
   "name": "codega-ai-desktop",
   "productName": "CODEGA AI",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "CODEGA AI clean Windows-first desktop app.",
   "author": "CODEGA",
   "private": true,
@@ -41,7 +41,6 @@
           ]
         }
       ],
-      "publisherName": "CODEGA",
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
