@@ -1,6 +1,6 @@
 const path = require("node:path");
 const { app, BrowserWindow, ipcMain, shell } = require("electron");
-const { APP_NAME } = require("../shared/constants");
+const { APP_NAME, FEDERATION_BASE_URL } = require("../shared/constants");
 const { ModelManager } = require("./model-manager");
 const { UpdateService } = require("./update-service");
 
@@ -41,6 +41,22 @@ function registerIpc() {
 
   ipcMain.handle("chat:send", async (_event, message) => {
     return modelManager.ask(message);
+  });
+
+  ipcMain.handle("chat:share", async (_event, chat) => {
+    const response = await fetch(`${FEDERATION_BASE_URL}/share`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: chat?.title || "CODEGA AI Sohbeti",
+        messages: Array.isArray(chat?.messages) ? chat.messages : [],
+        app_version: app.getVersion(),
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`Paylaşım servisi cevap vermedi: ${response.status}`);
+    }
+    return response.json();
   });
 
   ipcMain.handle("models:list", async () => modelManager.getModels());
