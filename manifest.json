@@ -89,7 +89,10 @@
     "Faz 6 - Video Üretim (CogVideoX-2B/5B text-to-video + Stable Video Diffusion image-to-video + diffusers wrapper + MP4 export)",
     "Faz 7 - Self-Learning (mesajlara 👍/👎 feedback + SQLite FeedbackStore + DPO tercih çiftleri + LoRA AdapterManager + DPOTrainer wrapper)",
     "Faz 8 - Akıllı Güncelleme (GitHub Releases API + version compare + async ZIP indirme + self-replace batch script + UI banner/modal)",
-    "Faz 9 - Linux Sunucu Deploy + Token Auth (systemd + nginx + Let's Encrypt)"
+    "Faz 9 - Linux Sunucu Deploy + Token Auth (systemd + nginx + Let's Encrypt)",
+    "Faz 48 - Gerçek ReAct Ajan Döngüsü (agent_loop.py: üret→araç→gözlem→tekrar düşün→cevap; engine.generate_agentic; çok adımlı araç kullanımı)"
   ],
-  "phases_pending": []
+  "phases_pending": [
+    "Faz 48.1 - generate_agentic'i canlı chat rotalarına bağla (gerçek model + 6GB VRAM doğrulaması)"
+  ]
 }

@@ -478,6 +478,36 @@ class LLMEngine:
             ],
         }
 
+    def generate_agentic(self, messages: list[dict[str, str]],
+                         cfg: Optional[GenerationConfig] = None,
+                         max_iters: int = 4) -> dict[str, Any]:
+        """
+        Çok adımlı (ReAct) üretim: üret -> araç -> gözlem -> tekrar düşün -> cevap.
+
+        Tek-atış `generate()`'ten farkı: araç sonucunu modele GERİ BESLER, böylece
+        model sonucu okuyup sentezler. "Claude gibi" davranışın esas katmanı budur.
+
+        Döngü araçları kendisi çalıştırdığından, alttaki üretime `use_tools=False`
+        verilir (çift çalıştırmayı önlemek için).
+        """
+        from codegaai.core.agent_loop import run_react
+
+        def _gen(msgs: list[dict[str, str]]) -> str:
+            out = self.generate(msgs, cfg=cfg, use_tools=False)
+            return out.get("content", "") or ""
+
+        res = run_react(messages, _gen, max_iters=max_iters)
+        return {
+            "content": res.content,
+            "role": "assistant",
+            "finish_reason": "stop",
+            "model": self._status.model_id,
+            "iterations": res.iterations,
+            "stopped_reason": res.stopped_reason,
+            "tool_calls": res.tool_calls,
+            "trace": res.to_dict()["steps"],
+        }
+
     def stream(self, messages: list[dict[str, str]],
                cfg: Optional[GenerationConfig] = None) -> Iterator[str]:
         """

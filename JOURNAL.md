@@ -4,6 +4,51 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 48 — Gerçek ReAct Ajan Döngüsü (28 May 2026, Claude)
+
+### Teşhis (önce dürüst tespit)
+
+Kullanıcı hedefi: "CODEGA tamamen yerel olsun ama CLAUDE kadar zeki olsun."
+Kod tabanı incelendi. Bulgu: **araç döngüsü gerçekte yoktu.**
+
+- `engine.generate()` → `parse_and_run_tools(content)` **yalnızca 1 kez** çağrılıyordu.
+- Model `<tool>web_search(...)</tool>` yazıyor, sonuç metnin içine GÖMÜLÜYOR,
+  ama model o sonucu **asla okumuyordu** → sentez yok, yarım cevap.
+- `frontier_capabilities.py` `"react_tool_loop"` *planlıyor* ama yürütücüsü yoktu.
+- Şimdiye kadarki "Claude gibi" emeği çoğunlukla system prompt + yasak-kalıp
+  filtresine (görünüş) gitmişti; esas eksik döngüydü (yetenek).
+
+> Not: Yerel 6GB VRAM + AVX2-yok donanımda ham model boyutu artırılamaz.
+> "Zekâ" hissini yaratan asıl kaldıraç İSKELE = çok adımlı araç döngüsüdür.
+
+### Eklenen (mevcut akış BOZULMADI — tamamı additive)
+
+1. `codegaai/core/agent_loop.py` — gerçek ReAct döngüsü:
+   üret → araçları çalıştır → **gözlemi modele geri besle** → tekrar düşün →
+   ya yeni araç ya FINAL cevap. `max_iters` ile sonsuz döngü koruması; limit
+   dolunca araçsız "sentez" turu. Saf Python, ağır bağımlılık yok → modelsiz
+   test edilebilir. `generate_fn(messages)->str` enjekte edilir.
+2. `engine.LLMEngine.generate_agentic()` — döngüyü gerçek motora bağlar
+   (alttaki `generate`'e `use_tools=False` verir, araçları döngü çalıştırır).
+   Eski `generate()`/`stream()` aynen duruyor.
+3. `tests/test_phase48_react_agent_loop.py` — 5 test, **offline/GPU'suz geçiyor**:
+   gözlem geri-beslemesi, max_iters, düz cevap, üretim hatası, tespit.
+
+### Sıradaki adım (kullanıcı donanımında doğrulama gerektirir)
+
+- [ ] Canlı rota entegrasyonu: `api/routes/chat.py` (ve/veya `jobs.py`) içinde
+      `decision.uses_tools` olduğunda `engine.generate()` yerine
+      `engine.generate_agentic()` çağır. Burada bırakıldı çünkü gerçek modelle
+      (6GB, AVX2-yok) tur sayısı/latency ayarı yapılmalı.
+- [ ] UI: araç turlarını adım adım göster (SSE trace) — `agent_loop` zaten
+      `trace` döndürüyor.
+- [ ] Doğrulandıktan sonra manifest version bump + GitHub Release.
+
+> Bu faz versiyon BUMP'lamadı / release AÇMADI — canlı model doğrulaması
+> bekliyor (Smart Update'i erken tetiklememek için).
+
+---
+
 ## Agentic Core v1
 
 - `.codegaaiignore` desteğiyle yerel kod tabanı indeksleme tasarlandı.
