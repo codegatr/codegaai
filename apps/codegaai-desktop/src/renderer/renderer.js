@@ -104,7 +104,7 @@ function appendMessage(role, text) {
 function setModelStatus(status) {
   const text = status?.message || "Model durumu bilinmiyor";
   els.modelPill.textContent = text;
-  els.modelDetail.textContent = `${status?.provider || "instant"} · ${status?.model || "codega-instant"} · ${status?.status || "unknown"}`;
+  els.modelDetail.textContent = `${status?.provider || "instant"} Â· ${status?.model || "codega-instant"} Â· ${status?.status || "unknown"}`;
 }
 
 async function refreshStatus() {
@@ -121,7 +121,7 @@ els.form.addEventListener("submit", async (event) => {
   appendMessage("user", text);
   els.input.value = "";
   els.input.style.height = "auto";
-  appendMessage("assistant", "Düşünüyorum...");
+  appendMessage("assistant", "DÃ¼ÅŸÃ¼nÃ¼yorum...");
 
   const chat = currentChat();
   const placeholder = chat.messages[chat.messages.length - 1];
@@ -139,11 +139,18 @@ els.input.addEventListener("input", () => {
   els.input.style.height = `${Math.min(140, els.input.scrollHeight)}px`;
 });
 
+els.input.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+    event.preventDefault();
+    els.form.requestSubmit();
+  }
+});
+
 document.getElementById("new-chat").addEventListener("click", () => createChat());
 els.settingsButton.addEventListener("click", () => els.settings.showModal());
 els.prepareModel.addEventListener("click", async () => {
   els.prepareModel.disabled = true;
-  els.modelDetail.textContent = "Model hazırlanıyor...";
+  els.modelDetail.textContent = "Model hazÄ±rlanÄ±yor...";
   try {
     const status = await window.codega.prepareModel();
     setModelStatus(status);
