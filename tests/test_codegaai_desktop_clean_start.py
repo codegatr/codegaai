@@ -20,7 +20,7 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn('"nsis"', package)
         self.assertIn("Build CODEGA AI Windows installer", workflow)
         self.assertIn("apps/codegaai-desktop", workflow)
-        self.assertIn('"version": "0.1.7"', package)
+        self.assertIn('"version": "0.1.8"', package)
         self.assertNotIn('"publisherName": "CODEGA"', package)
         self.assertIn("workflow_dispatch:", workflow)
         self.assertIn("npm version $version --no-git-tag-version --allow-same-version", workflow)
@@ -43,8 +43,8 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn("Güncelleme hatası", renderer)
         self.assertIn("Güncelleme indirildi", renderer)
         self.assertIn("checkUpdatesAfterFirstQuery", renderer)
-        self.assertIn('showUpdatePrompt("available"', renderer)
-        self.assertIn('showUpdatePrompt("ready"', renderer)
+        self.assertIn("showUpdatePrompt(\"available\"", renderer)
+        self.assertIn("showUpdatePrompt(\"ready\"", renderer)
 
     def test_update_prompt_asks_now_or_later(self):
         html = read("apps/codegaai-desktop/src/renderer/index.html")
@@ -109,6 +109,26 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn("Ne yapmak istiyorsun?", html)
         self.assertIn("grid-template-columns: 286px 1fr", css)
         self.assertIn("border-radius: 999px", css)
+
+    def test_desktop_history_can_share_delete_persist_and_export_zip(self):
+        renderer = read("apps/codegaai-desktop/src/renderer/renderer.js")
+        css = read("apps/codegaai-desktop/src/renderer/styles.css")
+
+        self.assertIn("STORAGE_KEY", renderer)
+        self.assertIn("localStorage.setItem", renderer)
+        self.assertIn("loadChats", renderer)
+        self.assertIn("shareChat", renderer)
+        self.assertIn("buildShareLink", renderer)
+        self.assertIn("#share=", renderer)
+        self.assertIn("navigator.clipboard.writeText", renderer)
+        self.assertIn("deleteChat", renderer)
+        self.assertIn("window.confirm", renderer)
+        self.assertIn("downloadChatZip", renderer)
+        self.assertIn("buildZip", renderer)
+        self.assertIn("chat.json", renderer)
+        self.assertIn("chat.md", renderer)
+        self.assertIn(".history-entry", css)
+        self.assertIn(".history-actions", css)
 
 
 if __name__ == "__main__":
