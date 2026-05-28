@@ -2,12 +2,12 @@
 codegaai.api.routes.setup
 ===========================
 
-İlk Kurulum Sihirbazı uç noktaları.
+Ilk Kurulum Sihirbazi uc noktalari.
 
-GET  /api/setup/status   — kurulum tamamlandı mı?
-GET  /api/setup/disks    — kullanılabilir diskler (async + timeout)
-POST /api/setup/complete — {models_dir, data_dir?} → config yaz
-POST /api/setup/reset    — kurulumu sıfırla (tekrar sihirbaz göster)
+GET  /api/setup/status   - kurulum tamamlandi mi?
+GET  /api/setup/disks    - kullanilabilir diskler (async + timeout)
+POST /api/setup/complete - {app_dir?, models_dir, data_dir?} -> config yaz
+POST /api/setup/reset    - kurulumu sifirla (tekrar sihirbaz goster)
 """
 
 from __future__ import annotations
@@ -41,21 +41,23 @@ def is_setup_done() -> bool:
 
 @router.get("/status")
 async def setup_status() -> dict:
-    from codegaai.config import DATA_DIR, MODELS_DIR
+    from codegaai.config import DATA_DIR, MODELS_DIR, get_paths
+    paths = get_paths()
     return {
         "done": is_setup_done(),
-        "data_dir": str(DATA_DIR),
+        "app_dir": str(paths.get("data", DATA_DIR)),
+        "data_dir": str(paths.get("data", DATA_DIR)),
         "models_dir": str(MODELS_DIR),
     }
 
 
 # ============================================================
-# Diskler (async + timeout — CD/floppy takılmasın)
+# Diskler (async + timeout - CD/floppy takilmasin)
 # ============================================================
 
 @router.get("/disks")
 async def setup_disks() -> dict:
-    """Kurulum sırasında disk listesi — her disk 1.5 sn timeout."""
+    """Kurulum sirasinda disk listesi - her disk 1.5 sn timeout."""
     import shutil
 
     async def _disk_usage(path: str):
@@ -78,7 +80,6 @@ async def setup_disks() -> dict:
                 if not (bitmask >> i & 1):
                     continue
                 path = f"{letter}:\\"
-                # Sadece FIXED(3) ve REMOVABLE(2)
                 dtype = ctypes.windll.kernel32.GetDriveTypeW(path)
                 if dtype not in (2, 3):
                     continue
@@ -93,10 +94,10 @@ async def setup_disks() -> dict:
                     "total_gb": round(total / 1e9, 1),
                     "free_gb": round(free / 1e9, 1),
                     "used_pct": round(used / total * 100),
-                    "recommended": free > 10e9,  # 10 GB+ boş → önerilen
+                    "recommended": free > 10e9,
                 })
         except Exception as exc:
-            log.warning("Disk listesi hatası: %s", exc)
+            log.warning("Disk listesi hatasi: %s", exc)
     else:
         import shutil
         for mount in ["/", str(Path.home())]:
@@ -120,28 +121,41 @@ async def setup_disks() -> dict:
 
 class SetupCompleteRequest(BaseModel):
     models_dir: str
+    app_dir: str = ""
+    data_dir: str = ""
     install_dir: str = ""
-    download_default: bool = True  # Önerilen modeli otomatik indir
+    download_default: bool = True
 
 
 @router.post("/complete")
 async def complete_setup(req: SetupCompleteRequest) -> dict:
     """
-    Kurulum dizinini kaydet, kurulumu tamamlandı olarak işaretle.
-    Önerilen model otomatik indirilmeye başlar.
+    Uygulama/veri ve model dizinlerini kaydet, kurulumu tamamlandi olarak isaretle.
+    Onerilen model otomatik indirilmeye baslar.
     """
     from codegaai.config import DATA_DIR
 
-    # Models dizinini oluştur
     models_path = Path(req.models_dir).expanduser().resolve()
+    app_root_raw = req.app_dir or req.install_dir
+    app_path = (
+        Path(app_root_raw).expanduser().resolve()
+        if app_root_raw else models_path.parent / "CODEGA_App"
+    )
+    data_path = (
+        Path(req.data_dir).expanduser().resolve()
+        if req.data_dir else app_path / "data"
+    )
     try:
+        app_path.mkdir(parents=True, exist_ok=True)
+        data_path.mkdir(parents=True, exist_ok=True)
+        for sub in ("memory", "outputs", "logs", "cache", "temp"):
+            (data_path / sub).mkdir(parents=True, exist_ok=True)
         models_path.mkdir(parents=True, exist_ok=True)
-        (models_path / "llm").mkdir(exist_ok=True)
-        (models_path / "embedding").mkdir(exist_ok=True)
+        for sub in ("llm", "embedding", "image", "audio", "video"):
+            (models_path / sub).mkdir(parents=True, exist_ok=True)
     except Exception as exc:
-        return {"ok": False, "error": f"Dizin oluşturulamadı: {exc}"}
+        return {"ok": False, "error": f"Dizin olusturulamadi: {exc}"}
 
-    # Config'e yaz
     cfg_file = DATA_DIR / "codegaai_config.json"
     cfg: dict = {}
     if cfg_file.exists():
@@ -151,33 +165,36 @@ async def complete_setup(req: SetupCompleteRequest) -> dict:
             pass
 
     cfg["models_dir"] = str(models_path)
-    cfg["data_dir"] = str(models_path.parent / "CODEGA_Data")
-    cfg["setup_version"] = "1.0"
+    cfg["app_dir"] = str(app_path)
+    cfg["install_dir"] = str(app_path)
+    cfg["data_dir"] = str(data_path)
+    cfg["setup_version"] = "2.0"
+    cfg["platform"] = sys.platform
     cfg_file.write_text(
         json.dumps(cfg, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
-    # Setup tamamlandı bayrağı
     flag = _setup_flag_path()
     flag.write_text(
         json.dumps({
             "completed_at": __import__("time").time(),
+            "app_dir": str(app_path),
+            "data_dir": str(data_path),
             "models_dir": str(models_path),
         }),
         encoding="utf-8",
     )
 
-    # Registry'yi sıfırla → yeni dizini görsün
     try:
         from codegaai.core.models_registry import ModelRegistry
         ModelRegistry._instance = None
     except Exception:
         pass
 
-    log.info("Kurulum tamamlandı: models_dir=%s", models_path)
+    log.info("Kurulum tamamlandi: app_dir=%s data_dir=%s models_dir=%s",
+             app_path, data_path, models_path)
 
-    # Önerilen modeli arka planda indir
     if req.download_default:
         import threading
         def _download_default():
@@ -189,24 +206,26 @@ async def complete_setup(req: SetupCompleteRequest) -> dict:
                 defaults = [m for m in reg.list_llm_models() if m.get("default")]
                 if defaults:
                     model_id = defaults[0]["id"]
-                    log.info("Önerilen model indiriliyor: %s", model_id)
+                    log.info("Onerilen model indiriliyor: %s", model_id)
                     reg.download_llm_async(model_id)
             except Exception as e:
-                log.warning("Otomatik model indirme başlatılamadı: %s", e)
+                log.warning("Otomatik model indirme baslatilamadi: %s", e)
         threading.Thread(target=_download_default, daemon=True, name="setup-download").start()
 
     return {
         "ok": True,
+        "app_dir": str(app_path),
+        "data_dir": str(data_path),
         "models_dir": str(models_path),
-        "message": "Kurulum tamamlandı!",
+        "message": "Kurulum tamamlandi!",
         "downloading": req.download_default,
     }
 
 
 @router.post("/reset")
 async def reset_setup() -> dict:
-    """Kurulumu sıfırla — sihirbaz tekrar gösterilir."""
+    """Kurulumu sifirla - sihirbaz tekrar gosterilir."""
     flag = _setup_flag_path()
     if flag.exists():
         flag.unlink()
-    return {"ok": True, "message": "Kurulum sıfırlandı"}
+    return {"ok": True, "message": "Kurulum sifirlandi"}
