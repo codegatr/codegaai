@@ -4,6 +4,25 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ⏪ Faz 49.5 — Ekran (CSS) değişikliği GERİ ALINDI (29 May 2026, Claude)
+
+Faz 49.4 CSS kaydırma düzeltmesi ekran düzenini bozdu (kullanıcı bildirdi).
+İkinci kez körlemesine CSS değiştirip daha çok bozmamak için styles.css,
+49.4 ÖNCESİ çalışan haline (73238c0/73c44fb sürümü) geri alındı.
+
+- Ajan tarafı (toleranslı parser 0.2.1, araçlar, research, hafıza, ReAct)
+  AYNEN korundu — sadece styles.css geri alındı.
+- Surum 0.2.2 -> **0.2.3** (geri alma yayını).
+
+YAPILACAK: Kaydırma sorunu (sayfa+sidebar birlikte kayıyor; cevapta oto-scroll
+yok) hâlâ açık. Bir dahaki sefere KÖRLEMESİNE CSS YOK — önce kullanıcıdan ekran
+görüntüsü al, hangi elemanın taştığını gör, sonra MİNİMAL ve test edilmiş bir
+düzeltme yap (muhtemelen sadece .conversation'ı bağımsız scroll konteyneri yapan
+nokta-atışı bir kural, tüm layout'u height:100vh ile yeniden kurmadan).
+
+---
+
+
 ## ✅ Faz 49.4 — Sohbet kaydırma düzeltmesi + oto-scroll (28 May 2026, Claude)
 
 Kullanıcı bildirimi: sohbette aşağı kaydırınca SOL navbar da kayıyordu; ayrıca
