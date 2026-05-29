@@ -66,4 +66,23 @@ async function ollamaReachable(host = OLLAMA_HOST, timeoutMs = 2000) {
   }
 }
 
-module.exports = { ollamaChat, ollamaReachable, OLLAMA_HOST };
+/**
+ * Kurulu modelleri HTTP /api/tags ile listele (CLI/PATH'ten bağımsız).
+ * @returns {Promise<string[]|null>} model adları, ya da servis yoksa null
+ */
+async function ollamaListModels(host = OLLAMA_HOST, timeoutMs = 4000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${host}/api/tags`, { signal: controller.signal });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data.models || []).map((m) => m.name).filter(Boolean);
+  } catch (_e) {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+module.exports = { ollamaChat, ollamaReachable, ollamaListModels, OLLAMA_HOST };

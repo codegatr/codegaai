@@ -4,6 +4,32 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 60 — Ollama tespiti HTTP'ye taşındı (kurulu ama bulunamıyor) (29 May 2026, Claude)
+
+Kullanıcı: Ollama kurulu olduğu halde uygulama "Ollama bulunamadı" deyip kurmak
+istiyor.
+
+Sebep: detect() ve installedModels() Ollama'yı CLI ile (`ollama --version`,
+`ollama list`) arıyordu. Electron uygulaması (Mac'te .app, Windows'ta da bazen)
+kabuğun PATH'ini görmediği için `spawn("ollama")` bulunamıyor → "yok" sanıyor.
+Oysa Ollama servisi 127.0.0.1:11434'te ayakta.
+
+Düzeltme:
+- ollama-client.js: ollamaListModels() eklendi (HTTP /api/tags).
+- model-manager.detect(): önce ollamaReachable() (HTTP). Servis ayaktaysa Ollama
+  KURULU sayılıyor; CLI yalnızca yedek. İkisi de yoksa "bulunamadı".
+- installedModels(): önce HTTP /api/tags, CLI yedek.
+- Üretim zaten HTTP /api/chat kullanıyor → CLI'a hiç gerek yok.
+
+NOT: model indirme ("Varsayılanı Hazırla"/pull) hâlâ CLI kullanıyor; Mac'te PATH
+yoksa pull terminalden yapılmalı (ileride HTTP /api/pull'a taşınabilir). Tespit
+ve kullanım artık CLI'dan bağımsız.
+
+Test 21/21. Surum 0.8.0 -> **0.8.1**.
+
+---
+
+
 ## ✅ Faz 59 — Takılma düzeltmesi + Görev planlayıcı (29 May 2026, Claude)
 
 A) KRİTİK HATA: güncelleme sonrası cevaplar "Düşünüyorum..."da takılıyordu.

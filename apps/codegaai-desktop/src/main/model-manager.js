@@ -11,7 +11,7 @@ const {
   OLLAMA_DOWNLOAD_URL,
   OLLAMA_PULL_TIMEOUT_MS,
 } = require("../shared/constants");
-const { ollamaChat, ollamaReachable } = require("./agent/ollama-client");
+const { ollamaChat, ollamaReachable, ollamaListModels } = require("./agent/ollama-client");
 const { runReact } = require("./agent/agent-loop");
 const { buildSystemPrompt } = require("./agent/system-prompt");
 const { getSettings } = require("./agent/settings-store");
@@ -274,6 +274,9 @@ class ModelManager {
   }
 
   async installedModels() {
+    // HTTP /api/tags — CLI/PATH'ten bağımsız (Electron'da güvenilir)
+    const viaHttp = await ollamaListModels();
+    if (Array.isArray(viaHttp)) return viaHttp;
     const models = await this.runOllama(["list"]);
     return models.ok ? parseInstalledModels(models.stdout) : [];
   }
@@ -285,8 +288,15 @@ class ModelManager {
       message: "Ollama aranıyor",
     };
 
-    const version = await this.runOllama(["--version"]);
-    if (!version.ok) {
+    // Önce HTTP servisi (127.0.0.1:11434) — Electron PATH'i CLI'ı görmese bile
+    // servis ayaktaysa Ollama KURULU sayılır. CLI sadece yedek kontrol.
+    const reachable = await ollamaReachable();
+    let cliOk = false;
+    if (!reachable) {
+      const version = await this.runOllama(["--version"]);
+      cliOk = version.ok;
+    }
+    if (!reachable && !cliOk) {
       this.state = {
         provider: "instant",
         status: READY_STATES.MISSING,
