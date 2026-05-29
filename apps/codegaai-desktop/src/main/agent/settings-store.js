@@ -24,6 +24,9 @@ const DEFAULTS = {
   selfReflection: false, // cevabı denetleyip düzelt (yavaş; opt-in)
   planner: false, // karmaşık hedefleri alt adımlara böl (opt-in)
   multiAgent: false, // orchestrator + uzman ajanlar (opt-in, deneysel, yavaş)
+  theme: "oled", // görünüm teması (oled/slate/midnight/warm)
+  accent: "#ffffff", // vurgu rengi
+  fontScale: "orta", // sohbet yazı boyutu (kucuk/orta/buyuk)
 };
 
 function settingsPath() {

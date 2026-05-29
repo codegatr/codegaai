@@ -4,6 +4,30 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 63 — Tema & Görünüm özelleştirme (29 May 2026, Claude)
+
+İstek: tema/görünüm özelleştirme (Light/Dark/custom, accent, font, vb.).
+
+DÜRÜST KAPSAM: Uygulama React/Tailwind değil, vanilla + CSS değişkenleri. Tam
+"Light" tema, çok sayıda sabit-kodlu koyu yüzey (translucent beyaz, #fff butonlar)
+nedeniyle tek tek elden geçirme ister → bozulma riski yüksek, render-test edemiyorum.
+O yüzden Light'ı 2. aşamaya bıraktım; ŞİMDİ güvenli + görünür olanı kurdum:
+
+- Tema modları (koyu aile): OLED(#000, vars.) / Koyu(#0d1117) / Gece(#0a0f1e) /
+  Sıcak(#140f0a). Yalnızca --bg değişir; tüm yüzeyler translucent olduğu için
+  üstüne kompoze olur → güvenli, gerçekten görünür.
+- Vurgu rengi: --accent artık gönder butonuna bağlı (varsayılan beyaz → değişmez).
+  6 hazır renk (beyaz/amber/mavi/yeşil/kırmızı/mor) swatch.
+- Yazı boyutu: --chat-font ile .message metni (küçük/orta/büyük) — additive kural.
+- settings: theme/accent/fontScale. renderer applyAppearance() açılışta + değişince
+  uygular; Ayarlar'da "Görünüm" grubu (canlı önizleme).
+
+Tüm CSS additive ya da tek-değişken; ana layout'a dokunulmadı. Test 22/22.
+Surum 0.9.1 -> **0.10.0**.
+
+---
+
+
 ## ✅ Faz 62 — Ollama satırı dinamikleştirildi ("hala kur diyor") (29 May 2026, Claude)
 
 Kullanıcı: hala "Ollama Kur" uyarısı görünüyor. Sebep: "Ollama Kur" butonu

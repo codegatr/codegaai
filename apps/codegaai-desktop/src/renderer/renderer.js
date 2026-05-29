@@ -603,6 +603,54 @@ els.settingsButton.addEventListener("click", async () => {
 
 let agentSettings = null;
 
+const FONT_SIZES = { kucuk: "14px", orta: "16px", buyuk: "18px" };
+
+function applyAppearance(s) {
+  if (!s) return;
+  const theme = s.theme || "oled";
+  const accent = s.accent || "#ffffff";
+  const fontScale = s.fontScale || "orta";
+  document.body.dataset.theme = theme;
+  document.documentElement.style.setProperty("--accent", accent);
+  document.documentElement.style.setProperty("--chat-font", FONT_SIZES[fontScale] || "16px");
+  document.querySelectorAll(".theme-btn").forEach((b) =>
+    b.setAttribute("aria-pressed", String(b.dataset.themeValue === theme))
+  );
+  document.querySelectorAll(".font-btn").forEach((b) =>
+    b.setAttribute("aria-pressed", String(b.dataset.font === fontScale))
+  );
+  document.querySelectorAll("#accent-swatches .swatch").forEach((b) =>
+    b.setAttribute(
+      "aria-pressed",
+      String((b.dataset.accent || "").toLowerCase() === accent.toLowerCase())
+    )
+  );
+}
+
+async function setAppearance(patch) {
+  agentSettings = await window.codega.setSettings(patch);
+  applyAppearance(agentSettings);
+}
+
+document.querySelectorAll(".theme-btn").forEach((b) =>
+  b.addEventListener("click", () => setAppearance({ theme: b.dataset.themeValue }))
+);
+document.querySelectorAll(".font-btn").forEach((b) =>
+  b.addEventListener("click", () => setAppearance({ fontScale: b.dataset.font }))
+);
+document.querySelectorAll("#accent-swatches .swatch").forEach((b) =>
+  b.addEventListener("click", () => setAppearance({ accent: b.dataset.accent }))
+);
+
+// Açılışta kayıtlı görünümü uygula
+window.codega
+  .getSettings()
+  .then((s) => {
+    agentSettings = s;
+    applyAppearance(s);
+  })
+  .catch(() => {});
+
 function applyToggleLabel(button, on) {
   button.textContent = on ? "Açık" : "Kapalı";
 }
@@ -615,6 +663,7 @@ async function refreshAgentSettings() {
     applyToggleLabel(els.toggleReflection, !!agentSettings.selfReflection);
     applyToggleLabel(els.togglePlanner, !!agentSettings.planner);
     applyToggleLabel(els.toggleMultiAgent, !!agentSettings.multiAgent);
+    applyAppearance(agentSettings);
     applyToggleLabel(els.toggleFederation, !!agentSettings.federation);
     applyToggleLabel(els.toggleIdle, !!agentSettings.idleLearning);
     els.knowledgeRepo.value = agentSettings.knowledgeRepo || "";

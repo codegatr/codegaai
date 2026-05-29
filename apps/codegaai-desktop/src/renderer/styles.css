@@ -292,7 +292,7 @@ textarea {
   border: 0;
   border-radius: 999px;
   color: #000;
-  background: #fff;
+  background: var(--accent);
   cursor: pointer;
 }
 
@@ -533,3 +533,22 @@ textarea {
 .settings-field textarea::placeholder {
   color: var(--muted);
 }
+
+/* Görünüm: tema modları (koyu aile — sadece --bg/--accent değişir, güvenli) */
+body[data-theme="slate"] { --bg: #0d1117; }
+body[data-theme="midnight"] { --bg: #0a0f1e; }
+body[data-theme="warm"] { --bg: #140f0a; }
+body[data-theme="oled"] { --bg: #000; }
+
+/* Görünüm: sohbet yazı boyutu (additive) */
+.message {
+  font-size: var(--chat-font, 16px);
+}
+
+/* Görünüm: vurgu rengi swatch butonları */
+.swatch-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 14px; }
+.swatch {
+  width: 30px; height: 30px; border-radius: 999px;
+  border: 2px solid var(--line); cursor: pointer; padding: 0;
+}
+.swatch[aria-pressed="true"] { border-color: var(--text); }
