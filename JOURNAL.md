@@ -4,6 +4,23 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 62 — Ollama satırı dinamikleştirildi ("hala kur diyor") (29 May 2026, Claude)
+
+Kullanıcı: hala "Ollama Kur" uyarısı görünüyor. Sebep: "Ollama Kur" butonu
+STATİKTİ — Ollama kurulu olsa bile her zaman görünüyordu (kalıcı uyarı gibi).
+
+Düzeltme (renderer setModelStatus): Ollama satırı artık gerçek duruma göre:
+- status.action === "install_ollama" (veya provider instant) → "Kurulu değil",
+  "Ollama Kur" butonu GÖRÜNÜR.
+- Aksi halde → "Ollama çalışıyor ✓", buton GİZLİ.
+index.html'de açıklama <p>'ye id verildi (#ollama-row-status). 0.8.1'deki HTTP
+tespitiyle birlikte: servis ayaktaysa buton tamamen kaybolur.
+
+Surum 0.9.0 -> **0.9.1**. Test 22/22.
+
+---
+
+
 ## ✅ Faz 61 — Multi-agent mimarisi (orchestrator + uzman ajanlar + denetçi) (29 May 2026, Claude)
 
 Kullanıcının (dış AI) inceleme dokümanları multi-agent'i 1. öncelik gösterdi.

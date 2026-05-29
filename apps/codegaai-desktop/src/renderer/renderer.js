@@ -50,6 +50,7 @@ const els = {
   knowledgeUp: document.getElementById("knowledge-up"),
   knowledgeStatus: document.getElementById("knowledge-status"),
   installOllama: document.getElementById("install-ollama"),
+  ollamaRowStatus: document.getElementById("ollama-row-status"),
   ragStats: document.getElementById("rag-stats"),
   ragClear: document.getElementById("rag-clear"),
   ragTitle: document.getElementById("rag-title"),
@@ -469,6 +470,17 @@ function setModelStatus(status) {
     : ready
       ? "Codega AI talimata göre gerekli zeka paketini arka planda kullanır."
       : "Codega AI çalışma ortamını kontrol ediyor.";
+
+  // Ollama satırı: çalışıyorsa "Kur" butonunu gizle, durumu göster
+  const ollamaMissing = status?.action === "install_ollama" || status?.provider === "instant";
+  if (els.ollamaRowStatus) {
+    els.ollamaRowStatus.textContent = ollamaMissing
+      ? "Kurulu değil. Yerel modeller için Ollama gerekli — kurmak için tıkla."
+      : "Ollama çalışıyor ✓ (yerel motor hazır).";
+  }
+  if (els.installOllama) {
+    els.installOllama.hidden = !ollamaMissing;
+  }
 }
 
 function renderModelList(payload) {
