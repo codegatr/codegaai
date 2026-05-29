@@ -523,8 +523,7 @@ function closeUpdatePrompt() {
   if (els.updatePrompt.open) els.updatePrompt.close("later");
 }
 
-els.form.addEventListener("submit", async (event) => {
-  event.preventDefault();
+async function handleSubmit() {
   const text = els.input.value.trim();
   if (!text) return;
 
@@ -552,6 +551,11 @@ els.form.addEventListener("submit", async (event) => {
   }
   renderConversation();
   scrollConversationToBottom();
+}
+
+els.form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  handleSubmit();
 });
 
 els.input.addEventListener("input", () => {
@@ -560,9 +564,12 @@ els.input.addEventListener("input", () => {
 });
 
 els.input.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+  // Enter = gönder (Shift+Enter = yeni satır). Mac dahil tüm platformlarda
+  // çalışsın diye requestSubmit yerine doğrudan handleSubmit çağrılır.
+  const isEnter = event.key === "Enter" || event.keyCode === 13;
+  if (isEnter && !event.shiftKey && !event.isComposing && event.keyCode !== 229) {
     event.preventDefault();
-    els.form.requestSubmit();
+    handleSubmit();
   }
 });
 

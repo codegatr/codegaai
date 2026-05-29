@@ -4,6 +4,23 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 55 — Enter ile gönderme düzeltmesi (Mac) (29 May 2026, Claude)
+
+Kullanıcı: Mac sürümünde Enter sohbeti göndermiyor.
+
+Sebep: keydown işleyicisi `els.form.requestSubmit()` çağırıyordu; bu yol Mac'te
+beklendiği gibi çalışmadı.
+
+Düzeltme (renderer.js): gönderme mantığı ortak `handleSubmit()` fonksiyonuna
+alındı. Form submit listener ve Enter keydown İKİSİ de doğrudan handleSubmit
+çağırıyor (requestSubmit'e bağımlılık kalktı). Enter algısı keyCode 13 ile de
+desteklendi; Shift+Enter yeni satır; isComposing/229 (IME) korundu.
+
+Surum 0.5.0 -> **0.5.1**.
+
+---
+
+
 ## ✅ Faz 54 — macOS derleme desteği (29 May 2026, Claude)
 
 İstek: Macbook için derleme.
