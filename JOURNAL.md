@@ -4,6 +4,39 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 56 — Ollama kur butonu + dürüst paylaşım + paylaşım sunucusu durumu (29 May 2026, Claude)
+
+Üç konu:
+
+1) OLLAMA KURULUMU (Mac uyarısı):
+   - Sistem yazılımını SESSİZCE/ONAYSIZ kurmuyoruz (güvenlik + güvenilirlik:
+     admin parolası, başarısızlık riski). Bunun yerine tek-tık: Ayarlar > Zekâ &
+     Model > "Ollama Kur" → ollama:install IPC → platforma uygun resmi indirme
+     sayfasını açar (shell.openExternal). main IPC + preload + buton eklendi.
+
+2) "LİNK OLARAK PAYLAŞ" neden çalışmıyor:
+   - Tespit: ai.codega.com.tr TÜM yollara 403 → paylaşım/federation PHP sunucusu
+     orada DEPLOY EDİLMEMİŞ. İstemci sunucu yokken bozuk bir file://...#share=
+     linkine düşüyordu (Electron'da işe yaramaz) + navigator.share yok.
+   - Sunucu kodu deploy/federation-php/ içinde TAM (DB schema, share endpoint,
+     admin/status paneli, DirectAdmin README). Sadece deploy gerekiyor.
+   - İstemci düzeltildi: shareChat artık sunucudan GERÇEK url alırsa kopyalar;
+     sunucu yoksa bozuk link üretmek yerine NET uyarı verir
+     ("ai.codega.com.tr yayında değil, sunucu kurulmalı"). file:// fallback kaldırıldı.
+
+3) MİMARİ DÜRÜSTLÜĞÜ: Link paylaşımı doğası gereği SUNUCU ister (birinin URL'yi
+   açıp görmesi için içerik bir yerde barınmalı). "Tamamen bağımsız/yerel" = AI
+   beyni yerel; paylaşım ise opsiyonel sunucu bileşeni. İkisi birlikte yaşar.
+
+DEPLOY ADIMLARI (kullanıcı, DirectAdmin): deploy/federation-php/public/ ->
+public_html/api/federation/ ; config.sample.php -> config.php (DB + admin_token);
+DB oluştur; health/status/admin uçlarını aç. (README'de ayrıntılı.)
+
+Test 17/17. Surum 0.5.1 -> **0.5.2**.
+
+---
+
+
 ## ✅ Faz 55 — Enter ile gönderme düzeltmesi (Mac) (29 May 2026, Claude)
 
 Kullanıcı: Mac sürümünde Enter sohbeti göndermiyor.

@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld("codega", {
   testGithub: () => ipcRenderer.invoke("github:test"),
   syncKnowledgeUp: () => ipcRenderer.invoke("knowledge:syncUp"),
   syncKnowledgeDown: () => ipcRenderer.invoke("knowledge:syncDown"),
+  installOllama: () => ipcRenderer.invoke("ollama:install"),
   onModelStatus: (callback) => {
     ipcRenderer.on("model:status", (_event, payload) => callback(payload));
   },

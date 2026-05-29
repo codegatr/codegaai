@@ -46,6 +46,7 @@ const els = {
   knowledgeDown: document.getElementById("knowledge-down"),
   knowledgeUp: document.getElementById("knowledge-up"),
   knowledgeStatus: document.getElementById("knowledge-status"),
+  installOllama: document.getElementById("install-ollama"),
 };
 
 function escapeHtml(value) {
@@ -263,32 +264,27 @@ function buildShareLink(chat) {
 async function shareChat(chatId) {
   const chat = state.chats.find((item) => item.id === chatId);
   if (!chat) return;
-  let url = buildShareLink(chat);
+  setTransientStatus("Paylaşım linki oluşturuluyor...");
   try {
     const remote = await window.codega.shareChat({
       title: chat.title,
       messages: chat.messages,
     });
-    if (remote?.url) {
-      url = remote.url;
+    if (remote && remote.url) {
+      try {
+        await navigator.clipboard.writeText(remote.url);
+        setTransientStatus(`Paylaşım linki kopyalandı: ${remote.url}`);
+      } catch {
+        setTransientStatus(`Paylaşım linki: ${remote.url}`);
+      }
+      return;
     }
+    setTransientStatus("Paylaşım sunucusu beklenmedik bir yanıt verdi.");
   } catch (error) {
-    console.warn("Uzak paylaşım servisi kullanılamadı, yerel link üretildi", error);
-  }
-  try {
-    if (navigator.share) {
-      await navigator.share({ title: chat.title, text: "CODEGA AI sohbeti", url });
-    } else {
-      await navigator.clipboard.writeText(url);
-      setTransientStatus("Paylaşım linki kopyalandı");
-    }
-  } catch (error) {
-    try {
-      await navigator.clipboard.writeText(url);
-      setTransientStatus("Paylaşım linki kopyalandı");
-    } catch {
-      setTransientStatus("Link kopyalanamadı");
-    }
+    console.warn("Uzak paylaşım servisi kullanılamadı", error);
+    setTransientStatus(
+      "Paylaşım sunucusu (ai.codega.com.tr) yayında değil. Link paylaşımı için sunucu kurulmalı."
+    );
   }
 }
 
@@ -636,6 +632,18 @@ els.githubTest.addEventListener("click", async () => {
 });
 
 els.toggleIdle.addEventListener("click", () => toggleSetting("idleLearning", els.toggleIdle));
+
+els.installOllama.addEventListener("click", async () => {
+  els.installOllama.disabled = true;
+  try {
+    await window.codega.installOllama();
+    setTransientStatus("Ollama indirme sayfası açıldı. Kurduktan sonra uygulamayı yeniden başlat.");
+  } catch (error) {
+    setTransientStatus(`Açılamadı: ${error.message || error}`);
+  } finally {
+    els.installOllama.disabled = false;
+  }
+});
 
 els.knowledgeUp.addEventListener("click", async () => {
   els.knowledgeUp.disabled = true;

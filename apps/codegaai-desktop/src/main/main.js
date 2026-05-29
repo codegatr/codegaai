@@ -93,6 +93,18 @@ function registerIpc() {
   ipcMain.handle("github:test", async () => githubClient.testConnection());
   ipcMain.handle("knowledge:syncUp", async () => knowledge.syncUp());
   ipcMain.handle("knowledge:syncDown", async () => knowledge.syncDown());
+
+  ipcMain.handle("ollama:install", async () => {
+    // Güvenlik: sistem yazılımını sessizce/onaysız kurmuyoruz. Resmi indirme
+    // sayfasını açarız (tek tık). Platforma göre doğru sayfa.
+    const platform = process.platform;
+    let url = "https://ollama.com/download";
+    if (platform === "darwin") url = "https://ollama.com/download/mac";
+    else if (platform === "win32") url = "https://ollama.com/download/windows";
+    else if (platform === "linux") url = "https://ollama.com/download/linux";
+    await shell.openExternal(url);
+    return { ok: true, url };
+  });
 }
 
 app.whenReady().then(async () => {
