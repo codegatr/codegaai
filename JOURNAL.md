@@ -4,6 +4,31 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 53 — Düşünce tarzı / cevap disiplini (29 May 2026, Claude)
+
+Kullanıcı kanıt gönderdi: model "Konya genel bilgi"de ARAÇ KULLANMADAN uydurdu
+(nüfus 185.000 — yanlış; uydurma yer adları). "Ne kadar zekisin"de rolleri
+karıştırıp saçmaladı. İstek: "sen (Claude) olsan nasıl cevaplardın, o düşünce
+tarzını öğret."
+
+system-prompt.js baştan yazıldı — Claude-tarzı cevap disiplini:
+- ROLLER netleştirildi (sen=asistan, karşındaki=kullanıcı; kendin hakkında soruda
+  kendini anlat) → "ne kadar zekisin" karışıklığı hedeflendi.
+- UYDURMA YASAĞI + ZORUNLU ARAŞTIRMA: dünya bilgisi (şehir/kişi/tarih/istatistik/
+  güncel) → ÖNCE web_search/research; sayı/isim/tarih ASLA kafadan yazma.
+- Doğrudan, dürüst, soru boyutuna uygun uzunlukta cevap; bilmiyorsan açıkça söyle.
+- Few-shot örnekleri yenilendi: dünya-bilgisi (Konya→web_search), hesap, ve
+  kendin-hakkında (kısa/dürüst/gerçekçi) örneği eklendi.
+- Memory injection + humanTone korundu (testler geçiyor).
+
+NOT: Bu prompt seviyesinde güçlü bir iyileştirme; ama qwen2.5:3b talimatları yine
+de bazen atlar. qwen3:8b bu disiplini belirgin şekilde daha iyi takip eder.
+
+Test 17/17. Surum 0.4.1 -> **0.4.2**.
+
+---
+
+
 ## ✅ Faz 52 — Ayarlar ekranı toparlandı (29 May 2026, Claude)
 
 Kullanıcı: ayarlar uzun/düzensiz bir liste; toparla.
