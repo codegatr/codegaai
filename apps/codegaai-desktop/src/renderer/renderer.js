@@ -33,6 +33,12 @@ const els = {
   updateNow: document.getElementById("update-now"),
   updateLater: document.getElementById("update-later"),
   updateLaterX: document.getElementById("update-later-x"),
+  toggleLearning: document.getElementById("toggle-learning"),
+  toggleHuman: document.getElementById("toggle-human"),
+  toggleFederation: document.getElementById("toggle-federation"),
+  clearMemory: document.getElementById("clear-memory"),
+  memorySummary: document.getElementById("memory-summary"),
+  memoryList: document.getElementById("memory-list"),
 };
 
 function escapeHtml(value) {
@@ -183,7 +189,12 @@ function renderConversation() {
 
 function scrollConversationToBottom() {
   requestAnimationFrame(() => {
-    els.conversation.scrollTop = els.conversation.scrollHeight;
+    try {
+      els.conversation.scrollTop = els.conversation.scrollHeight;
+    } catch (_e) {
+      /* yoksay */
+    }
+    window.scrollTo({ top: document.documentElement.scrollHeight });
     els.conversation.lastElementChild?.scrollIntoView({ block: "end" });
   });
 }
@@ -552,6 +563,60 @@ document.getElementById("new-chat").addEventListener("click", () => createChat()
 els.settingsButton.addEventListener("click", async () => {
   els.settings.showModal();
   await refreshModels();
+  await refreshAgentSettings();
+});
+
+let agentSettings = null;
+
+function applyToggleLabel(button, on) {
+  button.textContent = on ? "Açık" : "Kapalı";
+}
+
+async function refreshAgentSettings() {
+  try {
+    agentSettings = await window.codega.getSettings();
+    applyToggleLabel(els.toggleLearning, !!agentSettings.autonomousLearning);
+    applyToggleLabel(els.toggleHuman, !!agentSettings.humanTone);
+    applyToggleLabel(els.toggleFederation, !!agentSettings.federation);
+  } catch (_e) {
+    /* ayar okunamadı */
+  }
+  try {
+    const facts = await window.codega.listMemory();
+    els.memorySummary.textContent = facts.length
+      ? `${facts.length} şey öğrenildi.`
+      : "Henüz bir şey öğrenmedim.";
+    els.memoryList.innerHTML = facts
+      .map((f) => `<div class="model-row"><div><p>${escapeHtml(f)}</p></div></div>`)
+      .join("");
+  } catch (_e) {
+    /* hafıza okunamadı */
+  }
+}
+
+async function toggleSetting(key, button) {
+  if (!agentSettings) agentSettings = await window.codega.getSettings();
+  const next = !agentSettings[key];
+  button.disabled = true;
+  try {
+    agentSettings = await window.codega.setSettings({ [key]: next });
+    applyToggleLabel(button, !!agentSettings[key]);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+els.toggleLearning.addEventListener("click", () => toggleSetting("autonomousLearning", els.toggleLearning));
+els.toggleHuman.addEventListener("click", () => toggleSetting("humanTone", els.toggleHuman));
+els.toggleFederation.addEventListener("click", () => toggleSetting("federation", els.toggleFederation));
+els.clearMemory.addEventListener("click", async () => {
+  els.clearMemory.disabled = true;
+  try {
+    await window.codega.clearMemory();
+    await refreshAgentSettings();
+  } finally {
+    els.clearMemory.disabled = false;
+  }
 });
 els.prepareModel.addEventListener("click", async () => {
   els.prepareModel.disabled = true;

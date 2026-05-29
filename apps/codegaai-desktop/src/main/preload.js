@@ -9,6 +9,10 @@ contextBridge.exposeInMainWorld("codega", {
   checkForUpdates: () => ipcRenderer.invoke("updates:check"),
   downloadUpdate: () => ipcRenderer.invoke("updates:download"),
   installUpdate: () => ipcRenderer.invoke("updates:install"),
+  getSettings: () => ipcRenderer.invoke("settings:get"),
+  setSettings: (patch) => ipcRenderer.invoke("settings:set", patch),
+  listMemory: () => ipcRenderer.invoke("memory:list"),
+  clearMemory: () => ipcRenderer.invoke("memory:clear"),
   onModelStatus: (callback) => {
     ipcRenderer.on("model:status", (_event, payload) => callback(payload));
   },

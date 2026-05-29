@@ -3,6 +3,8 @@ const { app, BrowserWindow, ipcMain, shell } = require("electron");
 const { APP_NAME, FEDERATION_BASE_URL } = require("../shared/constants");
 const { ModelManager } = require("./model-manager");
 const { UpdateService } = require("./update-service");
+const settingsStore = require("./agent/settings-store");
+const memory = require("./agent/memory");
 
 const modelManager = new ModelManager();
 const updateService = new UpdateService();
@@ -78,9 +80,20 @@ function registerIpc() {
   ipcMain.handle("updates:check", async () => updateService.check());
   ipcMain.handle("updates:download", async () => updateService.download());
   ipcMain.handle("updates:install", async () => updateService.installNow());
+
+  ipcMain.handle("settings:get", async () => settingsStore.getSettings());
+  ipcMain.handle("settings:set", async (_event, patch) => settingsStore.setSettings(patch));
+  ipcMain.handle("memory:list", async () => memory.listFacts());
+  ipcMain.handle("memory:clear", async () => memory.clearAll());
 }
 
 app.whenReady().then(async () => {
+  // Hafıza ve ayarlar kullanıcının userData dizininde kalıcı olsun
+  process.env.CODEGA_MEMORY_PATH =
+    process.env.CODEGA_MEMORY_PATH || path.join(app.getPath("userData"), "memory.json");
+  process.env.CODEGA_SETTINGS_PATH =
+    process.env.CODEGA_SETTINGS_PATH || path.join(app.getPath("userData"), "agent-settings.json");
+
   registerIpc();
   createWindow();
   updateService.start();

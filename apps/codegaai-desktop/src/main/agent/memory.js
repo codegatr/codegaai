@@ -65,4 +65,36 @@ function recall(query, limit = 5) {
   return scored;
 }
 
-module.exports = { remember, recall, memoryPath };
+/** Tüm öğrenilen gerçekleri döndür (Ayarlar görüntüleyici için). */
+function listFacts() {
+  return load().facts.map((f) => f.text);
+}
+
+/** Belleği tamamen temizle. */
+function clearAll() {
+  save({ facts: [] });
+  return true;
+}
+
+/**
+ * Otonom öğrenme — kullanıcı mesajından KALICI kişisel gerçekleri çıkar.
+ * Gürültüyü önlemek için yalnızca net kalıplar (ad, yaş, yaşadığı yer). Diğer her
+ * şey için ajan zaten `remember` aracını kullanabilir.
+ */
+function extractDurableFacts(text) {
+  const s = String(text || "").trim();
+  const facts = [];
+  let m;
+  if ((m = s.match(/(?:benim\s+)?(?:ad[ıi]m|ismim)\s+([A-Za-zÇĞİıÖŞÜçğöşü]{2,})/i))) {
+    facts.push(`Kullanıcının adı ${m[1]}`);
+  }
+  if ((m = s.match(/ben\s+(\d{1,2})\s+yaş[ıi]nday[ıi]m/i))) {
+    facts.push(`Kullanıcı ${m[1]} yaşında`);
+  }
+  if ((m = s.match(/([A-Za-zÇĞİıÖŞÜçğöşü]{2,})['’]?(?:de|da|te|ta)\s+(?:yaş[ıi]yorum|oturuyorum)/i))) {
+    facts.push(`Kullanıcı ${m[1]} şehrinde yaşıyor`);
+  }
+  return facts;
+}
+
+module.exports = { remember, recall, memoryPath, listFacts, clearAll, extractDurableFacts };

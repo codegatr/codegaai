@@ -173,4 +173,51 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("stripToolCalls: kalıntı temizleme");
 }
 
+// 13) Ayar deposu (geçici dosyada)
+{
+  const tmpSettings = path.join(os.tmpdir(), `codega-set-${Date.now()}.json`);
+  process.env.CODEGA_SETTINGS_PATH = tmpSettings;
+  const settingsMod = await import(path.join(mainDir, "agent", "settings-store.js"));
+  const settings = settingsMod.default || settingsMod;
+  const def = settings.getSettings();
+  assert.strictEqual(def.autonomousLearning, true, "varsayılan açık");
+  const next = settings.setSettings({ autonomousLearning: false });
+  assert.strictEqual(next.autonomousLearning, false);
+  assert.strictEqual(settings.getSettings().autonomousLearning, false, "kalıcı");
+  fs.rmSync(tmpSettings, { force: true });
+  ok("Ayar deposu: get/set/kalıcılık");
+}
+
+// 14) Otonom öğrenme: çıkarım + recall + temizleme
+{
+  const tmpMem2 = path.join(os.tmpdir(), `codega-mem2-${Date.now()}.json`);
+  process.env.CODEGA_MEMORY_PATH = tmpMem2;
+  const facts = memory.extractDurableFacts("Merhaba, benim adım Yunus ve Konya'da yaşıyorum.");
+  assert.ok(facts.some((f) => f.includes("Yunus")), "ad çıkarılmalı");
+  assert.ok(facts.some((f) => f.includes("Konya")), "şehir çıkarılmalı");
+  for (const f of facts) memory.remember(f);
+  assert.ok(memory.listFacts().length >= 2, "öğrenilenler listelenmeli");
+  assert.ok(memory.recall("nerede yaşıyor").some((h) => h.includes("Konya")));
+  memory.clearAll();
+  assert.strictEqual(memory.listFacts().length, 0, "temizlenmeli");
+  fs.rmSync(tmpMem2, { force: true });
+  ok("Otonom öğrenme: çıkarım + recall + temizleme");
+}
+
+// 15) System prompt hafızayı enjekte ediyor + insansı üslup
+{
+  const spMod = await import(path.join(mainDir, "agent", "system-prompt.js"));
+  const sp = spMod.default || spMod;
+  const withMem = sp.buildSystemPrompt("chat", {
+    memory: ["Kullanıcının adı Yunus", "Kullanıcı Konya şehrinde yaşıyor"],
+    humanTone: true,
+  });
+  assert.ok(withMem.includes("hatırladıkların"), "hafıza başlığı olmalı");
+  assert.ok(withMem.includes("Yunus"), "hafıza içeriği enjekte edilmeli");
+  assert.ok(withMem.includes("İnsansı ol"), "insansı üslup talimatı olmalı");
+  const noMem = sp.buildSystemPrompt("chat", { memory: [], humanTone: false });
+  assert.ok(!noMem.includes("hatırladıkların"), "hafıza yoksa başlık olmamalı");
+  ok("System prompt: hafıza enjeksiyonu + insansı üslup");
+}
+
 console.log(`\n${passed} test geçti ✅`);

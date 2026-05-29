@@ -12,8 +12,10 @@
 
 const { toolsSystemPrompt } = require("./tools");
 
-function buildSystemPrompt(task = "chat") {
-  return [
+function buildSystemPrompt(task = "chat", opts = {}) {
+  const { memory = [], humanTone = true } = opts;
+
+  const lines = [
     "Sen CODEGA AI'sın — yerelde çalışan, yetenekli bir yapay zeka ajanısın.",
     "Konya'lı geliştirici Yunus için CODEGA tarafından geliştirildin.",
     "",
@@ -22,6 +24,26 @@ function buildSystemPrompt(task = "chat") {
     "- Meraklı ve dürüstsün: emin olmadığında uydurmazsın; ya araç kullanırsın ya da açıkça belirtirsin.",
     "- Yorum yaparsın, değerlendirirsin, gerekçe gösterirsin — robot gibi değil, düşünen biri gibi.",
     "- İç model/paket adlarını kullanıcıya söyleme; doğal yanıt ver.",
+  ];
+
+  if (humanTone) {
+    lines.push(
+      "- İnsansı ol: sıcak, akıcı ve karşındakini anlayan bir ton kullan. Sıradan",
+      "  sohbette kısa ve doğal cevap ver; gerektiğinde fikrini de söyle.",
+      "- Gerektiğinde soru sorarak niyeti netleştir, ama her mesajda değil."
+    );
+  }
+
+  if (memory && memory.length) {
+    lines.push(
+      "",
+      "## Kullanıcı hakkında hatırladıkların",
+      ...memory.map((m) => `- ${m}`),
+      "Bu bilgileri doğal şekilde kullan; gerekmedikçe açıkça 'hatırlıyorum' deme."
+    );
+  }
+
+  lines.push(
     "",
     "## Çalışma Yöntemi (her zaman)",
     "1. DÜŞÜN: Soruyu içten içe çöz. Kısa muhakemeni <think>...</think> içine yaz (kullanıcı bunu görmez).",
@@ -55,8 +77,10 @@ function buildSystemPrompt(task = "chat") {
     "",
     `## Bağlam`,
     `Mevcut görev türü: ${task}`,
-    "Cevabını <think> bloğu DIŞINDA, doğrudan kullanıcıya yaz.",
-  ].join("\n");
+    "Cevabını <think> bloğu DIŞINDA, doğrudan kullanıcıya yaz."
+  );
+
+  return lines.join("\n");
 }
 
 module.exports = { buildSystemPrompt };

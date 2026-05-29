@@ -14,6 +14,8 @@ const {
 const { ollamaChat, ollamaReachable } = require("./agent/ollama-client");
 const { runReact } = require("./agent/agent-loop");
 const { buildSystemPrompt } = require("./agent/system-prompt");
+const { getSettings } = require("./agent/settings-store");
+const { recall, remember, extractDurableFacts } = require("./agent/memory");
 
 const MAX_HISTORY_MESSAGES = 12; // son ~6 turu hatırla
 
@@ -438,9 +440,16 @@ class ModelManager {
       message: "Düşünüyorum...",
     };
 
-    // Mesaj dizisi: system (karakter + araç protokolü) + geçmiş + kullanıcı
+    // Otonom öğrenme: kullanıcı hakkında hatırladıklarını system prompt'a kat
+    const settings = getSettings();
+    const memory = settings.autonomousLearning ? recall(input, 4) : [];
+
+    // Mesaj dizisi: system (karakter + hafıza + araç protokolü) + geçmiş + kullanıcı
     const messages = [
-      { role: "system", content: buildSystemPrompt(task) },
+      {
+        role: "system",
+        content: buildSystemPrompt(task, { memory, humanTone: settings.humanTone }),
+      },
       ...this.history,
       { role: "user", content: input },
     ];
@@ -484,6 +493,15 @@ class ModelManager {
     this.history.push({ role: "assistant", content: text });
     if (this.history.length > MAX_HISTORY_MESSAGES) {
       this.history = this.history.slice(-MAX_HISTORY_MESSAGES);
+    }
+
+    // Otonom öğrenme: kullanıcı mesajından kalıcı kişisel gerçekleri öğren
+    if (settings.autonomousLearning) {
+      try {
+        for (const fact of extractDurableFacts(input)) remember(fact);
+      } catch (_e) {
+        // öğrenme hatası sohbeti etkilemesin
+      }
     }
 
     this.state = {

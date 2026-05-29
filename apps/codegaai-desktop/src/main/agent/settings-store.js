@@ -1,0 +1,41 @@
+"use strict";
+/**
+ * agent/settings-store.js
+ * ------------------------
+ * Ajan davranış ayarları (kalıcı JSON). Electron'a bağımlı değil → test edilebilir.
+ * Dosya yolu process.env.CODEGA_SETTINGS_PATH ile verilir; yoksa ev dizinine düşer.
+ */
+
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+
+const DEFAULTS = {
+  autonomousLearning: true, // kullanıcı hakkında öğren + hatırla
+  humanTone: true, // daha insansı, sıcak üslup
+  federation: false, // federe ağ (deneysel, varsayılan kapalı)
+};
+
+function settingsPath() {
+  if (process.env.CODEGA_SETTINGS_PATH) return process.env.CODEGA_SETTINGS_PATH;
+  return path.join(os.homedir(), ".codega-ai", "agent-settings.json");
+}
+
+function getSettings() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(settingsPath(), "utf8"));
+    return { ...DEFAULTS, ...raw };
+  } catch (_e) {
+    return { ...DEFAULTS };
+  }
+}
+
+function setSettings(patch) {
+  const next = { ...getSettings(), ...(patch || {}) };
+  const p = settingsPath();
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, JSON.stringify(next, null, 2), "utf8");
+  return next;
+}
+
+module.exports = { DEFAULTS, getSettings, setSettings, settingsPath };

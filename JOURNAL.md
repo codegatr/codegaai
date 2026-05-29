@@ -4,6 +4,39 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 50 — Otonom öğrenme + Ayarlar + navbar/oto-scroll (29 May 2026, Claude)
+
+Kullanıcı istekleri: navbar düzgün sabit, sohbet oto-scroll, Otonom Öğrenme/Federe
+Ağ ayarları, daha insansı + kendi kendine öğrenen ajan.
+
+NAVBAR (bu sefer DÜŞÜK RİSK — body height/overflow'a DOKUNULMADI):
+- styles.css: `.history-panel{position:fixed}` ile sidebar sabitlendi;
+  `.shell{grid-column:2}` (fixed sidebar flow'dan çıkınca col2'de kalsın);
+  media query'de `.shell{grid-column:1}`. Sayfa eskisi gibi kayar ama navbar sabit.
+- renderer scrollConversationToBottom() artık window'u da kaydırıyor → cevapta oto-scroll.
+- NOT: 49.4'teki tüm-layout-100vh yaklaşımı ekranı bozmuştu; o yüzden minimal yol seçildi.
+
+OTONOM ÖĞRENME (GERÇEK, sahte toggle değil):
+- settings-store.js: kalıcı ayarlar (autonomousLearning/humanTone/federation).
+- memory.js: listFacts/clearAll + extractDurableFacts (ad/yaş/şehir — temkinli).
+- model-manager.ask(): her turda recall(input) → system prompt'a "hatırladıkların"
+  enjekte; cevap sonrası kullanıcı mesajından kalıcı gerçekleri öğren.
+- system-prompt.js: hafıza enjeksiyonu + insansı üslup talimatı.
+
+AYARLAR ARAYÜZÜ (mevcut .settings-row deseni, YENİ CSS YOK):
+- Toggle: Otonom Öğrenme / İnsansı Üslup / Federe Ağ (deneysel — yalnız tercih kaydı).
+- Öğrenilenler (Hafıza) görüntüleyici + Temizle.
+- IPC: settings:get/set, memory:list/clear; preload + main.js userData yolları.
+
+DÜRÜSTLÜK NOTU: "Federe Ağ" Electron tarafında gerçek bir dağıtık öğrenme yapmıyor;
+toggle yalnızca tercihi saklıyor (UI'da "deneysel" yazıyor). Sahte yetenek göstermemek
+için açıkça böyle bırakıldı. Otonom Öğrenme ise gerçekten çalışıyor (recall+öğrenme).
+
+Test: 15/15 (modelsiz/internetsiz). Surum 0.2.3 -> **0.3.0**.
+
+---
+
+
 ## ⏪ Faz 49.5 — Ekran (CSS) değişikliği GERİ ALINDI (29 May 2026, Claude)
 
 Faz 49.4 CSS kaydırma düzeltmesi ekran düzenini bozdu (kullanıcı bildirdi).

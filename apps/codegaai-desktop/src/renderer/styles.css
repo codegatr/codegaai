@@ -29,6 +29,14 @@ textarea {
 }
 
 .history-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 286px;
+  box-sizing: border-box;
+  z-index: 5;
+  overflow-y: auto;
   border-right: 1px solid var(--line);
   padding: 24px 18px;
   background: rgba(5, 5, 5, 0.96);
@@ -160,6 +168,7 @@ textarea {
 .shell {
   position: relative;
   min-width: 0;
+  grid-column: 2;
   display: grid;
   grid-template-rows: 1fr auto;
   background:
@@ -418,6 +427,10 @@ textarea {
 
   .history-panel {
     display: none;
+  }
+
+  .shell {
+    grid-column: 1;
   }
 
   .composer {
