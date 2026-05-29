@@ -22,6 +22,7 @@ const DEFAULTS = {
   ragEnabled: true, // semantik bellek/doküman getirimi (RAG)
   embedModel: "nomic-embed-text", // Ollama embedding modeli
   selfReflection: false, // cevabı denetleyip düzelt (yavaş; opt-in)
+  planner: false, // karmaşık hedefleri alt adımlara böl (opt-in)
 };
 
 function settingsPath() {

@@ -18,6 +18,7 @@ const { getSettings } = require("./agent/settings-store");
 const { recall, remember, extractDurableFacts } = require("./agent/memory");
 const rag = require("./agent/rag");
 const { reflect } = require("./agent/reflect");
+const { makePlan, looksLikeGoal } = require("./agent/planner");
 
 const MAX_HISTORY_MESSAGES = 12; // son ~6 turu hatırla
 
@@ -244,6 +245,7 @@ class ModelManager {
   constructor() {
     this.ollamaCommand = null;
     this.history = []; // sunucu-tarafı çok-turlu hafıza ({role, content})
+    this._queue = Promise.resolve(); // ask() serileştirme kuyruğu
     this.state = {
       provider: "instant",
       status: READY_STATES.CHECKING,
@@ -394,7 +396,19 @@ class ModelManager {
     return this.prepareModel(DEFAULT_MODEL, onProgress);
   }
 
-  async ask(input) {
+  // Aynı anda gelen mesajları SIRAYA al: yerel model tek seferde tek üretim
+  // yapsın (eşzamanlı istekler küçük modeli tıkar ve "Düşünüyorum"da bırakır).
+  ask(input) {
+    const run = () => this._ask(input);
+    const result = this._queue.then(run, run);
+    this._queue = result.then(
+      () => undefined,
+      () => undefined
+    );
+    return result;
+  }
+
+  async _ask(input) {
     const instant = instantAnswer(input);
     if (instant) {
       return {
@@ -457,7 +471,17 @@ class ModelManager {
       }
     }
 
-    // Mesaj dizisi: system (karakter + hafıza + RAG + araç protokolü) + geçmiş + kullanıcı
+    // Hedef-odaklı planlama (opt-in): karmaşık hedefi alt adımlara böl
+    let plan = [];
+    if (settings.planner && looksLikeGoal(input)) {
+      try {
+        plan = await makePlan(input, (msgs) => this.generate(selectedModel, msgs));
+      } catch (_e) {
+        plan = [];
+      }
+    }
+
+    // Mesaj dizisi: system (karakter + hafıza + RAG + plan + araç protokolü) + geçmiş + kullanıcı
     const messages = [
       {
         role: "system",
@@ -465,6 +489,7 @@ class ModelManager {
           memory,
           humanTone: settings.humanTone,
           ragContext,
+          plan,
         }),
       },
       ...this.history,

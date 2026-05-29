@@ -7,6 +7,7 @@ const settingsStore = require("./agent/settings-store");
 const memory = require("./agent/memory");
 const knowledge = require("./agent/knowledge");
 const githubClient = require("./agent/github-client");
+const rag = require("./agent/rag");
 
 const modelManager = new ModelManager();
 const updateService = new UpdateService();

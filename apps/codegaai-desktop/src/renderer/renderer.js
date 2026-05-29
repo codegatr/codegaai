@@ -36,6 +36,7 @@ const els = {
   toggleLearning: document.getElementById("toggle-learning"),
   toggleHuman: document.getElementById("toggle-human"),
   toggleReflection: document.getElementById("toggle-reflection"),
+  togglePlanner: document.getElementById("toggle-planner"),
   toggleFederation: document.getElementById("toggle-federation"),
   clearMemory: document.getElementById("clear-memory"),
   memorySummary: document.getElementById("memory-summary"),
@@ -525,9 +526,13 @@ function closeUpdatePrompt() {
   if (els.updatePrompt.open) els.updatePrompt.close("later");
 }
 
+let isSending = false;
+
 async function handleSubmit() {
+  if (isSending) return; // önceki cevap dönmeden yeni istek gönderme
   const text = els.input.value.trim();
   if (!text) return;
+  isSending = true;
 
   appendMessage("user", text);
   checkUpdatesAfterFirstQuery();
@@ -550,6 +555,7 @@ async function handleSubmit() {
     placeholder.text = `Bir aksama oldu: ${error.message || error}`;
   } finally {
     clearTimeout(slowNotice);
+    isSending = false;
   }
   renderConversation();
   scrollConversationToBottom();
@@ -594,6 +600,7 @@ async function refreshAgentSettings() {
     applyToggleLabel(els.toggleLearning, !!agentSettings.autonomousLearning);
     applyToggleLabel(els.toggleHuman, !!agentSettings.humanTone);
     applyToggleLabel(els.toggleReflection, !!agentSettings.selfReflection);
+    applyToggleLabel(els.togglePlanner, !!agentSettings.planner);
     applyToggleLabel(els.toggleFederation, !!agentSettings.federation);
     applyToggleLabel(els.toggleIdle, !!agentSettings.idleLearning);
     els.knowledgeRepo.value = agentSettings.knowledgeRepo || "";
@@ -747,6 +754,7 @@ async function toggleSetting(key, button) {
 els.toggleLearning.addEventListener("click", () => toggleSetting("autonomousLearning", els.toggleLearning));
 els.toggleHuman.addEventListener("click", () => toggleSetting("humanTone", els.toggleHuman));
 els.toggleReflection.addEventListener("click", () => toggleSetting("selfReflection", els.toggleReflection));
+els.togglePlanner.addEventListener("click", () => toggleSetting("planner", els.togglePlanner));
 els.toggleFederation.addEventListener("click", () => toggleSetting("federation", els.toggleFederation));
 els.clearMemory.addEventListener("click", async () => {
   els.clearMemory.disabled = true;

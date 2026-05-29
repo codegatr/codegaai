@@ -4,6 +4,30 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 59 — Takılma düzeltmesi + Görev planlayıcı (29 May 2026, Claude)
+
+A) KRİTİK HATA: güncelleme sonrası cevaplar "Düşünüyorum..."da takılıyordu.
+Nedenler ve düzeltmeler:
+- Kullanıcı arka arkaya birden çok mesaj atınca hepsi AYNI ANDA yerel modele
+  gidiyordu → küçük model tıkanıp her istek 90s timeout'a kadar asılı kalıyordu.
+  → ModelManager.ask() artık SIRAYA alıyor (this._queue ile tek seferde tek
+    üretim). + renderer'da isSending guard: önceki cevap dönmeden yeni gönderim yok.
+- main.js `rag`'i kullanıyor ama require ETMEMİŞ → rag:ingest/stats/clear kırıktı.
+  → require eklendi.
+
+B) SIRADAKİ EN GEREKLİ (yol haritası #5): HEDEF-ODAKLI GÖREV PLANLAYICI.
+- planner.js: looksLikeGoal (hedef mi?) + buildPlanMessages + parsePlan (numaralı/
+  madde adımları) + makePlan. Saf fonksiyonlar test edildi.
+- model-manager.ask: settings.planner açık VE input bir hedefse → önce plan üret,
+  system-prompt'a "## Çözüm planı (bu adımları izle)" olarak enjekte et.
+- settings.planner (varsayılan KAPALI, opt-in). Ayarlar > Ajan Davranışı >
+  "Görev Planlama" toggle.
+
+Test 21/21. Surum 0.7.0 -> **0.8.0**.
+
+---
+
+
 ## ✅ Faz 58 — Öz değerlendirme (self-reflection) katmanı (29 May 2026, Claude)
 
 Kullanıcı 18 ileri yetenek listeledi ve doğru tespiti yaptı: zekâ tek model değil,

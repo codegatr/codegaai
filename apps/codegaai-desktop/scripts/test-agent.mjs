@@ -299,4 +299,24 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Öz değerlendirme: OK/düzeltme/hata-güvenli");
 }
 
+// 21) Görev planlayıcı: parse + looksLikeGoal + makePlan
+{
+  const plMod = await import(path.join(mainDir, "agent", "planner.js"));
+  const planner = plMod.default || plMod;
+  const steps = planner.parsePlan("1. Repoyu klonla\n2. Bağımlılıkları kur\n3. Testleri çalıştır");
+  assert.strictEqual(steps.length, 3);
+  assert.strictEqual(steps[0], "Repoyu klonla");
+  assert.strictEqual(planner.parsePlan("- adım bir\n* adım iki").length, 2);
+  assert.strictEqual(planner.looksLikeGoal("selam"), false);
+  assert.strictEqual(
+    planner.looksLikeGoal("php ile bir blog sitesi oluştur ve sonra veritabanına bağla"),
+    true
+  );
+  const plan = await planner.makePlan("X yap", async () => "1. ilk\n2. ikinci");
+  assert.ok(plan.length === 2 && plan[0] === "ilk");
+  const safe = await planner.makePlan("X", async () => { throw new Error("yok"); });
+  assert.deepStrictEqual(safe, []);
+  ok("Görev planlayıcı: parse/looksLikeGoal/makePlan");
+}
+
 console.log(`\n${passed} test geçti ✅`);

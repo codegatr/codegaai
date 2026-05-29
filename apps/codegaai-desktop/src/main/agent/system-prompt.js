@@ -13,7 +13,7 @@
 const { toolsSystemPrompt } = require("./tools");
 
 function buildSystemPrompt(task = "chat", opts = {}) {
-  const { memory = [], humanTone = true, ragContext = [] } = opts;
+  const { memory = [], humanTone = true, ragContext = [], plan = [] } = opts;
 
   const lines = [
     "Sen CODEGA AI'sın — yerelde çalışan yetenekli bir yapay zeka ajanısın.",
@@ -61,6 +61,15 @@ function buildSystemPrompt(task = "chat", opts = {}) {
       "## İlgili belge/bilgi (bilgi tabanından)",
       ...ragContext.map((c) => `- ${c}`),
       "Bu kaynaklara dayan; bunlarda yoksa uydurma, gerekirse araç kullan."
+    );
+  }
+
+  if (plan && plan.length) {
+    lines.push(
+      "",
+      "## Çözüm planı (bu adımları izle)",
+      ...plan.map((step, i) => `${i + 1}. ${step}`),
+      "Adımları sırayla uygula; her adımda gerekiyorsa araç kullan. Sonunda net bir sonuç ver."
     );
   }
 
