@@ -278,9 +278,26 @@ async function toolGithubDispatch(repoSpec, workflow, ref) {
   }
 }
 
+// ----------------------------------------------------------------- rag tool
+const rag = require("./rag");
+
+async function toolRagSearch(query) {
+  try {
+    const hits = await rag.search(query, 4);
+    if (!hits.length) return "Bilgi tabanında ilgili bir şey bulunamadı.";
+    return (
+      "📚 Bilgi tabanı:\n" +
+      hits.map((h) => `• [${h.title}] ${h.text.slice(0, 400)}`).join("\n\n")
+    );
+  } catch (e) {
+    return `⚠️ RAG arama hatası: ${e.message || e}`;
+  }
+}
+
 const TOOLS = {
   web_search: { fn: toolWebSearch, desc: "İnternette güncel bilgi ara (DuckDuckGo)" },
   research: { fn: toolResearch, desc: "Bir konuyu çok kaynaktan araştır (ara + sayfaları oku + birleştir)" },
+  rag_search: { fn: toolRagSearch, desc: "Yerel bilgi tabanında (eklenen doküman/notlar) ara" },
   read_url: { fn: toolReadUrl, desc: "Bir web sayfasının içeriğini oku" },
   github_read: { fn: toolGithubRead, desc: 'GitHub repo dosyası oku: owner/repo/yol[@ref]' },
   github_list: { fn: toolGithubList, desc: "GitHub repo dizinini listele: owner/repo[/dizin]" },
@@ -396,12 +413,13 @@ function toolsSystemPrompt() {
     "Kurallar:",
     "1. Güncel/değişen bilgi (haber, fiyat, hava, tarih) → web_search veya weather.",
     "2. Bir konuyu DERİNLEMESİNE öğrenmen/karşılaştırman gerekiyorsa → research (çok kaynak).",
-    "3. Sayısal işlem → calculate. Asla kafadan hesaplama.",
-    "4. Belirli bir kaynağı incelemen gerekiyorsa → read_url.",
-    "5. Kod/repo incelemen gerekiyorsa → github_read / github_list / github_search.",
-    "6. Kullanıcı bir workflow/derleme tetiklemeni isterse → github_dispatch.",
-    "7. Kullanıcı hakkında kalıcı bilgi → remember; gerektiğinde recall.",
-    "8. Araç sonucu gelince ONU OKU, üstüne düşün; gerekiyorsa yeni araç çağır, yeterliyse net cevabı yaz.",
+    "3. Kullanıcının eklediği doküman/nota dayalı soru → rag_search (yerel bilgi tabanı).",
+    "4. Sayısal işlem → calculate. Asla kafadan hesaplama.",
+    "5. Belirli bir kaynağı incelemen gerekiyorsa → read_url.",
+    "6. Kod/repo incelemen gerekiyorsa → github_read / github_list / github_search.",
+    "7. Kullanıcı bir workflow/derleme tetiklemeni isterse → github_dispatch.",
+    "8. Kullanıcı hakkında kalıcı bilgi → remember; gerektiğinde recall.",
+    "9. Araç sonucu gelince ONU OKU, üstüne düşün; gerekiyorsa yeni araç çağır, yeterliyse net cevabı yaz.",
   ].join("\n");
 }
 

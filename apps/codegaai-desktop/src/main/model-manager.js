@@ -16,6 +16,7 @@ const { runReact } = require("./agent/agent-loop");
 const { buildSystemPrompt } = require("./agent/system-prompt");
 const { getSettings } = require("./agent/settings-store");
 const { recall, remember, extractDurableFacts } = require("./agent/memory");
+const rag = require("./agent/rag");
 
 const MAX_HISTORY_MESSAGES = 12; // son ~6 turu hatırla
 
@@ -444,11 +445,26 @@ class ModelManager {
     const settings = getSettings();
     const memory = settings.autonomousLearning ? recall(input, 4) : [];
 
-    // Mesaj dizisi: system (karakter + hafıza + araç protokolü) + geçmiş + kullanıcı
+    // RAG: eklenen doküman/bilgi tabanından alakalı parçaları getir
+    let ragContext = [];
+    if (settings.ragEnabled) {
+      try {
+        const hits = await rag.search(input, 4);
+        ragContext = hits.map((h) => `[${h.title}] ${h.text}`);
+      } catch (_e) {
+        ragContext = [];
+      }
+    }
+
+    // Mesaj dizisi: system (karakter + hafıza + RAG + araç protokolü) + geçmiş + kullanıcı
     const messages = [
       {
         role: "system",
-        content: buildSystemPrompt(task, { memory, humanTone: settings.humanTone }),
+        content: buildSystemPrompt(task, {
+          memory,
+          humanTone: settings.humanTone,
+          ragContext,
+        }),
       },
       ...this.history,
       { role: "user", content: input },

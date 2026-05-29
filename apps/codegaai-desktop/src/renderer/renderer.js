@@ -47,6 +47,11 @@ const els = {
   knowledgeUp: document.getElementById("knowledge-up"),
   knowledgeStatus: document.getElementById("knowledge-status"),
   installOllama: document.getElementById("install-ollama"),
+  ragStats: document.getElementById("rag-stats"),
+  ragClear: document.getElementById("rag-clear"),
+  ragTitle: document.getElementById("rag-title"),
+  ragText: document.getElementById("rag-text"),
+  ragAdd: document.getElementById("rag-add"),
 };
 
 function escapeHtml(value) {
@@ -608,7 +613,54 @@ async function refreshAgentSettings() {
   } catch (_e) {
     /* hafıza okunamadı */
   }
+  try {
+    const rs = await window.codega.ragStats();
+    els.ragStats.textContent = rs.chunks
+      ? `${rs.documents} doküman / ${rs.chunks} parça (${rs.embedded} gömülü).`
+      : "Doküman/not ekle; sorularında bunlardan yararlanır.";
+  } catch (_e) {
+    /* rag okunamadı */
+  }
 }
+
+els.ragAdd.addEventListener("click", async () => {
+  const text = els.ragText.value.trim();
+  if (!text) {
+    setTransientStatus("Eklenecek metin boş.");
+    return;
+  }
+  els.ragAdd.disabled = true;
+  els.ragStats.textContent = "Bilgi tabanına ekleniyor...";
+  try {
+    const res = await window.codega.ragIngest({
+      title: els.ragTitle.value.trim() || "Doküman",
+      text,
+    });
+    els.ragText.value = "";
+    els.ragTitle.value = "";
+    setTransientStatus(
+      res.embedded
+        ? `Eklendi: ${res.added} parça (semantik gömme ile).`
+        : `Eklendi: ${res.added} parça (Ollama kapalı → anahtar kelime modu).`
+    );
+    await refreshAgentSettings();
+  } catch (error) {
+    setTransientStatus(`Eklenemedi: ${error.message || error}`);
+  } finally {
+    els.ragAdd.disabled = false;
+  }
+});
+
+els.ragClear.addEventListener("click", async () => {
+  els.ragClear.disabled = true;
+  try {
+    await window.codega.ragClear();
+    await refreshAgentSettings();
+    setTransientStatus("Bilgi tabanı temizlendi.");
+  } finally {
+    els.ragClear.disabled = false;
+  }
+});
 
 async function saveGithubFields() {
   const patch = { knowledgeRepo: els.knowledgeRepo.value.trim() };

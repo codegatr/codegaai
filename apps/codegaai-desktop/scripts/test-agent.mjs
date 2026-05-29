@@ -245,4 +245,36 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Knowledge: JSONL/düz satır ayrıştırma");
 }
 
+// 18) RAG: saf fonksiyonlar + keyword fallback (Ollama'sız, offline)
+{
+  const tmpRag = path.join(os.tmpdir(), `codega-rag-${Date.now()}.json`);
+  process.env.CODEGA_RAG_PATH = tmpRag;
+  const ragMod = await import(path.join(mainDir, "agent", "rag.js"));
+  const rag = ragMod.default || ragMod;
+
+  assert.ok(Math.abs(rag.cosineSimilarity([1, 0], [1, 0]) - 1) < 1e-9, "aynı vektör = 1");
+  assert.ok(Math.abs(rag.cosineSimilarity([1, 0], [0, 1])) < 1e-9, "dik vektör = 0");
+  assert.strictEqual(rag.chunkText("kısa metin").length, 1);
+  assert.ok(rag.chunkText("x".repeat(2000)).length >= 2, "uzun metin parçalanmalı");
+  assert.ok(rag.keywordScore("konya nüfus", "Konya nüfusu çoktur") > 0);
+
+  // Ollama kapalı -> embedding null -> keyword fallback
+  const add = await rag.addDocument("Proje Notu", "CODEGA B2B portalı bayi.lemondedutacos.com adresinde çalışır.");
+  assert.ok(add.ok && add.added >= 1, "doküman eklendi");
+  const hits = await rag.search("bayi portalı adresi", 4);
+  assert.ok(hits.length >= 1 && /lemondedutacos/.test(hits[0].text), "keyword fallback ile bulundu");
+  const st = rag.stats();
+  assert.ok(st.chunks >= 1 && st.documents >= 1);
+  rag.clearAll();
+  assert.strictEqual(rag.stats().chunks, 0);
+  fs.rmSync(tmpRag, { force: true });
+  ok("RAG: cosine/chunk/keyword + ekle/ara/temizle (offline)");
+}
+
+// 19) rag_search aracı kayıtlı
+{
+  assert.ok(tools.TOOLS.rag_search, "rag_search aracı kayıtlı");
+  ok("RAG: rag_search aracı kayıtlı");
+}
+
 console.log(`\n${passed} test geçti ✅`);

@@ -105,6 +105,12 @@ function registerIpc() {
     await shell.openExternal(url);
     return { ok: true, url };
   });
+
+  ipcMain.handle("rag:ingest", async (_event, payload) =>
+    rag.addDocument(payload?.title || "Doküman", payload?.text || "", { source: "manual" })
+  );
+  ipcMain.handle("rag:stats", async () => rag.stats());
+  ipcMain.handle("rag:clear", async () => rag.clearAll());
 }
 
 app.whenReady().then(async () => {
@@ -113,6 +119,8 @@ app.whenReady().then(async () => {
     process.env.CODEGA_MEMORY_PATH || path.join(app.getPath("userData"), "memory.json");
   process.env.CODEGA_SETTINGS_PATH =
     process.env.CODEGA_SETTINGS_PATH || path.join(app.getPath("userData"), "agent-settings.json");
+  process.env.CODEGA_RAG_PATH =
+    process.env.CODEGA_RAG_PATH || path.join(app.getPath("userData"), "rag-store.json");
 
   registerIpc();
   createWindow();

@@ -131,6 +131,18 @@
             <button type="button" id="clear-memory">Temizle</button>
           </div>
           <div class="model-list" id="memory-list"></div>
+          <div class="settings-row">
+            <div>
+              <strong>Bilgi Tabanı (RAG)</strong>
+              <p id="rag-stats">Doküman/not ekle; sorularında bunlardan yararlanır.</p>
+            </div>
+            <button type="button" id="rag-clear">Temizle</button>
+          </div>
+          <div class="settings-field">
+            <input type="text" id="rag-title" placeholder="Başlık (örn. Proje notu)" autocomplete="off" />
+            <textarea id="rag-text" rows="3" placeholder="Eklenecek metin / doküman içeriği..."></textarea>
+            <button type="button" id="rag-add">Bilgiye Ekle</button>
+          </div>
         </details>
 
         <details class="settings-group">

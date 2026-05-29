@@ -19,6 +19,8 @@ const DEFAULTS = {
   knowledgeBranch: "main",
   knowledgePath: "knowledge/codega-learnings.jsonl",
   idleLearning: false, // boşta öğrenilenleri GitHub'a senkronla (opt-in, sadece NOT)
+  ragEnabled: true, // semantik bellek/doküman getirimi (RAG)
+  embedModel: "nomic-embed-text", // Ollama embedding modeli
 };
 
 function settingsPath() {

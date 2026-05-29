@@ -516,3 +516,20 @@ textarea {
 .settings-subgroup[open] > summary::before {
   content: "\25BE ";
 }
+
+/* Ayarlar: RAG textarea + buton (additive) */
+.settings-field textarea {
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  resize: vertical;
+  min-height: 60px;
+}
+.settings-field textarea::placeholder {
+  color: var(--muted);
+}

@@ -4,6 +4,36 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 57 — Gerçek RAG (semantik bellek + doküman işleme) (29 May 2026, Claude)
+
+Kullanıcı bir ajan yetenek listesi verdi (uzun süreli hafıza, planlama, araç
+kullanımı SSH/API/Web, muhakeme, çok adımlı, RAG, bağlam, otonom, geri bildirimle
+gelişim, güvenlik, çoklu model, ses/görüntü/doküman, zamanlanmış görev, hata
+toleransı). DURUM TABLOSU (özet):
+- VAR: çok adımlı muhakeme/karar (ReAct loop), araçlar (Web/API/GitHub),
+  uzun süreli hafıza (memory+knowledge sync), bağlam hatırlama (recall),
+  çoklu model (9), otonom (loop+idle), self-improve (knowledge base), güvenlik
+  (token yerel, yazma gated), hata toleransı (try/catch+fallback model).
+- BU FAZDA EKLENDİ: gerçek RAG.
+- HÂLÂ EKSİK/AĞIR (dürüst): SSH aracı (güvenlik), ses/görüntü işleme (vision
+  modeli), genel zamanlayıcı, açık görev-planlayıcı, geri-bildirim (👍/👎) döngüsü.
+
+EKLENEN — rag.js (tamamen yerel):
+- chunkText + Ollama /api/embeddings (varsayılan nomic-embed-text) + kosinüs
+  getirim; embedding yoksa anahtar-kelime fallback. JSON vektör deposu (userData).
+- addDocument/search/stats/clearAll. cosine/chunk/keyword saf → test edildi.
+- tools.js: rag_search aracı. system-prompt: RAG bağlam enjeksiyonu (## İlgili
+  belge/bilgi). model-manager.ask: ragEnabled ise her soruda search→prompt'a kat
+  (depo boşsa anında [] döner, latency yok).
+- settings: ragEnabled, embedModel. IPC rag:ingest/stats/clear + preload.
+- Ayarlar UI (GitHub & Bilgi grubu): "Bilgi Tabanı (RAG)" — başlık+metin+Ekle,
+  istatistik, Temizle. (Ollama açıkken semantik gömme; kapalıyken keyword.)
+
+Test 19/19. Surum 0.5.2 -> **0.6.0**.
+
+---
+
+
 ## ✅ Faz 56 — Ollama kur butonu + dürüst paylaşım + paylaşım sunucusu durumu (29 May 2026, Claude)
 
 Üç konu:

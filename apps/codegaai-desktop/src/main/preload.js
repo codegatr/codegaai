@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld("codega", {
   syncKnowledgeUp: () => ipcRenderer.invoke("knowledge:syncUp"),
   syncKnowledgeDown: () => ipcRenderer.invoke("knowledge:syncDown"),
   installOllama: () => ipcRenderer.invoke("ollama:install"),
+  ragIngest: (payload) => ipcRenderer.invoke("rag:ingest", payload),
+  ragStats: () => ipcRenderer.invoke("rag:stats"),
+  ragClear: () => ipcRenderer.invoke("rag:clear"),
   onModelStatus: (callback) => {
     ipcRenderer.on("model:status", (_event, payload) => callback(payload));
   },
