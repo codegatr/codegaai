@@ -222,10 +222,70 @@ function toolRecall(query) {
   return `🧠 Bellekten:\n${hits.map((h) => `• ${h}`).join("\n")}`;
 }
 
+// --------------------------------------------------------------- github tools
+const githubClient = require("./github-client");
+
+function parseRepoSpec(arg) {
+  const [main, ref] = String(arg || "").split("@");
+  const parts = String(main || "").split("/").filter(Boolean);
+  return {
+    owner: parts[0] || "",
+    repo: parts[1] || "",
+    path: parts.slice(2).join("/"),
+    ref: (ref || "").trim() || undefined,
+  };
+}
+
+async function toolGithubRead(spec) {
+  const { owner, repo, path, ref } = parseRepoSpec(spec);
+  if (!owner || !repo) return "⚠️ Format: github_read(\"owner/repo/dosya/yolu\")";
+  try {
+    if (!path) return `📦 ${owner}/${repo}\n` + (await githubClient.listDir(owner, repo, "", ref));
+    const content = await githubClient.readFile(owner, repo, path, ref);
+    return `📄 ${owner}/${repo}/${path}\n\n${String(content).slice(0, 4000)}`;
+  } catch (e) {
+    return `⚠️ GitHub okuma hatası: ${e.message || e}`;
+  }
+}
+
+async function toolGithubList(spec) {
+  const { owner, repo, path, ref } = parseRepoSpec(spec);
+  if (!owner || !repo) return "⚠️ Format: github_list(\"owner/repo[/dizin]\")";
+  try {
+    return `📦 ${owner}/${repo}/${path}\n` + (await githubClient.listDir(owner, repo, path, ref));
+  } catch (e) {
+    return `⚠️ GitHub listeleme hatası: ${e.message || e}`;
+  }
+}
+
+async function toolGithubSearch(query) {
+  try {
+    return `🔎 GitHub kod araması: ${query}\n` + (await githubClient.searchCode(query));
+  } catch (e) {
+    return `⚠️ GitHub arama hatası: ${e.message || e}`;
+  }
+}
+
+async function toolGithubDispatch(repoSpec, workflow, ref) {
+  const { owner, repo } = parseRepoSpec(repoSpec);
+  if (!owner || !repo || !workflow) {
+    return '⚠️ Format: github_dispatch("owner/repo", "workflow.yml", "main")';
+  }
+  try {
+    return await githubClient.dispatchWorkflow(owner, repo, workflow, ref || "main");
+  } catch (e) {
+    return `⚠️ Workflow tetikleme hatası: ${e.message || e}`;
+  }
+}
+
 const TOOLS = {
   web_search: { fn: toolWebSearch, desc: "İnternette güncel bilgi ara (DuckDuckGo)" },
   research: { fn: toolResearch, desc: "Bir konuyu çok kaynaktan araştır (ara + sayfaları oku + birleştir)" },
   read_url: { fn: toolReadUrl, desc: "Bir web sayfasının içeriğini oku" },
+  github_read: { fn: toolGithubRead, desc: 'GitHub repo dosyası oku: owner/repo/yol[@ref]' },
+  github_list: { fn: toolGithubList, desc: "GitHub repo dizinini listele: owner/repo[/dizin]" },
+  github_search: { fn: toolGithubSearch, desc: "GitHub'da kod ara" },
+  github_dispatch: { fn: toolGithubDispatch, desc: "GitHub Actions workflow tetikle (sen istersen)" },
   calculate: { fn: toolCalculate, desc: "Matematiksel hesap yap" },
   current_time: { fn: toolCurrentTime, desc: "Şu anki tarih/saat (Türkiye)" },
   weather: { fn: toolWeather, desc: "Bir şehrin hava durumu" },
@@ -338,8 +398,10 @@ function toolsSystemPrompt() {
     "2. Bir konuyu DERİNLEMESİNE öğrenmen/karşılaştırman gerekiyorsa → research (çok kaynak).",
     "3. Sayısal işlem → calculate. Asla kafadan hesaplama.",
     "4. Belirli bir kaynağı incelemen gerekiyorsa → read_url.",
-    "5. Kullanıcı hakkında kalıcı bilgi → remember; gerektiğinde recall.",
-    "6. Araç sonucu gelince ONU OKU, üstüne düşün; gerekiyorsa yeni araç çağır, yeterliyse net cevabı yaz.",
+    "5. Kod/repo incelemen gerekiyorsa → github_read / github_list / github_search.",
+    "6. Kullanıcı bir workflow/derleme tetiklemeni isterse → github_dispatch.",
+    "7. Kullanıcı hakkında kalıcı bilgi → remember; gerektiğinde recall.",
+    "8. Araç sonucu gelince ONU OKU, üstüne düşün; gerekiyorsa yeni araç çağır, yeterliyse net cevabı yaz.",
   ].join("\n");
 }
 

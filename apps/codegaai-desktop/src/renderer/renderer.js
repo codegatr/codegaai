@@ -39,6 +39,13 @@ const els = {
   clearMemory: document.getElementById("clear-memory"),
   memorySummary: document.getElementById("memory-summary"),
   memoryList: document.getElementById("memory-list"),
+  githubTest: document.getElementById("github-test"),
+  githubToken: document.getElementById("github-token"),
+  knowledgeRepo: document.getElementById("knowledge-repo"),
+  toggleIdle: document.getElementById("toggle-idle"),
+  knowledgeDown: document.getElementById("knowledge-down"),
+  knowledgeUp: document.getElementById("knowledge-up"),
+  knowledgeStatus: document.getElementById("knowledge-status"),
 };
 
 function escapeHtml(value) {
@@ -578,6 +585,12 @@ async function refreshAgentSettings() {
     applyToggleLabel(els.toggleLearning, !!agentSettings.autonomousLearning);
     applyToggleLabel(els.toggleHuman, !!agentSettings.humanTone);
     applyToggleLabel(els.toggleFederation, !!agentSettings.federation);
+    applyToggleLabel(els.toggleIdle, !!agentSettings.idleLearning);
+    els.knowledgeRepo.value = agentSettings.knowledgeRepo || "";
+    els.githubToken.value = "";
+    els.githubToken.placeholder = agentSettings.githubToken
+      ? "•••• (kayıtlı — değiştirmek için yaz)"
+      : "GitHub token (ghp_...)";
   } catch (_e) {
     /* ayar okunamadı */
   }
@@ -593,6 +606,62 @@ async function refreshAgentSettings() {
     /* hafıza okunamadı */
   }
 }
+
+async function saveGithubFields() {
+  const patch = { knowledgeRepo: els.knowledgeRepo.value.trim() };
+  const tok = els.githubToken.value.trim();
+  if (tok) patch.githubToken = tok;
+  agentSettings = await window.codega.setSettings(patch);
+}
+
+els.githubTest.addEventListener("click", async () => {
+  els.githubTest.disabled = true;
+  els.knowledgeStatus.textContent = "GitHub test ediliyor...";
+  try {
+    await saveGithubFields();
+    const me = await window.codega.testGithub();
+    els.knowledgeStatus.textContent = `Bağlandı: ${me.login}`;
+  } catch (error) {
+    els.knowledgeStatus.textContent = `Bağlanamadı: ${error.message || error}`;
+  } finally {
+    els.githubTest.disabled = false;
+  }
+});
+
+els.toggleIdle.addEventListener("click", () => toggleSetting("idleLearning", els.toggleIdle));
+
+els.knowledgeUp.addEventListener("click", async () => {
+  els.knowledgeUp.disabled = true;
+  els.knowledgeStatus.textContent = "GitHub'a kaydediliyor...";
+  try {
+    await saveGithubFields();
+    const res = await window.codega.syncKnowledgeUp();
+    els.knowledgeStatus.textContent = res.ok
+      ? `Kaydedildi: ${res.added} yeni bilgi.`
+      : `Olmadı: ${res.reason}`;
+  } catch (error) {
+    els.knowledgeStatus.textContent = `Hata: ${error.message || error}`;
+  } finally {
+    els.knowledgeUp.disabled = false;
+  }
+});
+
+els.knowledgeDown.addEventListener("click", async () => {
+  els.knowledgeDown.disabled = true;
+  els.knowledgeStatus.textContent = "GitHub'tan okunuyor...";
+  try {
+    await saveGithubFields();
+    const res = await window.codega.syncKnowledgeDown();
+    els.knowledgeStatus.textContent = res.ok
+      ? `Okundu: ${res.loaded} bilgi yüklendi.`
+      : `Olmadı: ${res.reason}`;
+    await refreshAgentSettings();
+  } catch (error) {
+    els.knowledgeStatus.textContent = `Hata: ${error.message || error}`;
+  } finally {
+    els.knowledgeDown.disabled = false;
+  }
+});
 
 async function toggleSetting(key, button) {
   if (!agentSettings) agentSettings = await window.codega.getSettings();

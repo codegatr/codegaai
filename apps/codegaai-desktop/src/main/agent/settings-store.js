@@ -14,6 +14,11 @@ const DEFAULTS = {
   autonomousLearning: true, // kullanıcı hakkında öğren + hatırla
   humanTone: true, // daha insansı, sıcak üslup
   federation: false, // federe ağ (deneysel, varsayılan kapalı)
+  githubToken: "", // kullanıcı girer; YALNIZCA yerel userData'da saklanır
+  knowledgeRepo: "", // "owner/repo" — öğrenilenlerin kaydedileceği AYRI bilgi reposu
+  knowledgeBranch: "main",
+  knowledgePath: "knowledge/codega-learnings.jsonl",
+  idleLearning: false, // boşta öğrenilenleri GitHub'a senkronla (opt-in, sadece NOT)
 };
 
 function settingsPath() {

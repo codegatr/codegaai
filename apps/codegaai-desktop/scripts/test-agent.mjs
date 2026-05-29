@@ -220,4 +220,29 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("System prompt: hafıza enjeksiyonu + insansı üslup");
 }
 
+// 16) GitHub araçları kayıtlı + token yokken zarif davranış (offline)
+{
+  const tmpSet = path.join(os.tmpdir(), `codega-set-gh-${Date.now()}.json`);
+  process.env.CODEGA_SETTINGS_PATH = tmpSet;
+  delete process.env.CODEGA_GH_TOKEN;
+  assert.ok(tools.TOOLS.github_read && tools.TOOLS.github_list, "github_read/list kayıtlı");
+  assert.ok(tools.TOOLS.github_search && tools.TOOLS.github_dispatch, "search/dispatch kayıtlı");
+  const { calls } = await tools.parseAndRunTools('<tool>github_read("owner/repo/dosya.txt")</tool>');
+  assert.strictEqual(calls.length, 1);
+  assert.strictEqual(calls[0].name, "github_read");
+  assert.ok(/token/i.test(String(calls[0].result)), "token yokken uyarı dönmeli, patlamamalı");
+  fs.rmSync(tmpSet, { force: true });
+  ok("GitHub araçları: kayıt + token yokken zarif");
+}
+
+// 17) knowledge.parseFactText: JSONL ve düz satır
+{
+  const kMod = await import(path.join(mainDir, "agent", "knowledge.js"));
+  const knowledge = kMod.default || kMod;
+  assert.strictEqual(knowledge.parseFactText('{"text":"Konya","at":1}'), "Konya");
+  assert.strictEqual(knowledge.parseFactText("düz satır"), "düz satır");
+  assert.strictEqual(typeof knowledge.isConfigured(), "boolean");
+  ok("Knowledge: JSONL/düz satır ayrıştırma");
+}
+
 console.log(`\n${passed} test geçti ✅`);

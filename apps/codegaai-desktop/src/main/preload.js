@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld("codega", {
   setSettings: (patch) => ipcRenderer.invoke("settings:set", patch),
   listMemory: () => ipcRenderer.invoke("memory:list"),
   clearMemory: () => ipcRenderer.invoke("memory:clear"),
+  testGithub: () => ipcRenderer.invoke("github:test"),
+  syncKnowledgeUp: () => ipcRenderer.invoke("knowledge:syncUp"),
+  syncKnowledgeDown: () => ipcRenderer.invoke("knowledge:syncDown"),
   onModelStatus: (callback) => {
     ipcRenderer.on("model:status", (_event, payload) => callback(payload));
   },

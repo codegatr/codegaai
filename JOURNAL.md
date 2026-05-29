@@ -4,6 +4,42 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 51 — GitHub yetisi + bilgi senkronu (29 May 2026, Claude)
+
+İstek: ajan "Claude gibi" GitHub'a bağlansın; okusun, arasın, workflow tetiklesin,
+öğrendiğini GitHub'a kaydedip sonra oradan okusun; boşta otonom öğrenip kaydetsin.
+
+GÜVENLİK SINIRLARI (bilinçli):
+- Gözetimsiz KENDİ KODUNU production repoya yazma/commit YOK (küçük model riski).
+- Token kaynak koda/installer'a GÖMÜLMEZ; sadece kullanıcı girer, userData'da saklanır.
+- Yazma = yalnızca AYRI bilgi dosyasına (JSONL not) append. Workflow tetikleme ve
+  repo okuma araç olarak var ama kullanıcı isteğiyle çalışır; boşta otonom kod YOK.
+- "Kendini geliştirme"nin gerçekçi hali: model ağırlığı değişmez; zamanla biriken
+  ve GitHub'da kalıcı olan bir BİLGİ TABANI edinir, başlangıçta onu okur.
+
+EKLENENLER:
+- github-client.js: readFile/listDir/searchCode/dispatchWorkflow/appendToFile/
+  readKnowledgeFile/testConnection (token ayarlardan).
+- tools.js: github_read / github_list / github_search / github_dispatch araçları
+  (token yoksa zarifçe uyarır, patlamaz).
+- knowledge.js: syncUp (yerel öğrenilenler → GitHub bilgi dosyası, dedup),
+  syncDown (GitHub → yerel bellek). Ayrı "knowledgeRepo" + path + branch ayarı.
+- settings-store.js: githubToken/knowledgeRepo/knowledgeBranch/knowledgePath/idleLearning.
+- main.js: github:test, knowledge:syncUp/syncDown IPC; başlangıçta syncDown;
+  boşta (≥2dk) ve idleLearning açıksa 5dk'da bir syncUp (yalnız NOT, opt-in, varsayılan kapalı).
+- Ayarlar UI: GitHub token + bilgi reposu alanları, Test Et, GitHub'a Kaydet/
+  GitHub'tan Oku, Boşta Otonom Öğrenme toggle (additive CSS, layout'a dokunulmadı).
+
+Test: 17/17 (modelsiz/internetsiz; github araçları token-yok halinde test edildi).
+Surum 0.3.0 -> **0.4.0**.
+
+KURULUM (kullanıcı): Ayarlar'da fine-grained bir token + bir "bilgi reposu"
+(owner/repo) gir, Test Et. Boşta öğrenmeyi açarsan öğrendiklerini o repoya not
+olarak kaydeder. Repo okuma/arama/workflow için aynı token kullanılır.
+
+---
+
+
 ## ✅ Faz 50 — Otonom öğrenme + Ayarlar + navbar/oto-scroll (29 May 2026, Claude)
 
 Kullanıcı istekleri: navbar düzgün sabit, sohbet oto-scroll, Otonom Öğrenme/Federe

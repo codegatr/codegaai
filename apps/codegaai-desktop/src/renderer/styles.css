@@ -437,3 +437,28 @@ textarea {
     left: 0;
   }
 }
+
+/* Ayarlar: GitHub alanları (additive, layout'a dokunmaz) */
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 14px;
+}
+.settings-field input {
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+.settings-field input::placeholder {
+  color: var(--muted);
+}
+.settings-actions {
+  display: flex;
+  gap: 8px;
+}
