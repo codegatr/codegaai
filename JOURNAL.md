@@ -4,6 +4,35 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 58 — Öz değerlendirme (self-reflection) katmanı (29 May 2026, Claude)
+
+Kullanıcı 18 ileri yetenek listeledi ve doğru tespiti yaptı: zekâ tek model değil,
+katmanların birleşimi (hafıza+muhakeme+araç+bilgi erişimi+güvenlik). Sahte stub
+yerine en kritik muhakeme katmanı eklendi: ÖZ DEĞERLENDİRME (#7).
+
+- reflect.js: taslak cevabı "denetçi" rolüyle kontrol eder; iyiyse OK, değilse
+  düzeltilmiş cevabı döndürür. looksOk/buildCritiqueMessages saf → test edildi.
+  Denetim patlarsa taslak korunur (asla cevap kaybolmaz).
+- model-manager.ask: settings.selfReflection açıksa final cevabı reflect'ten
+  geçirir (revize edilmiş metni history+return'de kullanır).
+- settings: selfReflection (varsayılan KAPALI; küçük modelde gecikmeyi 2 kat
+  artırır, opt-in). Ayarlar > Ajan Davranışı > "Öz Değerlendirme" toggle.
+
+DURUM (18 madde, özet): çoğu VAR/kısmi — bağlamsal hafıza(✓RAG+recall),
+bilgi doğrulama(✓web/research+uydurma yasağı), araç seçme(✓ReAct), sürekli
+güncelleme(✓RAG ingest), kişiselleştirme(✓memory), çoklu model(✓), belirsizlik
+yönetimi(✓prompt), öz-değerlendirme(✓BUGÜN). EKSİK/AĞIR: hedef-odaklı
+planlayıcı(decomposition), uzun görev yönetimi(saat/gün), çoklu-ajan, ses/görüntü,
+SSH/sistem yönetimi, ekonomik karar, meta-öğrenme, risk sınıflandırıcı.
+
+NOT: self-reflection etkinliği model boyutuyla ölçeklenir; qwen3:8b'de hataları
+belirgin yakalar, 3B'de sınırlı.
+
+Test 20/20. Surum 0.6.0 -> **0.7.0**.
+
+---
+
+
 ## ✅ Faz 57 — Gerçek RAG (semantik bellek + doküman işleme) (29 May 2026, Claude)
 
 Kullanıcı bir ajan yetenek listesi verdi (uzun süreli hafıza, planlama, araç

@@ -277,4 +277,26 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("RAG: rag_search aracı kayıtlı");
 }
 
+// 20) Öz değerlendirme: OK -> değişmez, düzeltme -> revize
+{
+  const rfMod = await import(path.join(mainDir, "agent", "reflect.js"));
+  const reflect = rfMod.default || rfMod;
+  assert.strictEqual(reflect.looksOk("OK"), true);
+  assert.strictEqual(reflect.looksOk("Tamam, doğru."), true);
+  assert.strictEqual(reflect.looksOk("Hayır, yanlış: ..."), false);
+
+  const okRes = await reflect.reflect("2+2?", "4", async () => "OK");
+  assert.strictEqual(okRes.revised, false);
+  assert.strictEqual(okRes.answer, "4");
+
+  const fixRes = await reflect.reflect("Konya nüfusu?", "185.000", async () => "Konya nüfusu yaklaşık 2,3 milyondur.");
+  assert.strictEqual(fixRes.revised, true);
+  assert.ok(/2,3 milyon/.test(fixRes.answer));
+
+  // denetim patlarsa taslak korunur
+  const safe = await reflect.reflect("x", "taslak", async () => { throw new Error("yok"); });
+  assert.strictEqual(safe.answer, "taslak");
+  ok("Öz değerlendirme: OK/düzeltme/hata-güvenli");
+}
+
 console.log(`\n${passed} test geçti ✅`);

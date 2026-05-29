@@ -35,6 +35,7 @@ const els = {
   updateLaterX: document.getElementById("update-later-x"),
   toggleLearning: document.getElementById("toggle-learning"),
   toggleHuman: document.getElementById("toggle-human"),
+  toggleReflection: document.getElementById("toggle-reflection"),
   toggleFederation: document.getElementById("toggle-federation"),
   clearMemory: document.getElementById("clear-memory"),
   memorySummary: document.getElementById("memory-summary"),
@@ -592,6 +593,7 @@ async function refreshAgentSettings() {
     agentSettings = await window.codega.getSettings();
     applyToggleLabel(els.toggleLearning, !!agentSettings.autonomousLearning);
     applyToggleLabel(els.toggleHuman, !!agentSettings.humanTone);
+    applyToggleLabel(els.toggleReflection, !!agentSettings.selfReflection);
     applyToggleLabel(els.toggleFederation, !!agentSettings.federation);
     applyToggleLabel(els.toggleIdle, !!agentSettings.idleLearning);
     els.knowledgeRepo.value = agentSettings.knowledgeRepo || "";
@@ -744,6 +746,7 @@ async function toggleSetting(key, button) {
 
 els.toggleLearning.addEventListener("click", () => toggleSetting("autonomousLearning", els.toggleLearning));
 els.toggleHuman.addEventListener("click", () => toggleSetting("humanTone", els.toggleHuman));
+els.toggleReflection.addEventListener("click", () => toggleSetting("selfReflection", els.toggleReflection));
 els.toggleFederation.addEventListener("click", () => toggleSetting("federation", els.toggleFederation));
 els.clearMemory.addEventListener("click", async () => {
   els.clearMemory.disabled = true;

@@ -21,6 +21,7 @@ const DEFAULTS = {
   idleLearning: false, // boşta öğrenilenleri GitHub'a senkronla (opt-in, sadece NOT)
   ragEnabled: true, // semantik bellek/doküman getirimi (RAG)
   embedModel: "nomic-embed-text", // Ollama embedding modeli
+  selfReflection: false, // cevabı denetleyip düzelt (yavaş; opt-in)
 };
 
 function settingsPath() {

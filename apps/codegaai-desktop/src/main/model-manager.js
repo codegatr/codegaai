@@ -17,6 +17,7 @@ const { buildSystemPrompt } = require("./agent/system-prompt");
 const { getSettings } = require("./agent/settings-store");
 const { recall, remember, extractDurableFacts } = require("./agent/memory");
 const rag = require("./agent/rag");
+const { reflect } = require("./agent/reflect");
 
 const MAX_HISTORY_MESSAGES = 12; // son ~6 turu hatırla
 
@@ -504,9 +505,20 @@ class ModelManager {
       };
     }
 
+    // Öz değerlendirme (opt-in): cevabı denetle, gerekiyorsa düzelt
+    let finalText = text;
+    if (settings.selfReflection) {
+      try {
+        const r = await reflect(input, text, (msgs) => this.generate(selectedModel, msgs));
+        if (r.answer && r.answer.trim()) finalText = r.answer.trim();
+      } catch (_e) {
+        // denetim hatası cevabı etkilemesin
+      }
+    }
+
     // Çok-turlu hafıza: kullanıcı + final cevabı sakla (araç gözlemleri hariç)
     this.history.push({ role: "user", content: input });
-    this.history.push({ role: "assistant", content: text });
+    this.history.push({ role: "assistant", content: finalText });
     if (this.history.length > MAX_HISTORY_MESSAGES) {
       this.history = this.history.slice(-MAX_HISTORY_MESSAGES);
     }
@@ -531,7 +543,7 @@ class ModelManager {
     return {
       provider: "ollama",
       model: selectedModel,
-      text,
+      text: finalText,
       iterations: agent.iterations,
       tools: agent.toolCalls.map((t) => t.name),
     };
