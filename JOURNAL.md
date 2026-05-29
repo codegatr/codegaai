@@ -4,6 +4,35 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 61 — Multi-agent mimarisi (orchestrator + uzman ajanlar + denetçi) (29 May 2026, Claude)
+
+Kullanıcının (dış AI) inceleme dokümanları multi-agent'i 1. öncelik gösterdi.
+CrewAI/LangGraph (Python) yerine, ürünün gerçeği olan Electron/JS tarafında
+FRAMEWORK'SÜZ, tamamen yerel hafif bir uygulama kuruldu (Python/Electron ayrımını
+derinleştirmemek için — dokümanların "kendi hafif implementasyon" seçeneği).
+
+Mimari: Supervisor/Orchestrator + Specialist Agents + Verifier.
+- agents.js: SPECIALISTS (researcher/coder/reviewer/generalist) — her birinin
+  personası + İZİNLİ ARAÇ SETİ (tool policy). routeStep (anahtar-kelime ile alt
+  görevi uzmana yönlendir) + buildSpecialistPrompt. Saf → test edildi.
+- orchestrator.js: runOrchestrated → makePlan ile hedefi adımlara böl, her adımı
+  routeStep ile uzmana yönlendir+çalıştır, sonra denetçi sentezler. Bağımlılıklar
+  enjekte (test edilebilir). MAX_STEPS=4.
+- tools.parseAndRunTools(text, allowedTools): araç POLİTİKASI — izinsiz aracı
+  çalıştırmaz ("not_allowed"). runReact'e allowedTools opsiyonu eklendi.
+- model-manager.ask: settings.multiAgent açık VE input hedefse → orchestrator
+  yolu (uzman ajanlar maxIters:2, tool policy ile); değilse normal tek-ajan.
+- settings.multiAgent (varsayılan KAPALI, opt-in, yavaş/deneysel) + Ayarlar
+  "Çoklu Ajan" toggle.
+
+NOT: Çoklu ajan çok sayıda model çağrısı yapar (plan + adımlar + sentez) →
+3B'de yavaş; opt-in. Büyük modelde (qwen3:8b) belirgin değer.
+
+Test 22/22. Surum 0.8.1 -> **0.9.0**.
+
+---
+
+
 ## ✅ Faz 60 — Ollama tespiti HTTP'ye taşındı (kurulu ama bulunamıyor) (29 May 2026, Claude)
 
 Kullanıcı: Ollama kurulu olduğu halde uygulama "Ollama bulunamadı" deyip kurmak

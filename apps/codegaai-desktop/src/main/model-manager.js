@@ -19,6 +19,8 @@ const { recall, remember, extractDurableFacts } = require("./agent/memory");
 const rag = require("./agent/rag");
 const { reflect } = require("./agent/reflect");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
+const { runOrchestrated } = require("./agent/orchestrator");
+const { SPECIALISTS, routeStep, buildSpecialistPrompt } = require("./agent/agents");
 
 const MAX_HISTORY_MESSAGES = 12; // son ~6 turu hatırla
 
@@ -510,7 +512,51 @@ class ModelManager {
 
     let agent;
     try {
-      agent = await runReact(messages, generateFn, { maxIters: 3 });
+      if (settings.multiAgent && looksLikeGoal(input)) {
+        // Multi-agent: orchestrator → uzman ajanlar → denetçi sentezi
+        const gen = (msgs) => this.generate(selectedModel, msgs);
+        const orch = await runOrchestrated(input, {
+          makePlan: (g) => makePlan(g, gen),
+          routeStep,
+          runSpecialist: async (key, taskText, g) => {
+            const msgs = [
+              { role: "system", content: buildSpecialistPrompt(key, g) },
+              { role: "user", content: taskText },
+            ];
+            const r = await runReact(msgs, gen, {
+              maxIters: 2,
+              allowedTools: (SPECIALISTS[key] || SPECIALISTS.generalist).tools,
+            });
+            return r.content;
+          },
+          synthesize: async (g, stepResults) => {
+            const joined = stepResults
+              .map((r, i) => `Adım ${i + 1} (${r.specialist}): ${r.output}`)
+              .join("\n\n");
+            const msgs = [
+              {
+                role: "system",
+                content:
+                  buildSpecialistPrompt("reviewer", g) +
+                  "\nTüm adım çıktılarını birleştirip kullanıcıya tek, net bir final cevap yaz.",
+              },
+              {
+                role: "user",
+                content: `Hedef: ${g}\n\nAdım çıktıları:\n${joined}\n\nFinal cevabı yaz.`,
+              },
+            ];
+            return await gen(msgs);
+          },
+        });
+        agent = {
+          content: orch.content,
+          iterations: orch.plan.length,
+          stoppedReason: "final_answer",
+          toolCalls: [],
+        };
+      } else {
+        agent = await runReact(messages, generateFn, { maxIters: 3 });
+      }
     } catch (e) {
       this.state = {
         ...this.state,

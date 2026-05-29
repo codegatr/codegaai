@@ -319,4 +319,34 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Görev planlayıcı: parse/looksLikeGoal/makePlan");
 }
 
+// 22) Çoklu ajan: yönlendirme + tool policy + orchestrate (fake'lerle, offline)
+{
+  const agMod = await import(path.join(mainDir, "agent", "agents.js"));
+  const agents = agMod.default || agMod;
+  assert.strictEqual(agents.routeStep("PHP fonksiyonu yaz ve repo'ya bak"), "coder");
+  assert.strictEqual(agents.routeStep("güncel fiyatları araştır"), "researcher");
+  assert.strictEqual(agents.routeStep("çıktıyı kontrol et ve doğrula"), "reviewer");
+  assert.ok(agents.buildSpecialistPrompt("coder").includes("github_read"));
+
+  // tool policy: izinsiz araç çalıştırılmamalı
+  const { calls } = await tools.parseAndRunTools(
+    '<tool>calculate("2+2")</tool>',
+    ["web_search"] // calculate izinli değil
+  );
+  assert.strictEqual(calls[0].error, "not_allowed");
+
+  // orchestrator: fake ctx ile akış
+  const orMod = await import(path.join(mainDir, "agent", "orchestrator.js"));
+  const orchestrator = orMod.default || orMod;
+  const res = await orchestrator.runOrchestrated("bir blog sitesi yap", {
+    makePlan: async () => ["tasarımı araştır", "kodu yaz", "kontrol et"],
+    routeStep: agents.routeStep,
+    runSpecialist: async (key, step) => `${key}:${step} tamam`,
+    synthesize: async (g, steps) => `FINAL(${steps.length} adım)`,
+  });
+  assert.strictEqual(res.stepResults.length, 3);
+  assert.ok(res.content.startsWith("FINAL(3"));
+  ok("Çoklu ajan: routing + tool policy + orchestrate");
+}
+
 console.log(`\n${passed} test geçti ✅`);

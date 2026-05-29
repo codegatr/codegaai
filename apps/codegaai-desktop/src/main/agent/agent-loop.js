@@ -45,7 +45,7 @@ function formatObservation(calls) {
  * @returns {Promise<{content,iterations,stoppedReason,toolCalls,steps}>}
  */
 async function runReact(messages, generateFn, opts = {}) {
-  const { maxIters = 4, observationRole = "user" } = opts;
+  const { maxIters = 4, observationRole = "user", allowedTools = null } = opts;
   const convo = messages.slice();
   const result = {
     content: "",
@@ -76,7 +76,7 @@ async function runReact(messages, generateFn, opts = {}) {
       return result;
     }
 
-    const { calls } = await parseAndRunTools(raw);
+    const { calls } = await parseAndRunTools(raw, allowedTools);
     step.toolCalls = calls.map((c) => ({
       name: c.name, args: c.args, result: c.result, error: c.error, elapsedMs: c.elapsedMs,
     }));

@@ -37,6 +37,7 @@ const els = {
   toggleHuman: document.getElementById("toggle-human"),
   toggleReflection: document.getElementById("toggle-reflection"),
   togglePlanner: document.getElementById("toggle-planner"),
+  toggleMultiAgent: document.getElementById("toggle-multiagent"),
   toggleFederation: document.getElementById("toggle-federation"),
   clearMemory: document.getElementById("clear-memory"),
   memorySummary: document.getElementById("memory-summary"),
@@ -601,6 +602,7 @@ async function refreshAgentSettings() {
     applyToggleLabel(els.toggleHuman, !!agentSettings.humanTone);
     applyToggleLabel(els.toggleReflection, !!agentSettings.selfReflection);
     applyToggleLabel(els.togglePlanner, !!agentSettings.planner);
+    applyToggleLabel(els.toggleMultiAgent, !!agentSettings.multiAgent);
     applyToggleLabel(els.toggleFederation, !!agentSettings.federation);
     applyToggleLabel(els.toggleIdle, !!agentSettings.idleLearning);
     els.knowledgeRepo.value = agentSettings.knowledgeRepo || "";
@@ -755,6 +757,7 @@ els.toggleLearning.addEventListener("click", () => toggleSetting("autonomousLear
 els.toggleHuman.addEventListener("click", () => toggleSetting("humanTone", els.toggleHuman));
 els.toggleReflection.addEventListener("click", () => toggleSetting("selfReflection", els.toggleReflection));
 els.togglePlanner.addEventListener("click", () => toggleSetting("planner", els.togglePlanner));
+els.toggleMultiAgent.addEventListener("click", () => toggleSetting("multiAgent", els.toggleMultiAgent));
 els.toggleFederation.addEventListener("click", () => toggleSetting("federation", els.toggleFederation));
 els.clearMemory.addEventListener("click", async () => {
   els.clearMemory.disabled = true;

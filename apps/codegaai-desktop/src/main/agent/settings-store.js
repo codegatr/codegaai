@@ -23,6 +23,7 @@ const DEFAULTS = {
   embedModel: "nomic-embed-text", // Ollama embedding modeli
   selfReflection: false, // cevabı denetleyip düzelt (yavaş; opt-in)
   planner: false, // karmaşık hedefleri alt adımlara böl (opt-in)
+  multiAgent: false, // orchestrator + uzman ajanlar (opt-in, deneysel, yavaş)
 };
 
 function settingsPath() {

@@ -378,7 +378,8 @@ function stripToolCalls(text) {
  * Metindeki tüm araç çağrılarını (her formatta) çalıştır.
  * @returns {Promise<{calls: Array}>}
  */
-async function parseAndRunTools(text) {
+async function parseAndRunTools(text, allowedTools = null) {
+  const allow = Array.isArray(allowedTools) ? new Set(allowedTools) : null;
   const calls = [];
   for (const found of extractToolCalls(text)) {
     const name = found.name;
@@ -386,6 +387,14 @@ async function parseAndRunTools(text) {
     const def = TOOLS[name];
     const call = { name, args, result: null, error: null, elapsedMs: 0 };
     const t0 = Date.now();
+    if (allow && !allow.has(name)) {
+      // Bu ajanın yetki politikası bu aracı içermiyor
+      call.error = "not_allowed";
+      call.result = `⚠️ Bu ajan '${name}' aracını kullanma yetkisine sahip değil.`;
+      call.elapsedMs = 0;
+      calls.push(call);
+      continue;
+    }
     try {
       call.result = await def.fn(...args);
     } catch (e) {
