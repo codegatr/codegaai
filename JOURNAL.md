@@ -4,6 +4,32 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 54 — macOS derleme desteği (29 May 2026, Claude)
+
+İstek: Macbook için derleme.
+
+Not: macOS paketi yalnızca macOS'ta düzgün derlenir. Çözüm: GitHub Actions
+macOS runner'ı.
+
+- package.json build.mac: dmg + zip, arch x64 + arm64 (Intel + Apple Silicon),
+  identity:null (imzasız). dist:mac / release:mac scriptleri.
+- Yeni workflow: build-codegaai-desktop-macos.yml (runs-on: macos-latest,
+  CSC_IDENTITY_AUTO_DISCOVERY=false). Windows workflow'unun aynısı; AYNI
+  desktop-v* release etiketine .dmg/.zip/latest-mac.yml ekler. Yani bir release
+  hem Windows .exe hem macOS .dmg içerir.
+
+KISITLAR (kullanıcıya iletildi):
+- İmzasız: macOS Gatekeeper uyarır → sağ tık > Aç (veya
+  xattr -dr com.apple.quarantine CODEGA-AI.app).
+- macOS oto-güncelleme imzasız ÇALIŞMAZ; tam dağıtım+güncelleme için Apple
+  Developer ID sertifikası ($99/yıl) gerekir.
+- Mac'te de Ollama kurulu olmalı.
+
+Surum 0.4.2 -> **0.5.0**. Test 17/17. (macOS derlemesi CI'da macos-latest'te koşar.)
+
+---
+
+
 ## ✅ Faz 53 — Düşünce tarzı / cevap disiplini (29 May 2026, Claude)
 
 Kullanıcı kanıt gönderdi: model "Konya genel bilgi"de ARAÇ KULLANMADAN uydurdu
