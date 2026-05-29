@@ -462,3 +462,57 @@ textarea {
   display: flex;
   gap: 8px;
 }
+
+/* Ayarlar: katlanır gruplar (additive, sadece ayar penceresi) */
+.settings {
+  max-height: 86vh;
+  overflow-y: auto;
+}
+.settings-group {
+  border-top: 1px solid var(--line);
+}
+.settings-group > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 16px 2px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.settings-group > summary::-webkit-details-marker {
+  display: none;
+}
+.settings-group > summary::after {
+  content: "\25B8";
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+.settings-group[open] > summary::after {
+  transform: rotate(90deg);
+}
+.settings-group > .settings-row:first-of-type,
+.settings-group > .settings-field:first-of-type {
+  border-top: 0;
+}
+.settings-subgroup > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.settings-subgroup > summary::-webkit-details-marker {
+  display: none;
+}
+.settings-subgroup > summary::before {
+  content: "\25B8 ";
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+.settings-subgroup[open] > summary::before {
+  content: "\25BE ";
+}

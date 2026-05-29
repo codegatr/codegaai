@@ -45,82 +45,101 @@
           <h2>Ayarlar</h2>
           <button value="close">×</button>
         </header>
-        <div class="settings-row">
-          <div>
-            <strong>Otomatik model yönetimi</strong>
-            <p id="model-detail">Kontrol ediliyor</p>
+
+        <details class="settings-group" open>
+          <summary>Zekâ &amp; Model</summary>
+          <div class="settings-row">
+            <div>
+              <strong>Otomatik model yönetimi</strong>
+              <p id="model-detail">Kontrol ediliyor</p>
+            </div>
+            <button type="button" id="prepare-model">Varsayılanı Hazırla</button>
           </div>
-          <button type="button" id="prepare-model">Varsayılanı Hazırla</button>
-        </div>
-        <div class="model-list" id="model-list"></div>
-        <div class="settings-row">
-          <div>
-            <strong>Otonom Öğrenme</strong>
-            <p>CODEGA seni tanıdıkça öğrenir ve sonraki sohbetlerde hatırlar.</p>
+          <details class="settings-subgroup">
+            <summary>Modeller (indir / değiştir)</summary>
+            <div class="model-list" id="model-list"></div>
+          </details>
+        </details>
+
+        <details class="settings-group" open>
+          <summary>Ajan Davranışı</summary>
+          <div class="settings-row">
+            <div>
+              <strong>Otonom Öğrenme</strong>
+              <p>CODEGA seni tanıdıkça öğrenir ve sonraki sohbetlerde hatırlar.</p>
+            </div>
+            <button type="button" id="toggle-learning">—</button>
           </div>
-          <button type="button" id="toggle-learning">—</button>
-        </div>
-        <div class="settings-row">
-          <div>
-            <strong>İnsansı Üslup</strong>
-            <p>Daha sıcak, doğal ve insana yakın cevaplar.</p>
+          <div class="settings-row">
+            <div>
+              <strong>İnsansı Üslup</strong>
+              <p>Daha sıcak, doğal ve insana yakın cevaplar.</p>
+            </div>
+            <button type="button" id="toggle-human">—</button>
           </div>
-          <button type="button" id="toggle-human">—</button>
-        </div>
-        <div class="settings-row">
-          <div>
-            <strong>Federe Ağ (deneysel)</strong>
-            <p>Diğer CODEGA düğümleriyle bilgi paylaşımı. Şu an deneysel — yalnızca tercih kaydedilir.</p>
+          <div class="settings-row">
+            <div>
+              <strong>Federe Ağ (deneysel)</strong>
+              <p>Diğer CODEGA düğümleriyle bilgi paylaşımı. Şu an deneysel — yalnızca tercih kaydedilir.</p>
+            </div>
+            <button type="button" id="toggle-federation">—</button>
           </div>
-          <button type="button" id="toggle-federation">—</button>
-        </div>
-        <div class="settings-row">
-          <div>
-            <strong>Öğrenilenler (Hafıza)</strong>
-            <p id="memory-summary">Henüz bir şey öğrenmedim.</p>
+        </details>
+
+        <details class="settings-group">
+          <summary>GitHub &amp; Bilgi</summary>
+          <div class="settings-row">
+            <div>
+              <strong>GitHub Bağlantısı</strong>
+              <p>Repo okuma/arama, workflow tetikleme ve bilgi kaydı için. Token yalnızca bu cihazda saklanır.</p>
+            </div>
+            <button type="button" id="github-test">Test Et</button>
           </div>
-          <button type="button" id="clear-memory">Temizle</button>
-        </div>
-        <div class="model-list" id="memory-list"></div>
-        <div class="settings-row">
-          <div>
-            <strong>GitHub Bağlantısı</strong>
-            <p>Repo okuma/arama, workflow tetikleme ve bilgi kaydı için. Token yalnızca bu cihazda saklanır.</p>
+          <div class="settings-field">
+            <input type="password" id="github-token" placeholder="GitHub token (ghp_...)" autocomplete="off" />
+            <input type="text" id="knowledge-repo" placeholder="Bilgi reposu: owner/repo" autocomplete="off" />
           </div>
-          <button type="button" id="github-test">Test Et</button>
-        </div>
-        <div class="settings-field">
-          <input type="password" id="github-token" placeholder="GitHub token (ghp_...)" autocomplete="off" />
-          <input type="text" id="knowledge-repo" placeholder="Bilgi reposu: owner/repo" autocomplete="off" />
-        </div>
-        <div class="settings-row">
-          <div>
-            <strong>Boşta Otonom Öğrenme → GitHub</strong>
-            <p>Boşta kaldıkça öğrendiklerini bilgi reposuna kaydeder (yalnızca not, kod değil).</p>
+          <div class="settings-row">
+            <div>
+              <strong>Boşta Otonom Öğrenme → GitHub</strong>
+              <p>Boşta kaldıkça öğrendiklerini bilgi reposuna kaydeder (yalnızca not, kod değil).</p>
+            </div>
+            <button type="button" id="toggle-idle">—</button>
           </div>
-          <button type="button" id="toggle-idle">—</button>
-        </div>
-        <div class="settings-row">
-          <div>
-            <strong>Bilgi Senkronu</strong>
-            <p id="knowledge-status">GitHub bilgi dosyasıyla elle eşitle.</p>
+          <div class="settings-row">
+            <div>
+              <strong>Bilgi Senkronu</strong>
+              <p id="knowledge-status">GitHub bilgi dosyasıyla elle eşitle.</p>
+            </div>
+            <div class="settings-actions">
+              <button type="button" id="knowledge-down">GitHub'tan Oku</button>
+              <button type="button" id="knowledge-up">GitHub'a Kaydet</button>
+            </div>
           </div>
-          <div class="settings-actions">
-            <button type="button" id="knowledge-down">GitHub'tan Oku</button>
-            <button type="button" id="knowledge-up">GitHub'a Kaydet</button>
+          <div class="settings-row">
+            <div>
+              <strong>Öğrenilenler (Hafıza)</strong>
+              <p id="memory-summary">Henüz bir şey öğrenmedim.</p>
+            </div>
+            <button type="button" id="clear-memory">Temizle</button>
           </div>
-        </div>
-        <div class="settings-row">
-          <div>
-            <strong>Güncellemeler</strong>
-            <p id="update-detail">Sessiz kontrol aktif</p>
+          <div class="model-list" id="memory-list"></div>
+        </details>
+
+        <details class="settings-group">
+          <summary>Güncellemeler</summary>
+          <div class="settings-row">
+            <div>
+              <strong>Sürüm</strong>
+              <p id="update-detail">Sessiz kontrol aktif</p>
+            </div>
+            <button type="button" id="check-update">Kontrol Et</button>
           </div>
-          <button type="button" id="check-update">Kontrol Et</button>
-        </div>
-        <div class="update-actions" id="update-actions" hidden>
-          <button type="button" id="download-update">İndir</button>
-          <button type="button" id="install-update" hidden>Uygula ve Yeniden Başlat</button>
-        </div>
+          <div class="update-actions" id="update-actions" hidden>
+            <button type="button" id="download-update">İndir</button>
+            <button type="button" id="install-update" hidden>Uygula ve Yeniden Başlat</button>
+          </div>
+        </details>
       </form>
     </dialog>
 

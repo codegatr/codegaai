@@ -4,6 +4,24 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 52 — Ayarlar ekranı toparlandı (29 May 2026, Claude)
+
+Kullanıcı: ayarlar uzun/düzensiz bir liste; toparla.
+
+Çözüm (DÜŞÜK RİSK — ana layout'a dokunulmadı, sadece ayar penceresi içi):
+- Ayarlar 4 katlanır gruba toplandı (native <details>/<summary>, JS yok):
+  "Zekâ & Model", "Ajan Davranışı", "GitHub & Bilgi", "Güncellemeler".
+- 9 modellik blok bir alt-gruba ("Modeller (indir/değiştir)") katlandı → varsayılan kapalı.
+- Hafıza görüntüleyici "GitHub & Bilgi" altına alındı.
+- Dialog max-height:86vh + overflow-y:auto (içeride kayar).
+- TÜM element ID'leri korundu → renderer.js wiring aynen çalışıyor (doğrulandı).
+- CSS additive (.settings-group/.settings-subgroup); main layout kuralları değişmedi.
+
+Test 17/17. Surum 0.4.0 -> **0.4.1**.
+
+---
+
+
 ## ✅ Faz 51 — GitHub yetisi + bilgi senkronu (29 May 2026, Claude)
 
 İstek: ajan "Claude gibi" GitHub'a bağlansın; okusun, arasın, workflow tetiklesin,
