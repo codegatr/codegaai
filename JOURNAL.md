@@ -4,6 +4,30 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 49.4 — Sohbet kaydırma düzeltmesi + oto-scroll (28 May 2026, Claude)
+
+Kullanıcı bildirimi: sohbette aşağı kaydırınca SOL navbar da kayıyordu; ayrıca
+cevap gelirken otomatik dibe inmiyordu.
+
+Kök neden (CSS): `body { min-height:100vh }` + sabit yükseklik/overflow yoktu →
+TÜM SAYFA kayıyordu, bu yüzden sidebar da gidiyordu ve `.conversation`'ın
+`overflow-y:auto`'su devreye girmiyordu (oto-scroll kodu doğru elemanı
+hedefliyordu ama eleman gerçek scroll konteyneri değildi).
+
+Düzeltme (styles.css):
+- `html{height:100%}`, `body{height:100vh; overflow:hidden}` → sayfa kilitlendi.
+- `.history-panel{height:100vh; flex-column; overflow:hidden}` +
+  `.history-list{flex:1; min-height:0; overflow-y:auto}` → sadece geçmiş listesi kayar.
+- `.shell{height:100vh; overflow:hidden}`, `.conversation{min-height:0; height:100%}`
+  → sadece sohbet alanı kayar.
+Sonuç: sidebar sabit; sadece sohbet penceresi kayıyor; mevcut
+scrollConversationToBottom() çağrıları artık çalıştığı için cevap gelince oto-scroll.
+
+Surum 0.2.1 -> **0.2.2**.
+
+---
+
+
 ## ✅ Faz 49.3 — Toleranslı araç-format parser + few-shot (28 May 2026, Claude)
 
 Canlı testte (0.2.0, gerçek küçük model) sorun görüldü: model aracı
