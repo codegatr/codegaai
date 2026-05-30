@@ -8,9 +8,30 @@ const memory = require("./agent/memory");
 const knowledge = require("./agent/knowledge");
 const githubClient = require("./agent/github-client");
 const rag = require("./agent/rag");
+const { runSelfCheck } = require("./agent/self-maintenance");
+const { ollamaReachable } = require("./agent/ollama-client");
 
 const modelManager = new ModelManager();
 const updateService = new UpdateService();
+
+// Kendi kendine bakım (güvenli): açıkken periyodik sağlık + bozuk depo onarımı
+let lastMaintenance = null;
+async function doMaintenance() {
+  try {
+    if (!settingsStore.getSettings().selfMaintenance) return lastMaintenance;
+    lastMaintenance = await runSelfCheck({
+      ollamaReachable,
+      jsonFiles: [
+        { name: "settings", path: process.env.CODEGA_SETTINGS_PATH },
+        { name: "memory", path: process.env.CODEGA_MEMORY_PATH, onRepair: () => memory.clearAll() },
+        { name: "rag", path: process.env.CODEGA_RAG_PATH, onRepair: () => rag.clearAll() },
+      ],
+    });
+  } catch (_e) {
+    /* bakım hatası uygulamayı etkilemesin */
+  }
+  return lastMaintenance;
+}
 let lastActivityAt = Date.now();
 
 function createWindow() {
@@ -120,6 +141,9 @@ function registerIpc() {
   );
   ipcMain.handle("rag:stats", async () => rag.stats());
   ipcMain.handle("rag:clear", async () => rag.clearAll());
+
+  ipcMain.handle("maintenance:run", async () => (await doMaintenance()) || { items: [], repairs: [], healthy: true });
+  ipcMain.handle("maintenance:status", async () => lastMaintenance);
 }
 
 app.whenReady().then(async () => {
@@ -135,6 +159,10 @@ app.whenReady().then(async () => {
   createWindow();
   updateService.start();
   await modelManager.detect();
+
+  // Kendi kendine bakım: açılışta bir kez + her 5 dakikada bir (güvenli, kod değiştirmez)
+  doMaintenance().catch(() => {});
+  setInterval(() => { doMaintenance().catch(() => {}); }, 5 * 60 * 1000);
 
   // Başlangıçta GitHub'daki bilgi dosyasını yerel belleğe yükle (yapılandırıldıysa)
   knowledge.syncDown().catch(() => {});

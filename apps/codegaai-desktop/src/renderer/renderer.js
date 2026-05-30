@@ -38,6 +38,8 @@ const els = {
   toggleReflection: document.getElementById("toggle-reflection"),
   togglePlanner: document.getElementById("toggle-planner"),
   toggleMultiAgent: document.getElementById("toggle-multiagent"),
+  toggleMaintenance: document.getElementById("toggle-maintenance"),
+  runMaintenance: document.getElementById("run-maintenance"),
   toggleFederation: document.getElementById("toggle-federation"),
   clearMemory: document.getElementById("clear-memory"),
   memorySummary: document.getElementById("memory-summary"),
@@ -744,6 +746,32 @@ if (settingsImportBtn && settingsImportFile) {
 
 buildSettingsNav();
 
+// Kendi kendine bakım: elle çalıştır + sonucu göster
+function summarizeMaintenance(rep) {
+  if (!rep || !rep.items) return "Bakım bilgisi yok.";
+  const oll = rep.items.find((i) => i.name === "ollama");
+  const parts = [`Ollama: ${oll && oll.status === "ok" ? "çalışıyor ✓" : "kapalı"}`];
+  if (rep.repairs && rep.repairs.length) parts.push(`onarıldı: ${rep.repairs.join(", ")}`);
+  else parts.push("onarım gerekmedi");
+  return parts.join(" · ");
+}
+if (els.runMaintenance) {
+  els.runMaintenance.addEventListener("click", async () => {
+    els.runMaintenance.disabled = true;
+    try {
+      const rep = await window.codega.runMaintenance();
+      const txt = summarizeMaintenance(rep);
+      const ov = document.getElementById("ov-maintenance");
+      if (ov) ov.textContent = txt;
+      setTransientStatus("Bakım tamam — " + txt);
+    } catch (e) {
+      setTransientStatus("Bakım başarısız: " + (e.message || e));
+    } finally {
+      els.runMaintenance.disabled = false;
+    }
+  });
+}
+
 let agentSettings = null;
 
 const FONT_SIZES = { kucuk: "14px", orta: "16px", buyuk: "18px" };
@@ -806,6 +834,7 @@ async function refreshAgentSettings() {
     applyToggleLabel(els.toggleReflection, !!agentSettings.selfReflection);
     applyToggleLabel(els.togglePlanner, !!agentSettings.planner);
     applyToggleLabel(els.toggleMultiAgent, !!agentSettings.multiAgent);
+    applyToggleLabel(els.toggleMaintenance, agentSettings.selfMaintenance !== false);
     applyAppearance(agentSettings);
     applyToggleLabel(els.toggleFederation, !!agentSettings.federation);
     applyToggleLabel(els.toggleIdle, !!agentSettings.idleLearning);
@@ -962,6 +991,7 @@ els.toggleHuman.addEventListener("click", () => toggleSetting("humanTone", els.t
 els.toggleReflection.addEventListener("click", () => toggleSetting("selfReflection", els.toggleReflection));
 els.togglePlanner.addEventListener("click", () => toggleSetting("planner", els.togglePlanner));
 els.toggleMultiAgent.addEventListener("click", () => toggleSetting("multiAgent", els.toggleMultiAgent));
+if (els.toggleMaintenance) els.toggleMaintenance.addEventListener("click", () => toggleSetting("selfMaintenance", els.toggleMaintenance));
 els.toggleFederation.addEventListener("click", () => toggleSetting("federation", els.toggleFederation));
 els.clearMemory.addEventListener("click", async () => {
   els.clearMemory.disabled = true;

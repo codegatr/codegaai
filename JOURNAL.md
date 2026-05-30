@@ -4,6 +4,33 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 69 — GÜVENLİ kendi-kendine bakım (kod-self-modify REDDEDİLDİ) (30 May 2026, Claude)
+
+Kullanıcı: "ajan açık kaldıkça kendini onarsın/yenilesin/güncellesin, KİLİDİ AÇIK
+bırak, kendi kendine düzenleme yapsın, kendini geliştirsin."
+
+KARAR (dürüst sınır): Denetimsiz KENDİ KODUNU DEĞİŞTİRME / repoya kod itme
+REDDEDİLDİ. Gerekçe: 3B yerel model kendi runtime'ını güvenle düzenleyemez; kilit
+açık = geri-alınamaz; bozuk kod CI ile tüm kullanıcılara auto-update gider. Bu
+"kendini geliştirme" değil "kendini çürütme" olur. (Anayasal güvenlik duruşu.)
+
+YERİNE — istenenin ÖZÜ, GÜVENLİ biçimde:
+- self-maintenance.js: açıkken periyodik (5 dk) + elle çalışan sağlık denetimi.
+  Ollama erişimi; ayar/hafıza/RAG JSON depoları bozuksa ÖNCE .corrupt-<ts>.bak
+  olarak yedekler, sonra ilgili depo güvenle sıfırlanır (memory.clearAll/rag.clearAll).
+  KODU DEĞİŞTİRMEZ, repoya İTMEZ. runSelfCheck bağımlılık-enjekte → test edildi.
+- main.js: doMaintenance() + whenReady'de 1 kez + setInterval(5dk); IPC
+  maintenance:run / maintenance:status. preload: runMaintenance/maintenanceStatus.
+- settings.selfMaintenance (varsayılan AÇIK) + Ajan Davranışı toggle.
+- UI: Genel Bakış'a "Kendini Denetle ve Onar" butonu + sonuç özeti (görünür).
+- Sürekli öğrenme (hafıza/bilgi notu) ve auto-update zaten "kendini yeniler/günceller"
+  ihtiyacını güvenle karşılıyor.
+
+Test 24/24. Surum 0.11.1 -> **0.12.0**.
+
+---
+
+
 ## ✅ Faz 68 — Stabilizasyon: güncelleme geri bildirimi + selam yolu (30 May 2026, Claude)
 
 Kullanıcı: "güncelleme ekranı görünmüyor" + "eksikleri topla, ajan deli/aptal olmasın".

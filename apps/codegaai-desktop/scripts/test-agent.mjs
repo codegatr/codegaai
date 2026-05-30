@@ -380,4 +380,28 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Basit sohbet tespiti: selam evet, görev/soru hayır");
 }
 
+// 24) Kendi kendine bakım: sağlık + bozuk depo onarımı (fake'lerle, diske dokunmadan)
+{
+  const smMod = await import(path.join(mainDir, "agent", "self-maintenance.js"));
+  const sm = smMod.default || smMod;
+  let repaired = false;
+  const report = await sm.runSelfCheck({
+    ollamaReachable: async () => true,
+    readJson: (p) => (p === "/bozuk" ? { state: "repaired", value: null } : { state: "ok", value: {} }),
+    jsonFiles: [
+      { name: "settings", path: "/iyi" },
+      { name: "memory", path: "/bozuk", onRepair: () => { repaired = true; } },
+    ],
+    now: 123,
+  });
+  assert.strictEqual(report.items.find((i) => i.name === "ollama").status, "ok");
+  assert.ok(report.repairs.includes("memory"), "bozuk depo onarıma alınmalı");
+  assert.strictEqual(repaired, true, "onRepair çağrılmalı");
+  assert.strictEqual(report.healthy, false, "onarım olduysa healthy=false");
+
+  const clean = await sm.runSelfCheck({ ollamaReachable: async () => true, jsonFiles: [], readJson: () => ({ state: "ok" }) });
+  assert.strictEqual(clean.healthy, true);
+  ok("Kendi kendine bakım: sağlık denetimi + güvenli onarım");
+}
+
 console.log(`\n${passed} test geçti ✅`);
