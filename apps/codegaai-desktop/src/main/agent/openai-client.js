@@ -29,6 +29,10 @@ async function openaiChat(messages, opts = {}) {
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  if (opts.signal) {
+    if (opts.signal.aborted) controller.abort();
+    else opts.signal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
   try {
     const res = await fetch(endpoint(baseUrl), {
       method: "POST",
@@ -61,6 +65,10 @@ async function openaiChatStream(messages, opts = {}) {
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  if (opts.signal) {
+    if (opts.signal.aborted) controller.abort();
+    else opts.signal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
   let full = "";
   try {
     const res = await fetch(endpoint(baseUrl), {
@@ -76,6 +84,7 @@ async function openaiChatStream(messages, opts = {}) {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buf = "";
+    try {
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -96,6 +105,10 @@ async function openaiChatStream(messages, opts = {}) {
           }
         } catch (_e) { /* yarım satır olabilir */ }
       }
+    }
+    } catch (e) {
+      if (e && e.name === "AbortError") return full; // durdurulduysa kısmi metni koru
+      throw e;
     }
     return full;
   } finally {

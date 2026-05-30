@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld("codega", {
   analyzeSystem: () => ipcRenderer.invoke("system:analyze"),
   testProvider: (payload) => ipcRenderer.invoke("provider:test", payload),
   runCode: (payload) => ipcRenderer.invoke("code:run", payload),
+  abortChat: () => ipcRenderer.invoke("chat:abort"),
   onChatStream: (cb) => {
     const handler = (_e, token) => cb(token);
     ipcRenderer.on("chat:stream", handler);

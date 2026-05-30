@@ -688,3 +688,9 @@ body[data-theme="oled"] { --bg: #000; }
 #code-input {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px;
 }
+
+/* Durdur düğmesi (gönder ile aynı yeri paylaşır) */
+#stop-btn {
+  border: 0; border-radius: 12px; cursor: pointer;
+  background: var(--bad, #ef4444); color: #fff; font-size: 14px; line-height: 1;
+}

@@ -272,6 +272,8 @@ class ModelManager {
   constructor() {
     this.ollamaCommand = null;
     this.history = []; // sunucu-tarafı çok-turlu hafıza ({role, content})
+    this._abort = null; // mevcut üretimi durdurmak için
+    this._aborted = false;
     this._queue = Promise.resolve(); // ask() serileştirme kuyruğu
     this.state = {
       provider: "instant",
@@ -435,6 +437,16 @@ class ModelManager {
 
   // Aynı anda gelen mesajları SIRAYA al: yerel model tek seferde tek üretim
   // yapsın (eşzamanlı istekler küçük modeli tıkar ve "Düşünüyorum"da bırakır).
+  /** Mevcut üretimi durdur (kullanıcı tetikli). */
+  abortCurrent() {
+    if (this._abort) {
+      this._aborted = true;
+      try { this._abort.abort(); } catch (_e) {}
+      return true;
+    }
+    return false;
+  }
+
   ask(input, opts = {}) {
     const run = () => this._ask(input, opts);
     const result = this._queue.then(run, run);
@@ -556,6 +568,10 @@ class ModelManager {
 
     const generateFn = (msgs) => this.generate(selectedModel, msgs, attemptModels);
 
+    // Durdurulabilirlik: bu üretim turu için yeni bir abort kontrolcüsü
+    this._abort = new AbortController();
+    this._aborted = false;
+
     let agent;
     try {
       if (isSmallTalk(input)) {
@@ -629,6 +645,16 @@ class ModelManager {
     }
 
     const text = String(agent.content || "").trim();
+    // Kullanıcı durdurduysa: o ana dek üretilen kısmı (varsa) döndür, yoksa not düş
+    if (this._aborted) {
+      this._abort = null;
+      this.state = { ...this.state, status: READY_STATES.READY, message: "Durduruldu" };
+      return {
+        provider: this.state.provider || "ollama",
+        model: selectedModel,
+        text: text ? `${text}\n\n⏹️ (durduruldu)` : "⏹️ Üretim durduruldu.",
+      };
+    }
     // Kendini gözlemleme: araç hatalarını öneri taslağı için say (yerel, gönderilmez)
     try {
       for (const tc of agent.toolCalls || []) {
@@ -703,6 +729,7 @@ class ModelManager {
    * runReact bunu generateFn olarak çağırır.
    */
   async generate(model, messages, fallbackModels = [], onToken = null) {
+    const sig = this._abort ? this._abort.signal : undefined;
     // Bulut sağlayıcı (OpenAI-uyumlu) seçiliyse oraya yönlen — yerel Ollama gerekmez.
     const s = getSettings();
     if (s.provider === "openai" && String(s.openaiApiKey || "").trim()) {
@@ -711,6 +738,7 @@ class ModelManager {
           baseUrl: s.openaiBaseUrl,
           apiKey: s.openaiApiKey,
           model: s.openaiModel || "gpt-4o-mini",
+          signal: sig,
         };
         const content = onToken
           ? await openaiChatStream(messages, { ...o, onToken })
@@ -724,8 +752,8 @@ class ModelManager {
     if (await ollamaReachable()) {
       try {
         const content = onToken
-          ? await ollamaChatStream(model, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS, onToken })
-          : await ollamaChat(model, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS });
+          ? await ollamaChatStream(model, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS, onToken, signal: sig })
+          : await ollamaChat(model, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS, signal: sig });
         if (content && content.trim()) return content;
       } catch (_e) {
         // HTTP başarısız -> CLI fallback (akışsız)

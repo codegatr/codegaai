@@ -4,6 +4,26 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 85 — Üretimi Durdur (Stop) — sıra #6 (önceliklendirildi) (30 May 2026, Claude)
+
+Kullanıcı "senin önceliğin neyse onu yap" dedi. Önceliğim Stop: ekran görüntüsündeki
+asıl acı yavaş/takılı üretimdi; MCP ise en karmaşık ve yerel 3B'de en az getirili.
+
+- ollama-client & openai-client: chat/stream fonksiyonları artık opts.signal (dış
+  abort) alıyor; akışta AbortError'da o ana dek üretilen KISMÎ metni döndürür (kayıp yok).
+- model-manager: this._abort/_aborted; generate() bu sinyali istemcilere geçirir;
+  _ask üretimden önce yeni AbortController kurar; abortCurrent() durdurur; durdurulduysa
+  kısmi metin + "⏹️ (durduruldu)" döner.
+- main IPC chat:abort -> abortCurrent. preload abortChat.
+- UI: composer'a #stop-btn (kırmızı ■); gönderirken setSendingUi(true) gönderi
+  düğmesini gizleyip durdur'u gösterir; bitince geri alır.
+
+Test 33/33. Surum 0.27.0 -> **0.28.0**. Sıradaki doğal adım: Regenerate (#6'nın ikiz
+parçası) ve #5 MCP.
+
+---
+
+
 ## ✅ Faz 84 — Kod çalıştırma (insan onaylı, sandbox değil) — sıra #4 (30 May 2026, Claude)
 
 Listenin en riskli maddesi. GÜVENLİ tasarım: ajan KENDİLİĞİNDEN kod çalıştırmaz;

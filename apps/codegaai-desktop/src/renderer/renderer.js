@@ -16,6 +16,8 @@ const els = {
   welcome: document.getElementById("welcome"),
   form: document.getElementById("chat-form"),
   input: document.getElementById("prompt-input"),
+  sendBtn: document.getElementById("send-btn"),
+  stopBtn: document.getElementById("stop-btn"),
   historySearch: document.getElementById("history-search"),
   modelPill: document.getElementById("model-pill"),
   settings: document.getElementById("settings-dialog"),
@@ -776,6 +778,7 @@ async function handleSubmit() {
   attachedFile = null;
   renderAttachChip();
 
+  setSendingUi(true);
   appendMessage("user", displayText);
   checkUpdatesAfterFirstQuery();
   els.input.value = "";
@@ -816,6 +819,7 @@ async function handleSubmit() {
     clearTimeout(slowNotice);
     offStream();
     isSending = false;
+    setSendingUi(false);
   }
   saveChats(); // final cevabı diske yaz; yoksa kapatıp açınca "Düşünüyorum..." kalıyordu
   renderConversation();
@@ -1102,6 +1106,17 @@ if (codeRunBtn) {
     }
   });
 }
+
+function setSendingUi(on) {
+  if (els.sendBtn) els.sendBtn.hidden = !!on;
+  if (els.stopBtn) els.stopBtn.hidden = !on;
+}
+if (els.stopBtn) els.stopBtn.addEventListener("click", async () => {
+  els.stopBtn.disabled = true;
+  setTransientStatus("Durduruluyor…");
+  try { await window.codega.abortChat(); } catch (_e) {}
+  els.stopBtn.disabled = false;
+});
 
 buildSettingsNav();
 

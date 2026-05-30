@@ -30,6 +30,10 @@ async function ollamaChat(model, messages, opts = {}) {
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  if (opts.signal) {
+    if (opts.signal.aborted) controller.abort();
+    else opts.signal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
   try {
     const res = await fetch(`${host}/api/chat`, {
       method: "POST",
@@ -68,6 +72,10 @@ async function ollamaChatStream(model, messages, opts = {}) {
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  if (opts.signal) {
+    if (opts.signal.aborted) controller.abort();
+    else opts.signal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
   let full = "";
   try {
     const res = await fetch(`${host}/api/chat`, {
@@ -86,25 +94,31 @@ async function ollamaChatStream(model, messages, opts = {}) {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buf = "";
-    // Ollama NDJSON döndürür: her satır bir JSON parçası
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      let nl;
-      while ((nl = buf.indexOf("\n")) >= 0) {
-        const line = buf.slice(0, nl).trim();
-        buf = buf.slice(nl + 1);
-        if (!line) continue;
-        try {
-          const obj = JSON.parse(line);
-          const tok = obj && obj.message && obj.message.content;
-          if (tok) {
-            full += tok;
-            if (onToken) { try { onToken(tok); } catch (_e) { /* yut */ } }
-          }
-        } catch (_e) { /* yarım satır olabilir, yoksay */ }
+    try {
+      // Ollama NDJSON döndürür: her satır bir JSON parçası
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let nl;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line) continue;
+          try {
+            const obj = JSON.parse(line);
+            const tok = obj && obj.message && obj.message.content;
+            if (tok) {
+              full += tok;
+              if (onToken) { try { onToken(tok); } catch (_e) { /* yut */ } }
+            }
+          } catch (_e) { /* yarım satır olabilir, yoksay */ }
+        }
       }
+    } catch (e) {
+      // Kullanıcı durdurdu / zaman aşımı: o ana dek üretilen kısmı KORU
+      if (e && e.name === "AbortError") return full;
+      throw e;
     }
     return full;
   } finally {

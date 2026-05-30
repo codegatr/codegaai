@@ -102,6 +102,8 @@ function registerIpc() {
     };
   });
 
+  ipcMain.handle("chat:abort", async () => modelManager.abortCurrent());
+
   ipcMain.handle("chat:send", async (event, message) => {
     lastActivityAt = Date.now();
     const streamOn = settingsStore.getSettings().streaming !== false;
