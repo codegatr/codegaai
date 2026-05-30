@@ -367,4 +367,17 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Çoklu ajan: routing + tool policy + orchestrate");
 }
 
+// 23) Basit sohbet tespiti (selam yolu araç/ReAct'a girmesin)
+{
+  const mm = await import(path.join(mainDir, "model-manager.js"));
+  const isST = (mm.default || mm).isSmallTalk;
+  for (const g of ["günaydın", "Günaydin", "selam", "merhaba", "teşekkürler", "naber"]) {
+    assert.strictEqual(isST(g), true, `smalltalk olmalı: ${g}`);
+  }
+  for (const q of ["günaydın, bana bir PHP fonksiyonu yaz", "Konya nüfusu nedir?", "şu repodaki hatayı bul"]) {
+    assert.strictEqual(isST(q), false, `smalltalk OLMAMALI: ${q}`);
+  }
+  ok("Basit sohbet tespiti: selam evet, görev/soru hayır");
+}
+
 console.log(`\n${passed} test geçti ✅`);

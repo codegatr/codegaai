@@ -22,6 +22,28 @@ const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
 const { SPECIALISTS, routeStep, buildSpecialistPrompt } = require("./agent/agents");
 
+// Basit sohbet/selamlaşma tespiti — bunlarda araç/ReAct makinesi devreye girmesin
+function _normTr(s) {
+  return String(s || "").toLocaleLowerCase("tr")
+    .replace(/[ıİ]/g, "i").replace(/ş/g, "s").replace(/ğ/g, "g")
+    .replace(/ü/g, "u").replace(/ö/g, "o").replace(/ç/g, "c");
+}
+const SMALLTALK_RE = /^(selam|merhaba|merhabalar|gunaydin|iyi gunler|iyi geceler|iyi aksamlar|naber|nasilsin|tesekkur|tesekkurler|sagol|sag ol|eyvallah|gorusuruz|hosca kal|hello|hi|hey|thanks|tesekkur ederim)\b/;
+function isSmallTalk(input) {
+  const t = String(input || "").trim();
+  if (!t || t.length > 25 || /\?/.test(t)) return false;
+  if (t.split(/\s+/).length > 4) return false; // selam+istek olmasın
+  return SMALLTALK_RE.test(_normTr(t));
+}
+function smallTalkPrompt(humanTone) {
+  return (
+    "Sen CODEGA AI'sın, yerel çalışan bir yapay zeka asistanısın. Kullanıcı seninle kısa bir " +
+    "selamlaşma/sohbet yapıyor. Kısa, doğal ve net Türkçe cevap ver: 1-2 cümle. Araç KULLANMA, " +
+    "liste yapma, kendini uzun uzun tanıtma, rapor/etiket yazma." +
+    (humanTone ? " Sıcak ve içten bir ton kullan." : "")
+  );
+}
+
 const MAX_HISTORY_MESSAGES = 12; // son ~6 turu hatırla
 
 const READY_STATES = {
@@ -512,7 +534,16 @@ class ModelManager {
 
     let agent;
     try {
-      if (settings.multiAgent && looksLikeGoal(input)) {
+      if (isSmallTalk(input)) {
+        // Basit selam/sohbet: araçsız, kısa, doğrudan cevap (ajan saçmalamasın)
+        const sttMsgs = [
+          { role: "system", content: smallTalkPrompt(settings.humanTone) },
+          ...this.history.slice(-4),
+          { role: "user", content: input },
+        ];
+        const direct = await this.generate(selectedModel, sttMsgs, attemptModels);
+        agent = { content: direct, iterations: 0, stoppedReason: "smalltalk", toolCalls: [] };
+      } else if (settings.multiAgent && looksLikeGoal(input)) {
         // Multi-agent: orchestrator → uzman ajanlar → denetçi sentezi
         const gen = (msgs) => this.generate(selectedModel, msgs);
         const orch = await runOrchestrated(input, {
@@ -588,7 +619,7 @@ class ModelManager {
 
     // Öz değerlendirme (opt-in): cevabı denetle, gerekiyorsa düzelt
     let finalText = text;
-    if (settings.selfReflection) {
+    if (settings.selfReflection && agent.stoppedReason !== "smalltalk") {
       try {
         const r = await reflect(input, text, (msgs) => this.generate(selectedModel, msgs));
         if (r.answer && r.answer.trim()) finalText = r.answer.trim();
@@ -666,4 +697,5 @@ module.exports = {
   instantAnswer,
   detectTask,
   candidateModelsForTask,
+  isSmallTalk,
 };

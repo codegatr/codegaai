@@ -556,6 +556,7 @@ function closeUpdatePrompt() {
 }
 
 let isSending = false;
+let manualUpdateCheck = false;
 
 async function handleSubmit() {
   if (isSending) return; // önceki cevap dönmeden yeni istek gönderme
@@ -997,11 +998,14 @@ els.modelList.addEventListener("click", async (event) => {
 });
 els.checkUpdate.addEventListener("click", async () => {
   els.checkUpdate.disabled = true;
+  manualUpdateCheck = true;
   els.updateDetail.textContent = "Güncelleme kontrol ediliyor...";
+  setTransientStatus("Güncelleme kontrol ediliyor…");
   try {
     await window.codega.checkForUpdates();
   } catch (error) {
     els.updateDetail.textContent = `Güncelleme kontrol edilemedi: ${error.message || error}`;
+    setTransientStatus(`Güncelleme kontrol edilemedi: ${error.message || error}`);
   } finally {
     els.checkUpdate.disabled = false;
   }
@@ -1070,6 +1074,11 @@ window.codega.onUpdateStatus((payload) => {
     els.installUpdate.hidden = false;
     showUpdatePrompt("ready", detail);
   }
+  // Elle kontrolde görünür geri bildirim (sonuç gizli sekmede kalmasın)
+  if (manualUpdateCheck && (state === "not-available" || state === "error")) {
+    setTransientStatus(messages[state] || "Güncelleme kontrolü tamamlandı.");
+  }
+  if (state !== "checking" && state !== "downloading") manualUpdateCheck = false;
 });
 
 loadChats();

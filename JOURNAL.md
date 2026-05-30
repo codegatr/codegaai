@@ -4,6 +4,27 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 68 — Stabilizasyon: güncelleme geri bildirimi + selam yolu (30 May 2026, Claude)
+
+Kullanıcı: "güncelleme ekranı görünmüyor" + "eksikleri topla, ajan deli/aptal olmasın".
+
+A) Güncelleme görünürlüğü: kod aslında doğruydu (available/ready'de modal açılıyor,
+   els'ler tanımlı). Sorun UX: güncelleme yokken / elle kontrolde sonuç GİZLİ
+   "Güncellemeler" sekmesindeki metne yazılıyordu → görünür geri bildirim yok.
+   Düzeltme: elle "Kontrol Et"te manualUpdateCheck bayrağı + onUpdateStatus sonunda
+   not-available/error durumunda setTransientStatus toast (sekmeden bağımsız görünür).
+
+B) Ajan "deli/aptal" → basit selam/sohbet için ARAÇSIZ DOĞRUDAN cevap yolu.
+   model-manager.ask: isSmallTalk(input) (Türkçe-normalize, <=25 char, <=4 kelime,
+   soru değil, selam kalıbı) ise ReAct/araç/planner/multiagent DEVRE DIŞI; kısa
+   sade system prompt'la tek generate → "günaydın"a saçmalamıyor. Selamda reflection
+   da atlanıyor. isSmallTalk dışa aktarıldı; testler eklendi (23/23).
+
+Surum 0.11.0 -> **0.11.1**.
+
+---
+
+
 ## ✅ Faz 67 — Ayarlar "Kontrol Merkezi" (sidebar + içerik) (30 May 2026, Claude)
 
 Kullanıcı prototipi onayladı ("güzel bu şekilde devam et"). Prototip tek-HTML
