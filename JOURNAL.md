@@ -4,6 +4,33 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 78 — STREAMING (token token canlı yanıt) — sıra #1 (30 May 2026, Claude)
+
+Eksik listesi sıra ile: #1 streaming eklendi. Büyük araçların (ChatGPT/Claude/Gemini)
+en belirgin UX farkı. GÜVENLİ tasarım: mevcut tek-seferde-dönen yol OTORİTE kaldı;
+üstüne canlı token akışı eklendi — akış bozulursa cevap yine tam gelir.
+
+- ollama-client.js: ollamaChatStream (stream:true, NDJSON satır ayrıştırma, onToken
+  per token, tüm metni döndürür). Mevcut ollamaChat'e DOKUNULMADI (yedek yol).
+- model-manager: generate(model,msgs,fallbacks,onToken) — onToken varsa stream, yoksa
+  bloklayıcı. _ask(input, opts) onToken alır; smalltalk + VARSAYILAN ReAct yolunda
+  streamFn ile geçer (planner/multiAgent/reflect akışsız — opt-in/ileri yollar).
+- main chat:send: settings.streaming açıksa event.sender.send('chat:stream', token).
+  settings.streaming (varsayılan AÇIK).
+- preload: onChatStream(cb) -> unsubscribe döner.
+- renderer handleSubmit: token geldikçe placeholder canlı güncellenir (rAF throttle,
+  ilk token'da 'Düşünüyorum' temizlenir); finally'de offStream(); FINAL cevap
+  answer.text ile yazılır (otorite). Zekâ & Model'e "Akışlı yanıt" toggle.
+
+NOT (dürüst): ReAct ara adımları (TOOL satırı) kısa süre görünebilir, final temiz
+metinle değişir. İstenirse ara-adım gizleme ayrı iyileştirme. Arayüz canlı test
+edilemedi; tasarım final-return otoritesi sayesinde bozulsa bile güvenli.
+
+Test 31/31. Surum 0.20.0 -> **0.21.0**.
+
+---
+
+
 ## ✅ Faz 77 — Piyasa karşılaştırması + Sohbet Arama (güvenli, eklemeli) (30 May 2026, Claude)
 
 Kullanıcı "piyasadaki tüm AI ajanlarıyla karşılaştır, eksikleri ekle" dedi. Dürüst

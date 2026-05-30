@@ -498,4 +498,13 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Uzman modları: persona çözümleme");
 }
 
+// 31) Streaming altyapısı: ollamaChatStream dışa aktarılmış olmalı
+{
+  const ocMod = await import(path.join(mainDir, "agent", "ollama-client.js"));
+  const oc = ocMod.default || ocMod;
+  assert.strictEqual(typeof oc.ollamaChatStream, "function", "ollamaChatStream var");
+  assert.strictEqual(typeof oc.ollamaChat, "function", "ollamaChat hâlâ var (yedek yol)");
+  ok("Streaming: ollamaChatStream dışa aktarıldı (yedek olarak ollamaChat duruyor)");
+}
+
 console.log(`\n${passed} test geçti ✅`);

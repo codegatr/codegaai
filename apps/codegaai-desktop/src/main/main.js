@@ -102,9 +102,13 @@ function registerIpc() {
     };
   });
 
-  ipcMain.handle("chat:send", async (_event, message) => {
+  ipcMain.handle("chat:send", async (event, message) => {
     lastActivityAt = Date.now();
-    return modelManager.ask(message);
+    const streamOn = settingsStore.getSettings().streaming !== false;
+    const onToken = streamOn
+      ? (t) => { try { event.sender.send("chat:stream", t); } catch (_e) {} }
+      : null;
+    return modelManager.ask(message, { onToken });
   });
 
   ipcMain.handle("chat:share", async (_event, chat) => {

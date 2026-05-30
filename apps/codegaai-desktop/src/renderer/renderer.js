@@ -43,6 +43,7 @@ const els = {
   runMaintenance: document.getElementById("run-maintenance"),
   toggleAutoPropose: document.getElementById("toggle-autopropose"),
   expertSelect: document.getElementById("expert-select"),
+  toggleStreaming: document.getElementById("toggle-streaming"),
   toggleFederation: document.getElementById("toggle-federation"),
   clearMemory: document.getElementById("clear-memory"),
   memorySummary: document.getElementById("memory-summary"),
@@ -637,6 +638,23 @@ async function handleSubmit() {
 
   const chat = currentChat();
   const placeholder = chat.messages[chat.messages.length - 1];
+  // Streaming: token geldikçe placeholder'ı canlı güncelle (akış kapalıysa hiç gelmez)
+  let streamBuf = "";
+  let firstToken = true;
+  let rafPending = false;
+  const offStream = window.codega.onChatStream((token) => {
+    if (firstToken) { clearTimeout(slowNotice); streamBuf = ""; firstToken = false; }
+    streamBuf += token;
+    placeholder.text = streamBuf;
+    if (!rafPending) {
+      rafPending = true;
+      requestAnimationFrame(() => {
+        rafPending = false;
+        renderConversation();
+        scrollConversationToBottom();
+      });
+    }
+  });
   const slowNotice = setTimeout(() => {
     placeholder.text = "Biraz uzun düşünüyorum. Cevap gelmezse kısa süre içinde güvenli şekilde durduracağım.";
     renderConversation();
@@ -644,12 +662,13 @@ async function handleSubmit() {
   }, 8000);
   try {
     const answer = await window.codega.sendMessage(text);
-    placeholder.text = answer.text;
+    placeholder.text = answer.text; // final cevap otorite (akış bozulsa bile tam metin)
     await refreshModels();
   } catch (error) {
     placeholder.text = `Bir aksama oldu: ${error.message || error}`;
   } finally {
     clearTimeout(slowNotice);
+    offStream();
     isSending = false;
   }
   renderConversation();
@@ -1001,6 +1020,7 @@ async function refreshAgentSettings() {
     applyToggleLabel(els.toggleMaintenance, agentSettings.selfMaintenance !== false);
     if (els.toggleAutoPropose) applyToggleLabel(els.toggleAutoPropose, !!agentSettings.autoProposePR);
     if (els.expertSelect) els.expertSelect.value = agentSettings.expertMode || "genel";
+    if (els.toggleStreaming) applyToggleLabel(els.toggleStreaming, agentSettings.streaming !== false);
     applyAppearance(agentSettings);
     applyToggleLabel(els.toggleFederation, !!agentSettings.federation);
     applyToggleLabel(els.toggleIdle, !!agentSettings.idleLearning);
@@ -1159,6 +1179,7 @@ els.togglePlanner.addEventListener("click", () => toggleSetting("planner", els.t
 els.toggleMultiAgent.addEventListener("click", () => toggleSetting("multiAgent", els.toggleMultiAgent));
 if (els.toggleMaintenance) els.toggleMaintenance.addEventListener("click", () => toggleSetting("selfMaintenance", els.toggleMaintenance));
 if (els.toggleAutoPropose) els.toggleAutoPropose.addEventListener("click", () => toggleSetting("autoProposePR", els.toggleAutoPropose));
+if (els.toggleStreaming) els.toggleStreaming.addEventListener("click", () => toggleSetting("streaming", els.toggleStreaming));
 if (els.expertSelect) els.expertSelect.addEventListener("change", async () => { agentSettings = await window.codega.setSettings({ expertMode: els.expertSelect.value }); setTransientStatus("Uzman modu: " + els.expertSelect.value); });
 els.toggleFederation.addEventListener("click", () => toggleSetting("federation", els.toggleFederation));
 els.clearMemory.addEventListener("click", async () => {

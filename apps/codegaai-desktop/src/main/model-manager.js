@@ -11,7 +11,7 @@ const {
   OLLAMA_DOWNLOAD_URL,
   OLLAMA_PULL_TIMEOUT_MS,
 } = require("../shared/constants");
-const { ollamaChat, ollamaReachable, ollamaListModels } = require("./agent/ollama-client");
+const { ollamaChat, ollamaChatStream, ollamaReachable, ollamaListModels } = require("./agent/ollama-client");
 const { runReact } = require("./agent/agent-loop");
 const { buildSystemPrompt } = require("./agent/system-prompt");
 const { getSettings } = require("./agent/settings-store");
@@ -434,8 +434,8 @@ class ModelManager {
 
   // Aynı anda gelen mesajları SIRAYA al: yerel model tek seferde tek üretim
   // yapsın (eşzamanlı istekler küçük modeli tıkar ve "Düşünüyorum"da bırakır).
-  ask(input) {
-    const run = () => this._ask(input);
+  ask(input, opts = {}) {
+    const run = () => this._ask(input, opts);
     const result = this._queue.then(run, run);
     this._queue = result.then(
       () => undefined,
@@ -444,7 +444,8 @@ class ModelManager {
     return result;
   }
 
-  async _ask(input) {
+  async _ask(input, opts = {}) {
+    const onToken = opts.onToken || null;
     const instant = instantAnswer(input);
     if (instant) {
       return {
@@ -544,7 +545,7 @@ class ModelManager {
           ...this.history.slice(-4),
           { role: "user", content: input },
         ];
-        const direct = await this.generate(selectedModel, sttMsgs, attemptModels);
+        const direct = await this.generate(selectedModel, sttMsgs, attemptModels, onToken);
         agent = { content: direct, iterations: 0, stoppedReason: "smalltalk", toolCalls: [] };
       } else if (settings.multiAgent && looksLikeGoal(input)) {
         // Multi-agent: orchestrator → uzman ajanlar → denetçi sentezi
@@ -589,7 +590,10 @@ class ModelManager {
           toolCalls: [],
         };
       } else {
-        agent = await runReact(messages, generateFn, { maxIters: 3 });
+        // Varsayılan yol: cevabı akışlı üret (token token). Akış bozulursa generate
+        // kendi içinde bloklayıcı moda/CLI'ye düşer; dönüş değeri yine otorite.
+        const streamFn = (msgs) => this.generate(selectedModel, msgs, attemptModels, onToken);
+        agent = await runReact(messages, streamFn, { maxIters: 3 });
       }
     } catch (e) {
       this.state = {
@@ -678,15 +682,15 @@ class ModelManager {
    * için gerekli), erişilemezse CLI `run`'a fallback (messages düzleştirilir).
    * runReact bunu generateFn olarak çağırır.
    */
-  async generate(model, messages, fallbackModels = []) {
+  async generate(model, messages, fallbackModels = [], onToken = null) {
     if (await ollamaReachable()) {
       try {
-        const content = await ollamaChat(model, messages, {
-          timeoutMs: OLLAMA_CHAT_TIMEOUT_MS,
-        });
+        const content = onToken
+          ? await ollamaChatStream(model, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS, onToken })
+          : await ollamaChat(model, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS });
         if (content && content.trim()) return content;
       } catch (_e) {
-        // HTTP başarısız -> CLI fallback
+        // HTTP başarısız -> CLI fallback (akışsız)
       }
     }
     const prompt = flattenMessages(messages);

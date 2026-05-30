@@ -52,6 +52,66 @@ async function ollamaChat(model, messages, opts = {}) {
   }
 }
 
+/**
+ * Akışlı (streaming) chat tamamlaması. Token geldikçe onToken(token) çağrılır,
+ * sonunda tüm metni döndürür. Akış başarısız olursa hata fırlatır (çağıran
+ * taraf bloklayıcı ollamaChat'e/CLI'ye düşebilir).
+ */
+async function ollamaChatStream(model, messages, opts = {}) {
+  const {
+    temperature = 0.4,
+    timeoutMs = 120000,
+    host = OLLAMA_HOST,
+    numCtx = 8192,
+    onToken = null,
+  } = opts;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let full = "";
+  try {
+    const res = await fetch(`${host}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages,
+        stream: true,
+        options: { temperature, num_ctx: numCtx },
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok || !res.body) throw new Error(`Ollama HTTP ${res.status}`);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    // Ollama NDJSON döndürür: her satır bir JSON parçası
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (!line) continue;
+        try {
+          const obj = JSON.parse(line);
+          const tok = obj && obj.message && obj.message.content;
+          if (tok) {
+            full += tok;
+            if (onToken) { try { onToken(tok); } catch (_e) { /* yut */ } }
+          }
+        } catch (_e) { /* yarım satır olabilir, yoksay */ }
+      }
+    }
+    return full;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Ollama HTTP servisi ayakta mı? */
 async function ollamaReachable(host = OLLAMA_HOST, timeoutMs = 2000) {
   const controller = new AbortController();
@@ -85,4 +145,4 @@ async function ollamaListModels(host = OLLAMA_HOST, timeoutMs = 4000) {
   }
 }
 
-module.exports = { ollamaChat, ollamaReachable, ollamaListModels, OLLAMA_HOST };
+module.exports = { ollamaChat, ollamaChatStream, ollamaReachable, ollamaListModels, OLLAMA_HOST };
