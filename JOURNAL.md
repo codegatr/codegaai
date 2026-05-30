@@ -4,6 +4,28 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 82 — Dosya ekleme (kod/metin bağlamı) — sıra #3 (30 May 2026, Claude)
+
+Geliştirici için en değerli multimodal parça: kod/metin dosyası ekleyip hakkında soru
+sormak. GÜVENLİ: tamamen renderer'da; model-manager/IPC'ye DOKUNULMADI (dosya metni
+mesaja bağlam olarak eklenir, gönderilen string uzar sadece).
+
+- index.html: composer'a 📎 attach-btn + gizli file-input (kod/metin uzantıları) +
+  attach-chip.
+- renderer: attachedFile state; FileReader.readAsText (>2MB reddet, >12k char kısalt);
+  chip (ad + × kaldır). handleSubmit: EKRANDA "kullanıcı metni + 📎 ad", MODELE
+  "DOSYA İÇERİĞİ ... + kullanıcı isteği" augmented metin. Ek gönderince temizlenir.
+- styles.css: attach buton + chip.
+
+NOT (dürüst): görsel/PDF bu turda DEĞİL — görsel için vision modeli (llava/qwen2.5-vl)
++ images param threading, PDF için ayrıştırıcı gerekiyor; ayrı adım. Şu an metin-tabanlı
+dosyalar (kod, txt, md, csv, json, sql, vb.) destekleniyor.
+
+Test 32/32. Surum 0.24.0 -> **0.25.0**.
+
+---
+
+
 ## ✅ Faz 81 — Çoklu sağlayıcı (OpenAI-uyumlu bulut) — sıra #2 (30 May 2026, Claude)
 
 Ham-zekâ açığını kapatan adım. OpenAI-UYUMLU bulut sağlayıcı eklendi (OpenAI,

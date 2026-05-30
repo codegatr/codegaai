@@ -646,6 +646,49 @@ function closeUpdatePrompt() {
 let historyQuery = "";
 let isSending = false;
 let manualUpdateCheck = false;
+let attachedFile = null; // { name, text }
+const ATTACH_MAX_CHARS = 12000;
+
+function renderAttachChip() {
+  const chip = document.getElementById("attach-chip");
+  if (!chip) return;
+  if (!attachedFile) { chip.hidden = true; chip.innerHTML = ""; return; }
+  chip.hidden = false;
+  chip.innerHTML = `<span>📎 ${escapeHtml(attachedFile.name)}</span>`;
+  const x = document.createElement("button");
+  x.type = "button";
+  x.textContent = "×";
+  x.title = "Eki kaldır";
+  x.addEventListener("click", () => { attachedFile = null; renderAttachChip(); });
+  chip.appendChild(x);
+}
+
+(function bindAttach() {
+  const btn = document.getElementById("attach-btn");
+  const input = document.getElementById("file-input");
+  if (!btn || !input) return;
+  btn.addEventListener("click", () => input.click());
+  input.addEventListener("change", () => {
+    const file = input.files && input.files[0];
+    input.value = ""; // aynı dosya tekrar seçilebilsin
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setTransientStatus("Dosya çok büyük (en fazla 2 MB metin).");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      let text = String(reader.result || "");
+      let note = "";
+      if (text.length > ATTACH_MAX_CHARS) { text = text.slice(0, ATTACH_MAX_CHARS); note = " (kısaltıldı)"; }
+      attachedFile = { name: file.name + note, text };
+      renderAttachChip();
+      setTransientStatus(`Ek hazır: ${file.name}${note}. Sorunu yazıp gönder.`);
+    };
+    reader.onerror = () => setTransientStatus("Dosya okunamadı (metin tabanlı bir dosya seç).");
+    reader.readAsText(file);
+  });
+})();
 
 async function handleSubmit() {
   if (isSending) return; // önceki cevap dönmeden yeni istek gönderme
@@ -653,7 +696,16 @@ async function handleSubmit() {
   if (!text) return;
   isSending = true;
 
-  appendMessage("user", text);
+  // Ek dosya varsa: ekranda kullanıcı metni + ek rozeti; modele dosya bağlamı eklenmiş metin
+  const att = attachedFile;
+  const displayText = att ? `${text}\n\n📎 ${att.name}` : text;
+  const sendText = att
+    ? `Kullanıcı bir dosya ekledi: "${att.name}"\n\n--- DOSYA İÇERİĞİ ---\n${att.text}\n--- DOSYA SONU ---\n\nKullanıcının isteği: ${text}`
+    : text;
+  attachedFile = null;
+  renderAttachChip();
+
+  appendMessage("user", displayText);
   checkUpdatesAfterFirstQuery();
   els.input.value = "";
   els.input.style.height = "auto";
@@ -684,7 +736,7 @@ async function handleSubmit() {
     scrollConversationToBottom();
   }, 8000);
   try {
-    const answer = await window.codega.sendMessage(text);
+    const answer = await window.codega.sendMessage(sendText);
     placeholder.text = answer.text; // final cevap otorite (akış bozulsa bile tam metin)
     await refreshModels();
   } catch (error) {

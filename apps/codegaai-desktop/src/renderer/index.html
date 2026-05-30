@@ -33,10 +33,13 @@
 
       <section class="composer">
         <div class="model-pill" id="model-pill">Model durumu kontrol ediliyor</div>
+        <div class="attach-chip" id="attach-chip" hidden></div>
         <form class="prompt-box" id="chat-form">
+          <button type="button" id="attach-btn" title="Dosya ekle (kod/metin)">📎</button>
           <textarea id="prompt-input" rows="1" placeholder="Ne yapmak istiyorsun?"></textarea>
           <button type="submit" title="Gönder">➤</button>
         </form>
+        <input type="file" id="file-input" hidden accept=".txt,.md,.csv,.json,.js,.ts,.jsx,.tsx,.php,.py,.html,.htm,.css,.scss,.sql,.log,.xml,.yml,.yaml,.sh,.ini,.env,.c,.cpp,.h,.java,.go,.rs,.rb,.vue,.svelte" />
       </section>
     </main>
 
