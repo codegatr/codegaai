@@ -4,9 +4,13 @@
   --panel: rgba(255, 255, 255, 0.055);
   --panel-strong: rgba(255, 255, 255, 0.09);
   --line: rgba(255, 255, 255, 0.1);
+  --line2: rgba(255, 255, 255, 0.16);
   --text: #f7f7f7;
   --muted: rgba(255, 255, 255, 0.52);
-  --accent: #ffffff;
+  /* Prototip kimliği: amber vurgu */
+  --accent: #f59e0b;
+  --accent-soft: rgba(245, 158, 11, 0.14);
+  --card: #14171c;
 }
 
 * {
@@ -630,3 +634,27 @@ body[data-theme="oled"] { --bg: #000; }
 }
 #history-search:focus { outline: none; border-color: var(--accent); }
 .history-empty { color: var(--muted); font-size: 12.5px; padding: 6px 2px; }
+
+/* Prototip uyumu: kaydırmalı "pill" anahtarlar */
+.settings .switch {
+  width: 46px; height: 27px; min-width: 46px; flex: 0 0 auto;
+  border-radius: 999px; background: var(--line2, rgba(255,255,255,.16));
+  border: 0; padding: 0; position: relative; cursor: pointer;
+  transition: background .18s; appearance: none;
+}
+.settings .switch::after {
+  content: ""; position: absolute; top: 3px; left: 3px;
+  width: 21px; height: 21px; border-radius: 50%;
+  background: #fff; transition: transform .18s;
+}
+.settings .switch.on { background: var(--accent); }
+.settings .switch.on::after { transform: translateX(19px); }
+.settings .switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Prototip uyumu: kategori içeriği kart hissi */
+.settings-cats .settings-group.active { background: transparent; }
+.settings-cats .settings-group .settings-row,
+.settings-cats .settings-group .settings-field {
+  background: var(--card, #14171c); border: 1px solid var(--line);
+  border-radius: 12px; margin-bottom: 10px; padding: 13px 15px;
+}

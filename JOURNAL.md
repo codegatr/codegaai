@@ -4,6 +4,23 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 80 — Ayarlar prototiple görsel uyum (amber + pill anahtarlar + kart) (30 May 2026, Claude)
+
+Kullanıcı: canlı Ayarlar, verdiğim prototiple aynı değil. Doğru — prototipi gerçek
+uygulamaya taşırken işlevsel kabloları korumak için metin-butonlu anahtarlar kalmıştı.
+Prototipin imza öğelerini canlıya taşıdım (CSS + küçük JS, ana akışa dokunmadan):
+
+- :root amber kimliği: --accent #f59e0b (eski #ffffff), --accent-soft, --line2, --card.
+  Varsayılan ayar accent'i de #f59e0b (settings-store + applyAppearance fallback).
+- applyToggleLabel: artık metin yerine prototipteki kaydırmalı "pill" .switch
+  (aria-pressed + on sınıfı). CSS .switch / ::after / .on knob animasyonu.
+- Kategori satırları kart hissi (.settings-row/.settings-field: --card bg + radius).
+
+Test 31/31. Surum 0.22.0 -> **0.23.0**.
+
+---
+
+
 ## ✅ Faz 79 — KRİTİK: cevaplar kaydedilmiyordu ("Düşünüyorum..." kalıyordu) (30 May 2026, Claude)
 
 Kullanıcı ekran görüntüsü: asistan cevapları kapatıp açınca "Düşünüyorum..." olarak

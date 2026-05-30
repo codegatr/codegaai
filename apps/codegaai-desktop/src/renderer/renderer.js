@@ -978,7 +978,7 @@ const FONT_SIZES = { kucuk: "14px", orta: "16px", buyuk: "18px" };
 function applyAppearance(s) {
   if (!s) return;
   const theme = s.theme || "oled";
-  const accent = s.accent || "#ffffff";
+  const accent = s.accent || "#f59e0b";
   const fontScale = s.fontScale || "orta";
   document.body.dataset.theme = theme;
   document.documentElement.style.setProperty("--accent", accent);
@@ -1024,7 +1024,14 @@ window.codega
   .catch(() => {});
 
 function applyToggleLabel(button, on) {
-  button.textContent = on ? "Açık" : "Kapalı";
+  if (!button) return;
+  // Prototipteki kaydırmalı "pill" anahtar görünümü (metin yerine görsel switch)
+  button.classList.add("switch");
+  button.classList.toggle("on", !!on);
+  button.setAttribute("aria-pressed", on ? "true" : "false");
+  button.setAttribute("aria-label", on ? "Açık" : "Kapalı");
+  button.title = on ? "Açık" : "Kapalı";
+  button.textContent = "";
 }
 
 async function refreshAgentSettings() {

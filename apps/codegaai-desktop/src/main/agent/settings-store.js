@@ -29,7 +29,7 @@ const DEFAULTS = {
   expertMode: "genel", // sohbet uzman modu (genel/php/python/javascript/devops/finans/hukuk)
   streaming: true, // cevabı token token canlı göster (kapatılabilir)
   theme: "oled", // görünüm teması (oled/slate/midnight/warm)
-  accent: "#ffffff", // vurgu rengi
+  accent: "#f59e0b", // vurgu rengi (prototip amber)
   fontScale: "orta", // sohbet yazı boyutu (kucuk/orta/buyuk)
 };
 
