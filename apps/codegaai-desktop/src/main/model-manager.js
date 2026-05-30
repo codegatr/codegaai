@@ -459,6 +459,11 @@ class ModelManager {
 
   async _ask(input, opts = {}) {
     const onToken = opts.onToken || null;
+    // Yeniden üretim: önceki turu (user+assistant) geçmişten çıkar ki bağlam tekrarlanmasın
+    if (opts.regenerate) {
+      if (this.history.length && this.history[this.history.length - 1].role === "assistant") this.history.pop();
+      if (this.history.length && this.history[this.history.length - 1].role === "user") this.history.pop();
+    }
     const instant = instantAnswer(input);
     if (instant) {
       return {

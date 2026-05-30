@@ -3,7 +3,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("codega", {
   getStatus: () => ipcRenderer.invoke("app:status"),
   getModels: () => ipcRenderer.invoke("models:list"),
-  sendMessage: (message) => ipcRenderer.invoke("chat:send", message),
+  sendMessage: (message, opts) => ipcRenderer.invoke("chat:send", message, opts),
   shareChat: (chat) => ipcRenderer.invoke("chat:share", chat),
   prepareModel: (modelId) => ipcRenderer.invoke("model:prepare", modelId),
   checkForUpdates: () => ipcRenderer.invoke("updates:check"),

@@ -104,13 +104,13 @@ function registerIpc() {
 
   ipcMain.handle("chat:abort", async () => modelManager.abortCurrent());
 
-  ipcMain.handle("chat:send", async (event, message) => {
+  ipcMain.handle("chat:send", async (event, message, opts) => {
     lastActivityAt = Date.now();
     const streamOn = settingsStore.getSettings().streaming !== false;
     const onToken = streamOn
       ? (t) => { try { event.sender.send("chat:stream", t); } catch (_e) {} }
       : null;
-    return modelManager.ask(message, { onToken });
+    return modelManager.ask(message, { onToken, regenerate: !!(opts && opts.regenerate) });
   });
 
   ipcMain.handle("chat:share", async (_event, chat) => {

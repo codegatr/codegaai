@@ -4,6 +4,19 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 86 — Yeniden Üret (Regenerate) — Stop'un ikizi (30 May 2026, Claude)
+
+Son asistan cevabını yeniden ürettirir.
+- preload sendMessage(message, opts); main chat:send (message, opts) -> ask regenerate.
+- model-manager._ask: opts.regenerate ise geçmişten son (user+assistant) çıkarılır ki
+  bağlam tekrarlanmasın; sonra normal akış yeni cevabı üretir/ekler.
+- renderer: son asistan mesajına 🔄; regenerateLast() son kullanıcı metnini bulur
+  ('📎 dosya' notunu temizler), eski cevabı kaldırır, akışlı yeni cevabı üretir, kaydeder.
+Test 33/33. Surum 0.28.0 -> **0.29.0**.
+
+---
+
+
 ## ✅ Faz 85 — Üretimi Durdur (Stop) — sıra #6 (önceliklendirildi) (30 May 2026, Claude)
 
 Kullanıcı "senin önceliğin neyse onu yap" dedi. Önceliğim Stop: ekran görüntüsündeki

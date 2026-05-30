@@ -283,6 +283,16 @@ function renderConversation() {
         }
       });
       bar.appendChild(copyBtn);
+      // Yeniden üret — yalnızca son cevapta ve gönderim yokken
+      if (idx === chat.messages.length - 1 && !isSending) {
+        const regen = document.createElement("button");
+        regen.type = "button";
+        regen.className = "fb-btn";
+        regen.textContent = "🔄";
+        regen.title = "Yeniden üret";
+        regen.addEventListener("click", () => regenerateLast());
+        bar.appendChild(regen);
+      }
       node.appendChild(bar);
     }
     els.conversation.appendChild(node);
@@ -762,6 +772,59 @@ function renderAttachChip() {
     reader.readAsText(slice);
   });
 })();
+
+async function regenerateLast() {
+  if (isSending) return;
+  const chat = currentChat();
+  const msgs = chat.messages;
+  if (!msgs.length || msgs[msgs.length - 1].role !== "assistant") return;
+  // Son kullanıcı mesajını bul
+  let userText = "";
+  for (let i = msgs.length - 2; i >= 0; i--) {
+    if (msgs[i].role === "user") { userText = msgs[i].text; break; }
+  }
+  if (!userText) return;
+  // "📎 dosya" notunu temizle (yeniden üretimde dosya bağlamı yeniden eklenmez)
+  userText = userText.replace(/\n+📎 .*$/s, "").trim();
+  if (!userText) return;
+
+  isSending = true;
+  setSendingUi(true);
+  msgs.pop(); // eski asistan cevabını kaldır
+  appendMessage("assistant", "Düşünüyorum...");
+  const placeholder = msgs[msgs.length - 1];
+
+  let streamBuf = "";
+  let firstToken = true;
+  let rafPending = false;
+  const offStream = window.codega.onChatStream((token) => {
+    if (firstToken) { clearTimeout(slowNotice); streamBuf = ""; firstToken = false; }
+    streamBuf += token;
+    placeholder.text = streamBuf;
+    if (!rafPending) {
+      rafPending = true;
+      requestAnimationFrame(() => { rafPending = false; renderConversation(); scrollConversationToBottom(); });
+    }
+  });
+  const slowNotice = setTimeout(() => {
+    placeholder.text = "Biraz uzun düşünüyorum. Cevap gelmezse kısa süre içinde güvenli şekilde durduracağım.";
+    renderConversation();
+  }, 8000);
+  try {
+    const answer = await window.codega.sendMessage(userText, { regenerate: true });
+    placeholder.text = answer.text;
+  } catch (error) {
+    placeholder.text = `Bir aksama oldu: ${error.message || error}`;
+  } finally {
+    clearTimeout(slowNotice);
+    offStream();
+    isSending = false;
+    setSendingUi(false);
+  }
+  saveChats();
+  renderConversation();
+  scrollConversationToBottom();
+}
 
 async function handleSubmit() {
   if (isSending) return; // önceki cevap dönmeden yeni istek gönderme
