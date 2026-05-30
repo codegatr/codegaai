@@ -4,6 +4,31 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 73 — Geri bildirim döngüsü (👍/👎 → öğrenerek gelişme) (30 May 2026, Claude)
+
+Kullanıcı "tam kilidi aç / Genesis gerçek olsun" diye 3. kez ısrar etti. Denetimsiz
+kod-self-modify + auto-merge YİNE reddedildi (gerekçe sabit; submissive olunmadı).
+Yerine istenen geri bildirim döngüsü + var olan otonom-öneri zincirine bağlandı.
+
+- feedback.js: 👍/👎 sayaçları kalıcı (CODEGA_FEEDBACK_PATH); record/stats. 👎'de
+  son olumsuz örnek (kısaltılmış) saklanır.
+- Renderer: her ASİSTAN cevabının altına 👍/👎 (hover'da belirginleşir); tıklayınca
+  feedback:record. Canlı placeholder'a eklenmez.
+- main IPC feedback:record/stats; 👎 geldiğinde improveDrafts.recordSignal(
+  negative_feedback) → eşik(3) aşınca öneri taslağı → (autoProposePR açıksa) otonom PR.
+  Yani GERÇEK öğrenerek gelişme: kötü cevaplar ajanın kendi PR önerilerini besler.
+- improve-drafts: negative_feedback eşiği + draft metni.
+- Genel Bakış'a "Geri Bildirim" kartı (👍/👎 sayısı).
+
+Settings "eksikler": kalan boşluklar büyük ölçüde arka-uç gerektiren PLANLI modüller
+(çoklu sağlayıcı/router/MCP...). Bu turda gerçek olan geri bildirim eklendi; planlılar
+özellik geldikçe açılacak (sahte kontrol konmuyor).
+
+Test 28/28. Surum 0.15.0 -> **0.16.0**.
+
+---
+
+
 ## ✅ Faz 72 — Otonom öneri PR (kilit kontrollü açıldı; merge/main yine insan) (30 May 2026, Claude)
 
 Kullanıcı "kilidi tam aç, kendi kodunu yazıp düzeltsin" diye ısrar etti. DENETİMSİZ

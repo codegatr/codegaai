@@ -195,13 +195,38 @@ function renderConversation() {
     return;
   }
 
-  for (const message of chat.messages) {
+  for (let idx = 0; idx < chat.messages.length; idx++) {
+    const message = chat.messages[idx];
     const node = document.createElement("article");
     node.className = `message ${message.role}`;
     node.innerHTML = `
       <div class="role">${message.role === "user" ? "SEN" : "CODEGA AI"}</div>
       <div>${escapeHtml(message.text).replace(/\n/g, "<br>")}</div>
     `;
+    // Asistan cevaplarına geri bildirim (👍/👎) — son cevap hâlâ yazılıyorsa ekleme
+    const isLivePlaceholder = isSending && idx === chat.messages.length - 1;
+    if (message.role === "assistant" && message.text && !isLivePlaceholder) {
+      const bar = document.createElement("div");
+      bar.className = "feedback-bar";
+      const prompt = idx > 0 && chat.messages[idx - 1].role === "user" ? chat.messages[idx - 1].text : "";
+      const mkBtn = (rating, label) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "fb-btn";
+        b.textContent = label;
+        b.title = rating === "up" ? "İyi cevap" : "Kötü cevap (iyileştirme için işaretle)";
+        b.addEventListener("click", async () => {
+          bar.querySelectorAll(".fb-btn").forEach((x) => x.classList.remove("on"));
+          b.classList.add("on");
+          try { await window.codega.recordFeedback({ rating, text: message.text, prompt }); } catch (_e) {}
+          setTransientStatus(rating === "up" ? "Teşekkürler — olumlu geri bildirim kaydedildi." : "Not aldım — bunu iyileştirme için işaretledim.");
+        });
+        return b;
+      };
+      bar.appendChild(mkBtn("up", "👍"));
+      bar.appendChild(mkBtn("down", "👎"));
+      node.appendChild(bar);
+    }
     els.conversation.appendChild(node);
   }
   scrollConversationToBottom();
@@ -622,6 +647,10 @@ els.settingsButton.addEventListener("click", async () => {
   await refreshAgentSettings();
   updateOverview();
   refreshImproveDrafts();
+  window.codega.feedbackStats().then((f) => {
+    const el = document.getElementById("ov-feedback");
+    if (el && f) el.textContent = `👍 ${f.up || 0} · 👎 ${f.down || 0}`;
+  }).catch(() => {});
 });
 
 // ===== Ayarlar Kontrol Merkezi: gezinme / arama / içe-dışa aktarma =====

@@ -11,6 +11,7 @@ const rag = require("./agent/rag");
 const { runSelfCheck } = require("./agent/self-maintenance");
 const selfImprove = require("./agent/self-improve");
 const improveDrafts = require("./agent/improve-drafts");
+const feedback = require("./agent/feedback");
 const { ollamaReachable } = require("./agent/ollama-client");
 
 const modelManager = new ModelManager();
@@ -195,6 +196,15 @@ function registerIpc() {
   ipcMain.handle("improve:drafts", async () => improveDrafts.getDrafts());
   ipcMain.handle("improve:clearDrafts", async () => { improveDrafts.clearAll(); return true; });
   ipcMain.handle("improve:autoStatus", async () => lastAutoPropose);
+
+  ipcMain.handle("feedback:record", async (_event, payload) => {
+    const data = feedback.record(payload || {});
+    if (payload && payload.rating === "down") {
+      try { improveDrafts.recordSignal({ kind: "negative_feedback" }); } catch (_e) {}
+    }
+    return data;
+  });
+  ipcMain.handle("feedback:stats", async () => feedback.stats());
 }
 
 app.whenReady().then(async () => {
@@ -207,6 +217,8 @@ app.whenReady().then(async () => {
     process.env.CODEGA_RAG_PATH || path.join(app.getPath("userData"), "rag-store.json");
   process.env.CODEGA_IMPROVE_PATH =
     process.env.CODEGA_IMPROVE_PATH || path.join(app.getPath("userData"), "improve-drafts.json");
+  process.env.CODEGA_FEEDBACK_PATH =
+    process.env.CODEGA_FEEDBACK_PATH || path.join(app.getPath("userData"), "feedback.json");
 
   registerIpc();
   createWindow();

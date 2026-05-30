@@ -460,4 +460,15 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Otonom öneri: taslak key + proposedAt ayrımı");
 }
 
+// 28) Geri bildirim sinyali öneri taslağına dönüşür
+{
+  const idMod = await import(path.join(mainDir, "agent", "improve-drafts.js"));
+  const id = idMod.default || idMod;
+  const d = id.buildDrafts({ "negative_feedback": { kind: "negative_feedback", count: 3 } });
+  assert.ok(d.some((x) => x.kind === "negative_feedback" && /olumsuz/i.test(x.idea)), "olumsuz geri bildirim önerisi");
+  const fbMod = await import(path.join(mainDir, "agent", "feedback.js"));
+  assert.ok((fbMod.default || fbMod).stats, "feedback.stats var");
+  ok("Geri bildirim: 👎 eşiği -> öneri taslağı");
+}
+
 console.log(`\n${passed} test geçti ✅`);

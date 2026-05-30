@@ -45,7 +45,7 @@ function recordSignal({ kind, subject = "" } = {}) {
   save(data);
 }
 
-const THRESHOLDS = { tool_error: 3, empty_response: 3, ollama_down: 3, store_repair: 1 };
+const THRESHOLDS = { tool_error: 3, empty_response: 3, ollama_down: 3, store_repair: 1, negative_feedback: 3 };
 
 function draftFor(sig) {
   const s = sig.subject;
@@ -69,6 +69,11 @@ function draftFor(sig) {
       return {
         idea: `'${s}' veri dosyası bozulmuştu`,
         rationale: `${sig.count} kez onarım gerekti. Yazma sırasında atomik kayıt (geçici dosya + yeniden adlandırma) eklenmesi düşünülebilir.`,
+      };
+    case "negative_feedback":
+      return {
+        idea: "Kullanıcı bazı cevapları olumsuz buldu",
+        rationale: `${sig.count} kez 👎 verildi. Sık olumsuz bulunan konularda sistem promptu/araç kullanımı/yanıt biçimi gözden geçirilebilir.`,
       };
     default:
       return { idea: `${sig.kind} gözlemi`, rationale: `${sig.count} kez gözlendi.` };
