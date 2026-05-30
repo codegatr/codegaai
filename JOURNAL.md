@@ -4,6 +4,27 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 83 — Dosya eki: 500 MB sınır + tür algılama + araç önerisi (30 May 2026, Claude)
+
+Kullanıcı: limit en az 500 MB (yerel), uzantı algıla + araç öner, rakiplere bakıp geliştir.
+
+- Limit 2 MB -> **500 MB**. ÖNEMLİ: hiçbir model 500 MB'ı bağlama alamaz, bu yüzden
+  büyük dosyalarda file.slice(0, 800KB) ile yalnızca BAŞ KISIM okunur (bellek dostu),
+  modele giden bağlam 16k char ile sınırlı. Ekran "baş kısmı" notu gösterir.
+- detectFileKind(name): uzantıya göre {label, expert, action, readable}. Kod (php->php,
+  py->python, js/ts->javascript, sh/yml->devops...), veri (csv/json), doküman (md/txt/log).
+  Metin OLMAYAN: arşiv(zip/rar/7z/tar/gz), görsel(png/jpg...), pdf -> readable=false:
+  okunmaz, doğru aracı/yolu öneren mesaj çıkar (rakiplerdeki içeriğe-uyum gibi).
+- Attach'ta: readable ise baş dilim okunur + chip "📎 ad · TÜR" + uzman modu önerisi
+  toast'ı. readable değilse arşiv/görsel/pdf'e özel yönlendirme.
+- file-input accept genişletildi (zip/görsel/pdf seçilebilsin ki öneri çıksın).
+
+NOT: tam arşiv/proje okuma ve görsel(vision)/PDF ayrıştırma ayrı adımlar (dep/vision
+modeli gerek). Test 32/32. Surum 0.25.0 -> **0.26.0**.
+
+---
+
+
 ## ✅ Faz 82 — Dosya ekleme (kod/metin bağlamı) — sıra #3 (30 May 2026, Claude)
 
 Geliştirici için en değerli multimodal parça: kod/metin dosyası ekleyip hakkında soru

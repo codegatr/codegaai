@@ -646,15 +646,64 @@ function closeUpdatePrompt() {
 let historyQuery = "";
 let isSending = false;
 let manualUpdateCheck = false;
-let attachedFile = null; // { name, text }
-const ATTACH_MAX_CHARS = 12000;
+let attachedFile = null; // { name, text, kind }
+const ATTACH_MAX_CHARS = 16000; // modele giden bağlam tavanı (yerel modeller için makul)
+const ATTACH_MAX_BYTES = 500 * 1024 * 1024; // yerelde çalışıyoruz: 500 MB'a kadar kabul
+const ATTACH_READ_BYTES = 800 * 1024; // metin dosyalarından yalnızca baştan bu kadar oku (bellek dostu)
+
+// Uzantıya göre dosya türü + araç/uzman önerisi (rakiplerdeki gibi içeriğe uyum)
+function detectFileKind(name) {
+  const ext = String(name).split(".").pop().toLowerCase();
+  const T = (label, expert, action) => ({ label, expert, action, readable: true });
+  const code = {
+    php: T("PHP", "php", "kod inceleme/geliştirme"),
+    js: T("JavaScript", "javascript", "kod inceleme"),
+    ts: T("TypeScript", "javascript", "kod inceleme"),
+    jsx: T("React", "javascript", "bileşen inceleme"),
+    tsx: T("React/TS", "javascript", "bileşen inceleme"),
+    vue: T("Vue", "javascript", "bileşen inceleme"),
+    py: T("Python", "python", "kod inceleme"),
+    rb: T("Ruby", "genel", "kod inceleme"),
+    go: T("Go", "genel", "kod inceleme"),
+    rs: T("Rust", "genel", "kod inceleme"),
+    java: T("Java", "genel", "kod inceleme"),
+    c: T("C", "genel", "kod inceleme"),
+    cpp: T("C++", "genel", "kod inceleme"),
+    h: T("C başlık", "genel", "kod inceleme"),
+    html: T("HTML", "javascript", "işaretleme inceleme"),
+    htm: T("HTML", "javascript", "işaretleme inceleme"),
+    css: T("CSS", "javascript", "stil inceleme"),
+    scss: T("SCSS", "javascript", "stil inceleme"),
+    sql: T("SQL", "genel", "şema/sorgu inceleme"),
+    sh: T("Shell", "devops", "betik inceleme"),
+    yml: T("YAML", "devops", "yapılandırma inceleme"),
+    yaml: T("YAML", "devops", "yapılandırma inceleme"),
+    ini: T("INI", "devops", "yapılandırma inceleme"),
+    env: T("ENV", "devops", "yapılandırma inceleme (gizli anahtarlara dikkat)"),
+    csv: T("CSV veri", "genel", "veri analizi/özet"),
+    tsv: T("TSV veri", "genel", "veri analizi/özet"),
+    json: T("JSON", "genel", "yapı/veri inceleme"),
+    xml: T("XML", "genel", "yapı inceleme"),
+    md: T("Markdown", "genel", "doküman inceleme"),
+    txt: T("Metin", "genel", "doküman inceleme"),
+    log: T("Log", "devops", "hata/iz analizi"),
+  };
+  if (code[ext]) return code[ext];
+  const archive = ["zip", "rar", "7z", "tar", "gz", "tgz"];
+  const image = ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"];
+  if (archive.includes(ext)) return { label: "Arşiv", action: "içeriği çıkarıp önemli dosyaları ekle", readable: false, hint: "archive" };
+  if (image.includes(ext)) return { label: "Görsel", action: "görsel anlama (vision) modeli gerekir", readable: false, hint: "image" };
+  if (ext === "pdf") return { label: "PDF", action: "metnini .txt olarak ekleyebilir veya yapıştırabilirsin", readable: false, hint: "pdf" };
+  return { label: ext ? ext.toUpperCase() : "Dosya", expert: "genel", action: "metin olarak inceleme", readable: true };
+}
 
 function renderAttachChip() {
   const chip = document.getElementById("attach-chip");
   if (!chip) return;
   if (!attachedFile) { chip.hidden = true; chip.innerHTML = ""; return; }
   chip.hidden = false;
-  chip.innerHTML = `<span>📎 ${escapeHtml(attachedFile.name)}</span>`;
+  const tag = attachedFile.kind ? ` · ${escapeHtml(attachedFile.kind.label)}` : "";
+  chip.innerHTML = `<span>📎 ${escapeHtml(attachedFile.name)}${tag}</span>`;
   const x = document.createElement("button");
   x.type = "button";
   x.textContent = "×";
@@ -672,21 +721,43 @@ function renderAttachChip() {
     const file = input.files && input.files[0];
     input.value = ""; // aynı dosya tekrar seçilebilsin
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      setTransientStatus("Dosya çok büyük (en fazla 2 MB metin).");
+    const kind = detectFileKind(file.name);
+
+    // Metin olmayan türler: okuma yerine doğru aracı öner
+    if (!kind.readable) {
+      attachedFile = null;
+      renderAttachChip();
+      const msg = {
+        archive: `${file.name}: arşiv dosyası. İçeriği çıkarıp önemli dosyaları tek tek ekleyebilirsin (tam proje/arşiv okuma yakında).`,
+        image: `${file.name}: görsel. Görsel anlama için bir vision modeli gerekiyor (örn. llava) — yakında.`,
+        pdf: `${file.name}: PDF. Metnini .txt olarak kaydedip ekleyebilir ya da yapıştırabilirsin.`,
+      }[kind.hint] || `${file.name}: bu tür metin olarak okunamıyor.`;
+      setTransientStatus(msg);
       return;
     }
+
+    if (file.size > ATTACH_MAX_BYTES) {
+      setTransientStatus("Dosya 500 MB sınırını aşıyor.");
+      return;
+    }
+
+    // Büyük dosyalarda belleği şişirmeden yalnızca baştan bir dilim oku
+    const slice = file.size > ATTACH_READ_BYTES ? file.slice(0, ATTACH_READ_BYTES) : file;
     const reader = new FileReader();
     reader.onload = () => {
       let text = String(reader.result || "");
       let note = "";
-      if (text.length > ATTACH_MAX_CHARS) { text = text.slice(0, ATTACH_MAX_CHARS); note = " (kısaltıldı)"; }
-      attachedFile = { name: file.name + note, text };
+      if (file.size > ATTACH_READ_BYTES || text.length > ATTACH_MAX_CHARS) {
+        text = text.slice(0, ATTACH_MAX_CHARS);
+        note = " (baş kısmı)";
+      }
+      attachedFile = { name: file.name + note, text, kind };
       renderAttachChip();
-      setTransientStatus(`Ek hazır: ${file.name}${note}. Sorunu yazıp gönder.`);
+      const sug = kind.expert && kind.expert !== "genel" ? ` Öneri: Uzman Modu'nu "${kind.expert}" yapabilirsin.` : "";
+      setTransientStatus(`Ek hazır: ${kind.label}${note} — ${kind.action}.${sug}`);
     };
     reader.onerror = () => setTransientStatus("Dosya okunamadı (metin tabanlı bir dosya seç).");
-    reader.readAsText(file);
+    reader.readAsText(slice);
   });
 })();
 
