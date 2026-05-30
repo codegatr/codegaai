@@ -471,4 +471,19 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Geri bildirim: 👎 eşiği -> öneri taslağı");
 }
 
+// 29) Sistem analizi: RAM'e göre güncel model önerisi (saf)
+{
+  const siMod = await import(path.join(mainDir, "agent", "system-info.js"));
+  const si = siMod.default || siMod;
+  const opts = [
+    { id: "qwen2.5:1.5b", label: "Qwen 2.5 1.5B" },
+    { id: "qwen2.5:3b", label: "Qwen 2.5 3B" },
+    { id: "qwen3:8b", label: "Qwen3 8B" },
+  ];
+  assert.strictEqual(si.recommendModel(4, opts).id, "qwen2.5:1.5b", "düşük RAM -> küçük model");
+  assert.strictEqual(si.recommendModel(8, opts).id, "qwen2.5:3b", "orta RAM -> 3B");
+  assert.strictEqual(si.recommendModel(16, opts).id, "qwen3:8b", "yüksek RAM -> 8B (güncel)");
+  ok("Sistem analizi: donanıma göre güncel model önerisi");
+}
+
 console.log(`\n${passed} test geçti ✅`);

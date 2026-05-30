@@ -651,6 +651,27 @@ els.settingsButton.addEventListener("click", async () => {
     const el = document.getElementById("ov-feedback");
     if (el && f) el.textContent = `👍 ${f.up || 0} · 👎 ${f.down || 0}`;
   }).catch(() => {});
+  window.codega.analyzeSystem().then((sys) => {
+    const el = document.getElementById("ov-system");
+    const btn = document.getElementById("ov-use-recommended");
+    if (!sys) return;
+    if (el) el.textContent = `${sys.ramGB} GB RAM · ${sys.cores} çekirdek · ${sys.platform}/${sys.arch} → önerilen: ${sys.recommended.label}`;
+    if (btn && sys.recommended) {
+      btn.hidden = false;
+      btn.onclick = async () => {
+        btn.disabled = true;
+        setTransientStatus(`${sys.recommended.label} indiriliyor… (Ollama)`);
+        try {
+          await window.codega.prepareModel(sys.recommended.id);
+          setTransientStatus(`${sys.recommended.label} hazır.`);
+        } catch (e) {
+          setTransientStatus("Model indirilemedi: " + (e.message || e));
+        } finally {
+          btn.disabled = false;
+        }
+      };
+    }
+  }).catch(() => {});
 });
 
 // ===== Ayarlar Kontrol Merkezi: gezinme / arama / içe-dışa aktarma =====
@@ -662,6 +683,7 @@ function buildSettingsNav() {
   const groups = settingsCats.querySelectorAll(".settings-group[data-cat]");
   settingsNav.innerHTML = "";
   groups.forEach((g) => {
+    g.open = true; // <details> içeriği daima render edilsin; görünürlüğü .active sınıfı yönetir
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "nav-btn" + (g.classList.contains("active") ? " active" : "");

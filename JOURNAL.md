@@ -4,6 +4,26 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 74 — Görünmeyen kategoriler düzeltildi + sistem analizi/model önerisi (30 May 2026, Claude)
+
+A) HATA: Görünüm/Hafıza & Bilgi/Güncellemeler kategorileri görünmüyordu. Sebep: bu
+   üç grubu `open` özniteliği OLMADAN oluşturmuştum; <details> open değilse tarayıcı
+   içeriği gizler, summary'leri de CSS ile gizlediğimizden .active yapsak bile içerik
+   açılmıyordu. Düzeltme: buildSettingsNav her kategori grubunu g.open=true yapıyor;
+   görünürlüğü .active sınıfı + CSS yönetiyor. Artık 6 kategori de açılıyor.
+
+B) İSTEK: "güncel modelleri kullansın, sistem analizi yapıp çalıştırabileceği modeli
+   yüklesin; eski sürüm gibiyiz." → system-info.js: analyze() (os ile RAM/CPU/çekirdek/
+   platform) + recommendModel(ramGB) — RAM tabanlı muhafazakâr öneri (GPU/VRAM Node'dan
+   okunamaz). <6GB→1.5b, 6-10→3b, 10+→qwen3:8b (güncel). IPC system:analyze; preload
+   analyzeSystem. Genel Bakış'a "Sistem & Önerilen Model" satırı + "Önerilen Modeli Kur"
+   butonu (prepareModel ile Ollama'dan çeker). recommendModel saf → test.
+
+Test 29/29. Surum 0.16.0 -> **0.17.0**.
+
+---
+
+
 ## ✅ Faz 73 — Geri bildirim döngüsü (👍/👎 → öğrenerek gelişme) (30 May 2026, Claude)
 
 Kullanıcı "tam kilidi aç / Genesis gerçek olsun" diye 3. kez ısrar etti. Denetimsiz

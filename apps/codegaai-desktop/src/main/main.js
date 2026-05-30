@@ -1,6 +1,6 @@
 const path = require("node:path");
 const { app, BrowserWindow, ipcMain, shell } = require("electron");
-const { APP_NAME, FEDERATION_BASE_URL } = require("../shared/constants");
+const { APP_NAME, FEDERATION_BASE_URL, MODEL_OPTIONS } = require("../shared/constants");
 const { ModelManager } = require("./model-manager");
 const { UpdateService } = require("./update-service");
 const settingsStore = require("./agent/settings-store");
@@ -12,6 +12,7 @@ const { runSelfCheck } = require("./agent/self-maintenance");
 const selfImprove = require("./agent/self-improve");
 const improveDrafts = require("./agent/improve-drafts");
 const feedback = require("./agent/feedback");
+const systemInfo = require("./agent/system-info");
 const { ollamaReachable } = require("./agent/ollama-client");
 
 const modelManager = new ModelManager();
@@ -205,6 +206,8 @@ function registerIpc() {
     return data;
   });
   ipcMain.handle("feedback:stats", async () => feedback.stats());
+
+  ipcMain.handle("system:analyze", async () => systemInfo.analyze(MODEL_OPTIONS));
 }
 
 app.whenReady().then(async () => {
