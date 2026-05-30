@@ -40,6 +40,7 @@ const els = {
   toggleMultiAgent: document.getElementById("toggle-multiagent"),
   toggleMaintenance: document.getElementById("toggle-maintenance"),
   runMaintenance: document.getElementById("run-maintenance"),
+  toggleAutoPropose: document.getElementById("toggle-autopropose"),
   toggleFederation: document.getElementById("toggle-federation"),
   clearMemory: document.getElementById("clear-memory"),
   memorySummary: document.getElementById("memory-summary"),
@@ -907,6 +908,7 @@ async function refreshAgentSettings() {
     applyToggleLabel(els.togglePlanner, !!agentSettings.planner);
     applyToggleLabel(els.toggleMultiAgent, !!agentSettings.multiAgent);
     applyToggleLabel(els.toggleMaintenance, agentSettings.selfMaintenance !== false);
+    if (els.toggleAutoPropose) applyToggleLabel(els.toggleAutoPropose, !!agentSettings.autoProposePR);
     applyAppearance(agentSettings);
     applyToggleLabel(els.toggleFederation, !!agentSettings.federation);
     applyToggleLabel(els.toggleIdle, !!agentSettings.idleLearning);
@@ -1064,6 +1066,7 @@ els.toggleReflection.addEventListener("click", () => toggleSetting("selfReflecti
 els.togglePlanner.addEventListener("click", () => toggleSetting("planner", els.togglePlanner));
 els.toggleMultiAgent.addEventListener("click", () => toggleSetting("multiAgent", els.toggleMultiAgent));
 if (els.toggleMaintenance) els.toggleMaintenance.addEventListener("click", () => toggleSetting("selfMaintenance", els.toggleMaintenance));
+if (els.toggleAutoPropose) els.toggleAutoPropose.addEventListener("click", () => toggleSetting("autoProposePR", els.toggleAutoPropose));
 els.toggleFederation.addEventListener("click", () => toggleSetting("federation", els.toggleFederation));
 els.clearMemory.addEventListener("click", async () => {
   els.clearMemory.disabled = true;

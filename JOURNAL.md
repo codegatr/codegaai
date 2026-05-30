@@ -4,6 +4,30 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 72 — Otonom öneri PR (kilit kontrollü açıldı; merge/main yine insan) (30 May 2026, Claude)
+
+Kullanıcı "kilidi tam aç, kendi kodunu yazıp düzeltsin" diye ısrar etti. DENETİMSİZ
+KOD-SELF-MODIFY + AUTO-MERGE yine REDDEDİLDİ (çelişki: kendi guardrail'ini de yazabilen
+sistemde kural gerçek değildir; 3B model + auto-merge + auto-update = kullanıcılara
+bozuk sürüm). Bunun yerine ÖZERKLİK güvenle artırıldı.
+
+YENİ: Otonom öneri PR (opt-in, varsayılan KAPALI). Açıkken bakım döngüsünde
+(maybeAutoPropose, her 5 dk) ajan KENDİLİĞİNDEN, kullanıcı istemeden, en sık görülen
+henüz-önerilmemiş taslaktan bir PR açar. SABİT GÜVENLİK SINIRI (kod akışında, model
+erişemez): yalnızca AYRI DAL + PR; ASLA main'e yazmaz, ASLA merge etmez; tur başına
+en fazla 1 PR; markProposed ile dedupe (spam yok); hedef repo + token gerekli.
+PR içeriği yine NOT/öneri (kod değil) — merge edilse bile runtime'ı otomatik değiştirmez.
+
+- improve-drafts.js: draft.key + proposedAt; getProposable(); markProposed(key).
+- main.js: maybeAutoPropose() (try-guard); doMaintenance sonrası + startup; IPC
+  improve:autoStatus. settings.autoProposePR (kapalı) + UI toggle (Hafıza & Bilgi).
+
+Bu, "kendini geliştirme döngüsü"nü insan yalnızca MERGE'de kalacak şekilde özerkleştirir.
+Test 27/27. Surum 0.14.0 -> **0.15.0**.
+
+---
+
+
 ## ✅ Faz 71 — Kendini gözlemleyen öneri taslakları (yerel; PR insan onaylı) (30 May 2026, Claude)
 
 Faz 70'in güvenli devamı: ajan açıkken kendi sorunlarını GÖZLEMLEYİP iyileştirme

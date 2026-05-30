@@ -78,20 +78,34 @@ function draftFor(sig) {
 /** Eşik aşan sinyalleri öneri taslaklarına çevir (saf). */
 function buildDrafts(signals, thresholds = THRESHOLDS) {
   const out = [];
-  for (const sig of Object.values(signals || {})) {
+  for (const [key, sig] of Object.entries(signals || {})) {
     const limit = thresholds[sig.kind] || 3;
     if ((sig.count || 0) >= limit) {
       const d = draftFor(sig);
-      out.push({ kind: sig.kind, subject: sig.subject || "", count: sig.count, ...d });
+      out.push({ key, kind: sig.kind, subject: sig.subject || "", count: sig.count, proposedAt: sig.proposedAt || null, ...d });
     }
   }
-  // en çok tekrarlayan önce
   return out.sort((a, b) => b.count - a.count);
 }
 
 function getDrafts() {
   return buildDrafts(load());
 }
+
+/** Henüz otonom olarak PR'ı açılmamış taslaklar. */
+function getProposable() {
+  return getDrafts().filter((d) => !d.proposedAt);
+}
+
+/** Bir taslağın PR'ı açıldı diye işaretle (tekrar açılmasın). */
+function markProposed(key) {
+  const data = load();
+  if (data[key]) {
+    data[key].proposedAt = Date.now();
+    save(data);
+  }
+}
+
 function clearAll() {
   save({});
 }
@@ -99,4 +113,4 @@ function listSignals() {
   return load();
 }
 
-module.exports = { recordSignal, buildDrafts, getDrafts, clearAll, listSignals, storePath };
+module.exports = { recordSignal, buildDrafts, getDrafts, getProposable, markProposed, clearAll, listSignals, storePath };

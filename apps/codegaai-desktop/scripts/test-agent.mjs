@@ -445,4 +445,19 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Kendini gözlemleme: sinyal → eşik → öneri taslağı");
 }
 
+// 27) Otonom öneri: işaretlenmemiş taslaklar (key + proposedAt mantığı, saf)
+{
+  const idMod = await import(path.join(mainDir, "agent", "improve-drafts.js"));
+  const id = idMod.default || idMod;
+  const drafts = id.buildDrafts({
+    "tool_error:web_search": { kind: "tool_error", subject: "web_search", count: 5 },
+    "ollama_down": { kind: "ollama_down", count: 4, proposedAt: 111 },
+  });
+  const byKey = Object.fromEntries(drafts.map((d) => [d.key, d]));
+  assert.ok(byKey["tool_error:web_search"], "key üretilmeli");
+  assert.strictEqual(byKey["tool_error:web_search"].proposedAt, null, "yeni taslak proposedAt=null");
+  assert.strictEqual(byKey["ollama_down"].proposedAt, 111, "önerilmiş taslak işaretli kalır");
+  ok("Otonom öneri: taslak key + proposedAt ayrımı");
+}
+
 console.log(`\n${passed} test geçti ✅`);

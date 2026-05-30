@@ -40,6 +40,32 @@ async function doMaintenance() {
   }
   return lastMaintenance;
 }
+
+// Otonom öneri (opt-in): ajan kendi gözlemlerinden KENDİLİĞİNDEN PR açar.
+// GÜVENLİK SINIRI (kod akışında sabit, model değiştiremez): yalnızca AYRI DALDA PR
+// açar; ASLA main'e yazmaz, ASLA merge etmez. Her turda en fazla 1 PR (spam yok).
+let lastAutoPropose = null;
+async function maybeAutoPropose() {
+  try {
+    const s = settingsStore.getSettings();
+    if (!s.autoProposePR) return;
+    const repo = s.knowledgeRepo || "";
+    if (!repo || !githubClient.hasToken()) return;
+    const proposable = improveDrafts.getProposable();
+    if (!proposable.length) return;
+    const draft = proposable[0]; // en sık görülen, henüz önerilmemiş
+    const proposal = selfImprove.buildProposal({
+      idea: draft.idea,
+      rationale: draft.rationale,
+      version: app.getVersion(),
+    });
+    const res = await selfImprove.submitProposal(githubClient, repo, proposal);
+    improveDrafts.markProposed(draft.key);
+    lastAutoPropose = { at: Date.now(), url: res.url, number: res.number, idea: draft.idea };
+  } catch (_e) {
+    /* otonom öneri hatası uygulamayı/akışı etkilemesin */
+  }
+}
 let lastActivityAt = Date.now();
 
 function createWindow() {
@@ -168,6 +194,7 @@ function registerIpc() {
 
   ipcMain.handle("improve:drafts", async () => improveDrafts.getDrafts());
   ipcMain.handle("improve:clearDrafts", async () => { improveDrafts.clearAll(); return true; });
+  ipcMain.handle("improve:autoStatus", async () => lastAutoPropose);
 }
 
 app.whenReady().then(async () => {
@@ -187,8 +214,8 @@ app.whenReady().then(async () => {
   await modelManager.detect();
 
   // Kendi kendine bakım: açılışta bir kez + her 5 dakikada bir (güvenli, kod değiştirmez)
-  doMaintenance().catch(() => {});
-  setInterval(() => { doMaintenance().catch(() => {}); }, 5 * 60 * 1000);
+  doMaintenance().then(() => maybeAutoPropose()).catch(() => {});
+  setInterval(() => { doMaintenance().then(() => maybeAutoPropose()).catch(() => {}); }, 5 * 60 * 1000);
 
   // Başlangıçta GitHub'daki bilgi dosyasını yerel belleğe yükle (yapılandırıldıysa)
   knowledge.syncDown().catch(() => {});
