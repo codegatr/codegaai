@@ -518,4 +518,17 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Çoklu sağlayıcı: OpenAI-uyumlu istemci dışa aktarıldı");
 }
 
+// 33) Kod çalıştırıcı: python ve JS gerçekten çalışır + desteklenmeyen dil
+{
+  const crMod = await import(path.join(mainDir, "agent", "code-runner.js"));
+  const cr = crMod.default || crMod;
+  const py = await cr.runCode("python", "print(6*7)");
+  assert.ok(py.stdout.includes("42"), "python çıktısı 42");
+  const js = await cr.runCode("javascript", "console.log(3+4)");
+  assert.ok(js.stdout.includes("7"), "js çıktısı 7");
+  const bad = await cr.runCode("ruby", "puts 1");
+  assert.strictEqual(bad.ok, false, "desteklenmeyen dil reddedilir");
+  ok("Kod çalıştırıcı: python/JS çalışır, desteklenmeyen dil reddedilir");
+}
+
 console.log(`\n${passed} test geçti ✅`);

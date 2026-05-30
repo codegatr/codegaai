@@ -151,6 +151,21 @@
           <summary>Ajan Davranışı</summary>
           <div class="settings-row">
             <div>
+              <strong>Kod Çalıştırıcı (deneysel)</strong>
+              <p>Python/JavaScript kodunu çalıştırıp çıktıyı görür. Kod <strong>senin makinende</strong> çalışır; yalnızca sen "Çalıştır" deyince çalışır (ajan kendiliğinden çalıştırmaz). Python için sistemde python kurulu olmalı.</p>
+            </div>
+          </div>
+          <div class="settings-field">
+            <select id="code-lang">
+              <option value="python">Python</option>
+              <option value="javascript">JavaScript (Node)</option>
+            </select>
+            <textarea id="code-input" rows="5" placeholder="Çalıştırılacak kod..." spellcheck="false"></textarea>
+            <button type="button" id="code-run">Çalıştır</button>
+            <pre id="code-output" class="code-output" hidden></pre>
+          </div>
+          <div class="settings-row">
+            <div>
               <strong>Otonom Öğrenme</strong>
               <p>CODEGA seni tanıdıkça öğrenir ve sonraki sohbetlerde hatırlar.</p>
             </div>

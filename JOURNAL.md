@@ -4,6 +4,26 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 84 — Kod çalıştırma (insan onaylı, sandbox değil) — sıra #4 (30 May 2026, Claude)
+
+Listenin en riskli maddesi. GÜVENLİ tasarım: ajan KENDİLİĞİNDEN kod çalıştırmaz;
+yalnızca kullanıcı gördüğü kodu "Çalıştır" deyince çalışır.
+
+- code-runner.js: runCode(language, code, {timeoutMs}) — child_process.spawn, geçici
+  klasör, 15sn zaman aşımı (SIGKILL), stdout/stderr yakalama, 20k çıktı sınırı.
+  Python: python3/python (kuruluysa). JS: process.execPath + ELECTRON_RUN_AS_NODE=1
+  (harici node gerekmez). ENOENT'te "kurulu mu?" ipucu. Bu ortamda GERÇEKTEN test
+  edildi (py=42, js=7, timeout, desteklenmeyen dil).
+- main IPC code:run (yalnız UI'dan, insan tetikli). preload runCode.
+- UI (Ajan Davranışı): dil seçici + kod textarea + "Çalıştır" + çıktı <pre>.
+  Net uyarı: kod kullanıcının makinesinde, kendi yetkileriyle çalışır.
+
+DÜRÜST: bu gerçek bir OS-sandbox değil; güvenlik sınırı = çalıştırmayı yalnız insan
+başlatır. Otomatik/ajan-tetikli çalıştırma YOK. Test 33/33. Surum 0.26.0 -> **0.27.0**.
+
+---
+
+
 ## ✅ Faz 83 — Dosya eki: 500 MB sınır + tür algılama + araç önerisi (30 May 2026, Claude)
 
 Kullanıcı: limit en az 500 MB (yerel), uzantı algıla + araç öner, rakiplere bakıp geliştir.

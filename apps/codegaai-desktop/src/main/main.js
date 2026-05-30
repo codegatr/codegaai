@@ -226,6 +226,14 @@ function registerIpc() {
 
   ipcMain.handle("system:analyze", async () => systemInfo.analyze(MODEL_OPTIONS));
 
+  ipcMain.handle("code:run", async (_event, payload) => {
+    const { runCode } = require("./agent/code-runner");
+    const lang = (payload && payload.language) || "";
+    const code = (payload && payload.code) || "";
+    if (!code.trim()) return { ok: false, stdout: "", stderr: "Kod boş.", exitCode: -1 };
+    return runCode(lang, code, { timeoutMs: 15000 });
+  });
+
   ipcMain.handle("provider:test", async (_event, payload) => {
     const { openaiTest } = require("./agent/openai-client");
     const s = settingsStore.getSettings();

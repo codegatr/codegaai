@@ -1078,6 +1078,31 @@ if (els.providerTest) els.providerTest.addEventListener("click", async () => {
   }
 });
 
+// İnsan onaylı kod çalıştırıcı (ajan kendiliğinden çalıştırmaz)
+const codeRunBtn = document.getElementById("code-run");
+if (codeRunBtn) {
+  codeRunBtn.addEventListener("click", async () => {
+    const lang = (document.getElementById("code-lang") || {}).value || "python";
+    const code = (document.getElementById("code-input") || {}).value || "";
+    const out = document.getElementById("code-output");
+    if (!code.trim()) { setTransientStatus("Önce kod yaz."); return; }
+    codeRunBtn.disabled = true;
+    if (out) { out.hidden = false; out.textContent = "Çalışıyor…"; }
+    try {
+      const r = await window.codega.runCode({ language: lang, code });
+      const parts = [];
+      if (r.stdout) parts.push(r.stdout);
+      if (r.stderr) parts.push((r.stdout ? "\n— stderr —\n" : "") + r.stderr);
+      const body = parts.join("") || "(çıktı yok)";
+      if (out) out.textContent = `[çıkış kodu: ${r.exitCode}]\n${body}`;
+    } catch (e) {
+      if (out) out.textContent = "Hata: " + (e.message || e);
+    } finally {
+      codeRunBtn.disabled = false;
+    }
+  });
+}
+
 buildSettingsNav();
 
 // Denetimli kendini geliştirme: öneriyi PR olarak aç
