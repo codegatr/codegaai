@@ -494,6 +494,9 @@ function setModelStatus(status) {
   if (els.installOllama) {
     els.installOllama.hidden = !ollamaMissing;
   }
+  const ovModel = document.getElementById("ov-model");
+  if (ovModel && status && status.model) ovModel.textContent = status.model;
+  if (typeof updateOverview === "function") updateOverview();
 }
 
 function renderModelList(payload) {
@@ -610,9 +613,135 @@ els.input.addEventListener("keydown", (event) => {
 document.getElementById("new-chat").addEventListener("click", () => createChat());
 els.settingsButton.addEventListener("click", async () => {
   els.settings.showModal();
+  setActiveCat("overview");
   await refreshModels();
   await refreshAgentSettings();
+  updateOverview();
 });
+
+// ===== Ayarlar Kontrol Merkezi: gezinme / arama / içe-dışa aktarma =====
+const settingsCats = document.getElementById("settings-cats");
+const settingsNav = document.getElementById("settings-nav");
+
+function buildSettingsNav() {
+  if (!settingsNav || !settingsCats) return;
+  const groups = settingsCats.querySelectorAll(".settings-group[data-cat]");
+  settingsNav.innerHTML = "";
+  groups.forEach((g) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "nav-btn" + (g.classList.contains("active") ? " active" : "");
+    btn.dataset.target = g.dataset.cat;
+    btn.innerHTML = g.dataset.label || g.dataset.cat;
+    btn.addEventListener("click", () => setActiveCat(g.dataset.cat));
+    settingsNav.appendChild(btn);
+  });
+}
+
+function setActiveCat(cat) {
+  if (!settingsCats) return;
+  const search = document.getElementById("settings-search");
+  if (search) search.value = "";
+  settingsCats.classList.remove("searching");
+  settingsCats.querySelectorAll(".hidden-row").forEach((r) => r.classList.remove("hidden-row"));
+  settingsCats.querySelectorAll(".settings-group[data-cat]").forEach((g) => {
+    g.style.display = "";
+    g.classList.toggle("active", g.dataset.cat === cat);
+  });
+  if (settingsNav) {
+    settingsNav.querySelectorAll(".nav-btn").forEach((b) => {
+      b.classList.toggle("active", b.dataset.target === cat);
+    });
+  }
+}
+
+function runSettingsSearch(q) {
+  if (!settingsCats) return;
+  const query = q.trim().toLocaleLowerCase("tr");
+  if (!query) {
+    const active = settingsCats.querySelector(".settings-group.active")?.dataset.cat || "overview";
+    setActiveCat(active);
+    return;
+  }
+  settingsCats.classList.add("searching");
+  settingsCats.querySelectorAll(".settings-group[data-cat]").forEach((g) => {
+    g.classList.add("active");
+    let anyVisible = false;
+    g.querySelectorAll(".settings-row, .settings-field").forEach((row) => {
+      const match = row.textContent.toLocaleLowerCase("tr").includes(query);
+      row.classList.toggle("hidden-row", !match);
+      if (match) anyVisible = true;
+    });
+    g.style.display = anyVisible ? "block" : "none";
+  });
+}
+
+function updateOverview() {
+  const set = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.textContent = val; };
+  const ollama = document.getElementById("ollama-row-status");
+  if (ollama) set("ov-ollama", /çalışıyor/i.test(ollama.textContent) ? "Çalışıyor ✓" : "Kurulu değil");
+  const ver = document.getElementById("version-label");
+  if (ver) set("ov-version", ver.textContent || "—");
+  const mem = document.getElementById("memory-summary");
+  if (mem) set("ov-memory", (mem.textContent || "").slice(0, 40));
+  if (agentSettings && (agentSettings.model || agentSettings.defaultModel)) {
+    set("ov-model", agentSettings.model || agentSettings.defaultModel);
+  }
+}
+
+// Arama kutusu (Enter dialog'u kapatmasın)
+const settingsSearchInput = document.getElementById("settings-search");
+if (settingsSearchInput) {
+  settingsSearchInput.addEventListener("input", (e) => runSettingsSearch(e.target.value));
+  settingsSearchInput.addEventListener("keydown", (e) => { if (e.key === "Enter") e.preventDefault(); });
+}
+
+// JSON dışa aktarma
+const settingsExportBtn = document.getElementById("settings-export");
+if (settingsExportBtn) {
+  settingsExportBtn.addEventListener("click", async () => {
+    try {
+      const s = await window.codega.getSettings();
+      const blob = new Blob([JSON.stringify(s, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "codega-ayarlar.json";
+      a.click();
+      setTransientStatus("Ayarlar dışa aktarıldı.");
+    } catch (e) {
+      setTransientStatus("Dışa aktarma başarısız: " + (e.message || e));
+    }
+  });
+}
+
+// JSON içe aktarma
+const settingsImportBtn = document.getElementById("settings-import");
+const settingsImportFile = document.getElementById("settings-import-file");
+if (settingsImportBtn && settingsImportFile) {
+  settingsImportBtn.addEventListener("click", () => settingsImportFile.click());
+  settingsImportFile.addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const fr = new FileReader();
+    fr.onload = async () => {
+      try {
+        const data = JSON.parse(fr.result);
+        if (!data || typeof data !== "object") throw new Error("geçersiz format");
+        agentSettings = await window.codega.setSettings(data);
+        applyAppearance(agentSettings);
+        await refreshAgentSettings();
+        updateOverview();
+        setTransientStatus("Ayarlar içe aktarıldı ✓");
+      } catch (err) {
+        setTransientStatus("İçe aktarma başarısız: " + (err.message || err));
+      }
+      settingsImportFile.value = "";
+    };
+    fr.readAsText(file);
+  });
+}
+
+buildSettingsNav();
 
 let agentSettings = null;
 

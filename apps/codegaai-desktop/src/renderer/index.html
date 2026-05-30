@@ -43,10 +43,32 @@
       <form method="dialog">
         <header>
           <h2>Ayarlar</h2>
-          <button value="close">×</button>
+          <div class="settings-search">
+            <input type="text" id="settings-search" placeholder="Ayarlarda ara…" autocomplete="off" />
+          </div>
+          <div class="settings-actions">
+            <button type="button" id="settings-export" title="JSON dışa aktar">Dışa Aktar</button>
+            <button type="button" id="settings-import" title="JSON içe aktar">İçe Aktar</button>
+            <input type="file" id="settings-import-file" accept="application/json" hidden />
+          </div>
+          <button value="close" title="Kapat">×</button>
         </header>
 
-        <details class="settings-group" open>
+        <div class="settings-body">
+          <nav class="settings-nav" id="settings-nav"></nav>
+          <div class="settings-cats" id="settings-cats">
+
+        <details class="settings-group active" open data-cat="overview" data-label="Genel Bakış">
+          <summary>Genel Bakış</summary>
+          <div class="ov-grid">
+            <div class="ov-card"><span class="k">Yerel Motor (Ollama)</span><span class="v" id="ov-ollama">—</span></div>
+            <div class="ov-card"><span class="k">Aktif Model</span><span class="v" id="ov-model">—</span></div>
+            <div class="ov-card"><span class="k">Sürüm</span><span class="v" id="ov-version">—</span></div>
+            <div class="ov-card"><span class="k">Öğrenilen Bilgi</span><span class="v" id="ov-memory">—</span></div>
+          </div>
+        </details>
+
+        <details class="settings-group" open data-cat="model" data-label="Zekâ &amp; Model">
           <summary>Zekâ &amp; Model</summary>
           <div class="settings-row">
             <div>
@@ -68,7 +90,7 @@
           </details>
         </details>
 
-        <details class="settings-group" open>
+        <details class="settings-group" open data-cat="agent" data-label="Ajan Davranışı">
           <summary>Ajan Davranışı</summary>
           <div class="settings-row">
             <div>
@@ -114,7 +136,7 @@
           </div>
         </details>
 
-        <details class="settings-group">
+        <details class="settings-group" data-cat="appearance" data-label="Görünüm">
           <summary>Görünüm</summary>
           <div class="settings-row">
             <div>
@@ -155,8 +177,8 @@
           </div>
         </details>
 
-        <details class="settings-group">
-          <summary>GitHub &amp; Bilgi</summary>
+        <details class="settings-group" data-cat="knowledge" data-label="Hafıza &amp; Bilgi">
+          <summary>Hafıza &amp; Bilgi</summary>
           <div class="settings-row">
             <div>
               <strong>GitHub Bağlantısı</strong>
@@ -207,7 +229,7 @@
           </div>
         </details>
 
-        <details class="settings-group">
+        <details class="settings-group" data-cat="updates" data-label="Güncellemeler">
           <summary>Güncellemeler</summary>
           <div class="settings-row">
             <div>
@@ -221,6 +243,8 @@
             <button type="button" id="install-update" hidden>Uygula ve Yeniden Başlat</button>
           </div>
         </details>
+          </div>
+        </div>
       </form>
     </dialog>
 

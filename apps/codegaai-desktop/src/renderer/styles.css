@@ -552,3 +552,56 @@ body[data-theme="oled"] { --bg: #000; }
   border: 2px solid var(--line); cursor: pointer; padding: 0;
 }
 .swatch[aria-pressed="true"] { border-color: var(--text); }
+
+/* ===== Ayarlar: Kontrol Merkezi (sidebar + içerik) ===== */
+.settings { width: min(920px, 95vw); max-width: none; padding: 0; }
+.settings > form { display: flex; flex-direction: column; min-height: 0; }
+.settings header { padding: 14px 18px; border-bottom: 1px solid var(--line); gap: 12px; }
+.settings header h2 { margin: 0; font-size: 16px; }
+.settings-search { flex: 1; }
+.settings-search input {
+  width: 100%; padding: 9px 14px; border-radius: 999px;
+  border: 1px solid var(--line); background: #0e1014; color: var(--text); font: inherit; font-size: 13px;
+}
+.settings header .settings-actions { gap: 8px; }
+.settings header .settings-actions button { padding: 8px 13px; font-size: 12.5px; }
+
+.settings-body { display: grid; grid-template-columns: 210px 1fr; min-height: 440px; }
+.settings-nav {
+  border-right: 1px solid var(--line); padding: 12px 8px 20px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.nav-btn {
+  text-align: left; border: 1px solid transparent; background: transparent; color: var(--muted);
+  font: inherit; font-size: 13.5px; font-weight: 500; padding: 9px 12px; border-radius: 10px; cursor: pointer;
+}
+.nav-btn:hover { background: rgba(255,255,255,.05); color: var(--text); }
+.nav-btn.active { background: var(--accent-soft, rgba(245,158,11,.14)); color: var(--text); border-color: rgba(245,158,11,.3); }
+
+.settings-cats { padding: 10px 20px 22px; overflow-y: auto; max-height: 70vh; }
+/* Yeni düzende grup başlıkları gizli — gezinme menüsü onların yerini alır */
+.settings-cats .settings-group > summary { display: none; }
+.settings-cats .settings-group { display: none; border-top: 0; }
+.settings-cats .settings-group.active { display: block; }
+/* Arama modunda hepsi görünür, eşleşmeyen satırlar gizli */
+.settings-cats.searching .settings-group { display: block; }
+.settings-cats.searching .settings-group::before {
+  content: attr(data-label); display: block; font-size: 11px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted); margin: 14px 0 4px; font-weight: 700;
+}
+.settings-row.hidden-row, .settings-field.hidden-row { display: none; }
+
+/* Genel Bakış kartları */
+.ov-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 6px 0 4px; }
+.ov-card {
+  background: #0e1014; border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;
+}
+.ov-card .k { color: var(--muted); font-size: 12px; }
+.ov-card .v { font-size: 17px; font-weight: 700; }
+
+@media (max-width: 720px) {
+  .settings-body { grid-template-columns: 1fr; }
+  .settings-nav { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--line); }
+  .ov-grid { grid-template-columns: 1fr; }
+}

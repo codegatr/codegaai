@@ -4,6 +4,36 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 67 — Ayarlar "Kontrol Merkezi" (sidebar + içerik) (30 May 2026, Claude)
+
+Kullanıcı prototipi onayladı ("güzel bu şekilde devam et"). Prototip tek-HTML
+olarak teslim edildi; sonra canlı uygulamaya taşındı.
+
+YAKLAŞIM (düşük risk): Mevcut <details class="settings-group"> grupları ve TÜM
+kontrol ID'leri korundu (çalışan kablolama bozulmadı). Yalnızca sidebar+içerik
+kabuğuna sarıldı; CSS ile aynı anda tek kategori gösteriliyor (kapanış etiketi
+ameliyatı YOK). React/TS'e geçilmedi — vanilla korundu.
+
+- index.html: header'a arama + Dışa/İçe Aktar; <div.settings-body><nav.settings-nav>
+  + <div.settings-cats>; her gruba data-cat/data-label; yeni "Genel Bakış" kategorisi
+  (ov-grid kartları: Yerel Motor / Aktif Model / Sürüm / Öğrenilen).
+- styles.css: sidebar+içerik grid, grup summary'leri gizli (nav onların yerini alır),
+  yalnız .active kategori görünür, .searching modunda tümü + eşleşmeyen satır gizli,
+  ov kartları, responsive (<=720px üstte yatay nav).
+- renderer.js: buildSettingsNav (gruplardan üretir), setActiveCat (inline display
+  kalıntısını da temizler), runSettingsSearch (Türkçe-güvenli filtre, tüm kategoriler),
+  updateOverview (mevcut DOM'dan), JSON dışa aktar (getSettings->indir) + içe aktar
+  (setSettings->refresh). Arama Enter'ı dialog'u kapatmaz.
+
+Gerçek kategoriler: Genel Bakış, Zekâ&Model, Ajan Davranışı, Görünüm, Hafıza&Bilgi,
+Güncellemeler. "Planlı" modüller (çoklu sağlayıcı, router, MCP, otomasyon, güvenlik,
+sistem monitör, log) özellik geldikçe eklenecek — sahte kontrol konmadı.
+
+Test 22/22. HTML tag dengesi OK. Surum 0.10.3 -> **0.11.0**.
+
+---
+
+
 ## ✅ Faz 66 — "Paylaşım sunucusu beklenmedik yanıt" KÖK NEDEN: trailing-slash 301 (30 May 2026, Claude)
 
 İlerleme: istek artık sunucuya ULAŞIYOR (Cloudflare aşıldı) ama "beklenmedik yanıt".
