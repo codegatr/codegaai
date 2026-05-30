@@ -111,13 +111,30 @@ function saveChats() {
   }
 }
 
+function cleanupStuckPlaceholders(chats) {
+  // Önceki oturumda cevap gelmeden kapatılmış mesajlar "Düşünüyorum..." olarak
+  // kalmış olabilir. Bunları anlaşılır bir nota çevir (yanıltıcı durmasın).
+  const dead = [
+    "Düşünüyorum...",
+    "Biraz uzun düşünüyorum. Cevap gelmezse kısa süre içinde güvenli şekilde durduracağım.",
+  ];
+  for (const chat of chats) {
+    for (const m of chat.messages || []) {
+      if (m.role === "assistant" && dead.includes(String(m.text || "").trim())) {
+        m.text = "(yanıt tamamlanmadı — uygulama kapanmış olabilir)";
+      }
+    }
+  }
+  return chats;
+}
+
 function loadChats() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const payload = JSON.parse(raw);
     state.chats = Array.isArray(payload.chats)
-      ? payload.chats.map(normalizeChat).sort((a, b) => b.updatedAt - a.updatedAt)
+      ? cleanupStuckPlaceholders(payload.chats.map(normalizeChat)).sort((a, b) => b.updatedAt - a.updatedAt)
       : [];
     state.activeChat = state.chats.some((chat) => chat.id === payload.activeChat)
       ? payload.activeChat
@@ -671,6 +688,7 @@ async function handleSubmit() {
     offStream();
     isSending = false;
   }
+  saveChats(); // final cevabı diske yaz; yoksa kapatıp açınca "Düşünüyorum..." kalıyordu
   renderConversation();
   scrollConversationToBottom();
 }

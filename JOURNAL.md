@@ -4,6 +4,24 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 79 — KRİTİK: cevaplar kaydedilmiyordu ("Düşünüyorum..." kalıyordu) (30 May 2026, Claude)
+
+Kullanıcı ekran görüntüsü: asistan cevapları kapatıp açınca "Düşünüyorum..." olarak
+kalıyor. KÖK NEDEN: handleSubmit'te placeholder ("Düşünüyorum...") appendMessage ile
+KAYDEDİLİYOR, ama cevap gelince placeholder.text bellekte güncelleniyor ve ARDINDAN
+saveChats() ÇAĞRILMIYORDU → localStorage'da eski metin kalıyordu.
+
+- FIX: handleSubmit sonunda (finally'den sonra) saveChats() — final cevap diske yazılır.
+- EK: loadChats'te cleanupStuckPlaceholders — önceki oturumdan kalan tamamlanmamış
+  "Düşünüyorum..."/yavaş-uyarı mesajlarını "(yanıt tamamlanmadı...)" notuna çevirir,
+  yanıltıcı durmaz.
+
+Not: localStorage Electron'da kalıcı; mekanizma doğruydu, sadece kayıt çağrısı eksikti.
+Test 31/31. Surum 0.21.0 -> **0.22.0**.
+
+---
+
+
 ## ✅ Faz 78 — STREAMING (token token canlı yanıt) — sıra #1 (30 May 2026, Claude)
 
 Eksik listesi sıra ile: #1 streaming eklendi. Büyük araçların (ChatGPT/Claude/Gemini)
