@@ -404,4 +404,29 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Kendi kendine bakım: sağlık denetimi + güvenli onarım");
 }
 
+// 25) Denetimli kendini geliştirme: öneri üret + PR aç (fake git, main'e DOKUNMAZ)
+{
+  const siMod = await import(path.join(mainDir, "agent", "self-improve.js"));
+  const si = siMod.default || siMod;
+  const p = si.buildProposal({ idea: "Önbellek süresini ayarlanabilir yap", version: "0.12.0" });
+  assert.ok(p.slug && !/\s/.test(p.slug), "slug boşluksuz olmalı");
+  assert.ok(/öneri/i.test(p.body) && /otomatik birleştirilmez/i.test(p.body), "öneri notu + güvenlik notu");
+
+  const calls = [];
+  const fakeGit = {
+    splitRepo: (r) => { const [owner, repo] = r.split("/"); return { owner, repo }; },
+    getRepoMeta: async () => { calls.push("meta"); return { default_branch: "main" }; },
+    getBranchSha: async () => { calls.push("sha"); return "abc123"; },
+    createBranch: async (o, r, b, sha) => { calls.push("branch:" + b); assert.notStrictEqual(b, "main"); return {}; },
+    createFileOnBranch: async (o, r, fp, b) => { calls.push("file:" + fp); assert.notStrictEqual(b, "main"); return {}; },
+    openPullRequest: async (o, r, head, base) => { calls.push("pr:" + head + "->" + base); return { html_url: "https://x/pr/1", number: 1 }; },
+  };
+  const res = await si.submitProposal(fakeGit, "codegatr/codegaai", p, 99);
+  assert.strictEqual(res.number, 1);
+  assert.ok(res.branch.startsWith("codega-oneri/"), "ayrı dal");
+  assert.ok(calls.some((c) => c.startsWith("pr:") && c.endsWith("->main")), "PR tabanı main");
+  assert.ok(!calls.some((c) => c === "file:main" || c === "branch:main"), "main'e yazılmamalı");
+  ok("Denetimli geliştirme: öneri + ayrı dal + PR (main'e dokunmaz)");
+}
+
 console.log(`\n${passed} test geçti ✅`);

@@ -149,6 +149,45 @@ async function readKnowledgeFile(owner, repo, filePath, branch) {
   }
 }
 
+/** Repo meta (default_branch vb.). */
+async function getRepoMeta(owner, repo) {
+  return gh(`/repos/${owner}/${repo}`);
+}
+
+/** Bir dalın HEAD commit SHA'sı. */
+async function getBranchSha(owner, repo, branch) {
+  const data = await gh(`/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(branch)}`);
+  return data && data.object ? data.object.sha : null;
+}
+
+/** Yeni dal oluştur (mevcut bir SHA'dan). main'e DOKUNMAZ. */
+async function createBranch(owner, repo, newBranch, fromSha) {
+  return gh(`/repos/${owner}/${repo}/git/refs`, {
+    method: "POST",
+    body: { ref: `refs/heads/${newBranch}`, sha: fromSha },
+  });
+}
+
+/** Belirli bir dalda yeni dosya oluştur (contents API). */
+async function createFileOnBranch(owner, repo, filePath, branch, content, message) {
+  return gh(`/repos/${owner}/${repo}/contents/${filePath}`, {
+    method: "PUT",
+    body: {
+      message: message || "CODEGA AI öneri dosyası",
+      content: Buffer.from(String(content), "utf8").toString("base64"),
+      branch,
+    },
+  });
+}
+
+/** Pull Request aç (otomatik birleştirmez — insan onayı bekler). */
+async function openPullRequest(owner, repo, head, base, title, body) {
+  return gh(`/repos/${owner}/${repo}/pulls`, {
+    method: "POST",
+    body: { title, head, base, body, maintainer_can_modify: true },
+  });
+}
+
 module.exports = {
   hasToken,
   testConnection,
@@ -158,5 +197,11 @@ module.exports = {
   dispatchWorkflow,
   appendToFile,
   readKnowledgeFile,
+  splitRepo,
+  getRepoMeta,
+  getBranchSha,
+  createBranch,
+  createFileOnBranch,
+  openPullRequest,
   splitRepo,
 };

@@ -9,6 +9,7 @@ const knowledge = require("./agent/knowledge");
 const githubClient = require("./agent/github-client");
 const rag = require("./agent/rag");
 const { runSelfCheck } = require("./agent/self-maintenance");
+const selfImprove = require("./agent/self-improve");
 const { ollamaReachable } = require("./agent/ollama-client");
 
 const modelManager = new ModelManager();
@@ -144,6 +145,19 @@ function registerIpc() {
 
   ipcMain.handle("maintenance:run", async () => (await doMaintenance()) || { items: [], repairs: [], healthy: true });
   ipcMain.handle("maintenance:status", async () => lastMaintenance);
+
+  ipcMain.handle("improve:propose", async (_event, payload) => {
+    const repo = (payload && payload.repo) || settingsStore.getSettings().knowledgeRepo || "";
+    const idea = (payload && payload.idea) || "";
+    if (!repo) throw new Error("Hedef repo gerekli (owner/repo).");
+    if (!idea.trim()) throw new Error("Öneri metni boş olamaz.");
+    const proposal = selfImprove.buildProposal({
+      idea,
+      rationale: (payload && payload.rationale) || "",
+      version: app.getVersion(),
+    });
+    return selfImprove.submitProposal(githubClient, repo, proposal);
+  });
 }
 
 app.whenReady().then(async () => {

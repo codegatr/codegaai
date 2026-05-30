@@ -746,6 +746,33 @@ if (settingsImportBtn && settingsImportFile) {
 
 buildSettingsNav();
 
+// Denetimli kendini geliştirme: öneriyi PR olarak aç
+const improveSubmit = document.getElementById("improve-submit");
+if (improveSubmit) {
+  improveSubmit.addEventListener("click", async () => {
+    const repo = (document.getElementById("improve-repo")?.value || "").trim();
+    const idea = (document.getElementById("improve-idea")?.value || "").trim();
+    if (!idea) { setTransientStatus("Önce bir öneri metni yaz."); return; }
+    improveSubmit.disabled = true;
+    setTransientStatus("Öneri PR'ı hazırlanıyor…");
+    try {
+      const res = await window.codega.proposeImprovement({ repo, idea });
+      if (res && res.url) {
+        try { await navigator.clipboard.writeText(res.url); } catch {}
+        setTransientStatus(`Öneri PR açıldı (#${res.number}) — link kopyalandı.`);
+        const ideaEl = document.getElementById("improve-idea");
+        if (ideaEl) ideaEl.value = "";
+      } else {
+        setTransientStatus("PR açıldı ama link alınamadı.");
+      }
+    } catch (e) {
+      setTransientStatus("Öneri PR'ı açılamadı: " + (e.message || e));
+    } finally {
+      improveSubmit.disabled = false;
+    }
+  });
+}
+
 // Kendi kendine bakım: elle çalıştır + sonucu göster
 function summarizeMaintenance(rep) {
   if (!rep || !rep.items) return "Bakım bilgisi yok.";

@@ -241,6 +241,17 @@
             <textarea id="rag-text" rows="3" placeholder="Eklenecek metin / doküman içeriği..."></textarea>
             <button type="button" id="rag-add">Bilgiye Ekle</button>
           </div>
+          <div class="settings-row">
+            <div>
+              <strong>Kendini Geliştir (Öneri → PR)</strong>
+              <p>Bir iyileştirme önerisini ayrı dal + Pull Request olarak açar. Asla main'e yazmaz, asla otomatik birleştirmez — onay senindir, CI testleri PR'da çalışır.</p>
+            </div>
+          </div>
+          <div class="settings-field">
+            <input type="text" id="improve-repo" placeholder="Hedef repo: owner/repo (boşsa bilgi reposu)" autocomplete="off" />
+            <textarea id="improve-idea" rows="3" placeholder="Öneri: neyi, neden iyileştirelim?"></textarea>
+            <button type="button" id="improve-submit">Öneriyi PR Olarak Aç</button>
+          </div>
         </details>
 
         <details class="settings-group" data-cat="updates" data-label="Güncellemeler">

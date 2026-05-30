@@ -4,6 +4,28 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 70 — Denetimli kendini geliştirme (öneri → PR, main'e dokunmaz) (30 May 2026, Claude)
+
+Kullanıcı önceki turda sunulan güvenli yolu onayladı: ajan iyileştirme önerisini
+ayrı dal + Pull Request olarak hazırlasın, otomatik birleştirmesin.
+
+- github-client.js: getRepoMeta, getBranchSha, createBranch, createFileOnBranch,
+  openPullRequest primitive'leri (gh() üstüne). splitRepo dışa açıldı.
+- self-improve.js: slugify + buildProposal (markdown öneri NOTU; "otomatik
+  birleştirilmez" güvenlik notu) + submitProposal(git, ownerRepo, proposal):
+  default_branch'ten SHA al -> codega-oneri/<slug>-<ts> DALI oluştur ->
+  proposals/<slug>.md dosyasını O DALDA oluştur -> PR aç (base=default).
+  ASLA main'e yazmaz, ASLA otomatik merge etmez. git işlemleri enjekte → test.
+- main.js IPC improve:propose (repo boşsa knowledgeRepo; version=app.getVersion).
+  preload proposeImprovement. UI: Hafıza & Bilgi grubuna "Kendini Geliştir
+  (Öneri → PR)" alanı (repo + öneri + buton); PR açılınca link kopyalanır.
+
+GÜVENLİK: PR içeriği NOT/öneri (kod değil); insan inceler, CI PR'da çalışır,
+insan birleştirir. Test 25/25 ("main'e yazılmamalı" dahil). Surum 0.12.0 -> **0.13.0**.
+
+---
+
+
 ## ✅ Faz 69 — GÜVENLİ kendi-kendine bakım (kod-self-modify REDDEDİLDİ) (30 May 2026, Claude)
 
 Kullanıcı: "ajan açık kaldıkça kendini onarsın/yenilesin/güncellesin, KİLİDİ AÇIK

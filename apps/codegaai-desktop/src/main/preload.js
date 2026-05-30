@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld("codega", {
   ragClear: () => ipcRenderer.invoke("rag:clear"),
   runMaintenance: () => ipcRenderer.invoke("maintenance:run"),
   maintenanceStatus: () => ipcRenderer.invoke("maintenance:status"),
+  proposeImprovement: (payload) => ipcRenderer.invoke("improve:propose", payload),
   onModelStatus: (callback) => {
     ipcRenderer.on("model:status", (_event, payload) => callback(payload));
   },
