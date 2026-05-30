@@ -4,6 +4,32 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 64 — Paylaşım sunucusu Kurulum Sihirbazı + Cloudflare teşhisi (29 May 2026, Claude)
+
+Kullanıcı: kurulumu yaptım ama "ai.codega.com.tr yayında değil" diyor; sihirbaz hazırla.
+
+KÖK NEDEN (önemli): ai.codega.com.tr TÜM yollara 403 dönüyor ve yanıt başlığında
+`cf-mitigated: challenge` + `Sec-CH-UA-*` var → site CLOUDFLARE arkasında ve
+isteğe bot/challenge sayfası veriyor. PHP kurulumu hatalı olmayabilir; masaüstü
+uygulamasının düz fetch'i (tarayıcı değil) challenge'ı çözemediği için 403 alıyor.
+Yani asıl engel Cloudflare, deploy değil.
+
+EKLENENLER:
+- deploy/federation-php/public/install.php: tek-dosya WEB KURULUM SİHİRBAZI.
+  Ortam kontrolü (PHP/pdo_mysql/yazılabilirlik) → DB formu (PDO test) → config.php
+  yaz → şemayı çalıştır (gömülü, schema.sql'e bağımlı değil) → otomatik test →
+  uygulama/panel URL'lerini göster. Cloudflare algılarsa (CF-RAY) uyarır.
+  Güvenlik: bitince install.php silinmeli (uyarı var). php -l temiz.
+- README: sihirbaz adımları + Cloudflare "Skip/Bot Fight Off/DNS-only" çözümleri.
+- main.js chat:share: isteğe "X-Codega-Client: codega-desktop" başlığı eklendi →
+  Cloudflare'de bu başlığa dar bir Skip kuralı yazılabilsin.
+
+NOT: .htaccess rewrite'ı !-f koşullu olduğu için install.php (gerçek dosya)
+doğrudan servis edilir. Surum 0.10.0 -> **0.10.1** (sadece header değişikliği).
+
+---
+
+
 ## ✅ Faz 63 — Tema & Görünüm özelleştirme (29 May 2026, Claude)
 
 İstek: tema/görünüm özelleştirme (Light/Dark/custom, accent, font, vb.).

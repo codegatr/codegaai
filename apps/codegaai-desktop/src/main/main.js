@@ -53,7 +53,11 @@ function registerIpc() {
   ipcMain.handle("chat:share", async (_event, chat) => {
     const response = await fetch(`${FEDERATION_BASE_URL}/share`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        // Cloudflare'de bu başlığa "Skip/allow" kuralı yazılabilsin diye
+        "X-Codega-Client": "codega-desktop",
+      },
       body: JSON.stringify({
         title: chat?.title || "CODEGA AI Sohbeti",
         messages: Array.isArray(chat?.messages) ? chat.messages : [],

@@ -107,3 +107,31 @@ into a raw data collection point.
 - Keep `config.php` out of web listings and never commit it.
 - Set a long random `admin_token`.
 - Rotate the token if you accidentally share it.
+
+---
+
+## Kurulum Sihirbazı (install.php) — en kolay yol
+
+1. `public/` klasörünün tamamını (install.php dahil) sunucuda
+   `ai.codega.com.tr` altında `.../api/federation/` olacak şekilde yükle.
+2. MySQL/MariaDB'de bir veritabanı + kullanıcı oluştur (DirectAdmin → MySQL Management).
+3. Tarayıcıda aç: `https://ai.codega.com.tr/api/federation/install.php`
+4. Formu doldur (DB bilgileri + admin token otomatik üretilir) → **Kur ve Test Et**.
+   Sihirbaz tabloları oluşturur, `config.php` yazar ve bağlantıyı test eder.
+5. Bittiğinde **install.php dosyasını sil** (güvenlik).
+6. Doğrula: `https://ai.codega.com.tr/api/federation/health` JSON dönmeli.
+
+## "403 / cf-mitigated: challenge" alıyorsan (Cloudflare)
+
+Site Cloudflare arkasındaysa masaüstü uygulamasının isteği challenge'a takılıp
+`403` alır (tarayıcı olmadığı için challenge çözülemez). Çözüm (birini seç):
+
+- **WAF Skip kuralı (önerilen):** Cloudflare → Security → WAF → Custom rules:
+  `URI Path starts with "/api/federation"` → Action: **Skip** (Managed Rules,
+  Bot Fight Mode, Security Level). İstersen daha dar: header
+  `X-Codega-Client equals codega-desktop` (uygulama bu başlığı gönderir).
+- **Bot Fight Mode kapat:** Security → Bots → Bot Fight Mode = Off.
+- **Proxy'yi kapat:** Bu hostun DNS kaydını "DNS only / gri bulut" yap (API için).
+
+Doğru kurulduğunda `health` uç noktası tarayıcıda JSON dönüyorsa, uygulamadan
+"Link olarak paylaş" gerçek bir `https://.../share/<slug>` linki üretir.
