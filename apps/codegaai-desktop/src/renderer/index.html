@@ -34,7 +34,12 @@
       <section class="composer">
         <div class="model-pill" id="model-pill">Model durumu kontrol ediliyor</div>
         <div class="attach-chip" id="attach-chip" hidden></div>
+        <div class="brain-panel" id="brain-panel" hidden>
+          <label for="brain-input">🧠 Proje Beyni — bu sohbetin kalıcı bağlamı/talimatı</label>
+          <textarea id="brain-input" rows="2" placeholder="Örn: Bu sohbet 'bayi portalı' projesi içindir. PHP 8.3, şema kuralları: qty (quantity değil)…"></textarea>
+        </div>
         <form class="prompt-box" id="chat-form">
+          <button type="button" id="brain-btn" title="Proje Beyni (sohbet bağlamı)">🧠</button>
           <button type="button" id="attach-btn" title="Dosya ekle (kod/metin)">📎</button>
           <textarea id="prompt-input" rows="1" placeholder="Ne yapmak istiyorsun?"></textarea>
           <button type="submit" id="send-btn" title="Gönder">➤</button>

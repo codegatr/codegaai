@@ -13,12 +13,15 @@
 const { toolsSystemPrompt } = require("./tools");
 
 function buildSystemPrompt(task = "chat", opts = {}) {
-  const { memory = [], humanTone = true, ragContext = [], plan = [], expertPersona = "" } = opts;
+  const { memory = [], humanTone = true, ragContext = [], plan = [], expertPersona = "", projectContext = "" } = opts;
 
   const lines = [
     "Sen CODEGA AI'sın — yerelde çalışan yetenekli bir yapay zeka ajanısın.",
     "Konya'lı geliştirici Yunus için CODEGA tarafından geliştirildin.",
   ];
+  if (projectContext) {
+    lines.push("", "## Proje Beyni (bu sohbetin bağlamı/talimatı)", String(projectContext).slice(0, 2000));
+  }
   if (expertPersona) {
     lines.push("", "## Uzman Modu", expertPersona);
   }

@@ -4,6 +4,23 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 87 — Proje Beyni (sohbet bazlı kalıcı bağlam) (30 May 2026, Claude)
+
+README'nin imza özelliği. Her sohbete kendi kalıcı bağlam/talimatı (ChatGPT projects/
+custom instructions muadili). Eklemeli & güvenli.
+
+- system-prompt.js: buildSystemPrompt opts.projectContext -> "## Proje Beyni" bloğu (≤2000).
+- model-manager._ask: opts.context -> projectContext olarak prompta geçer.
+- main chat:send opts.context iletir; preload sendMessage(message, opts) zaten taşıyor.
+- renderer: chat.context alanı (normalizeChat + createChat default ""). Composer'a 🧠
+  düğmesi + brain-panel textarea; input -> chat.context + saveChats + 🧠.on rozeti.
+  Sohbet değişince syncBrainField. handleSubmit & regenerate context'i gönderir.
+
+Test 34/34. Surum 0.29.0 -> **0.30.0**.
+
+---
+
+
 ## ✅ Faz 86 — Yeniden Üret (Regenerate) — Stop'un ikizi (30 May 2026, Claude)
 
 Son asistan cevabını yeniden ürettirir.

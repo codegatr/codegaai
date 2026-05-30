@@ -565,6 +565,7 @@ class ModelManager {
           ragContext,
           plan,
           expertPersona: experts.personaFor(settings.expertMode),
+          projectContext: opts.context || "",
         }),
       },
       ...this.history,

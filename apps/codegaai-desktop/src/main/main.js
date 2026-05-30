@@ -110,7 +110,7 @@ function registerIpc() {
     const onToken = streamOn
       ? (t) => { try { event.sender.send("chat:stream", t); } catch (_e) {} }
       : null;
-    return modelManager.ask(message, { onToken, regenerate: !!(opts && opts.regenerate) });
+    return modelManager.ask(message, { onToken, regenerate: !!(opts && opts.regenerate), context: (opts && opts.context) || "" });
   });
 
   ipcMain.handle("chat:share", async (_event, chat) => {

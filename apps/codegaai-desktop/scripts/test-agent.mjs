@@ -531,4 +531,15 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Kod çalıştırıcı: python/JS çalışır, desteklenmeyen dil reddedilir");
 }
 
+// 34) Proje Beyni: projectContext sistem promptuna girer
+{
+  const spMod = await import(path.join(mainDir, "agent", "system-prompt.js"));
+  const sp = spMod.default || spMod;
+  const withCtx = sp.buildSystemPrompt("chat", { projectContext: "Bu sohbet bayi portali icindir" });
+  assert.ok(/Proje Beyni/.test(withCtx) && /bayi portali/.test(withCtx), "bağlam prompta girer");
+  const without = sp.buildSystemPrompt("chat", {});
+  assert.ok(!/Proje Beyni/.test(without), "bağlam yoksa blok eklenmez");
+  ok("Proje Beyni: sohbet bağlamı sistem promptuna işlenir");
+}
+
 console.log(`\n${passed} test geçti ✅`);

@@ -18,6 +18,9 @@ const els = {
   input: document.getElementById("prompt-input"),
   sendBtn: document.getElementById("send-btn"),
   stopBtn: document.getElementById("stop-btn"),
+  brainBtn: document.getElementById("brain-btn"),
+  brainPanel: document.getElementById("brain-panel"),
+  brainInput: document.getElementById("brain-input"),
   historySearch: document.getElementById("history-search"),
   modelPill: document.getElementById("model-pill"),
   settings: document.getElementById("settings-dialog"),
@@ -104,6 +107,7 @@ function normalizeChat(chat) {
             createdAt: Number(message.createdAt) || Date.now(),
           }))
       : [],
+    context: String(chat.context || ""),
     updatedAt: Number(chat.updatedAt) || Date.now(),
   };
 }
@@ -159,6 +163,7 @@ function createChat(title = "Yeni sohbet") {
     id: crypto.randomUUID(),
     title,
     messages: [],
+    context: "",
     updatedAt: Date.now(),
   };
   state.chats.unshift(chat);
@@ -208,6 +213,10 @@ function renderHistory() {
       saveChats();
       renderHistory();
       renderConversation();
+      if (typeof syncBrainField === "function") {
+        syncBrainField();
+        if (els.brainBtn) els.brainBtn.classList.toggle("on", !!(currentChat().context || "").trim());
+      }
     });
   });
   els.history.querySelectorAll("[data-share-chat]").forEach((button) => {
@@ -811,7 +820,7 @@ async function regenerateLast() {
     renderConversation();
   }, 8000);
   try {
-    const answer = await window.codega.sendMessage(userText, { regenerate: true });
+    const answer = await window.codega.sendMessage(userText, { regenerate: true, context: (currentChat().context || "") });
     placeholder.text = answer.text;
   } catch (error) {
     placeholder.text = `Bir aksama oldu: ${error.message || error}`;
@@ -873,7 +882,7 @@ async function handleSubmit() {
     scrollConversationToBottom();
   }, 8000);
   try {
-    const answer = await window.codega.sendMessage(sendText);
+    const answer = await window.codega.sendMessage(sendText, { context: (currentChat().context || "") });
     placeholder.text = answer.text; // final cevap otorite (akış bozulsa bile tam metin)
     await refreshModels();
   } catch (error) {
@@ -1179,6 +1188,21 @@ if (els.stopBtn) els.stopBtn.addEventListener("click", async () => {
   setTransientStatus("Durduruluyor…");
   try { await window.codega.abortChat(); } catch (_e) {}
   els.stopBtn.disabled = false;
+});
+
+function syncBrainField() {
+  if (els.brainInput) els.brainInput.value = (currentChat().context || "");
+}
+if (els.brainBtn) els.brainBtn.addEventListener("click", () => {
+  if (!els.brainPanel) return;
+  els.brainPanel.hidden = !els.brainPanel.hidden;
+  if (!els.brainPanel.hidden) { syncBrainField(); els.brainInput && els.brainInput.focus(); }
+});
+if (els.brainInput) els.brainInput.addEventListener("input", () => {
+  const c = currentChat();
+  c.context = els.brainInput.value;
+  saveChats();
+  if (els.brainBtn) els.brainBtn.classList.toggle("on", !!c.context.trim());
 });
 
 buildSettingsNav();
