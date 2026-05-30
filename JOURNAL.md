@@ -4,6 +4,28 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 66 — "Paylaşım sunucusu beklenmedik yanıt" KÖK NEDEN: trailing-slash 301 (30 May 2026, Claude)
+
+İlerleme: istek artık sunucuya ULAŞIYOR (Cloudflare aşıldı) ama "beklenmedik yanıt".
+Kök neden bulundu: sunucu /share dispatch'i yalnız REQUEST_METHOD===POST ise
+create_share çağırıp {status,slug,url,...} döndürür; GET ise url'SİZ sağlık yanıtı
+({status:ok, service, endpoint}) döner. App `${BASE}/share` (SLASH YOK) POST ediyordu;
+"share" gerçek bir klasör olduğundan sunucu `/share/`a 301 atıyor, fetch redirect'i
+izlerken POST->GET'e çeviriyor → GET dalı → url yok → "beklenmedik yanıt". Bu 200
+OK + url yok semptomuyla birebir uyuşuyor.
+
+Düzeltme:
+- main.js chat:share: artık `${BASE}/share/` (TRAILING SLASH) + redirect:"follow".
+  Slash redirect'i ortadan kaldırır, POST POST kalır.
+- renderer shareChat: url yoksa slug'dan link kurar; remote.error varsa GERÇEK
+  hatayı gösterir ("Paylaşım reddedildi: ..."); GET sağlık yanıtı gelirse "POST
+  olarak ulaşmadı" uyarısı. Artık sebep gizlenmiyor.
+
+Surum 0.10.2 -> **0.10.3**. Test 22/22.
+
+---
+
+
 ## ✅ Faz 65 — Öz değerlendirme rapor sızıntısı düzeltildi + paylaşım=Cloudflare (30 May 2026, Claude)
 
 A) HATA (ekran görüntüsü): "günaydin" cevabına denetçi RAPORU sızmış:

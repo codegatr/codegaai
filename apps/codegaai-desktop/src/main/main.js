@@ -51,8 +51,12 @@ function registerIpc() {
   });
 
   ipcMain.handle("chat:share", async (_event, chat) => {
-    const response = await fetch(`${FEDERATION_BASE_URL}/share`, {
+    // Sondaki "/" önemli: "share" gerçek bir klasör; "/share" (slash yok) sunucuda
+    // "/share/"a 301 yönlendirilir ve fetch redirect'i izlerken POST -> GET olur,
+    // bu da url'siz yanıta yol açar. Trailing slash bunu engeller.
+    const response = await fetch(`${FEDERATION_BASE_URL}/share/`, {
       method: "POST",
+      redirect: "follow",
       headers: {
         "Content-Type": "application/json",
         // Cloudflare'de bu başlığa "Skip/allow" kuralı yazılabilsin diye

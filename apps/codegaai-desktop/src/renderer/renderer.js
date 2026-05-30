@@ -270,6 +270,8 @@ function buildShareLink(chat) {
   return `${base}${SHARE_HASH_PREFIX}${encodeSharePayload(chat)}`;
 }
 
+const FEDERATION_SHARE_BASE = "https://ai.codega.com.tr/api/federation/share";
+
 async function shareChat(chatId) {
   const chat = state.chats.find((item) => item.id === chatId);
   if (!chat) return;
@@ -279,16 +281,27 @@ async function shareChat(chatId) {
       title: chat.title,
       messages: chat.messages,
     });
-    if (remote && remote.url) {
+    // url varsa kullan; yoksa slug'dan kur (sunucu her ikisini de döndürür)
+    const link =
+      remote && (remote.url || (remote.slug ? `${FEDERATION_SHARE_BASE}/${remote.slug}` : ""));
+    if (link) {
       try {
-        await navigator.clipboard.writeText(remote.url);
-        setTransientStatus(`Paylaşım linki kopyalandı: ${remote.url}`);
+        await navigator.clipboard.writeText(link);
+        setTransientStatus(`Paylaşım linki kopyalandı: ${link}`);
       } catch {
-        setTransientStatus(`Paylaşım linki: ${remote.url}`);
+        setTransientStatus(`Paylaşım linki: ${link}`);
       }
       return;
     }
-    setTransientStatus("Paylaşım sunucusu beklenmedik bir yanıt verdi.");
+    // Sunucu bir hata döndürdüyse gerçek nedeni göster (tahmin etme)
+    if (remote && remote.error) {
+      setTransientStatus(`Paylaşım reddedildi: ${remote.error}`);
+    } else if (remote && remote.service) {
+      // GET sağlık yanıtı geldiyse istek POST olarak ulaşmamış demektir
+      setTransientStatus("Paylaşım isteği sunucuya POST olarak ulaşmadı (yönlendirme?).");
+    } else {
+      setTransientStatus("Paylaşım sunucusu beklenmedik bir yanıt verdi.");
+    }
   } catch (error) {
     console.warn("Uzak paylaşım servisi kullanılamadı", error);
     setTransientStatus(
