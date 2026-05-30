@@ -16,6 +16,7 @@ const els = {
   welcome: document.getElementById("welcome"),
   form: document.getElementById("chat-form"),
   input: document.getElementById("prompt-input"),
+  historySearch: document.getElementById("history-search"),
   modelPill: document.getElementById("model-pill"),
   settings: document.getElementById("settings-dialog"),
   settingsButton: document.getElementById("settings-button"),
@@ -146,8 +147,23 @@ function currentChat() {
   return state.chats.find((chat) => chat.id === state.activeChat);
 }
 
+function chatMatchesQuery(chat, q) {
+  if (!q) return true;
+  const needle = q.toLocaleLowerCase("tr");
+  if (String(chat.title || "").toLocaleLowerCase("tr").includes(needle)) return true;
+  return (chat.messages || []).some((m) =>
+    String(m.text || "").toLocaleLowerCase("tr").includes(needle)
+  );
+}
+
 function renderHistory() {
-  els.history.innerHTML = state.chats.map((chat) => `
+  const q = (historyQuery || "").trim();
+  const visible = state.chats.filter((chat) => chatMatchesQuery(chat, q));
+  if (q && !visible.length) {
+    els.history.innerHTML = `<p class="history-empty">"${escapeHtml(q)}" için sohbet bulunamadı.</p>`;
+    return;
+  }
+  els.history.innerHTML = visible.map((chat) => `
     <div class="history-entry ${chat.id === state.activeChat ? "active" : ""}">
       <button class="history-item" data-chat="${chat.id}">
         ${escapeHtml(chat.title)}
@@ -603,6 +619,7 @@ function closeUpdatePrompt() {
   if (els.updatePrompt.open) els.updatePrompt.close("later");
 }
 
+let historyQuery = "";
 let isSending = false;
 let manualUpdateCheck = false;
 
@@ -660,6 +677,7 @@ els.input.addEventListener("keydown", (event) => {
 });
 
 document.getElementById("new-chat").addEventListener("click", () => createChat());
+if (els.historySearch) els.historySearch.addEventListener("input", () => { historyQuery = els.historySearch.value; renderHistory(); });
 els.settingsButton.addEventListener("click", async () => {
   els.settings.showModal();
   setActiveCat("overview");

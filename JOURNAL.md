@@ -4,6 +4,32 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 77 — Piyasa karşılaştırması + Sohbet Arama (güvenli, eklemeli) (30 May 2026, Claude)
+
+Kullanıcı "piyasadaki tüm AI ajanlarıyla karşılaştır, eksikleri ekle" dedi. Dürüst
+yaklaşım: yetenek-kategorisi bazlı karşılaştırma + EN BÜYÜK eksiğin (streaming) sıcak
+yolu değiştirdiğini, arayüzü canlı test edemediğim için onu AYRI dikkatli adım olarak
+önerdim. Bu turda güvenli/eklemeli gerçek bir eksik kapatıldı: SOHBET ARAMA.
+
+- index.html: kenar çubuğuna #history-search kutusu.
+- renderer: historyQuery state + chatMatchesQuery (başlık + mesaj içeriği, tr-locale)
+  + renderHistory filtre + boş-sonuç mesajı + input listener. Salt renderer, ana
+  sohbet akışına dokunmadan (risksiz).
+- styles.css: arama kutusu + boş durum.
+
+Karşılaştırma notu (kullanıcıya iletildi): VAR = araç kullanımı/ReAct, hafıza, RAG,
+çoklu-ajan orkestrasyon, uzman modları, kendini-gözlemleyen otonom PR, geri bildirim,
+GitHub bilgi senkron, federe paylaşım, kopyala, sohbet arama. EKSİK/öncelik =
+1) Streaming (en büyük UX farkı, sıcak yol - ayrı adım), 2) Çoklu sağlayıcı (GPT/
+Claude/Gemini bulut), 3) Dosya/görsel ekleme + çok-modluluk, 4) Kod çalıştırma sandbox,
+5) MCP araç eklentileri, 6) Stop/Regenerate. Ham model gücü yerel 3B ile kapatılamaz
+(dürüst sınır).
+
+Test 30/30. Surum 0.19.0 -> **0.20.0**.
+
+---
+
+
 ## ✅ Faz 76 — Paylaşım sonrası yazma kilidi düzeltildi + Kopyala butonu (30 May 2026, Claude)
 
 A) BUG: "Link olarak paylaş" sonrası sohbete yazılamıyor. İki kök neden:

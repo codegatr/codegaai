@@ -621,3 +621,12 @@ body[data-theme="oled"] { --bg: #000; }
 .theme-btn[aria-pressed="true"], .font-btn[aria-pressed="true"] {
   background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600;
 }
+
+/* Sohbet arama */
+#history-search {
+  width: 100%; box-sizing: border-box; margin: 0 0 8px; padding: 7px 10px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 9px;
+  color: var(--text); font-size: 13px;
+}
+#history-search:focus { outline: none; border-color: var(--accent); }
+.history-empty { color: var(--muted); font-size: 12.5px; padding: 6px 2px; }
