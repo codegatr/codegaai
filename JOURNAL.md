@@ -4,6 +4,25 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 76 — Paylaşım sonrası yazma kilidi düzeltildi + Kopyala butonu (30 May 2026, Claude)
+
+A) BUG: "Link olarak paylaş" sonrası sohbete yazılamıyor. İki kök neden:
+   (1) chat:share fetch'inde zaman aşımı yoktu; Cloudflare bağlantıyı tutunca istek
+       sonsuza dek askıda kalıp paylaşım promise'i hiç dönmüyordu. → AbortController +
+       12sn timeout; AbortError'da net Türkçe mesaj.
+   (2) ↗ butonuna tıklayınca odak butonda kalıyor, textarea keydown(Enter) tetiklenmiyordu.
+       → shareChat finally'de els.input.focus(); kullanıcı hemen yazıp gönderebilir.
+
+B) Büyük araçlarla (ChatGPT/Claude/Gemini/Qwen/Deepseek) karşılaştırma → evrensel ama
+   eksik olan "Kopyala" eklendi: her asistan cevabının altında 📋 (clipboard'a yazar).
+   DÜRÜST NOT: bu araçlarla asıl fark buton değil; ham model gücü (yerel 3B ≠ bulut dev
+   modeller) ve STREAMING. Sıradaki büyük adım streaming olarak işaretlendi.
+
+Test 30/30. Surum 0.18.0 -> **0.19.0**.
+
+---
+
+
 ## ✅ Faz 75 — Görünüm düzeltmesi tamam + Uzman Modları (benzersiz, README vizyonu) (30 May 2026, Claude)
 
 A) Görünüm "çalışmıyor" tamamlandı: tema/yazı butonlarına SEÇİLİ stil yoktu ve tema

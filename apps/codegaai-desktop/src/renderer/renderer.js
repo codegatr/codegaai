@@ -226,6 +226,21 @@ function renderConversation() {
       };
       bar.appendChild(mkBtn("up", "👍"));
       bar.appendChild(mkBtn("down", "👎"));
+      // Kopyala — tüm büyük sohbet arayüzlerinde olan evrensel eylem
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "fb-btn";
+      copyBtn.textContent = "📋";
+      copyBtn.title = "Cevabı kopyala";
+      copyBtn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(message.text);
+          setTransientStatus("Cevap kopyalandı.");
+        } catch (_e) {
+          setTransientStatus("Kopyalanamadı.");
+        }
+      });
+      bar.appendChild(copyBtn);
       node.appendChild(bar);
     }
     els.conversation.appendChild(node);
@@ -336,6 +351,10 @@ async function shareChat(chatId) {
     setTransientStatus(
       "Paylaşım sunucusu (ai.codega.com.tr) yayında değil. Link paylaşımı için sunucu kurulmalı."
     );
+  } finally {
+    // ↗ butonuna tıklayınca odak orada kalıyordu; giriş alanına geri ver ki
+    // kullanıcı hemen yazıp Enter ile gönderebilsin.
+    if (els.input) els.input.focus();
   }
 }
 

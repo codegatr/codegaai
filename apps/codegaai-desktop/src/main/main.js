@@ -111,24 +111,37 @@ function registerIpc() {
     // Sondaki "/" önemli: "share" gerçek bir klasör; "/share" (slash yok) sunucuda
     // "/share/"a 301 yönlendirilir ve fetch redirect'i izlerken POST -> GET olur,
     // bu da url'siz yanıta yol açar. Trailing slash bunu engeller.
-    const response = await fetch(`${FEDERATION_BASE_URL}/share/`, {
-      method: "POST",
-      redirect: "follow",
-      headers: {
-        "Content-Type": "application/json",
-        // Cloudflare'de bu başlığa "Skip/allow" kuralı yazılabilsin diye
-        "X-Codega-Client": "codega-desktop",
-      },
-      body: JSON.stringify({
-        title: chat?.title || "CODEGA AI Sohbeti",
-        messages: Array.isArray(chat?.messages) ? chat.messages : [],
-        app_version: app.getVersion(),
-      }),
-    });
-    if (!response.ok) {
-      throw new Error(`Paylaşım servisi cevap vermedi: ${response.status}`);
+    const controller = new AbortController();
+    // Cloudflare bağlantıyı askıya alırsa istek sonsuza dek beklemesin (yazma kilidi olmasın)
+    const timer = setTimeout(() => controller.abort(), 12000);
+    try {
+      const response = await fetch(`${FEDERATION_BASE_URL}/share/`, {
+        method: "POST",
+        redirect: "follow",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          // Cloudflare'de bu başlığa "Skip/allow" kuralı yazılabilsin diye
+          "X-Codega-Client": "codega-desktop",
+        },
+        body: JSON.stringify({
+          title: chat?.title || "CODEGA AI Sohbeti",
+          messages: Array.isArray(chat?.messages) ? chat.messages : [],
+          app_version: app.getVersion(),
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`Paylaşım servisi cevap vermedi: ${response.status}`);
+      }
+      return response.json();
+    } catch (e) {
+      if (e.name === "AbortError") {
+        throw new Error("Paylaşım isteği zaman aşımına uğradı (sunucu/Cloudflare yanıt vermedi).");
+      }
+      throw e;
+    } finally {
+      clearTimeout(timer);
     }
-    return response.json();
   });
 
   ipcMain.handle("models:list", async () => modelManager.getModels());
