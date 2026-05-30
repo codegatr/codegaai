@@ -10,6 +10,7 @@ const githubClient = require("./agent/github-client");
 const rag = require("./agent/rag");
 const { runSelfCheck } = require("./agent/self-maintenance");
 const selfImprove = require("./agent/self-improve");
+const improveDrafts = require("./agent/improve-drafts");
 const { ollamaReachable } = require("./agent/ollama-client");
 
 const modelManager = new ModelManager();
@@ -28,6 +29,12 @@ async function doMaintenance() {
         { name: "rag", path: process.env.CODEGA_RAG_PATH, onRepair: () => rag.clearAll() },
       ],
     });
+    // Kendini gözlemleme: bakım bulgularını öneri taslağı için say
+    try {
+      const oll = lastMaintenance.items.find((i) => i.name === "ollama");
+      if (oll && oll.status === "down") improveDrafts.recordSignal({ kind: "ollama_down" });
+      for (const r of lastMaintenance.repairs || []) improveDrafts.recordSignal({ kind: "store_repair", subject: r });
+    } catch (_e) { /* gözlem hatası akışı bozmasın */ }
   } catch (_e) {
     /* bakım hatası uygulamayı etkilemesin */
   }
@@ -158,6 +165,9 @@ function registerIpc() {
     });
     return selfImprove.submitProposal(githubClient, repo, proposal);
   });
+
+  ipcMain.handle("improve:drafts", async () => improveDrafts.getDrafts());
+  ipcMain.handle("improve:clearDrafts", async () => { improveDrafts.clearAll(); return true; });
 }
 
 app.whenReady().then(async () => {
@@ -168,6 +178,8 @@ app.whenReady().then(async () => {
     process.env.CODEGA_SETTINGS_PATH || path.join(app.getPath("userData"), "agent-settings.json");
   process.env.CODEGA_RAG_PATH =
     process.env.CODEGA_RAG_PATH || path.join(app.getPath("userData"), "rag-store.json");
+  process.env.CODEGA_IMPROVE_PATH =
+    process.env.CODEGA_IMPROVE_PATH || path.join(app.getPath("userData"), "improve-drafts.json");
 
   registerIpc();
   createWindow();

@@ -252,6 +252,14 @@
             <textarea id="improve-idea" rows="3" placeholder="Öneri: neyi, neden iyileştirelim?"></textarea>
             <button type="button" id="improve-submit">Öneriyi PR Olarak Aç</button>
           </div>
+          <div class="settings-row">
+            <div>
+              <strong>Ajanın Topladığı Taslaklar</strong>
+              <p id="improve-drafts-status">Açıkken gözlemlediği sorunlardan öneri taslakları. Yerel kalır; sen PR açarsın.</p>
+            </div>
+            <button type="button" id="improve-refresh">Yenile</button>
+          </div>
+          <div class="model-list" id="improve-drafts-list"></div>
         </details>
 
         <details class="settings-group" data-cat="updates" data-label="Güncellemeler">

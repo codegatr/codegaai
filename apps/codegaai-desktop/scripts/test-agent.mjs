@@ -429,4 +429,20 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Denetimli geliştirme: öneri + ayrı dal + PR (main'e dokunmaz)");
 }
 
+// 26) Kendini gözlemleme: sinyalleri eşik aşınca öneri taslağına çevir (saf)
+{
+  const idMod = await import(path.join(mainDir, "agent", "improve-drafts.js"));
+  const id = idMod.default || idMod;
+  const drafts = id.buildDrafts({
+    "tool_error:web_search": { kind: "tool_error", subject: "web_search", count: 5 },
+    "tool_error:rare": { kind: "tool_error", subject: "rare", count: 1 },
+    "store_repair:memory": { kind: "store_repair", subject: "memory", count: 1 },
+  });
+  assert.ok(drafts.some((d) => d.kind === "tool_error" && /web_search/.test(d.idea)), "sık hata önerisi");
+  assert.ok(!drafts.some((d) => d.subject === "rare"), "eşik altı dahil edilmemeli");
+  assert.ok(drafts.some((d) => d.kind === "store_repair"), "onarım eşiği 1");
+  assert.strictEqual(drafts[0].count, 5, "en sık önce");
+  ok("Kendini gözlemleme: sinyal → eşik → öneri taslağı");
+}
+
 console.log(`\n${passed} test geçti ✅`);

@@ -21,6 +21,7 @@ const { reflect } = require("./agent/reflect");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
 const { SPECIALISTS, routeStep, buildSpecialistPrompt } = require("./agent/agents");
+const improveDrafts = require("./agent/improve-drafts");
 
 // Basit sohbet/selamlaşma tespiti — bunlarda araç/ReAct makinesi devreye girmesin
 function _normTr(s) {
@@ -602,7 +603,16 @@ class ModelManager {
     }
 
     const text = String(agent.content || "").trim();
+    // Kendini gözlemleme: araç hatalarını öneri taslağı için say (yerel, gönderilmez)
+    try {
+      for (const tc of agent.toolCalls || []) {
+        if (typeof tc.result === "string" && /⚠️\s*Araç hatası|not_allowed/.test(tc.result)) {
+          improveDrafts.recordSignal({ kind: "tool_error", subject: tc.name });
+        }
+      }
+    } catch (_e) { /* gözlem hatası akışı bozmasın */ }
     if (!text || agent.stoppedReason === "error") {
+      try { improveDrafts.recordSignal({ kind: "empty_response" }); } catch (_e) {}
       this.state = {
         ...this.state,
         status: READY_STATES.READY,

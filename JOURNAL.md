@@ -4,6 +4,28 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 71 — Kendini gözlemleyen öneri taslakları (yerel; PR insan onaylı) (30 May 2026, Claude)
+
+Faz 70'in güvenli devamı: ajan açıkken kendi sorunlarını GÖZLEMLEYİP iyileştirme
+önerisi TASLAKLARI biriktirir. Taslaklar YEREL — kendiliğinden PR açılmaz/gönderilmez.
+Kullanıcı bir taslağı seçip tek tıkla PR olarak açar (Faz 70 akışı; insan onayı).
+
+- improve-drafts.js: recordSignal (kind+subject sayacı, kalıcı CODEGA_IMPROVE_PATH),
+  buildDrafts (eşik aşan sinyalleri okunur önerilere çevirir; saf→test), getDrafts/
+  clearAll. Eşikler: tool_error/empty_response/ollama_down=3, store_repair=1.
+- Sinyal kancaları (hepsi try-guard'lı, akışı bozmaz):
+  model-manager.ask: araç sonucu '⚠️ Araç hatası'/not_allowed → tool_error;
+  boş/err yanıt → empty_response. main.doMaintenance: ollama down → ollama_down;
+  repairs → store_repair.
+- IPC improve:drafts / improve:clearDrafts; preload köprüleri; env CODEGA_IMPROVE_PATH.
+- UI (Hafıza & Bilgi): "Ajanın Topladığı Taslaklar" listesi + her birinde "PR Aç"
+  (proposeImprovement çağırır), "Yenile" butonu; ayarlar açılınca otomatik yenilenir.
+
+Test 26/26. Surum 0.13.0 -> **0.14.0**.
+
+---
+
+
 ## ✅ Faz 70 — Denetimli kendini geliştirme (öneri → PR, main'e dokunmaz) (30 May 2026, Claude)
 
 Kullanıcı önceki turda sunulan güvenli yolu onayladı: ajan iyileştirme önerisini

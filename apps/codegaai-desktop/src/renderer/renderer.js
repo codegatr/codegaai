@@ -620,6 +620,7 @@ els.settingsButton.addEventListener("click", async () => {
   await refreshModels();
   await refreshAgentSettings();
   updateOverview();
+  refreshImproveDrafts();
 });
 
 // ===== Ayarlar Kontrol Merkezi: gezinme / arama / içe-dışa aktarma =====
@@ -743,6 +744,50 @@ if (settingsImportBtn && settingsImportFile) {
     fr.readAsText(file);
   });
 }
+
+// Ajanın topladığı öneri taslakları: listele + tek tıkla PR
+async function refreshImproveDrafts() {
+  const list = document.getElementById("improve-drafts-list");
+  const status = document.getElementById("improve-drafts-status");
+  if (!list) return;
+  let drafts = [];
+  try { drafts = (await window.codega.improveDrafts()) || []; } catch (_e) { drafts = []; }
+  list.innerHTML = "";
+  if (!drafts.length) {
+    if (status) status.textContent = "Şu an taslak yok — ajan henüz dikkate değer tekrar eden bir sorun gözlemlemedi.";
+    return;
+  }
+  if (status) status.textContent = `${drafts.length} taslak öneri (yerel). Birini PR olarak açabilirsin.`;
+  drafts.forEach((d) => {
+    const row = document.createElement("div");
+    row.className = "settings-row";
+    const info = document.createElement("div");
+    info.innerHTML = `<strong>${d.idea}</strong><p>${d.rationale}</p>`;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = "PR Aç";
+    btn.addEventListener("click", async () => {
+      const repo = (document.getElementById("improve-repo")?.value || "").trim();
+      btn.disabled = true;
+      setTransientStatus("Öneri PR'ı hazırlanıyor…");
+      try {
+        const res = await window.codega.proposeImprovement({ repo, idea: d.idea, rationale: d.rationale });
+        if (res && res.url) {
+          try { await navigator.clipboard.writeText(res.url); } catch {}
+          setTransientStatus(`Öneri PR açıldı (#${res.number}) — link kopyalandı.`);
+        } else setTransientStatus("PR açıldı ama link alınamadı.");
+      } catch (e) {
+        setTransientStatus("PR açılamadı: " + (e.message || e));
+        btn.disabled = false;
+      }
+    });
+    row.appendChild(info);
+    row.appendChild(btn);
+    list.appendChild(row);
+  });
+}
+const improveRefresh = document.getElementById("improve-refresh");
+if (improveRefresh) improveRefresh.addEventListener("click", refreshImproveDrafts);
 
 buildSettingsNav();
 
