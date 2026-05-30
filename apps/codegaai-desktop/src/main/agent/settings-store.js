@@ -28,6 +28,10 @@ const DEFAULTS = {
   autoProposePR: false, // ajan kendi gözlemlerinden OTONOM PR açsın (ayrı dal; ASLA merge/main)
   expertMode: "genel", // sohbet uzman modu (genel/php/python/javascript/devops/finans/hukuk)
   streaming: true, // cevabı token token canlı göster (kapatılabilir)
+  provider: "ollama", // "ollama" (yerel) | "openai" (OpenAI-uyumlu bulut)
+  openaiBaseUrl: "https://api.openai.com/v1",
+  openaiApiKey: "", // YALNIZCA yerelde saklanır; kullanıcının kendi sağlayıcısına gider
+  openaiModel: "gpt-4o-mini",
   theme: "oled", // görünüm teması (oled/slate/midnight/warm)
   accent: "#f59e0b", // vurgu rengi (prototip amber)
   fontScale: "orta", // sohbet yazı boyutu (kucuk/orta/buyuk)

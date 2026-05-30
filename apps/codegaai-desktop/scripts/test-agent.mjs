@@ -507,4 +507,15 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Streaming: ollamaChatStream dışa aktarıldı (yedek olarak ollamaChat duruyor)");
 }
 
+// 32) Çoklu sağlayıcı: openai-client dışa aktarımları
+{
+  const oaMod = await import(path.join(mainDir, "agent", "openai-client.js"));
+  const oa = oaMod.default || oaMod;
+  assert.strictEqual(typeof oa.openaiChat, "function", "openaiChat var");
+  assert.strictEqual(typeof oa.openaiChatStream, "function", "openaiChatStream var");
+  assert.strictEqual(typeof oa.openaiTest, "function", "openaiTest var");
+  assert.ok(/\/v1$/.test(oa.DEFAULT_BASE_URL), "varsayılan base url /v1");
+  ok("Çoklu sağlayıcı: OpenAI-uyumlu istemci dışa aktarıldı");
+}
+
 console.log(`\n${passed} test geçti ✅`);

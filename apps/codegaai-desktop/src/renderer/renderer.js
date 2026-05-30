@@ -44,6 +44,12 @@ const els = {
   toggleAutoPropose: document.getElementById("toggle-autopropose"),
   expertSelect: document.getElementById("expert-select"),
   toggleStreaming: document.getElementById("toggle-streaming"),
+  providerSelect: document.getElementById("provider-select"),
+  openaiBase: document.getElementById("openai-base"),
+  openaiKey: document.getElementById("openai-key"),
+  openaiModel: document.getElementById("openai-model"),
+  providerCloudFields: document.getElementById("provider-cloud-fields"),
+  providerTest: document.getElementById("provider-test"),
   toggleFederation: document.getElementById("toggle-federation"),
   clearMemory: document.getElementById("clear-memory"),
   memorySummary: document.getElementById("memory-summary"),
@@ -916,6 +922,39 @@ async function refreshImproveDrafts() {
 const improveRefresh = document.getElementById("improve-refresh");
 if (improveRefresh) improveRefresh.addEventListener("click", refreshImproveDrafts);
 
+function updateProviderVisibility() {
+  if (!els.providerCloudFields || !els.providerSelect) return;
+  els.providerCloudFields.style.display = els.providerSelect.value === "openai" ? "" : "none";
+}
+if (els.providerSelect) els.providerSelect.addEventListener("change", async () => {
+  agentSettings = await window.codega.setSettings({ provider: els.providerSelect.value });
+  updateProviderVisibility();
+  setTransientStatus(els.providerSelect.value === "openai" ? "Bulut sağlayıcı seçildi." : "Yerel sağlayıcı seçildi.");
+});
+function bindProviderField(el, key) {
+  if (!el) return;
+  el.addEventListener("change", async () => { agentSettings = await window.codega.setSettings({ [key]: el.value.trim() }); });
+}
+bindProviderField(els.openaiBase, "openaiBaseUrl");
+bindProviderField(els.openaiKey, "openaiApiKey");
+bindProviderField(els.openaiModel, "openaiModel");
+if (els.providerTest) els.providerTest.addEventListener("click", async () => {
+  els.providerTest.disabled = true;
+  setTransientStatus("Bağlantı test ediliyor…");
+  try {
+    const r = await window.codega.testProvider({
+      baseUrl: els.openaiBase ? els.openaiBase.value.trim() : "",
+      apiKey: els.openaiKey ? els.openaiKey.value.trim() : "",
+      model: els.openaiModel ? els.openaiModel.value.trim() : "",
+    });
+    setTransientStatus((r && r.message) || (r && r.ok ? "Bağlantı başarılı." : "Bağlantı başarısız."));
+  } catch (e) {
+    setTransientStatus("Test hatası: " + (e.message || e));
+  } finally {
+    els.providerTest.disabled = false;
+  }
+});
+
 buildSettingsNav();
 
 // Denetimli kendini geliştirme: öneriyi PR olarak aç
@@ -1046,6 +1085,11 @@ async function refreshAgentSettings() {
     if (els.toggleAutoPropose) applyToggleLabel(els.toggleAutoPropose, !!agentSettings.autoProposePR);
     if (els.expertSelect) els.expertSelect.value = agentSettings.expertMode || "genel";
     if (els.toggleStreaming) applyToggleLabel(els.toggleStreaming, agentSettings.streaming !== false);
+    if (els.providerSelect) els.providerSelect.value = agentSettings.provider || "ollama";
+    if (els.openaiBase) els.openaiBase.value = agentSettings.openaiBaseUrl || "";
+    if (els.openaiKey) els.openaiKey.value = agentSettings.openaiApiKey || "";
+    if (els.openaiModel) els.openaiModel.value = agentSettings.openaiModel || "";
+    updateProviderVisibility();
     applyAppearance(agentSettings);
     applyToggleLabel(els.toggleFederation, !!agentSettings.federation);
     applyToggleLabel(els.toggleIdle, !!agentSettings.idleLearning);

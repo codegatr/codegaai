@@ -4,6 +4,30 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 81 — Çoklu sağlayıcı (OpenAI-uyumlu bulut) — sıra #2 (30 May 2026, Claude)
+
+Ham-zekâ açığını kapatan adım. OpenAI-UYUMLU bulut sağlayıcı eklendi (OpenAI,
+OpenRouter, Deepseek, Groq, LM Studio… hepsi /chat/completions formatı).
+
+- openai-client.js (izole): openaiChat / openaiChatStream (SSE: data: ...,
+  delta.content) / openaiTest. API anahtarı yalnızca yerelde saklanır, loglanmaz,
+  yalnızca kullanıcının baseUrl'üne gider.
+- model-manager: generate() başında provider==='openai' + key varsa buluta yönlenir
+  (stream destekli); yoksa mevcut Ollama yolu AYNEN. _ask cloudMode: Ollama hazırlık
+  kontrolünü atlar, settings.openaiModel kullanır, state.provider='openai'.
+- settings: provider/openaiBaseUrl/openaiApiKey/openaiModel (varsayılan ollama).
+- main IPC provider:test -> openaiTest. preload testProvider.
+- UI (Zekâ & Model): Sağlayıcı seçici + base/key(password)/model alanları +
+  "Bağlantıyı Test Et". Bulut alanları yalnız openai seçiliyken görünür.
+
+GÜVENLİK/gizlilik: anahtar kullanıcının kendi cihazında, kendi sağlayıcısına. Ben
+(Claude) anahtar girmiyorum; sadece kullanıcının gireceği alanı kodluyorum.
+Yerel yol hiç bozulmadı (bulut yalnızca seçilince devreye girer). Test 32/32.
+Surum 0.23.0 -> **0.24.0**.
+
+---
+
+
 ## ✅ Faz 80 — Ayarlar prototiple görsel uyum (amber + pill anahtarlar + kart) (30 May 2026, Claude)
 
 Kullanıcı: canlı Ayarlar, verdiğim prototiple aynı değil. Doğru — prototipi gerçek

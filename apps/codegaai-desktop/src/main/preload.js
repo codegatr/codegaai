@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld("codega", {
   recordFeedback: (payload) => ipcRenderer.invoke("feedback:record", payload),
   feedbackStats: () => ipcRenderer.invoke("feedback:stats"),
   analyzeSystem: () => ipcRenderer.invoke("system:analyze"),
+  testProvider: (payload) => ipcRenderer.invoke("provider:test", payload),
   onChatStream: (cb) => {
     const handler = (_e, token) => cb(token);
     ipcRenderer.on("chat:stream", handler);

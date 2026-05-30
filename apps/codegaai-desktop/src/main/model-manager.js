@@ -12,6 +12,7 @@ const {
   OLLAMA_PULL_TIMEOUT_MS,
 } = require("../shared/constants");
 const { ollamaChat, ollamaChatStream, ollamaReachable, ollamaListModels } = require("./agent/ollama-client");
+const { openaiChat, openaiChatStream } = require("./agent/openai-client");
 const { runReact } = require("./agent/agent-loop");
 const { buildSystemPrompt } = require("./agent/system-prompt");
 const { getSettings } = require("./agent/settings-store");
@@ -455,46 +456,65 @@ class ModelManager {
       };
     }
 
-    if (this.state.provider !== "ollama") {
-      await this.detect();
-    }
-    if (this.state.provider !== "ollama") {
-      return {
-        provider: "instant",
-        model: "codega-setup",
-        text: "Yerel zeka motoru hazır değil. Ayarlardan kurulumu başlatıp önerilen zeka paketlerini indirebilirsin.",
-      };
-    }
+    const settings = getSettings();
+    const cloudMode =
+      settings.provider === "openai" && String(settings.openaiApiKey || "").trim().length > 0;
 
-    const installed = await this.installedModels();
     const task = detectTask(input);
-    const attemptModels = candidateModelsForTask(task, installed);
-    const selectedModel = attemptModels[0] || chooseModelForTask(task, installed);
-    if (!attemptModels.length) {
+    let attemptModels;
+    let selectedModel;
+
+    if (cloudMode) {
+      // Bulut: Ollama'ya gerek yok; kullanıcının seçtiği modeli kullan.
+      selectedModel = settings.openaiModel || "gpt-4o-mini";
+      attemptModels = [selectedModel];
       this.state = {
-        provider: "ollama",
-        status: READY_STATES.MISSING,
+        provider: "openai",
+        status: READY_STATES.READY,
         model: selectedModel,
         task,
-        message: "Gerekli zeka paketi hazır değil.",
+        message: "Düşünüyorum...",
       };
-      return {
-        provider: "instant",
-        model: "codega-model-router",
-        text: "Bu iş için gerekli zeka paketi henüz hazır değil. Ayarlar > Model Paketleri bölümünden ilgili paketi indirebilirsin; sonra ben arka planda kendim kullanırım.",
+    } else {
+      if (this.state.provider !== "ollama") {
+        await this.detect();
+      }
+      if (this.state.provider !== "ollama") {
+        return {
+          provider: "instant",
+          model: "codega-setup",
+          text: "Yerel zeka motoru hazır değil. Ayarlardan kurulumu başlatıp önerilen zeka paketlerini indirebilirsin. (Alternatif: Zekâ & Model'den bulut sağlayıcı tanımlayabilirsin.)",
+        };
+      }
+
+      const installed = await this.installedModels();
+      attemptModels = candidateModelsForTask(task, installed);
+      selectedModel = attemptModels[0] || chooseModelForTask(task, installed);
+      if (!attemptModels.length) {
+        this.state = {
+          provider: "ollama",
+          status: READY_STATES.MISSING,
+          model: selectedModel,
+          task,
+          message: "Gerekli zeka paketi hazır değil.",
+        };
+        return {
+          provider: "instant",
+          model: "codega-model-router",
+          text: "Bu iş için gerekli zeka paketi henüz hazır değil. Ayarlar > Model Paketleri bölümünden ilgili paketi indirebilirsin; sonra ben arka planda kendim kullanırım.",
+        };
+      }
+
+      this.state = {
+        provider: "ollama",
+        status: READY_STATES.READY,
+        model: selectedModel,
+        task,
+        message: "Düşünüyorum...",
       };
     }
 
-    this.state = {
-      provider: "ollama",
-      status: READY_STATES.READY,
-      model: selectedModel,
-      task,
-      message: "Düşünüyorum...",
-    };
-
     // Otonom öğrenme: kullanıcı hakkında hatırladıklarını system prompt'a kat
-    const settings = getSettings();
     const memory = settings.autonomousLearning ? recall(input, 4) : [];
 
     // RAG: eklenen doküman/bilgi tabanından alakalı parçaları getir
@@ -683,6 +703,24 @@ class ModelManager {
    * runReact bunu generateFn olarak çağırır.
    */
   async generate(model, messages, fallbackModels = [], onToken = null) {
+    // Bulut sağlayıcı (OpenAI-uyumlu) seçiliyse oraya yönlen — yerel Ollama gerekmez.
+    const s = getSettings();
+    if (s.provider === "openai" && String(s.openaiApiKey || "").trim()) {
+      try {
+        const o = {
+          baseUrl: s.openaiBaseUrl,
+          apiKey: s.openaiApiKey,
+          model: s.openaiModel || "gpt-4o-mini",
+        };
+        const content = onToken
+          ? await openaiChatStream(messages, { ...o, onToken })
+          : await openaiChat(messages, o);
+        if (content && content.trim()) return content;
+      } catch (_e) {
+        return ""; // bulut hatası -> üst katman boş-yanıt mesajı verir
+      }
+      return "";
+    }
     if (await ollamaReachable()) {
       try {
         const content = onToken

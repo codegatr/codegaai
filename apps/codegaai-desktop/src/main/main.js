@@ -225,6 +225,16 @@ function registerIpc() {
   ipcMain.handle("feedback:stats", async () => feedback.stats());
 
   ipcMain.handle("system:analyze", async () => systemInfo.analyze(MODEL_OPTIONS));
+
+  ipcMain.handle("provider:test", async (_event, payload) => {
+    const { openaiTest } = require("./agent/openai-client");
+    const s = settingsStore.getSettings();
+    return openaiTest({
+      baseUrl: (payload && payload.baseUrl) || s.openaiBaseUrl,
+      apiKey: (payload && payload.apiKey) || s.openaiApiKey,
+      model: (payload && payload.model) || s.openaiModel,
+    });
+  });
 }
 
 app.whenReady().then(async () => {
