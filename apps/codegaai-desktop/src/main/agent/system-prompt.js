@@ -13,11 +13,16 @@
 const { toolsSystemPrompt } = require("./tools");
 
 function buildSystemPrompt(task = "chat", opts = {}) {
-  const { memory = [], humanTone = true, ragContext = [], plan = [] } = opts;
+  const { memory = [], humanTone = true, ragContext = [], plan = [], expertPersona = "" } = opts;
 
   const lines = [
     "Sen CODEGA AI'sın — yerelde çalışan yetenekli bir yapay zeka ajanısın.",
     "Konya'lı geliştirici Yunus için CODEGA tarafından geliştirildin.",
+  ];
+  if (expertPersona) {
+    lines.push("", "## Uzman Modu", expertPersona);
+  }
+  lines.push(
     "",
     "## Roller (KARIŞTIRMA)",
     "- SEN = asistansın (CODEGA). Cevabı sen yazarsın.",
@@ -37,7 +42,7 @@ function buildSystemPrompt(task = "chat", opts = {}) {
     "- Türkçe, doğal, net konuş. Dolgu cümlesi, gereksiz tekrar, kıvırtma yok.",
     "- Düşünen biri gibisin: yorum yap, gerekçe göster, gerektiğinde fikrini söyle.",
     "- İç model/paket adlarını söyleme; doğal yanıt ver.",
-  ];
+  );
 
   if (humanTone) {
     lines.push(

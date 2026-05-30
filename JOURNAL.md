@@ -4,6 +4,27 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 75 — Görünüm düzeltmesi tamam + Uzman Modları (benzersiz, README vizyonu) (30 May 2026, Claude)
+
+A) Görünüm "çalışmıyor" tamamlandı: tema/yazı butonlarına SEÇİLİ stil yoktu ve tema
+   farkı çok belirsizdi (sadece --bg; üstelik dialog bg sabit #101010 olduğu için
+   pencere açıkken değişim görünmüyordu). Eklendi: .theme-btn/.font-btn[aria-pressed]
+   vurgu stili + daha ayırt edilebilir tema renkleri (slate #10141c, midnight #0b1230,
+   warm #1b1410) + setAppearance'ta onay toast'u. Kablolama zaten doğruydu, geri
+   bildirim eksikti.
+
+B) BENZERSİZ özellik — Uzman Modları (README: "uzman profilleri"). experts.js:
+   genel/php/python/javascript/devops/finans/hukuk; resolve+personaFor (saf, test).
+   buildSystemPrompt artık expertPersona alıp "## Uzman Modu" bloğu ekliyor.
+   model-manager.ask persona'yı settings.expertMode'dan geçiriyor. settings.expertMode
+   (varsayılan genel) + Zekâ & Model grubunda "Uzman Modu" seçici. Finans/hukuk'ta
+   tavsiye-değil uyarısı persona içinde.
+
+Test 30/30. Surum 0.17.0 -> **0.18.0**.
+
+---
+
+
 ## ✅ Faz 74 — Görünmeyen kategoriler düzeltildi + sistem analizi/model önerisi (30 May 2026, Claude)
 
 A) HATA: Görünüm/Hafıza & Bilgi/Güncellemeler kategorileri görünmüyordu. Sebep: bu

@@ -535,9 +535,9 @@ textarea {
 }
 
 /* Görünüm: tema modları (koyu aile — sadece --bg/--accent değişir, güvenli) */
-body[data-theme="slate"] { --bg: #0d1117; }
-body[data-theme="midnight"] { --bg: #0a0f1e; }
-body[data-theme="warm"] { --bg: #140f0a; }
+body[data-theme="slate"] { --bg: #10141c; }
+body[data-theme="midnight"] { --bg: #0b1230; }
+body[data-theme="warm"] { --bg: #1b1410; }
 body[data-theme="oled"] { --bg: #000; }
 
 /* Görünüm: sohbet yazı boyutu (additive) */
@@ -615,3 +615,9 @@ body[data-theme="oled"] { --bg: #000; }
 }
 .fb-btn:hover { border-color: var(--accent); }
 .fb-btn.on { background: var(--accent); border-color: var(--accent); }
+
+/* Görünüm: tema/yazı butonu seçili durumu (görünür geri bildirim) */
+.theme-btn, .font-btn { border: 1px solid var(--line); transition: background .12s, border-color .12s; }
+.theme-btn[aria-pressed="true"], .font-btn[aria-pressed="true"] {
+  background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600;
+}

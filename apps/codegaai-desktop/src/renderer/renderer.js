@@ -41,6 +41,7 @@ const els = {
   toggleMaintenance: document.getElementById("toggle-maintenance"),
   runMaintenance: document.getElementById("run-maintenance"),
   toggleAutoPropose: document.getElementById("toggle-autopropose"),
+  expertSelect: document.getElementById("expert-select"),
   toggleFederation: document.getElementById("toggle-federation"),
   clearMemory: document.getElementById("clear-memory"),
   memorySummary: document.getElementById("memory-summary"),
@@ -925,6 +926,8 @@ function applyAppearance(s) {
 async function setAppearance(patch) {
   agentSettings = await window.codega.setSettings(patch);
   applyAppearance(agentSettings);
+  const what = patch.theme ? "Tema" : patch.accent ? "Vurgu rengi" : patch.fontScale ? "Yazı boyutu" : "Görünüm";
+  setTransientStatus(`${what} uygulandı.`);
 }
 
 document.querySelectorAll(".theme-btn").forEach((b) =>
@@ -960,6 +963,7 @@ async function refreshAgentSettings() {
     applyToggleLabel(els.toggleMultiAgent, !!agentSettings.multiAgent);
     applyToggleLabel(els.toggleMaintenance, agentSettings.selfMaintenance !== false);
     if (els.toggleAutoPropose) applyToggleLabel(els.toggleAutoPropose, !!agentSettings.autoProposePR);
+    if (els.expertSelect) els.expertSelect.value = agentSettings.expertMode || "genel";
     applyAppearance(agentSettings);
     applyToggleLabel(els.toggleFederation, !!agentSettings.federation);
     applyToggleLabel(els.toggleIdle, !!agentSettings.idleLearning);
@@ -1118,6 +1122,7 @@ els.togglePlanner.addEventListener("click", () => toggleSetting("planner", els.t
 els.toggleMultiAgent.addEventListener("click", () => toggleSetting("multiAgent", els.toggleMultiAgent));
 if (els.toggleMaintenance) els.toggleMaintenance.addEventListener("click", () => toggleSetting("selfMaintenance", els.toggleMaintenance));
 if (els.toggleAutoPropose) els.toggleAutoPropose.addEventListener("click", () => toggleSetting("autoProposePR", els.toggleAutoPropose));
+if (els.expertSelect) els.expertSelect.addEventListener("change", async () => { agentSettings = await window.codega.setSettings({ expertMode: els.expertSelect.value }); setTransientStatus("Uzman modu: " + els.expertSelect.value); });
 els.toggleFederation.addEventListener("click", () => toggleSetting("federation", els.toggleFederation));
 els.clearMemory.addEventListener("click", async () => {
   els.clearMemory.disabled = true;

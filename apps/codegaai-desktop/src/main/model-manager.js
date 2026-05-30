@@ -22,6 +22,7 @@ const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
 const { SPECIALISTS, routeStep, buildSpecialistPrompt } = require("./agent/agents");
 const improveDrafts = require("./agent/improve-drafts");
+const experts = require("./agent/experts");
 
 // Basit sohbet/selamlaşma tespiti — bunlarda araç/ReAct makinesi devreye girmesin
 function _normTr(s) {
@@ -525,6 +526,7 @@ class ModelManager {
           humanTone: settings.humanTone,
           ragContext,
           plan,
+          expertPersona: experts.personaFor(settings.expertMode),
         }),
       },
       ...this.history,

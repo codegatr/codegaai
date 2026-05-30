@@ -486,4 +486,16 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Sistem analizi: donanıma göre güncel model önerisi");
 }
 
+// 30) Uzman modları: persona çözümleme (saf)
+{
+  const exMod = await import(path.join(mainDir, "agent", "experts.js"));
+  const ex = exMod.default || exMod;
+  assert.strictEqual(ex.resolve("PHP"), "php", "büyük/küçük harf normalize");
+  assert.strictEqual(ex.resolve("bilinmeyen"), "genel", "tanınmayan -> genel");
+  assert.ok(/PHP/.test(ex.personaFor("php")), "php persona metni");
+  assert.strictEqual(ex.personaFor("genel"), "", "genel persona boş");
+  assert.ok(ex.list().some((e) => e.id === "devops"), "liste devops içerir");
+  ok("Uzman modları: persona çözümleme");
+}
+
 console.log(`\n${passed} test geçti ✅`);

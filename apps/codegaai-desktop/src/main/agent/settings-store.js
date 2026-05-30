@@ -26,6 +26,7 @@ const DEFAULTS = {
   multiAgent: false, // orchestrator + uzman ajanlar (opt-in, deneysel, yavaş)
   selfMaintenance: true, // açıkken güvenli kendi-kendine bakım/onarım (kod değiştirmez)
   autoProposePR: false, // ajan kendi gözlemlerinden OTONOM PR açsın (ayrı dal; ASLA merge/main)
+  expertMode: "genel", // sohbet uzman modu (genel/php/python/javascript/devops/finans/hukuk)
   theme: "oled", // görünüm teması (oled/slate/midnight/warm)
   accent: "#ffffff", // vurgu rengi
   fontScale: "orta", // sohbet yazı boyutu (kucuk/orta/buyuk)
