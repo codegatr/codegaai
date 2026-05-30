@@ -4,6 +4,30 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 65 — Öz değerlendirme rapor sızıntısı düzeltildi + paylaşım=Cloudflare (30 May 2026, Claude)
+
+A) HATA (ekran görüntüsü): "günaydin" cevabına denetçi RAPORU sızmış:
+   "DÜZELTİLMİŞ CEVAP: ... / Uydu: None detected / Eksiklik: ... / Sorun: ..."
+   Sebep: küçük model "OK"/temiz-cevap yerine etiketli rapor döndürünce reflect
+   hepsini cevap sanıyordu. Ek kök neden: Türkçe "İ" (U+0130) /i bayraklı regex'le
+   eşleşmediğinden temizleme kaçıyordu.
+
+   Düzeltme (reflect.js): tespit artık toLocaleLowerCase('tr') ile yapılıyor;
+   "düzeltilmiş cevap:" sonrasını alıp rapor satırlarında (Uydu/Eksiklik/Sorun/
+   Durum/None detected) keser; temiz cevap çıkmazsa TASLAĞA döner. Rapor ASLA
+   sızmaz. Yeni testler: sızıntı senaryoları (22/22 geçiyor).
+
+B) Link paylaşımı hâlâ çalışmıyor: ai.codega.com.tr hâlâ cf-mitigated:challenge +
+   server:cloudflare + CSP challenges.cloudflare.com döndürüyor. Yani PHP tarafı
+   bitse bile CLOUDFLARE bloğu sürüyor; çözüm yalnızca Cloudflare panelinde (WAF
+   Skip /api/federation/* veya X-Codega-Client header eşleşmesi / Bot Fight Off /
+   DNS-only). Kod tarafında yapılacak başka şey yok.
+
+Surum 0.10.1 -> **0.10.2**. Test 22/22.
+
+---
+
+
 ## ✅ Faz 64 — Paylaşım sunucusu Kurulum Sihirbazı + Cloudflare teşhisi (29 May 2026, Claude)
 
 Kullanıcı: kurulumu yaptım ama "ai.codega.com.tr yayında değil" diyor; sihirbaz hazırla.

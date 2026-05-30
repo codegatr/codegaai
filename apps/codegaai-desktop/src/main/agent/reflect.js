@@ -4,20 +4,27 @@
  * -----------------
  * Öz değerlendirme (self-reflection) katmanı.
  *
- * Ajan bir taslak cevap ürettikten sonra, modeli bir "denetçi" rolünde tekrar
- * çalıştırır: cevap doğru/eksiksiz/uydurmasız mı? İyiyse aynen bırakır, değilse
- * düzeltilmiş cevabı döndürür. Bu, "kendi çıktısını kontrol edip hatasını
- * düzeltme" yetisidir.
+ * Denetçi raporu ASLA kullanıcıya sızmamalı. Küçük modeller "OK" yerine etiketli
+ * rapor üretebilir; temiz cevabı ayıklarız, ayıklayamazsak TASLAĞA döneriz.
  *
- * generateFn(messages) -> Promise<string> enjekte edilir (test edilebilirlik).
- * Saf yardımcılar (looksOk, buildCritiqueMessages) modelsiz test edilebilir.
+ * Türkçe NOT: tespit, Türkçe-güvenli küçük harfe (toLocaleLowerCase('tr')) çevrilen
+ * metin üzerinde yapılır; aksi halde "İ" (U+0130) /i bayrağıyla eşleşmez.
+ *
+ * looksOk / buildCritiqueMessages / sanitizeRevision saf → modelsiz test edilebilir.
  */
 
-const OK_PATTERN = /^\s*(ok|tamam|doğru|dogru)\b/i;
+function tlow(s) {
+  return String(s || "").toLocaleLowerCase("tr");
+}
+
+const OK_PATTERN = /^\s*(ok|tamam|doğru|aynen|sorun\s*yok)\b/;
+const REPORT_LINE = /^\s*(uydu|eksiklik|sorun|durum|değerlendirme|verdict|revised|none\s*detected)\s*[:\-]/;
+const LEAK_MARKERS = /(düzeltilmi[şs]\s*cevap|uydu\s*[:\-]|eksiklik\s*[:\-]|sorun\s*[:\-]|durum\s*[:\-]|değerlendirme\s*[:\-]|none\s*detected|verdict|revised)/;
+const DUZ_MARKER = /d[üu]zeltilmi[şs]\s*cevap\s*[:\-]?\s*/;
 
 function looksOk(text) {
-  const t = String(text || "").trim();
-  return OK_PATTERN.test(t) || t.toLowerCase() === "ok";
+  const t = tlow(text).trim();
+  return OK_PATTERN.test(t) || t === "ok";
 }
 
 function buildCritiqueMessages(question, draftAnswer) {
@@ -25,32 +32,44 @@ function buildCritiqueMessages(question, draftAnswer) {
     {
       role: "system",
       content:
-        "Sen titiz bir denetçisin. Bir yapay zekanın cevabını kontrol edip " +
-        "gerekiyorsa düzeltirsin. Uydurma bilgi, eksik cevap ve soruyla " +
-        "alakasızlık ararsın.",
+        "Sen bir denetçisin. Bir cevabı doğruluk/eksiklik/uydurma açısından kontrol edip İYİLEŞTİRİRSİN.\n" +
+        "ÇIKTI KURALI (kesin): Cevap iyiyse SADECE 'AYNEN' yaz. Düzeltme gerekiyorsa SADECE " +
+        "düzeltilmiş cevabı yaz. ASLA etiket/başlık yazma: 'DÜZELTİLMİŞ CEVAP', 'Uydu', " +
+        "'Eksiklik', 'Sorun', 'Değerlendirme', açıklama vb. YASAK. Sadece nihai cevap metni.",
     },
     {
       role: "user",
-      content: [
-        `Soru: ${question}`,
-        "",
-        `Verilen cevap:`,
-        draftAnswer,
-        "",
-        "Görev:",
-        "- Cevap doğru, eksiksiz ve uydurma içermiyorsa SADECE 'OK' yaz.",
-        "- Sorun varsa (uydurma sayı/isim, eksiklik, konudan sapma) DÜZELTİLMİŞ",
-        "  cevabı yaz. Yalnızca düzeltilmiş cevabı yaz; açıklama/önsöz ekleme.",
-        "- Emin değilsen cevapta bunu açıkça belirt; uydurma.",
-      ].join("\n"),
+      content: `Soru: ${question}\n\nMevcut cevap:\n${draftAnswer}\n\nKurala uy: ya 'AYNEN' ya da yalnızca düzeltilmiş cevap.`,
     },
   ];
 }
 
-/**
- * Taslak cevabı denetle; gerekiyorsa düzelt.
- * @returns {Promise<{revised:boolean, answer:string}>}
- */
+/** Denetçi çıktısını temizle: temiz cevabı çıkar, çıkaramazsan taslağı koru. */
+function sanitizeRevision(verdict, draft) {
+  const orig = String(verdict || "").trim();
+  if (!orig) return { revised: false, answer: draft };
+  const low = tlow(orig);
+  if (OK_PATTERN.test(low) || low === "ok") return { revised: false, answer: draft };
+
+  // "Düzeltilmiş cevap:" etiketinden sonrasını al (indeks orijinalle hizalı)
+  let start = 0;
+  const mm = low.match(DUZ_MARKER);
+  if (mm && typeof mm.index === "number") start = mm.index + mm[0].length;
+
+  const lines = orig.slice(start).split(/\r?\n/);
+  const lowLines = low.slice(start).split(/\r?\n/);
+  const kept = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (REPORT_LINE.test(lowLines[i])) break; // rapor satırına gelince kes
+    kept.push(lines[i]);
+  }
+  const t = kept.join("\n").trim();
+
+  // Hâlâ etiket sızıntısı varsa ya da boşsa: TASLAĞA dön (rapor asla gösterilmez)
+  if (!t || LEAK_MARKERS.test(tlow(t))) return { revised: false, answer: draft };
+  return { revised: true, answer: t };
+}
+
 async function reflect(question, draftAnswer, generateFn) {
   const draft = String(draftAnswer || "").trim();
   if (!draft) return { revised: false, answer: draft };
@@ -58,14 +77,9 @@ async function reflect(question, draftAnswer, generateFn) {
   try {
     out = (await generateFn(buildCritiqueMessages(question, draft))) || "";
   } catch (_e) {
-    // denetim başarısız olursa taslağı koru (asla cevabı kaybetme)
     return { revised: false, answer: draft };
   }
-  const verdict = out.trim();
-  if (!verdict || looksOk(verdict)) {
-    return { revised: false, answer: draft };
-  }
-  return { revised: true, answer: verdict };
+  return sanitizeRevision(out, draft);
 }
 
-module.exports = { reflect, looksOk, buildCritiqueMessages };
+module.exports = { reflect, looksOk, buildCritiqueMessages, sanitizeRevision };

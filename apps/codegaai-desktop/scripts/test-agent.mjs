@@ -296,7 +296,25 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   // denetim patlarsa taslak korunur
   const safe = await reflect.reflect("x", "taslak", async () => { throw new Error("yok"); });
   assert.strictEqual(safe.answer, "taslak");
-  ok("Öz değerlendirme: OK/düzeltme/hata-güvenli");
+
+  // SIZINTI: etiketli denetçi raporu cevaba sızmamalı
+  const leak = await reflect.reflect(
+    "günaydin",
+    "İyi günler. Size nasıl yardımcı olabilirim?",
+    async () =>
+      "İyi günler. Size nasıl yardımcı olabilirim?\n\nDÜZELTİLMİŞ CEVAP:\nGünaydın! Size nasıl yardımcı olabilirim?\n\nUydu: None detected\nEksiklik: None detected\nSorun: yok"
+  );
+  assert.ok(/Günaydın/.test(leak.answer), "temiz düzeltme çıkarılmalı");
+  assert.ok(!/DÜZELTİLMİŞ|Uydu:|None detected|Sorun:/.test(leak.answer), "rapor SIZMAMALI");
+
+  // Sadece rapor (kullanılabilir cevap yok) -> taslağa dön
+  const onlyReport = await reflect.reflect(
+    "selam",
+    "Merhaba!",
+    async () => "Uydu: None detected\nEksiklik: yok\nSorun: yok"
+  );
+  assert.strictEqual(onlyReport.answer, "Merhaba!", "rapor-only -> taslak");
+  ok("Öz değerlendirme: OK/düzeltme/hata-güvenli + rapor sızıntısı engellendi");
 }
 
 // 21) Görev planlayıcı: parse + looksLikeGoal + makePlan
