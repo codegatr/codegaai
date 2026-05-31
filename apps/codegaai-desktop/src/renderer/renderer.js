@@ -1211,6 +1211,22 @@ async function refreshSecurity() {
 const securityRefreshBtn = document.getElementById("security-refresh");
 if (securityRefreshBtn) securityRefreshBtn.addEventListener("click", () => refreshSecurity());
 
+const devPromptBtn = document.getElementById("dev-prompt-btn");
+if (devPromptBtn) devPromptBtn.addEventListener("click", async () => {
+  const input = (document.getElementById("dev-prompt-input") || {}).value || "";
+  const out = document.getElementById("dev-prompt-out");
+  if (!input.trim()) { setTransientStatus("Önce bir prompt yaz."); return; }
+  devPromptBtn.disabled = true;
+  if (out) { out.hidden = false; out.textContent = "Çalışıyor…"; }
+  try {
+    const r = await window.codega.devPrompt({ input });
+    if (out) out.textContent = r && r.ok ? `[model: ${r.model}]\n${r.text}` : ("Hata: " + ((r && r.message) || "bilinmiyor"));
+  } catch (e) { if (out) out.textContent = "Hata: " + (e.message || e); }
+  finally { devPromptBtn.disabled = false; }
+});
+const toggleDebugBtn = document.getElementById("toggle-debug");
+if (toggleDebugBtn) toggleDebugBtn.addEventListener("click", () => toggleSetting("debugLogging", toggleDebugBtn));
+
 els.settingsButton.addEventListener("click", async () => {
   els.settings.showModal();
   setActiveCat("overview");
@@ -1225,6 +1241,7 @@ els.settingsButton.addEventListener("click", async () => {
   refreshModelsPage();
   refreshAutomations();
   refreshSecurity();
+  if (toggleDebugBtn && agentSettings) applyToggleLabel(toggleDebugBtn, !!agentSettings.debugLogging);
   // Aktif Model: gerçek model durumundan (dinamik seçilir)
   window.codega.getStatus().then((st) => {
     const raw = st && st.model;

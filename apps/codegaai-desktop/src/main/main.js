@@ -219,6 +219,7 @@ function registerIpc() {
     const onToken = streamOn
       ? (t) => { try { event.sender.send("chat:stream", t); } catch (_e) {} }
       : null;
+    try { if (settingsStore.getSettings().debugLogging) logs.info("chat", `İstek: ${String(message).slice(0, 60)}`); } catch (_e) {}
     return modelManager.ask(message, { onToken, regenerate: !!(opts && opts.regenerate), context: (opts && opts.context) || "" });
   });
 
@@ -382,6 +383,21 @@ function registerIpc() {
 
   ipcMain.handle("maintenance:run", async () => (await doMaintenance()) || { items: [], repairs: [], healthy: true });
   ipcMain.handle("maintenance:status", async () => lastMaintenance);
+  ipcMain.handle("dev:prompt", async (_event, payload) => {
+    const input = (payload && payload.input) || "";
+    if (!input.trim()) return { ok: false, message: "Boş istek." };
+    const st = modelManager.getStatus ? modelManager.getStatus() : {};
+    const model = (st && st.model) || "qwen2.5:3b";
+    try {
+      // Yan etkisiz: geçmişe yazmaz, istatistiğe saymaz (doğrudan generate)
+      const text = await modelManager.generate(model, [{ role: "user", content: input }]);
+      try { logs.info("dev", `Prompt testi (${model})`); } catch (_e) {}
+      return { ok: true, model, text: String(text || "").trim() || "(boş yanıt — model kapalı olabilir)" };
+    } catch (e) {
+      return { ok: false, message: e.message || String(e) };
+    }
+  });
+
   ipcMain.handle("security:status", async () => {
     const s = settingsStore.getSettings();
     const mask = (v) => {

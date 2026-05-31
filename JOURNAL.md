@@ -4,6 +4,23 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 103 — Geliştirici sayfası (31 May 2026, Claude)
+
+PLANLI olan Geliştirici gerçek oldu. Var olan parçalar toplandı; yeni risk yok.
+
+- main IPC dev:prompt: modeli DOĞRUDAN dener (generate) — geçmişe yazmaz, istatistiğe
+  saymaz (yan etkisiz). chat:send: debugLogging açıksa her istek Log Merkezi'ne yazılır.
+- settings: debugLogging(off). preload devPrompt.
+- UI: Geliştirici sayfası — Prompt Test Alanı (yan etkisiz), Ayrıntılı Log (Debug) toggle
+  (#toggle-debug), Kod Çalıştırıcı'ya yönlendirme notu (Ajan Davranışı'nda, insan onaylı).
+  PLANLI kaldırıldı.
+
+Test 49/49. Surum 0.51.0 -> **0.52.0**. Kalan: Sistem sayfası başlık rozeti (kaynaklar
+zaten gerçek 0.46'da) + RAG/Hafıza gibi diğer PLANLI sayfalar.
+
+---
+
+
 ## ✅ Faz 102 — Güvenlik şeffaflık sayfası (31 May 2026, Claude)
 
 PLANLI olan Güvenlik gerçek oldu — yeni risk YOK, yalnızca şeffaflık (salt-okunur).

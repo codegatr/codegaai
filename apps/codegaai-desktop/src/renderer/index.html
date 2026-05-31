@@ -586,10 +586,29 @@
           <div class="log-list" id="log-list"></div>
         </details>
 
-        <details class="settings-group planned-group" data-cat="dev" data-label="Geliştirici">
+                <details class="settings-group" data-cat="dev" data-label="Geliştirici">
           <summary>Geliştirici</summary>
-          <div class="settings-page-head"><h1>Geliştirici</h1><p>Hata ayıklama ve test alanları.</p></div>
-          <div class="settings-section"><h2>Geliştirici</h2><div class="settings-row"><div><strong>Debug modu</strong><p>Ayrıntılı log</p></div><span class="badge-plan">Planlı</span></div><div class="settings-row"><div><strong>API / Prompt test alanı</strong><p>Hızlı deneme</p></div><span class="badge-plan">Planlı</span></div></div>
+          <div class="settings-page-head"><h1>Geliştirici</h1><p>Hızlı prompt denemesi, ayrıntılı log ve kod çalıştırıcı.</p></div>
+          <div class="settings-section">
+            <h2>Prompt Test Alanı</h2>
+            <p class="overview-note">Modeli doğrudan dener; sohbet geçmişine yazmaz, istatistiğe saymaz.</p>
+            <div class="settings-field">
+              <textarea id="dev-prompt-input" rows="3" placeholder="Örn: Bana kısa bir merhaba mesajı yaz" spellcheck="false"></textarea>
+              <button type="button" id="dev-prompt-btn">Gönder</button>
+              <pre id="dev-prompt-out" class="code-output" hidden></pre>
+            </div>
+          </div>
+          <div class="settings-section">
+            <h2>Ayrıntılı Log (Debug)</h2>
+            <div class="settings-row">
+              <div><strong>Sohbet isteklerini logla</strong><p>Açıkken her istek Log Merkezi'ne yazılır (sorun ayıklama için).</p></div>
+              <button type="button" id="toggle-debug">—</button>
+            </div>
+          </div>
+          <div class="settings-section">
+            <h2>Kod Çalıştırıcı</h2>
+            <div class="settings-row"><div><strong>Python / JavaScript çalıştırma</strong><p>"Ajan Davranışı" sekmesindeki Kod Çalıştırıcı'da; insan onaylı (ajan kendiliğinden çalıştırmaz).</p></div><span class="badge-active">Mevcut</span></div>
+          </div>
         </details>
           </div>
         </div>

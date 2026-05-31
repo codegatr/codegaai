@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld("codega", {
   analyzeSystem: () => ipcRenderer.invoke("system:analyze"),
   testProvider: (payload) => ipcRenderer.invoke("provider:test", payload),
   runCode: (payload) => ipcRenderer.invoke("code:run", payload),
+  devPrompt: (payload) => ipcRenderer.invoke("dev:prompt", payload),
   abortChat: () => ipcRenderer.invoke("chat:abort"),
   mcpListTools: (payload) => ipcRenderer.invoke("mcp:listTools", payload),
   mcpCallTool: (payload) => ipcRenderer.invoke("mcp:callTool", payload),
