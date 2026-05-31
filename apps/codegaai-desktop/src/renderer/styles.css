@@ -776,3 +776,192 @@ body[data-theme="oled"] { --bg: #000; }
 /* [hidden] her zaman gizli kalsın — display:flex/block bunu ezmesin
    (boş .attach-chip / .brain-panel ana ekranda amber bir çizgi olarak görünüyordu) */
 [hidden] { display: none !important; }
+
+/* Kontrol Merkezi prototip hizalaması */
+.settings {
+  width: min(96vw, 1760px);
+  height: min(92vh, 980px);
+  overflow: hidden;
+}
+.settings > form {
+  height: 100%;
+}
+.settings header {
+  min-height: 68px;
+  padding: 12px 18px;
+  background: #0e1014;
+}
+.settings-brand {
+  min-width: 186px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.settings-brand__logo {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #1a1205;
+  font-weight: 800;
+}
+.settings-brand strong { display: block; font-size: 15px; }
+.settings-brand span { display: block; margin-top: 1px; color: var(--muted); font-size: 11px; }
+.settings-search {
+  position: relative;
+  max-width: 520px;
+}
+.settings-search span {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 17px;
+}
+.settings-search input {
+  padding: 10px 14px 10px 40px;
+  border-color: var(--line2);
+  background: var(--card);
+  font-size: 14px;
+}
+.settings-body {
+  flex: 1;
+  grid-template-columns: 268px 1fr;
+  min-height: 0;
+}
+.settings-nav {
+  padding: 16px 12px 30px;
+  background: #0c0e11;
+  overflow-y: auto;
+}
+.nav-group-label {
+  margin: 16px 10px 7px;
+  color: var(--muted);
+  opacity: .72;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.nav-btn {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 14px;
+  font-weight: 650;
+}
+.nav-icon { width: 18px; text-align: center; color: var(--muted); opacity: .86; }
+.nav-btn.active .nav-icon { color: var(--accent); opacity: 1; }
+.nav-pill {
+  margin-left: auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--line);
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+.settings-cats {
+  padding: 28px 34px 60px;
+  max-height: none;
+}
+.settings-page-head { margin: 0 0 22px; }
+.settings-page-head h1 { margin: 0 0 4px; font-size: 24px; }
+.settings-page-head p { margin: 0; color: var(--muted); font-size: 14px; }
+.ov-grid {
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 14px;
+  padding: 0;
+  margin-bottom: 18px;
+}
+.ov-card {
+  min-height: 96px;
+  background: var(--card);
+  border-radius: 14px;
+  padding: 16px 18px;
+  gap: 7px;
+}
+.ov-card .k { font-size: 12px; font-weight: 650; }
+.ov-card .v {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 24px;
+  font-weight: 800;
+}
+.overview-note {
+  margin: 0 0 26px;
+  color: var(--muted);
+  opacity: .75;
+  font-size: 12px;
+  font-style: italic;
+}
+.overview-dashboard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.dashboard-card {
+  overflow: hidden;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.dashboard-card h2 {
+  margin: 0;
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.status-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.status-line:last-child { border-bottom: 0; }
+.status-line strong { flex: 1; font-size: 14px; }
+.status-line span:last-child {
+  color: var(--muted);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 9px; }
+.dot.ok { background: #22c55e; }
+.dot.warn { background: #f59e0b; }
+.dot.plan { background: #6b7280; }
+.badge-plan {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(107, 114, 128, .18);
+  color: #9aa1ad;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+.usage-row { padding: 15px 20px; }
+.usage-row span { font-size: 13.5px; font-weight: 700; }
+.usage-row strong { float: right; color: var(--muted); font-size: 13px; }
+.usage-row i {
+  clear: both;
+  display: block;
+  height: 7px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--line);
+}
+.usage-row b { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+@media (max-width: 900px) {
+  .overview-dashboard { grid-template-columns: 1fr; }
+}

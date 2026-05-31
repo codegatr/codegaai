@@ -1037,16 +1037,35 @@ const settingsNav = document.getElementById("settings-nav");
 function buildSettingsNav() {
   if (!settingsNav || !settingsCats) return;
   const groups = settingsCats.querySelectorAll(".settings-group[data-cat]");
+  const meta = {
+    overview: { icon: "&#9638;", group: "Merkez" },
+    model: { icon: "&#10023;", group: "Zeka" },
+    agent: { icon: "&#9678;", group: "Zeka" },
+    knowledge: { icon: "&#9635;", group: "Bilgi" },
+    appearance: { icon: "&#9728;", group: "Sistem" },
+    updates: { icon: "&#8635;", group: "Sistem", pill: "CI" },
+  };
+  const order = ["Merkez", "Zeka", "Bilgi", "Sistem"];
   settingsNav.innerHTML = "";
-  groups.forEach((g) => {
-    g.open = true; // <details> içeriği daima render edilsin; görünürlüğü .active sınıfı yönetir
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "nav-btn" + (g.classList.contains("active") ? " active" : "");
-    btn.dataset.target = g.dataset.cat;
-    btn.innerHTML = g.dataset.label || g.dataset.cat;
-    btn.addEventListener("click", () => setActiveCat(g.dataset.cat));
-    settingsNav.appendChild(btn);
+  order.forEach((label) => {
+    const matching = Array.from(groups).filter((g) => (meta[g.dataset.cat]?.group || "Sistem") === label);
+    if (!matching.length) return;
+    const groupLabel = document.createElement("div");
+    groupLabel.className = "nav-group-label";
+    groupLabel.textContent = label;
+    settingsNav.appendChild(groupLabel);
+    matching.forEach((g) => {
+      g.open = true;
+      const item = meta[g.dataset.cat] || { icon: "&#8226;" };
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "nav-btn" + (g.classList.contains("active") ? " active" : "");
+      btn.dataset.target = g.dataset.cat;
+      const pill = item.pill ? `<span class="nav-pill">${item.pill}</span>` : "";
+      btn.innerHTML = `<span class="nav-icon">${item.icon}</span><span>${g.dataset.label || g.dataset.cat}</span>${pill}`;
+      btn.addEventListener("click", () => setActiveCat(g.dataset.cat));
+      settingsNav.appendChild(btn);
+    });
   });
 }
 
@@ -1091,13 +1110,18 @@ function runSettingsSearch(q) {
 function updateOverview() {
   const set = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.textContent = val; };
   const ollama = document.getElementById("ollama-row-status");
+  const ollamaText = ollama ? ollama.textContent || "" : "";
+  const ollamaReady = /Ã§alÄ±ÅŸÄ±yor|çalışıyor/i.test(ollamaText);
+  if (ollama) set("ov-health-ollama", ollamaReady ? "\u00e7al\u0131\u015f\u0131yor" : "kurulu de\u011fil");
   if (ollama) set("ov-ollama", /çalışıyor/i.test(ollama.textContent) ? "Çalışıyor ✓" : "Kurulu değil");
   const ver = document.getElementById("version-label");
   if (ver) set("ov-version", ver.textContent || "—");
   const mem = document.getElementById("memory-summary");
   if (mem) set("ov-memory", (mem.textContent || "").slice(0, 40));
   if (agentSettings && (agentSettings.model || agentSettings.defaultModel)) {
-    set("ov-model", agentSettings.model || agentSettings.defaultModel);
+    const model = agentSettings.model || agentSettings.defaultModel;
+    set("ov-model", model);
+    set("ov-health-model", model);
   }
 }
 
@@ -1106,6 +1130,20 @@ const settingsSearchInput = document.getElementById("settings-search");
 if (settingsSearchInput) {
   settingsSearchInput.addEventListener("input", (e) => runSettingsSearch(e.target.value));
   settingsSearchInput.addEventListener("keydown", (e) => { if (e.key === "Enter") e.preventDefault(); });
+}
+
+const settingsThemeToggle = document.getElementById("settings-theme-toggle");
+function updateSettingsThemeToggle() {
+  if (!settingsThemeToggle) return;
+  const theme = (agentSettings && agentSettings.theme) || document.body.dataset.theme || "oled";
+  settingsThemeToggle.textContent = theme === "oled" ? "\u2600 Light" : "\u263e Dark";
+}
+if (settingsThemeToggle) {
+  settingsThemeToggle.addEventListener("click", async () => {
+    const current = (agentSettings && agentSettings.theme) || document.body.dataset.theme || "oled";
+    await setAppearance({ theme: current === "oled" ? "slate" : "oled" });
+    updateSettingsThemeToggle();
+  });
 }
 
 // JSON dışa aktarma
@@ -1466,6 +1504,7 @@ function applyAppearance(s) {
   document.querySelectorAll(".theme-btn").forEach((b) =>
     b.setAttribute("aria-pressed", String(b.dataset.themeValue === theme))
   );
+  updateSettingsThemeToggle();
   document.querySelectorAll(".font-btn").forEach((b) =>
     b.setAttribute("aria-pressed", String(b.dataset.font === fontScale))
   );

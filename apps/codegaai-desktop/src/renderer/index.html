@@ -52,11 +52,19 @@
     <dialog class="settings" id="settings-dialog">
       <form method="dialog">
         <header>
-          <h2>Ayarlar</h2>
+          <div class="settings-brand">
+            <div class="settings-brand__logo">C</div>
+            <div>
+              <strong>CODEGA AI</strong>
+              <span>Kontrol Merkezi</span>
+            </div>
+          </div>
           <div class="settings-search">
-            <input type="text" id="settings-search" placeholder="Ayarlarda ara…" autocomplete="off" />
+            <span aria-hidden="true">⌕</span>
+            <input type="text" id="settings-search" placeholder="Ayarlarda ara… (örn. model, hafıza, tema)" autocomplete="off" />
           </div>
           <div class="settings-actions">
+            <button type="button" id="settings-theme-toggle" title="Tema değiştir">☼ Light</button>
             <button type="button" id="settings-export" title="JSON dışa aktar">Dışa Aktar</button>
             <button type="button" id="settings-import" title="JSON içe aktar">İçe Aktar</button>
             <input type="file" id="settings-import-file" accept="application/json" hidden />
@@ -83,12 +91,41 @@
 
         <details class="settings-group active" open data-cat="overview" data-label="Genel Bakış">
           <summary>Genel Bakış</summary>
+          <div class="settings-page-head">
+            <h1>Genel Bakış</h1>
+            <p>Sistem durumu, model ve kullanım istatistikleri.</p>
+          </div>
           <div class="ov-grid">
+            <div class="ov-card"><span class="k">Toplam İstek</span><span class="v">1.284</span></div>
+            <div class="ov-card"><span class="k">Bugün</span><span class="v">37</span></div>
+            <div class="ov-card"><span class="k">Token (gün)</span><span class="v">58.2k</span></div>
+            <div class="ov-card"><span class="k">Ort. Yanıt</span><span class="v">2.4sn</span></div>
             <div class="ov-card"><span class="k">Yerel Motor (Ollama)</span><span class="v" id="ov-ollama">—</span></div>
             <div class="ov-card"><span class="k">Aktif Model</span><span class="v" id="ov-model">—</span></div>
             <div class="ov-card"><span class="k">Sürüm</span><span class="v" id="ov-version">—</span></div>
             <div class="ov-card"><span class="k">Öğrenilen Bilgi</span><span class="v" id="ov-memory">—</span></div>
             <div class="ov-card"><span class="k">Geri Bildirim</span><span class="v" id="ov-feedback">—</span></div>
+          </div>
+          <p class="overview-note">İstatistik ve kaynak değerleri demo amaçlıdır; gerçek ölçüm için arka uç sayaçları gerekir.</p>
+          <div class="overview-dashboard">
+            <section class="dashboard-card">
+              <h2>AI Health Dashboard</h2>
+              <div class="status-line"><span class="dot ok"></span><strong>Ollama</strong><span id="ov-health-ollama">çalışıyor</span></div>
+              <div class="status-line"><span class="dot ok"></span><strong>Aktif Model</strong><span id="ov-health-model">—</span></div>
+              <div class="status-line"><span class="dot ok"></span><strong>Aktif Ajan</strong><span>Yazılımcı</span></div>
+              <div class="status-line"><span class="dot warn"></span><strong>Federation/Share</strong><span>Cloudflare kuralı bekliyor</span></div>
+              <div class="status-line"><span class="dot plan"></span><strong>OpenAI</strong><span>planlı</span></div>
+              <div class="status-line"><span class="dot plan"></span><strong>Claude</strong><span>planlı</span></div>
+              <div class="status-line"><span class="dot plan"></span><strong>Gemini</strong><span>planlı</span></div>
+              <div class="status-line"><span class="dot plan"></span><strong>MCP</strong><span>planlı</span></div>
+              <div class="status-line"><span class="dot ok"></span><strong>Veritabanı (yerel)</strong><span>hazır</span></div>
+            </section>
+            <section class="dashboard-card">
+              <h2>Kaynak Kullanımı <span class="badge-plan">Demo</span></h2>
+              <div class="usage-row"><span>CPU</span><strong>%32</strong><i><b style="width:32%"></b></i></div>
+              <div class="usage-row"><span>RAM</span><strong>%58</strong><i><b style="width:58%"></b></i></div>
+              <div class="usage-row"><span>GPU (VRAM)</span><strong>%74</strong><i><b style="width:74%"></b></i></div>
+            </section>
           </div>
           <div class="settings-row">
             <div>
