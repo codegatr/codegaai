@@ -542,4 +542,34 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Proje Beyni: sohbet bağlamı sistem promptuna işlenir");
 }
 
+// 35) MCP istemcisi: mock sunucuya bağlan, araç listele + çağır
+{
+  const http = await import("node:http");
+  const mcpMod = await import(path.join(mainDir, "agent", "mcp-client.js"));
+  const mcp = mcpMod.default || mcpMod;
+  const server = http.createServer((req, res) => {
+    let d = ""; req.on("data", (c) => (d += c));
+    req.on("end", () => {
+      const m = JSON.parse(d || "{}");
+      const J = (o) => { res.writeHead(200, { "Content-Type": "application/json", "mcp-session-id": "s1" }); res.end(JSON.stringify(o)); };
+      if (m.method === "initialize") return J({ jsonrpc: "2.0", id: m.id, result: { serverInfo: { name: "Mock" } } });
+      if (m.method === "notifications/initialized") { res.writeHead(202); return res.end(); }
+      if (m.method === "tools/list") return J({ jsonrpc: "2.0", id: m.id, result: { tools: [{ name: "echo", description: "yankı" }] } });
+      if (m.method === "tools/call") return J({ jsonrpc: "2.0", id: m.id, result: { content: [{ type: "text", text: "ok:" + m.params.name }] } });
+      J({ jsonrpc: "2.0", id: m.id, error: { code: -32601, message: "yok" } });
+    });
+  });
+  await new Promise((r) => server.listen(0, r));
+  const url = "http://127.0.0.1:" + server.address().port + "/mcp";
+  try {
+    const { tools } = await mcp.listTools(url);
+    assert.ok(tools.some((t) => t.name === "echo"), "araç listelenir");
+    const c = await mcp.callTool(url, "echo", { x: 1 });
+    assert.ok(c.text.includes("ok:echo"), "araç çağrılır");
+    ok("MCP istemcisi: bağlan + listele + çağır (mock)");
+  } finally {
+    server.close();
+  }
+}
+
 console.log(`\n${passed} test geçti ✅`);

@@ -4,6 +4,29 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 88 — MCP araç sunucusu (ilk güvenli katman) — sıra #5 (30 May 2026, Claude)
+
+Listenin en zoru. GÜVENLİ ilk katman: harici MCP sunucusuna opt-in bağlan, araçları
+LİSTELE + MANUEL çağır. Ajanın otonom araç döngüsüne BAĞLI DEĞİL (en kırılgan yer
+korundu); yerel araçlar (web_search) etkilenmez.
+
+- mcp-client.js: JSON-RPC 2.0 / HTTP. connect (initialize + initialized bildirimi,
+  Mcp-Session-Id yakalar), listTools, callTool. Yanıt application/json VEYA SSE
+  (text/event-stream) — ikisi de işlenir. Bu ortamda mock sunucuyla GERÇEKTEN test
+  edildi (JSON list + SSE call).
+- main IPC mcp:listTools / mcp:callTool (URL doğrulama, JSON arg parse). preload köprü.
+- UI (Hafıza & Bilgi): URL + "Bağlan & Araçları Listele" (araç listesi, Seç) + araç adı
+  + JSON argüman + "Aracı Çağır" + çıktı. "deneysel; otonom döngüye bağlı değil" notu.
+
+Sonraki adım (ileride, dikkatli): keşfedilen MCP araçlarını ReAct döngüsüne araç
+kaynağı olarak eklemek. Test 35/35. Surum 0.30.0 -> **0.31.0**.
+
+Böylece rakip-karşılaştırma listesinin TÜM maddeleri tamam: streaming, çoklu sağlayıcı,
+dosya eki, kod çalıştırma, stop, regenerate, proje beyni, MCP (ilk katman).
+
+---
+
+
 ## ✅ Faz 87 — Proje Beyni (sohbet bazlı kalıcı bağlam) (30 May 2026, Claude)
 
 README'nin imza özelliği. Her sohbete kendi kalıcı bağlam/talimatı (ChatGPT projects/

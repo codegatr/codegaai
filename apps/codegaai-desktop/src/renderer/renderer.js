@@ -1205,6 +1205,61 @@ if (els.brainInput) els.brainInput.addEventListener("input", () => {
   if (els.brainBtn) els.brainBtn.classList.toggle("on", !!c.context.trim());
 });
 
+// MCP araç sunucusu (manuel; ajan döngüsüne bağlı değil)
+const mcpListBtn = document.getElementById("mcp-list");
+if (mcpListBtn) {
+  mcpListBtn.addEventListener("click", async () => {
+    const url = (document.getElementById("mcp-url") || {}).value || "";
+    const box = document.getElementById("mcp-tools");
+    mcpListBtn.disabled = true;
+    if (box) box.textContent = "Bağlanılıyor…";
+    try {
+      const r = await window.codega.mcpListTools({ url: url.trim() });
+      const tools = (r && r.tools) || [];
+      if (box) {
+        box.innerHTML = "";
+        if (!tools.length) { box.textContent = "Araç bulunamadı."; }
+        tools.forEach((t) => {
+          const row = document.createElement("div");
+          row.className = "settings-row";
+          row.innerHTML = `<div><strong>${t.name}</strong><p>${(t.description||"").slice(0,140)}</p></div>`;
+          const use = document.createElement("button");
+          use.type = "button"; use.textContent = "Seç";
+          use.addEventListener("click", () => { const n = document.getElementById("mcp-tool-name"); if (n) n.value = t.name; });
+          row.appendChild(use);
+          box.appendChild(row);
+        });
+      }
+      setTransientStatus(`${tools.length} araç bulundu${r && r.serverInfo ? " · " + r.serverInfo.name : ""}.`);
+    } catch (e) {
+      if (box) box.textContent = "Hata: " + (e.message || e);
+      setTransientStatus("MCP bağlanılamadı.");
+    } finally {
+      mcpListBtn.disabled = false;
+    }
+  });
+}
+const mcpCallBtn = document.getElementById("mcp-call");
+if (mcpCallBtn) {
+  mcpCallBtn.addEventListener("click", async () => {
+    const url = (document.getElementById("mcp-url") || {}).value || "";
+    const name = (document.getElementById("mcp-tool-name") || {}).value || "";
+    const args = (document.getElementById("mcp-tool-args") || {}).value || "";
+    const out = document.getElementById("mcp-output");
+    if (!name.trim()) { setTransientStatus("Araç adı gir."); return; }
+    mcpCallBtn.disabled = true;
+    if (out) { out.hidden = false; out.textContent = "Çağrılıyor…"; }
+    try {
+      const r = await window.codega.mcpCallTool({ url: url.trim(), name: name.trim(), args });
+      if (out) out.textContent = (r.isError ? "[hata] " : "") + (r.text || "(boş)");
+    } catch (e) {
+      if (out) out.textContent = "Hata: " + (e.message || e);
+    } finally {
+      mcpCallBtn.disabled = false;
+    }
+  });
+}
+
 buildSettingsNav();
 
 // Denetimli kendini geliştirme: öneriyi PR olarak aç

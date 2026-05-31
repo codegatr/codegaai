@@ -333,6 +333,21 @@
           <div class="model-list" id="improve-drafts-list"></div>
           <div class="settings-row">
             <div>
+              <strong>MCP Araç Sunucusu (deneysel)</strong>
+              <p>Harici bir MCP (Model Context Protocol) sunucusuna bağlan, araçlarını listele ve dene. Şimdilik manuel; ajanın otonom araç döngüsüne henüz bağlı değil.</p>
+            </div>
+          </div>
+          <div class="settings-field">
+            <input type="text" id="mcp-url" placeholder="MCP sunucu URL (http(s)://… /mcp)" autocomplete="off" />
+            <button type="button" id="mcp-list">Bağlan & Araçları Listele</button>
+            <div class="model-list" id="mcp-tools"></div>
+            <input type="text" id="mcp-tool-name" placeholder="Araç adı" autocomplete="off" />
+            <textarea id="mcp-tool-args" rows="2" placeholder='Argümanlar (JSON), örn. {"q":"merhaba"}'></textarea>
+            <button type="button" id="mcp-call">Aracı Çağır</button>
+            <pre id="mcp-output" class="code-output" hidden></pre>
+          </div>
+          <div class="settings-row">
+            <div>
               <strong>Otonom Öneri PR (deneysel)</strong>
               <p>Açıkken ajan kendi gözlemlediği sorunlardan kendiliğinden PR açar — ayrı dalda, ASLA main'e yazmaz, ASLA otomatik birleştirmez. Hedef repo yukarıdaki alandan / bilgi reposu.</p>
             </div>

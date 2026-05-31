@@ -31,6 +31,8 @@ contextBridge.exposeInMainWorld("codega", {
   testProvider: (payload) => ipcRenderer.invoke("provider:test", payload),
   runCode: (payload) => ipcRenderer.invoke("code:run", payload),
   abortChat: () => ipcRenderer.invoke("chat:abort"),
+  mcpListTools: (payload) => ipcRenderer.invoke("mcp:listTools", payload),
+  mcpCallTool: (payload) => ipcRenderer.invoke("mcp:callTool", payload),
   onChatStream: (cb) => {
     const handler = (_e, token) => cb(token);
     ipcRenderer.on("chat:stream", handler);

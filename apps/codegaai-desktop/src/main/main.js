@@ -228,6 +228,26 @@ function registerIpc() {
 
   ipcMain.handle("system:analyze", async () => systemInfo.analyze(MODEL_OPTIONS));
 
+  ipcMain.handle("mcp:listTools", async (_event, payload) => {
+    const mcp = require("./agent/mcp-client");
+    const url = (payload && payload.url) || "";
+    if (!/^https?:\/\//i.test(url)) throw new Error("Geçerli bir http(s) URL gir.");
+    return mcp.listTools(url);
+  });
+  ipcMain.handle("mcp:callTool", async (_event, payload) => {
+    const mcp = require("./agent/mcp-client");
+    const url = (payload && payload.url) || "";
+    const name = (payload && payload.name) || "";
+    if (!/^https?:\/\//i.test(url)) throw new Error("Geçerli bir http(s) URL gir.");
+    if (!name) throw new Error("Araç adı gerekli.");
+    let args = {};
+    if (payload && payload.args) {
+      try { args = typeof payload.args === "string" ? JSON.parse(payload.args || "{}") : payload.args; }
+      catch (_e) { throw new Error("Argümanlar geçerli JSON olmalı."); }
+    }
+    return mcp.callTool(url, name, args);
+  });
+
   ipcMain.handle("code:run", async (_event, payload) => {
     const { runCode } = require("./agent/code-runner");
     const lang = (payload && payload.language) || "";
