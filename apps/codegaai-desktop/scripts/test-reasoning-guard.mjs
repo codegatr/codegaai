@@ -16,18 +16,22 @@ assert.ok(
   guard.classifyReasoningProblem("100 doors problem every nth door").includes("logic"),
   "100 doors is classified as logic"
 );
+assert.ok(guard.shouldVerifyAnswer("Bu hata neden oluyor, analiz et"), "analysis/debug answers are verified by AVE");
+assert.equal(guard.APPROVAL_THRESHOLD, 95, "AVE approval threshold is 95");
 
 const lowConfidence = guard.parseVerificationResult(
   JSON.stringify({
     ok: true,
-    reasoningConfidence: 95,
-    mathVerificationConfidence: 88,
-    consistencyConfidence: 96,
+    reasoningScore: 95,
+    mathScore: 94,
+    logicScore: 96,
+    consistencyScore: 96,
+    completenessScore: 97,
     answer: "x = 24",
   }),
   "draft"
 );
-assert.equal(lowConfidence.ok, false, "any confidence under 90 fails verification");
+assert.equal(lowConfidence.ok, false, "any confidence under 95 fails verification");
 
 let calls = 0;
 const fixedEquation = await guard.verifyReasoningAnswer(
@@ -37,9 +41,13 @@ const fixedEquation = await guard.verifyReasoningAnswer(
     calls += 1;
     return JSON.stringify({
       ok: calls > 1,
-      reasoningConfidence: calls > 1 ? 98 : 92,
-      mathVerificationConfidence: calls > 1 ? 99 : 89,
-      consistencyConfidence: calls > 1 ? 97 : 80,
+      reasoningScore: calls > 1 ? 98 : 92,
+      mathScore: calls > 1 ? 99 : 89,
+      logicScore: calls > 1 ? 98 : 90,
+      consistencyScore: calls > 1 ? 97 : 80,
+      completenessScore: calls > 1 ? 96 : 90,
+      errors: calls > 1 ? [] : ["final answer contradicts derived value"],
+      correctedReasoning: "2x + 4 = 52, so x = 24.",
       answer: "x = 24.",
     });
   },
@@ -53,9 +61,13 @@ const doors = await guard.verifyReasoningAnswer(
   "First 50 doors remain open.",
   async () => JSON.stringify({
     ok: false,
-    reasoningConfidence: 99,
-    mathVerificationConfidence: 99,
-    consistencyConfidence: 99,
+    reasoningScore: 99,
+    mathScore: 99,
+    logicScore: 99,
+    consistencyScore: 99,
+    completenessScore: 99,
+    errors: ["draft confuses every nth door with first n doors"],
+    correctedReasoning: "A door is toggled once per divisor; only squares have odd divisor counts.",
     answer: "Open doors are the perfect squares: 1, 4, 9, 16, 25, 36, 49, 64, 81, 100.",
   }),
   { passes: 1 }

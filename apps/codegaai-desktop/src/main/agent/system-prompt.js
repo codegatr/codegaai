@@ -11,7 +11,7 @@
  */
 
 const { toolsSystemPrompt } = require("./tools");
-const { reasoningSystemInstruction } = require("./reasoning-guard");
+const { answerVerificationInstruction, reasoningSystemInstruction } = require("./reasoning-guard");
 
 function buildSystemPrompt(task = "chat", opts = {}) {
   const { memory = [], humanTone = true, ragContext = [], plan = [], expertPersona = "", projectContext = "", learnedContext = [] } = opts;
@@ -48,6 +48,8 @@ function buildSystemPrompt(task = "chat", opts = {}) {
     "- İç model/paket adlarını söyleme; doğal yanıt ver.",
     "",
     reasoningSystemInstruction(),
+    "",
+    answerVerificationInstruction(),
   );
 
   if (humanTone) {

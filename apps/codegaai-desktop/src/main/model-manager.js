@@ -20,7 +20,7 @@ const { recall, remember, extractDurableFacts } = require("./agent/memory");
 const learningStore = require("./agent/learning-store");
 const rag = require("./agent/rag");
 const { reflect } = require("./agent/reflect");
-const { classifyReasoningProblem, isReasoningProblem, verifyReasoningAnswer } = require("./agent/reasoning-guard");
+const { classifyReasoningProblem, shouldVerifyAnswer, verifyAnswer } = require("./agent/reasoning-guard");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
 const { SPECIALISTS, routeStep, buildSpecialistPrompt } = require("./agent/agents");
@@ -538,8 +538,8 @@ class ModelManager {
   async _ask(input, opts = {}) {
     const _t0 = Date.now();
     const reasoningCategories = classifyReasoningProblem(input);
-    const inputNeedsReasoning = isReasoningProblem(input);
-    const onToken = inputNeedsReasoning ? null : (opts.onToken || null);
+    const inputNeedsVerification = shouldVerifyAnswer(input);
+    const onToken = inputNeedsVerification ? null : (opts.onToken || null);
     // Yeniden üretim: önceki turu (user+assistant) geçmişten çıkar ki bağlam tekrarlanmasın
     if (opts.regenerate) {
       if (this.history.length && this.history[this.history.length - 1].role === "assistant") this.history.pop();
@@ -797,9 +797,9 @@ class ModelManager {
     }
 
     // Çok-turlu hafıza: kullanıcı + final cevabı sakla (araç gözlemleri hariç)
-    if (inputNeedsReasoning && agent.stoppedReason !== "smalltalk") {
+    if (inputNeedsVerification && agent.stoppedReason !== "smalltalk") {
       try {
-        const v = await verifyReasoningAnswer(
+        const v = await verifyAnswer(
           input,
           finalText,
           (msgs) => this.generate(selectedModel, msgs, attemptModels),
