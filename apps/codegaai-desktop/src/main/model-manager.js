@@ -260,6 +260,20 @@ function buildPrompt(task, input) {
   ].join("\n");
 }
 
+function missingModelReply(task, modelId, started) {
+  const subject = task === "code" ? "kod/PHP işleri" : "bu iş";
+  const action = started ? "arka planda hazırlamaya başladım" : "arka planda hazırlıyorum";
+  if (task === "code") {
+    return [
+      `PHP yazılım için gerekli yerel kod modelini (${modelId}) ${action}.`,
+      "İndirme bitince otomatik kullanacağım; ayrıca Ayarlar'a gitmene gerek yok.",
+      "",
+      "Bu sırada ihtiyacını netleştirebiliriz: web sitesi mi, panel/ERP modülü mü, API mi, yoksa mevcut PHP projesinde hata/ek geliştirme mi istiyorsun?",
+    ].join("\n");
+  }
+  return `${subject} için gerekli yerel modeli (${modelId}) ${action}. Hazır olunca otomatik kullanacağım; ayrıca Ayarlar'a gitmene gerek yok.`;
+}
+
 // HTTP /api/chat erişilemezse, CLI `ollama run` için messages dizisini tek
 // prompt'a düzleştir (system + geçmiş + kullanıcı korunur).
 function flattenMessages(messages) {
@@ -276,6 +290,7 @@ class ModelManager {
     this._abort = null; // mevcut üretimi durdurmak için
     this._aborted = false;
     this._queue = Promise.resolve(); // ask() serileştirme kuyruğu
+    this._preparingModels = new Set(); // arka planda aynı modeli iki kez indirme
     this.state = {
       provider: "instant",
       status: READY_STATES.CHECKING,
@@ -436,6 +451,16 @@ class ModelManager {
     return this.prepareModel(DEFAULT_MODEL, onProgress);
   }
 
+  prepareModelInBackground(modelId) {
+    const target = modelOption(modelId || DEFAULT_MODEL).id;
+    if (this._preparingModels.has(target)) return false;
+    this._preparingModels.add(target);
+    this.prepareModel(target).catch(() => {}).finally(() => {
+      this._preparingModels.delete(target);
+    });
+    return true;
+  }
+
   // Aynı anda gelen mesajları SIRAYA al: yerel model tek seferde tek üretim
   // yapsın (eşzamanlı istekler küçük modeli tıkar ve "Düşünüyorum"da bırakır).
   /** Mevcut üretimi durdur (kullanıcı tetikli). */
@@ -509,17 +534,18 @@ class ModelManager {
       attemptModels = candidateModelsForTask(task, installed);
       selectedModel = attemptModels[0] || chooseModelForTask(task, installed);
       if (!attemptModels.length) {
+        const started = this.prepareModelInBackground(selectedModel);
         this.state = {
           provider: "ollama",
-          status: READY_STATES.MISSING,
+          status: READY_STATES.CHECKING,
           model: selectedModel,
           task,
-          message: "Gerekli zeka paketi hazır değil.",
+          message: `${selectedModel} arka planda hazırlanıyor.`,
         };
         return {
           provider: "instant",
           model: "codega-model-router",
-          text: "Bu iş için gerekli zeka paketi henüz hazır değil. Ayarlar > Model Paketleri bölümünden ilgili paketi indirebilirsin; sonra ben arka planda kendim kullanırım.",
+          text: missingModelReply(task, selectedModel, started),
         };
       }
 
@@ -817,5 +843,6 @@ module.exports = {
   instantAnswer,
   detectTask,
   candidateModelsForTask,
+  missingModelReply,
   isSmallTalk,
 };

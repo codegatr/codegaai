@@ -1281,6 +1281,7 @@ function bindLearnField(el, key) {
   el.addEventListener("change", async () => { agentSettings = await window.codega.setSettings({ [key]: el.value.trim() }); });
 }
 bindLearnField(els.learnTopics, "learningTopics");
+bindLearnField(document.getElementById("learn-sources"), "learningSources");
 bindLearnField(els.learnRepo, "learningSyncRepo");
 
 async function refreshLearnList() {
@@ -1305,7 +1306,7 @@ async function refreshLearnList() {
 const learnNowBtn = document.getElementById("learn-now");
 if (learnNowBtn) learnNowBtn.addEventListener("click", async () => {
   learnNowBtn.disabled = true;
-  setTransientStatus("Öğreniliyor… (GitHub + Web + Wikipedia)");
+  setTransientStatus("Öğreniliyor… (seçili kaynaklar)");
   try {
     const r = await window.codega.learnNow({});
     setTransientStatus(r && r.ok ? `Öğrenildi: ${r.topic} (+${r.added}, toplam ${r.total})` : (r && r.message) || "Öğrenilemedi.");
@@ -1467,6 +1468,8 @@ async function refreshAgentSettings() {
     if (els.toggleDistill) applyToggleLabel(els.toggleDistill, !!agentSettings.distillLearning);
     if (els.toggleMcpAuto) applyToggleLabel(els.toggleMcpAuto, !!agentSettings.mcpAutoTools);
     if (els.learnTopics) els.learnTopics.value = agentSettings.learningTopics || "";
+    const learnSources = document.getElementById("learn-sources");
+    if (learnSources) learnSources.value = agentSettings.learningSources || "";
     if (els.learnRepo) els.learnRepo.value = agentSettings.learningSyncRepo || "";
     if (els.providerSelect) els.providerSelect.value = agentSettings.provider || "ollama";
     if (els.openaiBase) els.openaiBase.value = agentSettings.openaiBaseUrl || "";

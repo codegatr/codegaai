@@ -35,8 +35,9 @@ const DEFAULTS = {
   openaiBaseUrl: "https://api.openai.com/v1",
   openaiApiKey: "", // YALNIZCA yerelde saklanır; kullanıcının kendi sağlayıcısına gider
   openaiModel: "gpt-4o-mini",
-  continuousLearning: false, // açıkken kaynaklardan (GitHub/Web/Wikipedia) sürekli öğren
+  continuousLearning: false, // açıkken kaynaklardan sürekli öğren
   learningTopics: "", // virgülle ayrılmış konular (boşsa öğrenilen/kişisel hafızadan türetilir)
+  learningSources: "wikipedia,web,github,stackoverflow,arxiv,hackernews,mdn",
   learningSyncRepo: "", // owner/repo — öğrenilenleri buraya yedekle (boşsa yalnız yerel)
   semanticSearch: false, // öğrenilen bilgide anlamsal (embedding) arama; nomic-embed-text gerekir
   embedModel: "nomic-embed-text",

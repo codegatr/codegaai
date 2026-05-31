@@ -79,7 +79,10 @@ async function learnOnce(manualTopic) {
   if (!topics.length) return { ok: false, message: "Öğrenilecek konu yok (Ayarlar'dan konu ekle)." };
   const topic = topics[_learnIdx % topics.length];
   _learnIdx += 1;
-  const notes = await learning.fetchKnowledge(topic, { token: "" });
+  const notes = await learning.fetchKnowledge(topic, {
+    token: "",
+    sources: settingsStore.getSettings().learningSources,
+  });
   const added = learningStore.addNotes(notes);
 
   // #5 Damıtım (opt-in): ham notları modelle kısa kalıcı özete indir

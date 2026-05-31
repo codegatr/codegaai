@@ -2,10 +2,15 @@ import assert from "node:assert";
 import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const mainDir = path.join(here, "..", "src", "main");
+const joinPath = path.join.bind(path);
+path.join = (...parts) => {
+  const joined = joinPath(...parts);
+  return parts[0] === mainDir && joined.endsWith(".js") ? pathToFileURL(joined).href : joined;
+};
 
 // Bellek testleri kullanıcı dosyasına dokunmasın: geçici yola yönlendir
 const tmpMem = path.join(os.tmpdir(), `codega-mem-${Date.now()}.json`);
@@ -380,6 +385,17 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Basit sohbet tespiti: selam evet, görev/soru hayır");
 }
 
+// 23b) Eksik kod modeli: kullanıcıyı ayarlara göndermek yerine otomatik hazırlama mesajı
+{
+  const mm = await import(path.join(mainDir, "model-manager.js"));
+  const M = mm.default || mm;
+  const text = M.missingModelReply("code", "qwen2.5-coder:3b-instruct", true);
+  assert.ok(/arka planda hazırlamaya başladım/.test(text), "otomatik hazırlama söylenir");
+  assert.ok(/Ayarlar'a gitmene gerek yok/.test(text), "kullanıcı ayarlara itilmez");
+  assert.ok(/PHP/.test(text), "PHP/kod niyeti korunur");
+  ok("Eksik kod modeli: otomatik hazırlama mesajı");
+}
+
 // 24) Kendi kendine bakım: sağlık + bozuk depo onarımı (fake'lerle, diske dokunmadan)
 {
   const smMod = await import(path.join(mainDir, "agent", "self-maintenance.js"));
@@ -662,6 +678,20 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   assert.ok(/damıtıcı/i.test(msgs[0].content), "sistem rolü damıtıcı");
   assert.ok(/PHP 8\.3/.test(msgs[1].content) && /betik dili/.test(msgs[1].content), "konu+notlar kullanıcı mesajında");
   ok("Damıtım promptu: konu + kaynak notları doğru kurulur");
+}
+
+// 42) Sürekli öğrenme kaynakları: yeni meşru çekiciler + kaynak seçimi
+{
+  const lMod = await import(path.join(mainDir, "agent", "learning.js"));
+  const L = lMod.default || lMod;
+  for (const name of ["stackoverflow", "arxiv", "hackernews", "mdn"]) {
+    assert.ok(L.DEFAULT_SOURCES.includes(name), `${name} varsayılan kaynaklarda`);
+  }
+  assert.deepStrictEqual(L.normalizeSources("mdn, stackoverflow, bilinmeyen"), ["mdn", "stackoverflow"]);
+  const notes = await L.fetchKnowledge("PHP array", { sources: "mdn,stackoverflow" });
+  assert.ok(Array.isArray(notes), "seçili kaynaklar dizi döner");
+  assert.ok(notes.every((n) => ["mdn", "stackoverflow"].includes(n.source)), "yalnız seçili kaynaklar döner");
+  ok("Sürekli öğrenme kaynakları: seçim + yeni çekiciler");
 }
 
 console.log(`\n${passed} test geçti ✅`);

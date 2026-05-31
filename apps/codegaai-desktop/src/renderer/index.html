@@ -172,13 +172,14 @@
           </div>
           <div class="settings-row">
             <div>
-              <strong>Sürekli Öğrenme (GitHub + Web + Wikipedia)</strong>
-              <p>Açıkken, belirlediğin konuları periyodik araştırıp bilgi toplar (her ~25 dk, tur başına 1 konu). İstersen GitHub'a yedekler. Google'ın ücretsiz API'si olmadığından genel web için DuckDuckGo kullanılır. Uygulama açık olmalı.</p>
+              <strong>Sürekli Öğrenme</strong>
+              <p>Açıkken, belirlediğin konuları periyodik araştırıp bilgi toplar (her ~25 dk, tur başına 1 konu). Kaynaklar korumalı çalışır; biri başarısız olursa döngü devam eder. Uygulama açık olmalı.</p>
             </div>
             <button type="button" id="toggle-continuous">—</button>
           </div>
           <div class="settings-field">
             <input type="text" id="learn-topics" placeholder="Konular (virgülle): yapay zeka, PHP 8.3, Konya tarihi…" autocomplete="off" />
+            <input type="text" id="learn-sources" placeholder="Kaynaklar: wikipedia,web,github,stackoverflow,arxiv,hackernews,mdn" autocomplete="off" />
             <input type="text" id="learn-repo" placeholder="GitHub yedek repo (owner/repo) — opsiyonel" autocomplete="off" />
             <button type="button" id="learn-now">Şimdi Öğren</button>
             <div class="model-list" id="learn-list"></div>

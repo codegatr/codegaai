@@ -2,7 +2,8 @@
 /**
  * agent/learning.js
  * ------------------
- * Sürekli öğrenme kaynak çekicileri: GitHub + Web (DuckDuckGo) + Wikipedia.
+ * Sürekli öğrenme kaynak çekicileri: GitHub + Web (DuckDuckGo) + Wikipedia
+ * + Stack Overflow + arXiv + Hacker News + MDN.
  * Bir konu için bu kaynaklardan kısa, kaynaklı bilgi notları toplar.
  *
  * NOT: Google'ın ücretsiz/anahtarsız resmi API'si yoktur; genel web için
@@ -22,6 +23,26 @@ async function getJson(url, headers = {}, timeoutMs = 12000) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+function stripTags(html) {
+  return String(html || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getText(url, headers = {}, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { headers: { "User-Agent": "CODEGA-AI", ...headers }, signal: controller.signal })
+    .then((res) => (res.ok ? res.text() : null))
+    .catch(() => null)
+    .finally(() => clearTimeout(timer));
 }
 
 async function wikipedia(topic, lang = "tr") {
@@ -68,12 +89,80 @@ async function github(topic, token = "") {
   return { source: "github", topic, text: text.slice(0, 700), url: items[0].html_url };
 }
 
-/** Bir konu için 3 kaynaktan da bilgi topla (her biri korumalı). */
+async function stackoverflow(topic) {
+  const data = await getJson(
+    `https://api.stackexchange.com/2.3/search/advanced?order=desc&sort=relevance&site=stackoverflow&pagesize=2&q=${encodeURIComponent(topic)}&filter=default`
+  );
+  const items = (data && data.items) || [];
+  if (!items.length) return null;
+  const text = items
+    .map((q) => `${q.title || "Soru"} (score ${q.score || 0}, cevap ${q.answer_count || 0})`)
+    .join("\n");
+  return { source: "stackoverflow", topic, text: stripTags(text).slice(0, 700), url: items[0].link || "" };
+}
+
+async function arxiv(topic) {
+  const xml = await getText(
+    `https://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(topic)}&start=0&max_results=1`
+  );
+  if (!xml) return null;
+  const entry = xml.match(/<entry>([\s\S]*?)<\/entry>/i);
+  if (!entry) return null;
+  const title = stripTags((entry[1].match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || "");
+  const summary = stripTags((entry[1].match(/<summary>([\s\S]*?)<\/summary>/i) || [])[1] || "");
+  const id = stripTags((entry[1].match(/<id>([\s\S]*?)<\/id>/i) || [])[1] || "");
+  if (!title && !summary) return null;
+  return { source: "arxiv", topic, text: `${title}. ${summary}`.slice(0, 700), url: id };
+}
+
+async function hackernews(topic) {
+  const data = await getJson(
+    `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(topic)}&tags=story&hitsPerPage=2`
+  );
+  const hits = (data && data.hits) || [];
+  if (!hits.length) return null;
+  const text = hits
+    .map((h) => `${h.title || h.story_title || "Haber"} (${h.points || 0} puan): ${h.url || h.story_url || ""}`)
+    .join("\n");
+  const first = hits[0];
+  return { source: "hackernews", topic, text: text.slice(0, 700), url: first.url || first.story_url || `https://news.ycombinator.com/item?id=${first.objectID}` };
+}
+
+async function mdn(topic) {
+  const data = await getJson(`https://developer.mozilla.org/api/v1/search?q=${encodeURIComponent(topic)}&locale=en-US`);
+  const docs = (data && data.documents) || [];
+  const hit = docs.find((d) => d && (d.summary || d.title));
+  if (!hit) return null;
+  const url = hit.mdn_url ? `https://developer.mozilla.org${hit.mdn_url}` : "";
+  return { source: "mdn", topic, text: `${hit.title || "MDN"}. ${hit.summary || ""}`.slice(0, 700), url };
+}
+
+const FETCHERS = {
+  wikipedia: (topic, opts) => wikipedia(topic, opts.lang || "tr"),
+  web: (topic) => duckduckgo(topic),
+  github: (topic, opts) => github(topic, opts.token || ""),
+  stackoverflow: (topic) => stackoverflow(topic),
+  arxiv: (topic) => arxiv(topic),
+  hackernews: (topic) => hackernews(topic),
+  mdn: (topic) => mdn(topic),
+};
+
+const DEFAULT_SOURCES = Object.keys(FETCHERS);
+
+function normalizeSources(sources) {
+  if (Array.isArray(sources)) return sources.map((s) => String(s).trim().toLowerCase()).filter((s) => FETCHERS[s]);
+  if (typeof sources === "string" && sources.trim()) {
+    return sources.split(",").map((s) => s.trim().toLowerCase()).filter((s) => FETCHERS[s]);
+  }
+  return DEFAULT_SOURCES;
+}
+
+/** Bir konu için seçili kaynaklardan bilgi topla (her biri korumalı). */
 async function fetchKnowledge(topic, opts = {}) {
   const t = String(topic || "").trim();
   if (!t) return [];
-  const token = opts.token || "";
-  const results = await Promise.allSettled([wikipedia(t, opts.lang || "tr"), duckduckgo(t), github(t, token)]);
+  const selected = normalizeSources(opts.sources);
+  const results = await Promise.allSettled(selected.map((name) => FETCHERS[name](t, opts)));
   return results
     .filter((r) => r.status === "fulfilled" && r.value)
     .map((r) => ({ ...r.value, at: Date.now() }));
@@ -95,4 +184,16 @@ function buildDistillMessages(topic, notesText) {
   ];
 }
 
-module.exports = { fetchKnowledge, wikipedia, duckduckgo, github, buildDistillMessages };
+module.exports = {
+  fetchKnowledge,
+  wikipedia,
+  duckduckgo,
+  github,
+  stackoverflow,
+  arxiv,
+  hackernews,
+  mdn,
+  normalizeSources,
+  DEFAULT_SOURCES,
+  buildDistillMessages,
+};
