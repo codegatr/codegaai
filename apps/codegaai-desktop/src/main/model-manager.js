@@ -17,6 +17,7 @@ const { runReact } = require("./agent/agent-loop");
 const { buildSystemPrompt } = require("./agent/system-prompt");
 const { getSettings } = require("./agent/settings-store");
 const { recall, remember, extractDurableFacts } = require("./agent/memory");
+const learningStore = require("./agent/learning-store");
 const rag = require("./agent/rag");
 const { reflect } = require("./agent/reflect");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
@@ -545,6 +546,18 @@ class ModelManager {
       }
     }
 
+    // Otonom öğrenmeyle toplanan bilgiyi cevaba kat ("kör olma" / hızlandır)
+    let learnedContext = [];
+    if (settings.continuousLearning || settings.autonomousLearning) {
+      try {
+        learnedContext = learningStore
+          .searchLearned(input, 3)
+          .map((n) => `[${n.source}] ${n.topic}: ${n.text}${n.url ? ` (${n.url})` : ""}`);
+      } catch (_e) {
+        learnedContext = [];
+      }
+    }
+
     // Hedef-odaklı planlama (opt-in): karmaşık hedefi alt adımlara böl
     let plan = [];
     if (settings.planner && looksLikeGoal(input)) {
@@ -566,6 +579,7 @@ class ModelManager {
           plan,
           expertPersona: experts.personaFor(settings.expertMode),
           projectContext: opts.context || "",
+          learnedContext,
         }),
       },
       ...this.history,
@@ -710,6 +724,19 @@ class ModelManager {
       } catch (_e) {
         // öğrenme hatası sohbeti etkilemesin
       }
+    }
+
+    // Sürekli öğrenme açıksa: konuşmadan KONU TOHUMU çıkar (ajan kendi konularını bulsun).
+    // Çok kısa/komut benzeri girdileri ele; ilk anlamlı ifadeyi konu yap.
+    if (settings.continuousLearning) {
+      try {
+        const seed = String(input || "")
+          .replace(/```[\s\S]*?```/g, " ") // kod bloklarını at
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 60);
+        if (seed.split(" ").length >= 2 && !isSmallTalk(input)) learningStore.addTopic(seed);
+      } catch (_e) {}
     }
 
     this.state = {

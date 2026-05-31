@@ -19,9 +19,9 @@ function storePath() {
 function load() {
   try {
     const d = JSON.parse(fs.readFileSync(storePath(), "utf8"));
-    return Array.isArray(d.notes) ? d : { notes: [] };
+    return { notes: Array.isArray(d.notes) ? d.notes : [], topics: Array.isArray(d.topics) ? d.topics : [] };
   } catch (_e) {
-    return { notes: [] };
+    return { notes: [], topics: [] };
   }
 }
 function save(d) {
@@ -56,7 +56,42 @@ function count() {
   return load().notes.length;
 }
 function clearAll() {
-  save({ notes: [] });
+  save({ notes: [], topics: [] });
 }
 
-module.exports = { addNotes, list, count, clearAll, storePath };
+/** Konuşmalardan türetilen konu tohumunu havuza ekle (ajan kendi konusunu bulsun). */
+function addTopic(topic) {
+  const t = String(topic || "").trim().replace(/\s+/g, " ").slice(0, 60);
+  if (t.length < 3) return false;
+  const d = load();
+  const low = t.toLowerCase();
+  if (d.topics.some((x) => String(x).toLowerCase() === low)) return false;
+  d.topics.push(t);
+  if (d.topics.length > 60) d.topics = d.topics.slice(-60);
+  save(d);
+  return true;
+}
+function getTopics(limit = 12) {
+  return load().topics.slice(-limit);
+}
+
+/** Öğrenilen notlarda anahtar-kelime skoruyla ara (cevaba bağlam katmak için). */
+function searchLearned(query, limit = 3) {
+  const q = String(query || "").toLowerCase().trim();
+  if (!q) return [];
+  const terms = q.split(/\s+/).filter((w) => w.length > 2);
+  if (!terms.length) return [];
+  const notes = load().notes;
+  return notes
+    .map((n) => {
+      const hay = `${n.topic} ${n.text}`.toLowerCase();
+      const score = terms.reduce((s, t) => s + (hay.includes(t) ? 1 : 0), 0);
+      return { n, score };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((x) => ({ source: x.n.source, topic: x.n.topic, text: x.n.text, url: x.n.url }));
+}
+
+module.exports = { addNotes, list, count, clearAll, storePath, addTopic, getTopics, searchLearned };

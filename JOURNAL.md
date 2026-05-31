@@ -4,6 +4,28 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 91 — Kendi konusunu bulan + kör olmayan otonom öğrenme (30 May 2026, Claude)
+
+Kullanıcı: kaynakları kendin bul, konuşmaları incele, öğrendiğini cevapta kullan,
+piyasa karşılaştırması + entegrasyon planı. DARK WEB REDDEDİLDİ (yasadışı/zararlı,
+meşru kaynak değil) — gerisi yapıldı.
+
+- learning-store.js: notlara EK olarak konu havuzu (topics[]). addTopic (dedupe, max60),
+  getTopics, searchLearned(query) (anahtar-kelime skoru -> en alakalı notlar).
+- model-manager: (1) her turda learningStore.searchLearned(input) -> learnedContext olarak
+  buildSystemPrompt'a girer = "kör olma / hızlandır". (2) continuousLearning açıkken her
+  anlamlı (smalltalk değil) kullanıcı mesajından KONU TOHUMU çıkar -> addTopic (ajan kendi
+  konularını bulur).
+- system-prompt.js: "## Önceden öğrenilen bilgi (otonom öğrenme)" bloğu.
+- main.learningTopics(): ayar konuları + ajanın bulduğu konular + hafıza -> birleşik/tekil.
+
+DARK WEB: yapılmadı/yapılmayacak. Kaynaklar: GitHub + Wikipedia + DuckDuckGo (web).
+Test 37/37. Surum 0.33.0 -> **0.34.0**. Karşılaştırma + entegrasyon planı kullanıcıya
+mesajda sunuldu.
+
+---
+
+
 ## ✅ Faz 90 — Sürekli Öğrenme (GitHub + Web + Wikipedia) — gerçek (B) (30 May 2026, Claude)
 
 Kullanıcı (B)'yi seçti: kaynaklardan sürekli öğrenme. GERÇEK, opt-in, ana akışa dokunmaz.

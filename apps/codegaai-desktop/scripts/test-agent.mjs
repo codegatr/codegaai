@@ -589,4 +589,20 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Sürekli öğrenme: kaynak çekimi + tekrar engelleme");
 }
 
+// 37) Kör olma: öğrenilen bilgi sistem promptuna girer + konu havuzu
+{
+  const spMod = await import(path.join(mainDir, "agent", "system-prompt.js"));
+  const sp = spMod.default || spMod;
+  const withLearned = sp.buildSystemPrompt("chat", { learnedContext: ["[wikipedia] PHP: betik dili"] });
+  assert.ok(/otonom öğrenme/i.test(withLearned) && /betik dili/.test(withLearned), "öğrenilen bilgi prompta girer");
+  const storeMod = await import(path.join(mainDir, "agent", "learning-store.js"));
+  const store = storeMod.default || storeMod;
+  process.env.CODEGA_LEARNING_PATH = path.join(os.tmpdir(), "codega-topic-" + Date.now() + ".json");
+  assert.strictEqual(store.addTopic("yapay zeka ajanlari"), true, "konu eklenir");
+  assert.strictEqual(store.addTopic("yapay zeka ajanlari"), false, "tekrar konu eklenmez");
+  assert.ok(store.getTopics().includes("yapay zeka ajanlari"), "konu havuzda");
+  store.clearAll();
+  ok("Kör olma: öğrenilen bilgi prompta girer + ajan kendi konusunu biriktirir");
+}
+
 console.log(`\n${passed} test geçti ✅`);

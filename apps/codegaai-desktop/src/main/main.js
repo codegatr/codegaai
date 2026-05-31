@@ -55,15 +55,21 @@ let lastLearn = null;
 function learningTopics() {
   const s = settingsStore.getSettings();
   const fromSettings = String(s.learningTopics || "").split(",").map((t) => t.trim()).filter(Boolean);
-  if (fromSettings.length) return fromSettings;
-  // Konu verilmemişse kişisel hafızadan türet
-  try {
-    const mem = require("./agent/memory");
-    const facts = mem.listFacts ? mem.listFacts() : [];
-    return facts.map((f) => String(f.text || f).replace(/^Kullanıcı(nın)?\s+/i, "").slice(0, 40)).filter(Boolean).slice(0, 5);
-  } catch (_e) {
-    return [];
+  // Ajanın konuşmalardan kendi bulduğu konular
+  let discovered = [];
+  try { discovered = learningStore.getTopics(12); } catch (_e) {}
+  // Konu verilmemişse kişisel hafızadan da türet
+  let derived = [];
+  if (!fromSettings.length && !discovered.length) {
+    try {
+      const mem = require("./agent/memory");
+      const facts = mem.listFacts ? mem.listFacts() : [];
+      derived = facts.map((f) => String(f.text || f).replace(/^Kullanıcı(nın)?\s+/i, "").slice(0, 40)).filter(Boolean).slice(0, 5);
+    } catch (_e) {}
   }
+  // Birleştir + tekilleştir
+  const all = [...fromSettings, ...discovered, ...derived];
+  return [...new Set(all.map((t) => t.trim()).filter(Boolean))];
 }
 
 async function learnOnce(manualTopic) {
