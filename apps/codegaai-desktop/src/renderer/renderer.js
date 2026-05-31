@@ -28,6 +28,12 @@ const els = {
   prepareModel: document.getElementById("prepare-model"),
   modelDetail: document.getElementById("model-detail"),
   modelList: document.getElementById("model-list"),
+  modelDownload: document.getElementById("model-download"),
+  modelDownloadTitle: document.getElementById("model-download-title"),
+  modelDownloadPercent: document.getElementById("model-download-percent"),
+  modelDownloadBar: document.getElementById("model-download-bar"),
+  modelDownloadSize: document.getElementById("model-download-size"),
+  modelDownloadSpeed: document.getElementById("model-download-speed"),
   checkUpdate: document.getElementById("check-update"),
   updateDetail: document.getElementById("update-detail"),
   updateActions: document.getElementById("update-actions"),
@@ -589,16 +595,20 @@ function restoreSharedChatFromHash() {
 function setModelStatus(status) {
   const ready = status?.status === "ready";
   const missing = status?.status === "missing";
+  const progress = status?.progress || null;
   els.modelPill.textContent = ready
     ? "Hazır"
     : missing
       ? "Temel mod hazır"
       : "Düşünüyor";
-  els.modelDetail.textContent = status?.action === "install_ollama"
+  els.modelDetail.textContent = progress && status?.status === "checking"
+    ? status.message || "Model indiriliyor..."
+    : status?.action === "install_ollama"
     ? "Yerel zeka motoru kurulu değil. Model paketleri için Ollama kurulumu gerekli."
     : ready
       ? "Codega AI talimata göre gerekli zeka paketini arka planda kullanır."
       : "Codega AI çalışma ortamını kontrol ediyor.";
+  updateModelDownload(status);
 
   // Ollama satırı: çalışıyorsa "Kur" butonunu gizle, durumu göster
   const ollamaMissing = status?.action === "install_ollama" || status?.provider === "instant";
@@ -613,6 +623,44 @@ function setModelStatus(status) {
   const ovModel = document.getElementById("ov-model");
   if (ovModel && status && status.model) ovModel.textContent = status.model;
   if (typeof updateOverview === "function") updateOverview();
+}
+
+function formatBytes(bytes) {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  if (n >= 1024 * 1024 * 1024) return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  if (n >= 1024 * 1024) return `${Math.round(n / (1024 * 1024))} MB`;
+  if (n >= 1024) return `${Math.round(n / 1024)} KB`;
+  return `${Math.round(n)} B`;
+}
+
+function updateModelDownload(status) {
+  if (!els.modelDownload) return;
+  const progress = status?.progress || null;
+  const isActive = status?.status === "checking" && progress;
+  const isDone = status?.status === "ready" && progress?.percent === 100;
+  if (!isActive && !isDone) {
+    els.modelDownload.hidden = true;
+    return;
+  }
+  const percent = progress.percent == null ? 0 : Math.max(0, Math.min(100, Number(progress.percent)));
+  els.modelDownload.hidden = false;
+  if (els.modelDownloadTitle) els.modelDownloadTitle.textContent = status?.model ? `${status.model} indiriliyor` : "Model indiriliyor";
+  if (els.modelDownloadPercent) els.modelDownloadPercent.textContent = `%${Math.round(percent)}`;
+  if (els.modelDownloadBar) els.modelDownloadBar.style.width = `${percent}%`;
+  const downloaded = formatBytes(progress.downloadedBytes);
+  const total = formatBytes(progress.totalBytes);
+  if (els.modelDownloadSize) {
+    els.modelDownloadSize.textContent = downloaded && total
+      ? `${downloaded} / ${total}`
+      : progress.raw && progress.raw !== "completed"
+        ? progress.raw.slice(0, 90)
+        : "İndirme tamamlandı";
+  }
+  if (els.modelDownloadSpeed) {
+    const speed = formatBytes(progress.speedBytesPerSec);
+    els.modelDownloadSpeed.textContent = speed ? `${speed}/sn` : "";
+  }
 }
 
 function renderModelList(payload) {
@@ -1715,7 +1763,7 @@ els.updateNow.addEventListener("click", async () => {
 
 window.codega.onModelStatus((status) => {
   setModelStatus(status);
-  refreshModels();
+  if (status?.status !== "checking") refreshModels();
 });
 window.codega.onUpdateStatus((payload) => {
   const state = payload?.state || "unknown";

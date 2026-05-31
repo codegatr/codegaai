@@ -343,6 +343,56 @@ textarea {
   border-top: 1px solid var(--line);
 }
 
+.model-download {
+  margin: 10px 0 14px;
+  padding: 13px 14px;
+  background: #0e1014;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.model-download__top,
+.model-download__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.model-download__top strong {
+  font-size: 13.5px;
+}
+
+.model-download__top span {
+  color: var(--accent);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.model-download__bar {
+  height: 8px;
+  margin: 11px 0 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+.model-download__bar span {
+  display: block;
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), #fbbf24);
+  transition: width 0.24s ease;
+}
+
+.model-download__meta {
+  color: var(--muted);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
 .model-row {
   min-height: 58px;
   display: flex;

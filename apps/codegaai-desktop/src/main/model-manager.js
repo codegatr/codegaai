@@ -260,6 +260,41 @@ function buildPrompt(task, input) {
   ].join("\n");
 }
 
+function parseSizeToBytes(value, unit) {
+  const n = Number(String(value || "").replace(",", "."));
+  if (!Number.isFinite(n)) return null;
+  const u = String(unit || "").toLowerCase();
+  if (u.startsWith("kb")) return n * 1024;
+  if (u.startsWith("mb")) return n * 1024 * 1024;
+  if (u.startsWith("gb")) return n * 1024 * 1024 * 1024;
+  if (u.startsWith("tb")) return n * 1024 * 1024 * 1024 * 1024;
+  return n;
+}
+
+function parsePullProgress(line) {
+  const text = String(line || "").replace(/\u001b\[[0-9;]*m/g, "").replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  const percentMatch = text.match(/(\d{1,3})\s*%/);
+  const sizeMatch = text.match(/(\d+(?:[.,]\d+)?)\s*(KB|MB|GB|TB)\s*\/\s*(\d+(?:[.,]\d+)?)\s*(KB|MB|GB|TB)/i);
+  const speedMatch = text.match(/(\d+(?:[.,]\d+)?)\s*(KB|MB|GB|TB)\/s/i);
+  const progress = {
+    raw: text,
+    percent: percentMatch ? Math.max(0, Math.min(100, Number(percentMatch[1]))) : null,
+    downloadedBytes: null,
+    totalBytes: null,
+    speedBytesPerSec: null,
+  };
+  if (sizeMatch) {
+    progress.downloadedBytes = parseSizeToBytes(sizeMatch[1], sizeMatch[2]);
+    progress.totalBytes = parseSizeToBytes(sizeMatch[3], sizeMatch[4]);
+    if (progress.percent === null && progress.downloadedBytes !== null && progress.totalBytes) {
+      progress.percent = Math.max(0, Math.min(100, (progress.downloadedBytes / progress.totalBytes) * 100));
+    }
+  }
+  if (speedMatch) progress.speedBytesPerSec = parseSizeToBytes(speedMatch[1], speedMatch[2]);
+  return progress;
+}
+
 function missingModelReply(task, modelId, started) {
   const subject = task === "code" ? "kod/PHP işleri" : "bu iş";
   const action = started ? "arka planda hazırlamaya başladım" : "arka planda hazırlıyorum";
@@ -413,17 +448,26 @@ class ModelManager {
       task: target.task || "chat",
       status: READY_STATES.CHECKING,
       message: `${target.label} indiriliyor`,
+      progress: {
+        raw: "",
+        percent: 0,
+        downloadedBytes: null,
+        totalBytes: null,
+        speedBytesPerSec: null,
+      },
     };
     onProgress?.(this.getStatus());
 
     const result = await this.runOllama(["pull", target.id], {
       timeoutMs: OLLAMA_PULL_TIMEOUT_MS,
       onData: (chunk) => {
-        const progress = chunk.replace(/\u001b\[[0-9;]*m/g, "").replace(/\s+/g, " ").trim();
+        const progress = parsePullProgress(chunk);
         if (!progress) return;
+        const percentText = progress.percent !== null ? ` %${Math.round(progress.percent)}` : "";
         this.state = {
           ...this.state,
-          message: `${target.label} indiriliyor: ${progress.slice(0, 90)}`,
+          message: `${target.label} indiriliyor${percentText}`,
+          progress,
         };
         onProgress?.(this.getStatus());
       },
@@ -443,6 +487,13 @@ class ModelManager {
       model: target.id,
       task: target.task || "chat",
       message: "Codega AI hazır.",
+      progress: {
+        raw: "completed",
+        percent: 100,
+        downloadedBytes: null,
+        totalBytes: null,
+        speedBytesPerSec: null,
+      },
     };
     return this.getStatus();
   }
@@ -844,5 +895,6 @@ module.exports = {
   detectTask,
   candidateModelsForTask,
   missingModelReply,
+  parsePullProgress,
   isSmallTalk,
 };

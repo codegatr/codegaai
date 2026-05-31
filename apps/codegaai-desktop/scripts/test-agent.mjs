@@ -396,6 +396,18 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Eksik kod modeli: otomatik hazırlama mesajı");
 }
 
+// 23c) Model indirme ilerlemesi: yüzde + indirilen/toplam + hız ayrıştırılır
+{
+  const mm = await import(path.join(mainDir, "model-manager.js"));
+  const M = mm.default || mm;
+  const p = M.parsePullProgress("pulling manifest 47% ▕████░░░░▏ 2.44 GB/5.20 GB 12 MB/s");
+  assert.strictEqual(Math.round(p.percent), 47, "yüzde okunur");
+  assert.ok(p.downloadedBytes > 2.4 * 1024 * 1024 * 1024, "indirilen GB okunur");
+  assert.ok(p.totalBytes > 5 * 1024 * 1024 * 1024, "toplam GB okunur");
+  assert.ok(p.speedBytesPerSec >= 12 * 1024 * 1024, "hız okunur");
+  ok("Model indirme ilerlemesi: yüzde/MB/hız ayrıştırma");
+}
+
 // 24) Kendi kendine bakım: sağlık + bozuk depo onarımı (fake'lerle, diske dokunmadan)
 {
   const smMod = await import(path.join(mainDir, "agent", "self-maintenance.js"));
