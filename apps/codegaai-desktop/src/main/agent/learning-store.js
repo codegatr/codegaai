@@ -94,4 +94,45 @@ function searchLearned(query, limit = 3) {
     .map((x) => ({ source: x.n.source, topic: x.n.topic, text: x.n.text, url: x.n.url }));
 }
 
-module.exports = { addNotes, list, count, clearAll, storePath, addTopic, getTopics, searchLearned };
+function _cos(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return 0;
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < a.length; i += 1) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  return na && nb ? dot / (Math.sqrt(na) * Math.sqrt(nb)) : 0;
+}
+
+/** Anlamsal arama: sorgu vektörüne en yakın (embedding'i olan) notlar. */
+function searchSemantic(queryVec, limit = 3, minScore = 0.3) {
+  if (!Array.isArray(queryVec)) return [];
+  const notes = load().notes;
+  return notes
+    .filter((n) => Array.isArray(n.emb))
+    .map((n) => ({ n, score: _cos(queryVec, n.emb) }))
+    .filter((x) => x.score >= minScore)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((x) => ({ source: x.n.source, topic: x.n.topic, text: x.n.text, url: x.n.url, score: x.score }));
+}
+
+/** Embedding'i olmayan notları (verilen embedFn ile) vektörle; eklenen sayıyı döndür.
+ *  embedFn(text) -> vektör|null. Ağ/Ollama burada DI ile gelir (depo ağ bilmez). */
+async function backfillEmbeddings(embedFn, limit = 5) {
+  const d = load();
+  let done = 0;
+  for (const n of d.notes) {
+    if (done >= limit) break;
+    if (Array.isArray(n.emb)) continue;
+    try {
+      const v = await embedFn(`${n.topic}. ${n.text}`);
+      if (Array.isArray(v) && v.length) { n.emb = v; done += 1; }
+    } catch (_e) { /* atla */ }
+  }
+  if (done) save(d);
+  return done;
+}
+
+function embeddedCount() {
+  return load().notes.filter((n) => Array.isArray(n.emb)).length;
+}
+
+module.exports = { addNotes, list, count, clearAll, storePath, addTopic, getTopics, searchLearned, searchSemantic, backfillEmbeddings, embeddedCount };

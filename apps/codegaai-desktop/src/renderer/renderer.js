@@ -50,6 +50,7 @@ const els = {
   expertSelect: document.getElementById("expert-select"),
   toggleStreaming: document.getElementById("toggle-streaming"),
   toggleContinuous: document.getElementById("toggle-continuous"),
+  toggleSemantic: document.getElementById("toggle-semantic"),
   learnTopics: document.getElementById("learn-topics"),
   learnRepo: document.getElementById("learn-repo"),
   providerSelect: document.getElementById("provider-select"),
@@ -1266,6 +1267,7 @@ if (mcpCallBtn) {
 }
 
 if (els.toggleContinuous) els.toggleContinuous.addEventListener("click", () => toggleSetting("continuousLearning", els.toggleContinuous));
+if (els.toggleSemantic) els.toggleSemantic.addEventListener("click", () => toggleSetting("semanticSearch", els.toggleSemantic));
 function bindLearnField(el, key) {
   if (!el) return;
   el.addEventListener("change", async () => { agentSettings = await window.codega.setSettings({ [key]: el.value.trim() }); });
@@ -1439,6 +1441,7 @@ async function refreshAgentSettings() {
     if (els.expertSelect) els.expertSelect.value = agentSettings.expertMode || "genel";
     if (els.toggleStreaming) applyToggleLabel(els.toggleStreaming, agentSettings.streaming !== false);
     if (els.toggleContinuous) applyToggleLabel(els.toggleContinuous, !!agentSettings.continuousLearning);
+    if (els.toggleSemantic) applyToggleLabel(els.toggleSemantic, !!agentSettings.semanticSearch);
     if (els.learnTopics) els.learnTopics.value = agentSettings.learningTopics || "";
     if (els.learnRepo) els.learnRepo.value = agentSettings.learningSyncRepo || "";
     if (els.providerSelect) els.providerSelect.value = agentSettings.provider || "ollama";

@@ -605,4 +605,26 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Kör olma: öğrenilen bilgi prompta girer + ajan kendi konusunu biriktirir");
 }
 
+// 38) Anlamsal arama: cosine + embedding geri-doldurma + semantik sıralama
+{
+  const eMod = await import(path.join(mainDir, "agent", "embeddings.js"));
+  const E = eMod.default || eMod;
+  assert.ok(Math.abs(E.cosine([1,2,3],[1,2,3]) - 1) < 1e-9, "aynı vektör cosine=1");
+  assert.ok(Math.abs(E.cosine([1,0],[0,1])) < 1e-9, "dik vektör cosine=0");
+  const storeMod = await import(path.join(mainDir, "agent", "learning-store.js"));
+  const store = storeMod.default || storeMod;
+  process.env.CODEGA_LEARNING_PATH = path.join(os.tmpdir(), "codega-sem-" + Date.now() + ".json");
+  store.addNotes([
+    { source: "web", topic: "PHP", text: "PHP web betik dili", url: "", at: 1 },
+    { source: "web", topic: "Kedi", text: "Kedi memeli hayvan", url: "", at: 2 },
+  ]);
+  const fake = async (t) => (/php|betik|web/i.test(t) ? [1, 0] : [0, 1]);
+  const n = await store.backfillEmbeddings(fake, 10);
+  assert.strictEqual(n, 2, "iki not embedlendi");
+  const top = store.searchSemantic([0.95, 0.05], 1, 0.2);
+  assert.ok(top.length === 1 && top[0].topic === "PHP", "anlamsal en yakın PHP");
+  store.clearAll();
+  ok("Anlamsal arama: cosine + geri-doldurma + semantik sıralama");
+}
+
 console.log(`\n${passed} test geçti ✅`);

@@ -550,9 +550,14 @@ class ModelManager {
     let learnedContext = [];
     if (settings.continuousLearning || settings.autonomousLearning) {
       try {
-        learnedContext = learningStore
-          .searchLearned(input, 3)
-          .map((n) => `[${n.source}] ${n.topic}: ${n.text}${n.url ? ` (${n.url})` : ""}`);
+        let hits = [];
+        if (settings.semanticSearch) {
+          const emb = require("./agent/embeddings");
+          const qv = await emb.embed(input, { model: settings.embedModel || emb.DEFAULT_EMBED_MODEL });
+          if (qv) hits = learningStore.searchSemantic(qv, 3);
+        }
+        if (!hits.length) hits = learningStore.searchLearned(input, 3); // anlamsal yoksa anahtar-kelime
+        learnedContext = hits.map((n) => `[${n.source}] ${n.topic}: ${n.text}${n.url ? ` (${n.url})` : ""}`);
       } catch (_e) {
         learnedContext = [];
       }

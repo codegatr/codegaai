@@ -92,6 +92,14 @@ async function learnOnce(manualTopic) {
       await githubClient.appendToFile(owner, r, "ogrenilenler.md", branch, lines, `CODEGA AI öğrendi: ${topic}`);
     } catch (_e) { /* yedek hatası öğrenmeyi durdurmasın */ }
   }
+  // Anlamsal arama açıksa yeni/eksik notlara embedding üret (Ollama açıkken)
+  if (settingsStore.getSettings().semanticSearch) {
+    try {
+      const emb = require("./agent/embeddings");
+      const model = settingsStore.getSettings().embedModel || emb.DEFAULT_EMBED_MODEL;
+      await learningStore.backfillEmbeddings((t) => emb.embed(t, { model }), 8);
+    } catch (_e) { /* embedding hatası öğrenmeyi durdurmasın */ }
+  }
   return { ok: true, ...lastLearn };
 }
 

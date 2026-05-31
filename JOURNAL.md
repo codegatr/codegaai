@@ -4,6 +4,27 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 92 — Anlamsal arama (embeddings) — karşılaştırma planı #1 (30 May 2026, Claude)
+
+En yüksek getirili madde. Öğrenilen bilgide anahtar-kelime yerine ANLAM benzerliği.
+Opt-in; embedding yoksa anahtar-kelimeye zarif geri düşüş.
+
+- embeddings.js: Ollama /api/embed (+eski /api/embeddings fallback) ile embed(text);
+  cosine; available() (model kurulu mu, 60sn TTL önbellek). Mock ile test edildi.
+- learning-store.js: notlara .emb; searchSemantic(queryVec) (cosine sıralama, minScore);
+  backfillEmbeddings(embedFn, limit) (DI — depo ağ bilmez); embeddedCount.
+- model-manager: semanticSearch açıksa sorguyu embedle -> searchSemantic; sonuç yoksa
+  searchLearned (anahtar-kelime) fallback. Embed başarısızsa (model yok) hızlı fallback.
+- main.learnOnce: semanticSearch açıksa yeni/eksik notlara embedding üret (8/tur).
+- settings: semanticSearch(off), embedModel(nomic-embed-text). UI: "Anlamsal Arama"
+  toggle + `ollama pull nomic-embed-text` notu.
+
+Test 38/38. Surum 0.34.0 -> **0.35.0**. Sonraki plan maddesi: #2 MCP araçlarını ReAct
+döngüsüne bağlamak; #5 notları modelle damıtmak.
+
+---
+
+
 ## ✅ Faz 91 — Kendi konusunu bulan + kör olmayan otonom öğrenme (30 May 2026, Claude)
 
 Kullanıcı: kaynakları kendin bul, konuşmaları incele, öğrendiğini cevapta kullan,
