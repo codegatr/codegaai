@@ -4,6 +4,19 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 95 — Ana ekrandaki amber çizgi düzeltmesi (30 May 2026, Claude)
+
+Kullanıcı: ana ekranda composer üstünde kahverengi/amber bir çizgi, "ruhu bozulmuş".
+Kök neden: .attach-chip (ve .brain-panel) `display:flex/block` ile geliyor ama [hidden]
+için kural yoktu -> `hidden` özniteliği eziliyor, BOŞ ama amber-soft arka planlı çip
+ince tam-genişlik bir amber çizgi olarak görünüyordu.
+
+Düzeltme: `[hidden] { display: none !important; }` global kuralı. Açıkça gösterilince
+(hidden=false) öğeler yine görünür. Surum 0.37.0 -> **0.38.0**.
+
+---
+
+
 ## ✅ Faz 94 — MCP araçlarını ajan döngüsüne bağlama — plan #2 (30 May 2026, Claude)
 
 Eksik #2: MCP manuel idi; artık ajan bağlı sunucunun araçlarını KENDİ çağırabilir.

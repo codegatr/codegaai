@@ -708,3 +708,7 @@ body[data-theme="oled"] { --bg: #000; }
   border-radius: 10px; cursor: pointer; padding: 0 8px; font-size: 15px; line-height: 1; }
 #brain-btn:hover { color: var(--text); }
 #brain-btn.on { color: var(--accent); }
+
+/* [hidden] her zaman gizli kalsın — display:flex/block bunu ezmesin
+   (boş .attach-chip / .brain-panel ana ekranda amber bir çizgi olarak görünüyordu) */
+[hidden] { display: none !important; }
