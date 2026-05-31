@@ -291,22 +291,11 @@ function registerIpc() {
       send({ status: "checking", message: "Ollama kuruldu ✓" });
     }
 
-    // 2) Model indir (önerilen ya da verilen) — boyut göster + onay
+    // 2) Model indir (önerilen ya da verilen). UI zaten "Önerilen Modeli Kur"
+    // veya model satırındaki "İndir" ile açık kullanıcı niyeti alıyor; sistem
+    // popup'ı progress panelini kapattığı için burada tekrar onay istemiyoruz.
     const sys = systemInfo.analyze(MODEL_OPTIONS);
     const modelId = (payload && payload.modelId) || (sys.recommended && sys.recommended.id) || undefined;
-    const gb = installer.modelSizeGb(modelId);
-    const sizeTxt = gb ? `~${gb} GB` : "boyut yaklaşık olarak bilinmiyor";
-    const confirm2 = await dialog.showMessageBox(win, {
-      type: "question",
-      buttons: ["İndir", "Vazgeç"],
-      defaultId: 0,
-      cancelId: 1,
-      title: "Model İndir",
-      message: `${modelId || "Önerilen model"} indirilsin mi?`,
-      detail: `Tahmini indirme: ${sizeTxt}. Bilgisayarına uygun önerilen model. İndirme bağlantına göre sürebilir.`,
-    });
-    if (confirm2.response !== 0) return { ok: false, message: "Model indirme iptal edildi." };
-
     const status = await modelManager.prepareModel(modelId, (progress) => send(progress));
     return status;
   });

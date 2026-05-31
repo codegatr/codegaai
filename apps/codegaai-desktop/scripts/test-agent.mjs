@@ -408,6 +408,15 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Model indirme ilerlemesi: yüzde/MB/hız ayrıştırma");
 }
 
+// 23d) Rehberli model indirme: sistem popup'ı progress panelini örtmez
+{
+  const mainText = fs.readFileSync(joinPath(mainDir, "main.js"), "utf8");
+  const modelSetupBlock = mainText.slice(mainText.indexOf('ipcMain.handle("model:setup"'), mainText.indexOf('ipcMain.handle("model:prepare"'));
+  assert.ok(!/title:\s*"Model İndir"/.test(modelSetupBlock), "model indirme için native popup yok");
+  assert.ok(/prepareModel\(modelId/.test(modelSetupBlock), "model setup doğrudan prepareModel çağırır");
+  ok("Rehberli model indirme: progress panelini örten popup yok");
+}
+
 // 24) Kendi kendine bakım: sağlık + bozuk depo onarımı (fake'lerle, diske dokunmadan)
 {
   const smMod = await import(path.join(mainDir, "agent", "self-maintenance.js"));

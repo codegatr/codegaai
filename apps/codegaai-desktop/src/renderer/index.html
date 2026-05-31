@@ -67,6 +67,19 @@
         <div class="settings-body">
           <nav class="settings-nav" id="settings-nav"></nav>
           <div class="settings-cats" id="settings-cats">
+            <div class="model-download" id="model-download" hidden>
+              <div class="model-download__top">
+                <strong id="model-download-title">Model indiriliyor</strong>
+                <span id="model-download-percent">%0</span>
+              </div>
+              <div class="model-download__bar" aria-hidden="true">
+                <span id="model-download-bar"></span>
+              </div>
+              <div class="model-download__meta">
+                <span id="model-download-size">Hazırlanıyor…</span>
+                <span id="model-download-speed"></span>
+              </div>
+            </div>
 
         <details class="settings-group active" open data-cat="overview" data-label="Genel Bakış">
           <summary>Genel Bakış</summary>
@@ -139,19 +152,6 @@
               <p id="model-detail">Kontrol ediliyor</p>
             </div>
             <button type="button" id="prepare-model">Varsayılanı Hazırla</button>
-          </div>
-          <div class="model-download" id="model-download" hidden>
-            <div class="model-download__top">
-              <strong id="model-download-title">Model indiriliyor</strong>
-              <span id="model-download-percent">%0</span>
-            </div>
-            <div class="model-download__bar" aria-hidden="true">
-              <span id="model-download-bar"></span>
-            </div>
-            <div class="model-download__meta">
-              <span id="model-download-size">Hazırlanıyor…</span>
-              <span id="model-download-speed"></span>
-            </div>
           </div>
           <div class="settings-row">
             <div>
