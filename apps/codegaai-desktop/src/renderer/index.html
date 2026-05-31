@@ -371,10 +371,13 @@
           </div>
         </details>
 
-        <details class="settings-group planned-group" data-cat="mcp" data-label="MCP">
+                <details class="settings-group" data-cat="mcp" data-label="MCP">
           <summary>MCP</summary>
-          <div class="settings-page-head"><h1>MCP <span class="badge-plan">Planlı modül</span></h1><p>Model Context Protocol sunucuları.</p></div>
-          <div class="settings-section"><h2>MCP</h2><div class="settings-row"><div><strong>MCP sunucuları</strong><p>Bağlı sunucular</p></div><span class="badge-plan">Planlı</span></div><div class="settings-row"><div><strong>MCP araçları & durumu</strong><p>Keşfedilen araçlar</p></div><span class="badge-plan">Planlı</span></div></div>
+          <div class="settings-page-head"><h1>MCP</h1><p>Model Context Protocol sunucuları. Bağlantı ve araçlar burada özetlenir; yapılandırma "Hafıza &amp; Bilgi" sekmesindedir.</p></div>
+          <div class="settings-section">
+            <h2>Durum <button type="button" id="mcp-status-refresh" class="mini-btn">Yenile</button></h2>
+            <div class="model-list" id="mcp-status"></div>
+          </div>
         </details>
 
         <details class="settings-group planned-group" data-cat="tools" data-label="Araçlar">
@@ -554,9 +557,9 @@
           </div>
         </details>
 
-        <details class="settings-group planned-group" data-cat="system" data-label="Sistem">
+        <details class="settings-group" data-cat="system" data-label="Sistem">
           <summary>Sistem</summary>
-          <div class="settings-page-head"><h1>Sistem <span class="badge-plan">Planlı modül</span></h1><p>Kaynak kullanımı.</p></div>
+          <div class="settings-page-head"><h1>Sistem</h1><p>Gerçek zamanlı kaynak kullanımı (panel açıkken canlı).</p></div>
           <div class="settings-section"><h2>Kaynaklar</h2><div class="usage-row"><span>CPU</span><strong id="sys-cpu-v">—</strong><i><b id="sys-cpu-b" style="width:0%"></b></i></div><div class="usage-row"><span>RAM</span><strong id="sys-ram-v">—</strong><i><b id="sys-ram-b" style="width:0%"></b></i></div><div class="usage-row"><span>GPU (VRAM)</span><strong id="sys-gpu-v">—</strong><i><b id="sys-gpu-b" style="width:0%"></b></i></div></div>
         </details>
 

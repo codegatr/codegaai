@@ -4,6 +4,24 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 104 — Tutarlılık turu: yanlış PLANLI rozetlerini temizleme (31 May 2026, Claude)
+
+Gerçek olan modüller hâlâ "PLANLI" görünüyordu — dürüstlük/tutarlılık düzeltmesi.
+
+- renderer sidebar haritası: models/router/auto/logs/system/mcp için `pill: "PLANLI"`
+  kaldırıldı (hepsi gerçek).
+- Sistem sayfası: planned-group + "Planlı modül" başlık rozeti kaldırıldı (kaynak çubukları
+  0.46'da gerçeğe bağlanmıştı).
+- MCP dedicated sayfa: placeholder yerine GERÇEK durum özeti (sunucu URL, ajana bağlı mı)
+  + "yapılandırma Hafıza & Bilgi sekmesinde" yönlendirmesi. refreshMcpStatus.
+- DÜRÜST: RAG ve Araçlar sayfaları gerçekten henüz yapılmadığı için PLANLI bırakıldı
+  (2 planned-group kaldı — kasıtlı).
+
+Test 49/49. Surum 0.52.0 -> **0.53.0**.
+
+---
+
+
 ## ✅ Faz 103 — Geliştirici sayfası (31 May 2026, Claude)
 
 PLANLI olan Geliştirici gerçek oldu. Var olan parçalar toplandı; yeni risk yok.

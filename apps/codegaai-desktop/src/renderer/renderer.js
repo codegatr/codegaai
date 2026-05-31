@@ -1227,6 +1227,31 @@ if (devPromptBtn) devPromptBtn.addEventListener("click", async () => {
 const toggleDebugBtn = document.getElementById("toggle-debug");
 if (toggleDebugBtn) toggleDebugBtn.addEventListener("click", () => toggleSetting("debugLogging", toggleDebugBtn));
 
+async function refreshMcpStatus() {
+  const box = document.getElementById("mcp-status");
+  if (!box) return;
+  try {
+    const sset = await window.codega.getSettings();
+    box.innerHTML = "";
+    const url = (sset && sset.mcpServerUrl) || "";
+    const on = !!(sset && sset.mcpAutoTools);
+    const r1 = document.createElement("div");
+    r1.className = "settings-row";
+    r1.innerHTML = `<div><strong>Sunucu</strong><p>${url ? url.replace(/</g,"&lt;") : "Tanımlı değil"}</p></div><span class="${url?'badge-active':'badge-plan'}">${url?'Tanımlı':'Yok'}</span>`;
+    box.appendChild(r1);
+    const r2 = document.createElement("div");
+    r2.className = "settings-row";
+    r2.innerHTML = `<div><strong>Ajana bağlı (otonom kullanım)</strong><p>Açıkken ajan sunucunun araçlarını kendi çağırır.</p></div><span class="${on?'badge-active':'badge-plan'}">${on?'Açık':'Kapalı'}</span>`;
+    box.appendChild(r2);
+    const r3 = document.createElement("div");
+    r3.className = "settings-row";
+    r3.innerHTML = `<div><strong>Yapılandırma</strong><p>Sunucu URL, araç listeleme ve manuel çağrı "Hafıza & Bilgi" sekmesindedir.</p></div>`;
+    box.appendChild(r3);
+  } catch (_e) {}
+}
+const mcpStatusRefreshBtn = document.getElementById("mcp-status-refresh");
+if (mcpStatusRefreshBtn) mcpStatusRefreshBtn.addEventListener("click", () => refreshMcpStatus());
+
 els.settingsButton.addEventListener("click", async () => {
   els.settings.showModal();
   setActiveCat("overview");
@@ -1241,6 +1266,7 @@ els.settingsButton.addEventListener("click", async () => {
   refreshModelsPage();
   refreshAutomations();
   refreshSecurity();
+  refreshMcpStatus();
   if (toggleDebugBtn && agentSettings) applyToggleLabel(toggleDebugBtn, !!agentSettings.debugLogging);
   // Aktif Model: gerçek model durumundan (dinamik seçilir)
   window.codega.getStatus().then((st) => {
@@ -1293,18 +1319,18 @@ function buildSettingsNav() {
   const meta = {
     overview: { icon: svg('<rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>'), group: "Merkez" },
     ai: { icon: svg('<path d="M12 2a3 3 0 0 0-3 3v1a3 3 0 0 0-3 3 3 3 0 0 0 0 6 3 3 0 0 0 3 3v1a3 3 0 0 0 6 0v-1a3 3 0 0 0 3-3 3 3 0 0 0 0-6 3 3 0 0 0-3-3V5a3 3 0 0 0-3-3Z"/><path d="M9 12h6"/>'), group: "Zeka" },
-    models: { icon: svg('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'), group: "Zeka", pill: "PLANLI" },
-    router: { icon: svg('<circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="12" r="2"/><path d="M8 6h6a2 2 0 0 1 2 2v2M8 18h6a2 2 0 0 0 2-2v-2"/>'), group: "Zeka", pill: "PLANLI" },
+    models: { icon: svg('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'), group: "Zeka" },
+    router: { icon: svg('<circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="12" r="2"/><path d="M8 6h6a2 2 0 0 1 2 2v2M8 18h6a2 2 0 0 0 2-2v-2"/>'), group: "Zeka" },
     agents: { icon: svg('<circle cx="12" cy="7" r="3"/><path d="M5.5 21a6.5 6.5 0 0 1 13 0"/>'), group: "Zeka" },
     memory: { icon: svg('<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9zM2 10h2M2 14h2M20 10h2M20 14h2M10 2v2M14 2v2M10 20v2M14 20v2"/>'), group: "Bilgi" },
     rag: { icon: svg('<path d="M4 4h10l6 6v10H4z"/><path d="M14 4v6h6M8 14h8M8 18h5"/>'), group: "Bilgi" },
-    mcp: { icon: svg('<path d="M12 2 2 7l10 5 10-5-10-5ZM2 17l10 5 10-5M2 12l10 5 10-5"/>'), group: "Baglanti & Araclar", pill: "PLANLI" },
+    mcp: { icon: svg('<path d="M12 2 2 7l10 5 10-5-10-5ZM2 17l10 5 10-5M2 12l10 5 10-5"/>'), group: "Baglanti & Araclar" },
     tools: { icon: svg('<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2 2.7-2.7Z"/>'), group: "Baglanti & Araclar" },
-    auto: { icon: svg('<path d="M12 2v4M12 18v4M6 12H2M22 12h-4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M19.1 4.9l-2.8 2.8M7.7 16.3l-2.8 2.8"/><circle cx="12" cy="12" r="3"/>'), group: "Baglanti & Araclar", pill: "PLANLI" },
+    auto: { icon: svg('<path d="M12 2v4M12 18v4M6 12H2M22 12h-4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M19.1 4.9l-2.8 2.8M7.7 16.3l-2.8 2.8"/><circle cx="12" cy="12" r="3"/>'), group: "Baglanti & Araclar" },
     general: { icon: svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15H4a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 6 9.4l-.4-.4a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 11 5.4V5a2 2 0 0 1 4 0v.09"/>'), group: "Sistem" },
     security: { icon: svg('<path d="M12 2 4 5v6c0 5 3.4 8.5 8 11 4.6-2.5 8-6 8-11V5l-8-3Z"/><path d="m9 12 2 2 4-4"/>'), group: "Sistem" },
-    system: { icon: svg('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'), group: "Sistem", pill: "PLANLI" },
-    logs: { icon: svg('<path d="M4 4h16v16H4zM8 9h8M8 13h8M8 17h5"/>'), group: "Sistem", pill: "PLANLI" },
+    system: { icon: svg('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'), group: "Sistem" },
+    logs: { icon: svg('<path d="M4 4h16v16H4zM8 9h8M8 13h8M8 17h5"/>'), group: "Sistem" },
     dev: { icon: svg('<path d="m8 6-6 6 6 6M16 6l6 6-6 6M14 4l-4 16"/>'), group: "Sistem" },
   };
   const order = ["Merkez", "Zeka", "Bilgi", "Baglanti & Araclar", "Sistem"];
