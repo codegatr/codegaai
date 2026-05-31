@@ -1252,6 +1252,76 @@ async function refreshMcpStatus() {
 const mcpStatusRefreshBtn = document.getElementById("mcp-status-refresh");
 if (mcpStatusRefreshBtn) mcpStatusRefreshBtn.addEventListener("click", () => refreshMcpStatus());
 
+async function refreshRag() {
+  const docs = document.getElementById("rag-docs");
+  const statsEl = document.getElementById("rag-stats");
+  if (!docs && !statsEl) return;
+  try {
+    if (statsEl) {
+      const st = await window.codega.ragStats();
+      statsEl.textContent = st ? `${st.documents} belge · ${st.chunks} parça · ${st.embedded} embedding'li` : "İstatistik yok.";
+    }
+    if (docs) {
+      const list = await window.codega.ragList();
+      docs.innerHTML = "";
+      if (!list || !list.length) { docs.innerHTML = '<p class="log-empty">Henüz belge eklenmedi.</p>'; }
+      for (const d of (list || [])) {
+        const row = document.createElement("div");
+        row.className = "settings-row";
+        const emb = d.embedded ? `${d.embedded}/${d.chunks} embedding` : `${d.chunks} parça (keyword)`;
+        row.innerHTML = `<div><strong>${(d.title||"Doküman").replace(/</g,"&lt;")}</strong><p>${emb}</p></div>`;
+        const del = document.createElement("button");
+        del.type = "button"; del.textContent = "Sil";
+        del.addEventListener("click", async () => {
+          if (!window.confirm(`"${d.title}" silinsin mi?`)) return;
+          del.disabled = true;
+          try { await window.codega.ragDelete({ docId: d.docId }); refreshRag(); }
+          catch (e) { setTransientStatus("Hata: " + (e.message||e)); del.disabled = false; }
+        });
+        row.appendChild(del);
+        docs.appendChild(row);
+      }
+    }
+  } catch (_e) {}
+}
+const ragAddBtn = document.getElementById("rag-add");
+if (ragAddBtn) ragAddBtn.addEventListener("click", async () => {
+  const title = (document.getElementById("rag-title")||{}).value || "";
+  const text = (document.getElementById("rag-text")||{}).value || "";
+  if (!text.trim()) { setTransientStatus("Metin boş olamaz."); return; }
+  ragAddBtn.disabled = true; setTransientStatus("İndeksleniyor…");
+  try {
+    const r = await window.codega.ragIngest({ title: title.trim() || "Doküman", text });
+    setTransientStatus(r && r.ok ? `Eklendi (+${r.added} parça${r.embedded?", embedding'li":""}).` : "Eklenemedi.");
+    const ti=document.getElementById("rag-title"), tx=document.getElementById("rag-text");
+    if (ti) ti.value=""; if (tx) tx.value="";
+    refreshRag();
+  } catch (e) { setTransientStatus("Hata: " + (e.message||e)); }
+  finally { ragAddBtn.disabled = false; }
+});
+const ragRefreshBtn = document.getElementById("rag-refresh");
+if (ragRefreshBtn) ragRefreshBtn.addEventListener("click", () => refreshRag());
+const ragClearBtn = document.getElementById("rag-clear");
+if (ragClearBtn) ragClearBtn.addEventListener("click", async () => {
+  if (!window.confirm("Tüm RAG belgeleri silinsin mi?")) return;
+  try { await window.codega.ragClear(); refreshRag(); } catch (_e) {}
+});
+const ragSearchBtn = document.getElementById("rag-search-btn");
+if (ragSearchBtn) ragSearchBtn.addEventListener("click", async () => {
+  const q = (document.getElementById("rag-query")||{}).value || "";
+  const out = document.getElementById("rag-search-out");
+  if (!q.trim()) { setTransientStatus("Önce bir sorgu yaz."); return; }
+  if (out) { out.hidden = false; out.textContent = "Aranıyor…"; }
+  try {
+    const hits = await window.codega.ragSearch({ query: q });
+    if (out) out.textContent = (hits && hits.length)
+      ? hits.map((h,i) => `#${i+1} [${h.title}] (skor ${h.score.toFixed(3)})\n${h.text.slice(0,300)}`).join("\n\n")
+      : "Eşleşme bulunamadı.";
+  } catch (e) { if (out) out.textContent = "Hata: " + (e.message||e); }
+});
+const toggleRagBtn = document.getElementById("toggle-rag");
+if (toggleRagBtn) toggleRagBtn.addEventListener("click", () => toggleSetting("ragEnabled", toggleRagBtn));
+
 els.settingsButton.addEventListener("click", async () => {
   els.settings.showModal();
   setActiveCat("overview");
@@ -1267,6 +1337,8 @@ els.settingsButton.addEventListener("click", async () => {
   refreshAutomations();
   refreshSecurity();
   refreshMcpStatus();
+  refreshRag();
+  if (toggleRagBtn && agentSettings) applyToggleLabel(toggleRagBtn, agentSettings.ragEnabled !== false);
   if (toggleDebugBtn && agentSettings) applyToggleLabel(toggleDebugBtn, !!agentSettings.debugLogging);
   // Aktif Model: gerçek model durumundan (dinamik seçilir)
   window.codega.getStatus().then((st) => {

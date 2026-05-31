@@ -4,6 +4,24 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 105 — RAG yönetim sayfası gerçek (31 May 2026, Claude)
+
+PLANLI olan RAG sayfası gerçek oldu — sadece rozet değil, gerçek yetenek.
+
+- rag.js: listDocuments() (docId'ye göre grupla: başlık/parça/embedding/zaman) +
+  deleteDocument(docId) eklendi (çekirdek addDocument/search/stats zaten vardı).
+- main IPC: rag:list, rag:delete, rag:search eklendi (rag:ingest/stats/clear vardı);
+  ingest artık Log Merkezi'ne yazıyor. preload ragList/ragDelete/ragSearch.
+- UI: RAG sayfası gerçek — RAG aç/kapa (ragEnabled, cevaba bağlam katma), istatistik,
+  Belge Ekle (başlık+metin -> indeksle), Belgeler listesi (parça/embedding + Sil),
+  Tümünü Temizle, "Ara (dene)" kutusu (skorlu sonuçlar). PLANLI kaldırıldı.
+- Ollama açıksa embedding (anlamsal), değilse keyword fallback (test bu env'de doğruladı).
+
+Test 50/50. Surum 0.53.0 -> **0.54.0**. Kalan tek dürüst PLANLI: Araçlar sayfası.
+
+---
+
+
 ## ✅ Faz 104 — Tutarlılık turu: yanlış PLANLI rozetlerini temizleme (31 May 2026, Claude)
 
 Gerçek olan modüller hâlâ "PLANLI" görünüyordu — dürüstlük/tutarlılık düzeltmesi.

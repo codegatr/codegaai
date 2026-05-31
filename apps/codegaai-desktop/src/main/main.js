@@ -375,10 +375,16 @@ function registerIpc() {
     return { ok: true, url };
   });
 
-  ipcMain.handle("rag:ingest", async (_event, payload) =>
-    rag.addDocument(payload?.title || "Doküman", payload?.text || "", { source: "manual" })
+  ipcMain.handle("rag:ingest", async (_event, payload) => {
+    const r = await rag.addDocument(payload?.title || "Doküman", payload?.text || "", { source: "manual" });
+    try { logs.info("rag", `Doküman eklendi: ${(payload?.title||"Doküman")} (+${r.added} parça)`); } catch (_e) {}
+    return r;
+  }
   );
   ipcMain.handle("rag:stats", async () => rag.stats());
+  ipcMain.handle("rag:list", async () => rag.listDocuments());
+  ipcMain.handle("rag:delete", async (_event, payload) => rag.deleteDocument((payload && payload.docId) || ""));
+  ipcMain.handle("rag:search", async (_event, payload) => rag.search((payload && payload.query) || "", 5));
   ipcMain.handle("rag:clear", async () => rag.clearAll());
 
   ipcMain.handle("maintenance:run", async () => (await doMaintenance()) || { items: [], repairs: [], healthy: true });

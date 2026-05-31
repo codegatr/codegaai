@@ -788,4 +788,25 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   } finally { server.close(); }
 }
 
+
+// RAG: ekle + listele + ara + sil
+{
+  const rMod = await import(path.join(mainDir, "agent", "rag.js"));
+  const RG = rMod.default || rMod;
+  process.env.CODEGA_RAG_PATH = path.join(os.tmpdir(), "codega-rag-" + Date.now() + ".json");
+  await RG.addDocument("Notlar", "CODEGA AI yerel masaüstü yapay zeka ajanıdır, Ollama ile çalışır.");
+  await RG.addDocument("PHP", "Smart Update v5 GitHub release tabanlı güncelleme sistemidir.");
+  const st = RG.stats();
+  assert.strictEqual(st.documents, 2, "iki belge");
+  const docs = RG.listDocuments();
+  assert.strictEqual(docs.length, 2, "liste iki belge");
+  const hits = await RG.search("güncelleme sistemi");
+  assert.ok(hits.length >= 1 && hits[0].title, "arama isabet (keyword fallback)");
+  const del = RG.deleteDocument(docs[0].docId);
+  assert.ok(del.ok && del.removed >= 1, "belge silindi");
+  assert.strictEqual(RG.listDocuments().length, 1, "bir belge kaldı");
+  RG.clearAll();
+  ok("RAG: belge ekle/listele/ara/sil");
+}
+
 console.log(`\n${passed} test geçti ✅`);

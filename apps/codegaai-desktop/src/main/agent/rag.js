@@ -158,6 +158,26 @@ function stats() {
   return { chunks: data.items.length, documents: docs.size, embedded };
 }
 
+function listDocuments() {
+  const data = load();
+  const map = new Map();
+  for (const it of data.items) {
+    const cur = map.get(it.docId) || { docId: it.docId, title: it.title, chunks: 0, embedded: 0, at: it.at };
+    cur.chunks += 1;
+    if (Array.isArray(it.embedding)) cur.embedded += 1;
+    map.set(it.docId, cur);
+  }
+  return [...map.values()].sort((a, b) => (b.at || 0) - (a.at || 0));
+}
+
+function deleteDocument(docId) {
+  const data = load();
+  const before = data.items.length;
+  data.items = data.items.filter((i) => i.docId !== docId);
+  save(data);
+  return { ok: true, removed: before - data.items.length };
+}
+
 function clearAll() {
   save({ items: [] });
   return true;
@@ -168,6 +188,8 @@ module.exports = {
   search,
   stats,
   clearAll,
+  listDocuments,
+  deleteDocument,
   // test edilebilir saf fonksiyonlar:
   cosineSimilarity,
   chunkText,

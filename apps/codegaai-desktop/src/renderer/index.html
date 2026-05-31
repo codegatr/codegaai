@@ -357,17 +357,36 @@
           </div>
         </details>
 
-        <details class="settings-group planned-group" data-cat="rag" data-label="RAG">
+                <details class="settings-group" data-cat="rag" data-label="RAG">
           <summary>RAG</summary>
           <div class="settings-page-head">
             <h1>RAG</h1>
-            <p>Belge tabanlı bilgi getirme.</p>
+            <p>Belge tabanlı bilgi getirme. Eklenen metinler parçalara bölünür; Ollama açıksa anlamsal (embedding), değilse anahtar kelime ile aranır ve cevaba bağlam olarak katılır.</p>
           </div>
           <div class="settings-section">
-            <h2>RAG</h2>
-            <div class="settings-row"><div><strong>RAG etkin</strong><p>Belge bağlamını cevaba kat</p></div><span class="badge-active">Aktif</span></div>
-            <div class="settings-row"><div><strong>Dosya yükleme & indeksleme</strong><p>PDF/MD/TXT içe aktar</p></div><span class="badge-plan">Planlı</span></div>
-            <div class="settings-row"><div><strong>Chunk ayarları</strong><p>Parça boyutu / örtüşme</p></div><span class="badge-plan">Planlı</span></div>
+            <div class="settings-row"><div><strong>RAG etkin</strong><p>İlgili belge parçalarını cevaba bağlam olarak kat.</p></div><button type="button" id="toggle-rag">—</button></div>
+            <p class="overview-note" id="rag-stats">İstatistik yükleniyor…</p>
+          </div>
+          <div class="settings-section">
+            <h2>Belge Ekle</h2>
+            <div class="settings-field">
+              <input type="text" id="rag-title" placeholder="Başlık (örn. PHP Notları)" autocomplete="off" />
+              <textarea id="rag-text" rows="4" placeholder="Metni buraya yapıştır..." spellcheck="false"></textarea>
+              <button type="button" id="rag-add">Ekle ve İndeksle</button>
+            </div>
+          </div>
+          <div class="settings-section">
+            <h2>Belgeler <button type="button" id="rag-refresh" class="mini-btn">Yenile</button></h2>
+            <div class="model-list" id="rag-docs"></div>
+            <button type="button" id="rag-clear" class="mini-btn">Tümünü Temizle</button>
+          </div>
+          <div class="settings-section">
+            <h2>Ara (dene)</h2>
+            <div class="settings-field">
+              <input type="text" id="rag-query" placeholder="Örn: güncelleme sistemi nasıl çalışır?" autocomplete="off" />
+              <button type="button" id="rag-search-btn">Ara</button>
+              <pre id="rag-search-out" class="code-output" hidden></pre>
+            </div>
           </div>
         </details>
 
