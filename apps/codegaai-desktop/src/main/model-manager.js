@@ -906,6 +906,8 @@ module.exports = {
   instantAnswer,
   detectTask,
   candidateModelsForTask,
+  chooseModelForTask,
+  TASK_MODELS,
   missingModelReply,
   parsePullProgress,
   isSmallTalk,

@@ -754,4 +754,19 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Log Merkezi: kayıt + listeleme + temizleme");
 }
 
+
+// Model Router: görev tespiti + kurulu modele göre seçim
+{
+  const mm = await import(path.join(mainDir, "model-manager.js"));
+  const M = mm.default || mm;
+  assert.strictEqual(M.detectTask("PHP ile login fonksiyonu yaz"), "code", "kod görevi");
+  assert.strictEqual(M.detectTask("bana bir makale yaz"), "writing", "yazı görevi");
+  assert.ok(M.TASK_MODELS && Array.isArray(M.TASK_MODELS.code), "TASK_MODELS dışa açık");
+  const chosen = M.chooseModelForTask("code", ["qwen2.5:3b"]);
+  assert.ok(typeof chosen === "string" && chosen.length > 0, "kurulu yoksa tercih ilk sırası seçilir");
+  const chosen2 = M.chooseModelForTask("code", M.TASK_MODELS.code);
+  assert.strictEqual(chosen2, M.TASK_MODELS.code[0], "kurulu varsa ilk tercih seçilir");
+  ok("Model Router: görev tespiti + model seçimi (kurulu duyarlı)");
+}
+
 console.log(`\n${passed} test geçti ✅`);

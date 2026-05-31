@@ -400,6 +400,34 @@ function registerIpc() {
   ipcMain.handle("system:analyze", async () => systemInfo.analyze(MODEL_OPTIONS));
   ipcMain.handle("metrics:get", async () => metrics.snapshot());
   ipcMain.handle("stats:get", async () => stats.summary());
+  ipcMain.handle("router:info", async () => {
+    const mm = require("./model-manager");
+    let installed = [];
+    try { installed = await modelManager.installedModels(); } catch (_e) { installed = []; }
+    const tasks = ["code", "image", "writing", "chat"];
+    const labels = { code: "Kod / Yazılım", image: "Görsel", writing: "Yazı / İçerik", chat: "Sohbet" };
+    const rows = tasks.map((task) => ({
+      task,
+      label: labels[task] || task,
+      preferred: (mm.TASK_MODELS && mm.TASK_MODELS[task]) || [],
+      chosen: mm.chooseModelForTask(task, installed),
+    }));
+    return { installed, rows };
+  });
+  ipcMain.handle("router:test", async (_event, payload) => {
+    const mm = require("./model-manager");
+    const input = (payload && payload.input) || "";
+    let installed = [];
+    try { installed = await modelManager.installedModels(); } catch (_e) { installed = []; }
+    const task = mm.detectTask(input);
+    return {
+      input,
+      task,
+      candidates: mm.candidateModelsForTask(task, installed),
+      chosen: mm.chooseModelForTask(task, installed),
+    };
+  });
+
   ipcMain.handle("logs:get", async () => logs.list(120));
   ipcMain.handle("logs:clear", async () => { logs.clearAll(); logs.info("logs", "Log temizlendi"); return true; });
 

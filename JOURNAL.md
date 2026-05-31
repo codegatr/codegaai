@@ -4,6 +4,23 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 99 — Model Router görünür sayfası (31 May 2026, Claude)
+
+PLANLI olan Model Router gerçek oldu. Yönlendirme mantığı (detectTask + TASK_MODELS +
+chooseModelForTask) zaten arka plandaydı; şimdi görünür + denenebilir.
+
+- model-manager: TASK_MODELS + chooseModelForTask dışa açıldı.
+- main IPC: router:info (görev→tercih listesi + kurulu modele göre seçilen + kurulu liste),
+  router:test (örnek girdi -> tespit edilen görev + adaylar + seçilen). preload routerInfo/
+  routerTest.
+- UI: Model Router sayfası dinamik (#router-rows kuralları + #router-installed kurulu
+  modeller); "Yönlendirmeyi dene" kutusu (girdi -> görev/seçilen/adaylar). PLANLI kaldırıldı.
+
+Test 48/48. Surum 0.47.0 -> **0.48.0**. Sıradaki: Modeller (kurulu model yönetimi).
+
+---
+
+
 ## ✅ Faz 98 — (1) Aktif Model gerçek + (2) Log Merkezi gerçek (31 May 2026, Claude)
 
 Sıralı eksik kapatma.

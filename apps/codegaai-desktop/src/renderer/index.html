@@ -225,19 +225,24 @@
           </div>
         </details>
 
-        <details class="settings-group planned-group" data-cat="router" data-label="Model Router">
+        <details class="settings-group" data-cat="router" data-label="Model Router">
           <summary>Model Router</summary>
           <div class="settings-page-head">
-            <h1>Model Router <span class="badge-plan">Planlı modül</span></h1>
-            <p>Göreve göre model seçimi.</p>
+            <h1>Model Router</h1>
+            <p>Göreve göre otomatik model seçimi. Aşağıda her görev için tercih sırası ve şu an kurulu modele göre seçilen model görünür.</p>
           </div>
           <div class="settings-section">
             <h2>Görev → Model eşlemesi</h2>
-            <div class="settings-row"><div><strong>Kod Yazma</strong><p>Otomatik</p></div><span class="badge-plan">Planlı</span></div>
-            <div class="settings-row"><div><strong>Kod Analizi</strong><p>Otomatik</p></div><span class="badge-plan">Planlı</span></div>
-            <div class="settings-row"><div><strong>Hata Ayıklama</strong><p>Otomatik</p></div><span class="badge-plan">Planlı</span></div>
-            <div class="settings-row"><div><strong>Muhasebe / Finans</strong><p>Otomatik</p></div><span class="badge-plan">Planlı</span></div>
-            <div class="settings-row"><div><strong>Belge Analizi</strong><p>Otomatik</p></div><span class="badge-plan">Planlı</span></div>
+            <div class="model-list" id="router-rows"></div>
+            <p class="overview-note" id="router-installed">Kurulu modeller yükleniyor…</p>
+          </div>
+          <div class="settings-section">
+            <h2>Yönlendirmeyi dene</h2>
+            <div class="settings-field">
+              <input type="text" id="router-test-input" placeholder="Örn: PHP ile bir login fonksiyonu yaz" autocomplete="off" />
+              <button type="button" id="router-test-btn">Hangi modele gider?</button>
+              <pre id="router-test-out" class="code-output" hidden></pre>
+            </div>
           </div>
         </details>
 

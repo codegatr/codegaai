@@ -1060,6 +1060,39 @@ if (logsRefreshBtn) logsRefreshBtn.addEventListener("click", () => refreshLogs()
 const logsClearBtn = document.getElementById("logs-clear");
 if (logsClearBtn) logsClearBtn.addEventListener("click", async () => { try { await window.codega.clearLogs(); refreshLogs(); } catch (_e) {} });
 
+async function refreshRouter() {
+  const box = document.getElementById("router-rows");
+  if (!box) return;
+  try {
+    const r = await window.codega.routerInfo();
+    box.innerHTML = "";
+    for (const row of (r && r.rows) || []) {
+      const div = document.createElement("div");
+      div.className = "settings-row";
+      const pref = (row.preferred || []).join(" → ");
+      div.innerHTML = `<div><strong>${row.label}</strong><p>Tercih: ${pref.replace(/</g,"&lt;")}</p></div><span class="badge-active">${(row.chosen||"—").replace(/</g,"&lt;")}</span>`;
+      box.appendChild(div);
+    }
+    const inst = document.getElementById("router-installed");
+    if (inst) {
+      const list = (r && r.installed) || [];
+      inst.textContent = list.length ? `Kurulu modeller: ${list.join(", ")}` : "Kurulu model yok (Ollama kapalı veya model indirilmemiş). Seçilenler tercih listesinin ilk sırasıdır.";
+    }
+  } catch (_e) {}
+}
+const routerTestBtn = document.getElementById("router-test-btn");
+if (routerTestBtn) routerTestBtn.addEventListener("click", async () => {
+  const input = (document.getElementById("router-test-input") || {}).value || "";
+  const out = document.getElementById("router-test-out");
+  if (!input.trim()) { setTransientStatus("Önce bir örnek yaz."); return; }
+  if (out) { out.hidden = false; out.textContent = "Hesaplanıyor…"; }
+  try {
+    const r = await window.codega.routerTest({ input });
+    const taskTr = { code: "Kod/Yazılım", image: "Görsel", writing: "Yazı/İçerik", chat: "Sohbet" }[r.task] || r.task;
+    if (out) out.textContent = `Görev: ${taskTr}\nSeçilen model: ${r.chosen}\nAdaylar: ${(r.candidates||[]).join(", ")}`;
+  } catch (e) { if (out) out.textContent = "Hata: " + (e.message || e); }
+});
+
 els.settingsButton.addEventListener("click", async () => {
   els.settings.showModal();
   setActiveCat("overview");
@@ -1070,6 +1103,7 @@ els.settingsButton.addEventListener("click", async () => {
   refreshLiveStats();
   startLiveMetrics();
   refreshLogs();
+  refreshRouter();
   // Aktif Model: gerçek model durumundan (dinamik seçilir)
   window.codega.getStatus().then((st) => {
     const raw = st && st.model;
