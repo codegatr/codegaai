@@ -2,6 +2,24 @@ const { autoUpdater } = require("electron-updater");
 const { app } = require("electron");
 const { UPDATE_INTERVAL_MS } = require("../shared/constants");
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function updateErrorMessage(error) {
+  const message = error && error.message ? error.message : String(error || "");
+  if (/not digitally signed|not signed by the application owner/i.test(message)) {
+    return "Bu kurulu sürüm imzasız installer doğrulamasına takıldı. Yeni updater düzeltmesi için bu sürümü bir kez installer ile manuel kurman gerekiyor.";
+  }
+  if (/status code 502|HttpError:\s*502|Unicorn|This page is taking too long to load|github\.com/i.test(message)) {
+    return "GitHub güncelleme dosyasına şu an ulaşılamadı. Bağlantı veya GitHub geçici olarak yoğun olabilir; birazdan tekrar dene.";
+  }
+  if (/latest\.ya?ml|release|download/i.test(message)) {
+    return "Güncelleme bilgisi okunamadı. Release dosyası henüz hazır olmayabilir; birazdan tekrar dene.";
+  }
+  return message.replace(/\s*Data:\s*<!DOCTYPE html>[\s\S]*/i, "").slice(0, 240);
+}
+
 class UpdateService {
   constructor() {
     this.mainWindow = null;
@@ -23,13 +41,7 @@ class UpdateService {
       this.emit("ready", info);
     });
     autoUpdater.on("error", (error) => {
-      const message = error.message || String(error);
-      const unsignedInstaller = /not digitally signed|not signed by the application owner/i.test(message);
-      this.emit("error", {
-        message: unsignedInstaller
-          ? "Bu kurulu sürüm imzasız installer doğrulamasına takıldı. Yeni updater düzeltmesi için bu sürümü bir kez installer ile manuel kurman gerekiyor."
-          : message,
-      });
+      this.emit("error", { message: updateErrorMessage(error) });
     });
   }
 
@@ -46,11 +58,35 @@ class UpdateService {
       this.emit("not-available", { reason: "development" });
       return { skipped: true };
     }
-    return autoUpdater.checkForUpdates();
+
+    try {
+      return await autoUpdater.checkForUpdates();
+    } catch (error) {
+      const raw = error && error.message ? error.message : String(error);
+      if (/status code 502|HttpError:\s*502|Unicorn|github\.com/i.test(raw)) {
+        await sleep(1500);
+        try {
+          return await autoUpdater.checkForUpdates();
+        } catch (retryError) {
+          const message = updateErrorMessage(retryError);
+          this.emit("error", { message });
+          return { ok: false, message };
+        }
+      }
+      const message = updateErrorMessage(error);
+      this.emit("error", { message });
+      return { ok: false, message };
+    }
   }
 
   async download() {
-    return autoUpdater.downloadUpdate();
+    try {
+      return await autoUpdater.downloadUpdate();
+    } catch (error) {
+      const message = updateErrorMessage(error);
+      this.emit("error", { message });
+      return { ok: false, message };
+    }
   }
 
   installNow() {

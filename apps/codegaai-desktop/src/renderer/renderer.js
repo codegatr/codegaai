@@ -106,6 +106,32 @@ function setTransientStatus(text) {
   }, 2400);
 }
 
+function focusComposer() {
+  if (!els.input) return;
+  els.input.disabled = false;
+  els.input.readOnly = false;
+  const apply = () => {
+    try {
+      els.input.focus({ preventScroll: true });
+      const end = els.input.value.length;
+      els.input.setSelectionRange(end, end);
+    } catch (_e) {
+      els.input.focus();
+    }
+  };
+  apply();
+  requestAnimationFrame(apply);
+  window.setTimeout(apply, 0);
+  window.setTimeout(apply, 80);
+}
+
+function resetComposer() {
+  if (!els.input) return;
+  els.input.value = "";
+  els.input.style.height = "auto";
+  focusComposer();
+}
+
 function normalizeChat(chat) {
   return {
     id: chat.id || crypto.randomUUID(),
@@ -183,6 +209,7 @@ function createChat(title = "Yeni sohbet") {
   saveChats();
   renderHistory();
   renderConversation();
+  resetComposer();
 }
 
 function currentChat() {
@@ -225,6 +252,7 @@ function renderHistory() {
       saveChats();
       renderHistory();
       renderConversation();
+      focusComposer();
       if (typeof syncBrainField === "function") {
         syncBrainField();
         if (els.brainBtn) els.brainBtn.classList.toggle("on", !!(currentChat().context || "").trim());
@@ -427,7 +455,7 @@ async function shareChat(chatId) {
   } finally {
     // ↗ butonuna tıklayınca odak orada kalıyordu; giriş alanına geri ver ki
     // kullanıcı hemen yazıp Enter ile gönderebilsin.
-    if (els.input) els.input.focus();
+    focusComposer();
   }
 }
 
@@ -445,7 +473,7 @@ function deleteChat(chatId) {
     renderHistory();
     renderConversation();
   }
-  if (els.input) els.input.focus(); // silince yazma alanına odak ver
+  resetComposer();
 }
 
 const ZIP_CRC_TABLE = (() => {
@@ -2223,5 +2251,6 @@ if (!state.chats.length) {
 } else {
   renderHistory();
   renderConversation();
+  focusComposer();
 }
 refreshStatus();
