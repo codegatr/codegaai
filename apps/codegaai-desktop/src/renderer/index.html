@@ -99,12 +99,9 @@
             <div class="ov-card"><span class="k">Toplam İstek</span><span class="v">1.284</span></div>
             <div class="ov-card"><span class="k">Bugün</span><span class="v">37</span></div>
             <div class="ov-card"><span class="k">Token (gün)</span><span class="v">58.2k</span></div>
-            <div class="ov-card"><span class="k">Ort. Yanıt</span><span class="v">2.4sn</span></div>
-            <div class="ov-card"><span class="k">Yerel Motor (Ollama)</span><span class="v" id="ov-ollama">—</span></div>
-            <div class="ov-card"><span class="k">Aktif Model</span><span class="v" id="ov-model">—</span></div>
-            <div class="ov-card"><span class="k">Sürüm</span><span class="v" id="ov-version">—</span></div>
-            <div class="ov-card"><span class="k">Öğrenilen Bilgi</span><span class="v" id="ov-memory">—</span></div>
-            <div class="ov-card"><span class="k">Geri Bildirim</span><span class="v" id="ov-feedback">—</span></div>
+            <div class="ov-card"><span class="k">Ort. Yanıt</span><span class="v">2.4<small>sn</small></span></div>
+            <div class="ov-card"><span class="k">En Çok Model</span><span class="v" id="ov-model">qwen2.5:3b</span></div>
+            <div class="ov-card"><span class="k">En Çok Ajan</span><span class="v">Yazılımcı</span></div>
           </div>
           <p class="overview-note">İstatistik ve kaynak değerleri demo amaçlıdır; gerçek ölçüm için arka uç sayaçları gerekir.</p>
           <div class="overview-dashboard">
@@ -143,8 +140,8 @@
           </div>
         </details>
 
-        <details class="settings-group" open data-cat="model" data-label="Zekâ &amp; Model">
-          <summary>Zekâ &amp; Model</summary>
+        <details class="settings-group" open data-cat="ai" data-label="Yapay Zeka">
+          <summary>Yapay Zeka</summary>
           <div class="settings-row">
             <div>
               <strong>Sağlayıcı</strong>
@@ -192,6 +189,13 @@
           </div>
           <div class="settings-row">
             <div>
+              <strong>Model kayıt dizini</strong>
+              <p id="model-storage-path">Yükleme dizini hazırlanıyor…</p>
+            </div>
+            <span class="badge-active">Yerel</span>
+          </div>
+          <div class="settings-row">
+            <div>
               <strong>Ollama (yerel motor)</strong>
               <p id="ollama-row-status">Yerel modeller için gerekli. Kurulu değilse resmi kurulumu aç.</p>
             </div>
@@ -203,8 +207,53 @@
           </details>
         </details>
 
-        <details class="settings-group" open data-cat="agent" data-label="Ajan Davranışı">
-          <summary>Ajan Davranışı</summary>
+        <details class="settings-group planned-group" data-cat="models" data-label="Modeller">
+          <summary>Modeller</summary>
+          <div class="settings-page-head">
+            <h1>Modeller <span class="badge-plan">Planlı modül</span></h1>
+            <p>Çoklu sağlayıcı API yönetimi.</p>
+          </div>
+          <div class="settings-section">
+            <h2>Sağlayıcılar</h2>
+            <div class="settings-row"><div><strong>Ollama</strong><p>Yerel — aktif</p></div><span class="badge-active">Aktif</span></div>
+            <div class="settings-row"><div><strong>OpenAI</strong><p>API anahtarı gerekli</p></div><span class="badge-plan">Planlı</span></div>
+            <div class="settings-row"><div><strong>Claude (Anthropic)</strong><p>API anahtarı gerekli</p></div><span class="badge-plan">Planlı</span></div>
+            <div class="settings-row"><div><strong>Gemini</strong><p>API anahtarı gerekli</p></div><span class="badge-plan">Planlı</span></div>
+            <div class="settings-row"><div><strong>DeepSeek</strong><p>API anahtarı gerekli</p></div><span class="badge-plan">Planlı</span></div>
+            <div class="settings-row"><div><strong>OpenRouter</strong><p>API anahtarı gerekli</p></div><span class="badge-plan">Planlı</span></div>
+            <div class="settings-row"><div><strong>Qwen / Llama</strong><p>Yerel veya uzak</p></div><span class="badge-plan">Planlı</span></div>
+          </div>
+        </details>
+
+        <details class="settings-group planned-group" data-cat="router" data-label="Model Router">
+          <summary>Model Router</summary>
+          <div class="settings-page-head">
+            <h1>Model Router <span class="badge-plan">Planlı modül</span></h1>
+            <p>Göreve göre model seçimi.</p>
+          </div>
+          <div class="settings-section">
+            <h2>Görev → Model eşlemesi</h2>
+            <div class="settings-row"><div><strong>Kod Yazma</strong><p>Otomatik</p></div><span class="badge-plan">Planlı</span></div>
+            <div class="settings-row"><div><strong>Kod Analizi</strong><p>Otomatik</p></div><span class="badge-plan">Planlı</span></div>
+            <div class="settings-row"><div><strong>Hata Ayıklama</strong><p>Otomatik</p></div><span class="badge-plan">Planlı</span></div>
+            <div class="settings-row"><div><strong>Muhasebe / Finans</strong><p>Otomatik</p></div><span class="badge-plan">Planlı</span></div>
+            <div class="settings-row"><div><strong>Belge Analizi</strong><p>Otomatik</p></div><span class="badge-plan">Planlı</span></div>
+          </div>
+        </details>
+
+        <details class="settings-group" open data-cat="agents" data-label="Ajanlar">
+          <summary>Ajanlar</summary>
+          <div class="settings-page-head">
+            <h1>Ajanlar</h1>
+            <p>Uzman ajan yönetimi.</p>
+          </div>
+          <div class="settings-section">
+            <h2>Mevcut uzmanlar (çoklu ajan)</h2>
+            <div class="settings-row"><div><strong>Araştırmacı (Research)</strong><p>web_search, research, read_url, rag</p></div><span class="badge-active">Aktif</span></div>
+            <div class="settings-row"><div><strong>Yazılımcı (Coding)</strong><p>github_read/list/search, calculate, rag</p></div><span class="badge-active">Aktif</span></div>
+            <div class="settings-row"><div><strong>Denetçi (Reviewer)</strong><p>rag — doğrulama/güvenlik</p></div><span class="badge-active">Aktif</span></div>
+            <div class="settings-row"><div><strong>Genel (Generalist)</strong><p>tüm güvenli araçlar</p></div><span class="badge-active">Aktif</span></div>
+          </div>
           <div class="settings-row">
             <div>
               <strong>Kod Çalıştırıcı (deneysel)</strong>
@@ -300,8 +349,44 @@
           </div>
         </details>
 
-        <details class="settings-group" data-cat="appearance" data-label="Görünüm">
-          <summary>Görünüm</summary>
+        <details class="settings-group planned-group" data-cat="rag" data-label="RAG">
+          <summary>RAG</summary>
+          <div class="settings-page-head">
+            <h1>RAG</h1>
+            <p>Belge tabanlı bilgi getirme.</p>
+          </div>
+          <div class="settings-section">
+            <h2>RAG</h2>
+            <div class="settings-row"><div><strong>RAG etkin</strong><p>Belge bağlamını cevaba kat</p></div><span class="badge-active">Aktif</span></div>
+            <div class="settings-row"><div><strong>Dosya yükleme & indeksleme</strong><p>PDF/MD/TXT içe aktar</p></div><span class="badge-plan">Planlı</span></div>
+            <div class="settings-row"><div><strong>Chunk ayarları</strong><p>Parça boyutu / örtüşme</p></div><span class="badge-plan">Planlı</span></div>
+          </div>
+        </details>
+
+        <details class="settings-group planned-group" data-cat="mcp" data-label="MCP">
+          <summary>MCP</summary>
+          <div class="settings-page-head"><h1>MCP <span class="badge-plan">Planlı modül</span></h1><p>Model Context Protocol sunucuları.</p></div>
+          <div class="settings-section"><h2>MCP</h2><div class="settings-row"><div><strong>MCP sunucuları</strong><p>Bağlı sunucular</p></div><span class="badge-plan">Planlı</span></div><div class="settings-row"><div><strong>MCP araçları & durumu</strong><p>Keşfedilen araçlar</p></div><span class="badge-plan">Planlı</span></div></div>
+        </details>
+
+        <details class="settings-group planned-group" data-cat="tools" data-label="Araçlar">
+          <summary>Araçlar</summary>
+          <div class="settings-page-head"><h1>Araçlar</h1><p>Araç yöneticisi ve yetkiler.</p></div>
+          <div class="settings-section"><h2>Araçlar</h2><div class="settings-row"><div><strong>Web Search</strong><p>Arama aracı</p></div><span class="badge-active">Aktif</span></div><div class="settings-row"><div><strong>Research</strong><p>Araştırma aracı</p></div><span class="badge-active">Aktif</span></div><div class="settings-row"><div><strong>Terminal / Python</strong><p>Denetimli çalıştırma</p></div><span class="badge-plan">Planlı</span></div></div>
+        </details>
+
+        <details class="settings-group planned-group" data-cat="auto" data-label="Otomasyonlar">
+          <summary>Otomasyonlar</summary>
+          <div class="settings-page-head"><h1>Otomasyonlar <span class="badge-plan">Planlı modül</span></h1><p>Zamanlanmış görevler ve workflow.</p></div>
+          <div class="settings-section"><h2>Otomasyon</h2><div class="settings-row"><div><strong>Zamanlanmış görevler</strong><p>Cron benzeri tetikleyici</p></div><span class="badge-plan">Planlı</span></div><div class="settings-row"><div><strong>Workflow oluşturucu</strong><p>Adım adım akış</p></div><span class="badge-plan">Planlı</span></div></div>
+        </details>
+
+        <details class="settings-group" data-cat="general" data-label="Genel">
+          <summary>Genel</summary>
+          <div class="settings-page-head">
+            <h1>Genel</h1>
+            <p>Dil, tema, başlangıç ve bildirimler.</p>
+          </div>
           <div class="settings-row">
             <div>
               <strong>Tema</strong>
@@ -341,8 +426,12 @@
           </div>
         </details>
 
-        <details class="settings-group" data-cat="knowledge" data-label="Hafıza &amp; Bilgi">
-          <summary>Hafıza &amp; Bilgi</summary>
+        <details class="settings-group" data-cat="memory" data-label="Hafıza">
+          <summary>Hafıza</summary>
+          <div class="settings-page-head">
+            <h1>Hafıza</h1>
+            <p>Kalıcı hafıza ve embedding.</p>
+          </div>
           <div class="settings-row">
             <div>
               <strong>GitHub Bağlantısı</strong>
@@ -441,8 +530,20 @@
           </div>
         </details>
 
-        <details class="settings-group" data-cat="updates" data-label="Güncellemeler">
-          <summary>Güncellemeler</summary>
+        <details class="settings-group planned-group" data-cat="security" data-label="Güvenlik">
+          <summary>Güvenlik</summary>
+          <div class="settings-page-head"><h1>Güvenlik</h1><p>Anahtarlar, yedekleme, loglar.</p></div>
+          <div class="settings-section"><h2>Güvenlik</h2><div class="settings-row"><div><strong>GitHub token (yerel)</strong><p>Yalnızca cihazında saklanır, kaynağa yazılmaz</p></div><span class="badge-active">Aktif</span></div><div class="settings-row"><div><strong>API Key yönetimi & şifreleme</strong><p>Sağlayıcı anahtarları</p></div><span class="badge-plan">Planlı</span></div></div>
+        </details>
+
+        <details class="settings-group planned-group" data-cat="system" data-label="Sistem">
+          <summary>Sistem</summary>
+          <div class="settings-page-head"><h1>Sistem <span class="badge-plan">Planlı modül</span></h1><p>Kaynak kullanımı.</p></div>
+          <div class="settings-section"><h2>Kaynaklar</h2><div class="usage-row"><span>CPU</span><strong>%32</strong><i><b style="width:32%"></b></i></div><div class="usage-row"><span>RAM</span><strong>%58</strong><i><b style="width:58%"></b></i></div><div class="usage-row"><span>GPU (VRAM 6GB)</span><strong>%74</strong><i><b style="width:74%"></b></i></div><div class="usage-row"><span>Disk</span><strong>%41</strong><i><b style="width:41%"></b></i></div></div>
+        </details>
+
+        <details class="settings-group" data-cat="logs" data-label="Log Merkezi">
+          <summary>Log Merkezi</summary>
           <div class="settings-row">
             <div>
               <strong>Sürüm</strong>
@@ -454,6 +555,12 @@
             <button type="button" id="download-update">İndir</button>
             <button type="button" id="install-update" hidden>Uygula ve Yeniden Başlat</button>
           </div>
+        </details>
+
+        <details class="settings-group planned-group" data-cat="dev" data-label="Geliştirici">
+          <summary>Geliştirici</summary>
+          <div class="settings-page-head"><h1>Geliştirici</h1><p>Hata ayıklama ve test alanları.</p></div>
+          <div class="settings-section"><h2>Geliştirici</h2><div class="settings-row"><div><strong>Debug modu</strong><p>Ayrıntılı log</p></div><span class="badge-plan">Planlı</span></div><div class="settings-row"><div><strong>API / Prompt test alanı</strong><p>Hızlı deneme</p></div><span class="badge-plan">Planlı</span></div></div>
         </details>
           </div>
         </div>

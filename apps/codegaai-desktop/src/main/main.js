@@ -1,4 +1,5 @@
 const path = require("node:path");
+const fs = require("node:fs");
 const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const { APP_NAME, FEDERATION_BASE_URL, MODEL_OPTIONS } = require("../shared/constants");
 const { ModelManager } = require("./model-manager");
@@ -197,6 +198,10 @@ function registerIpc() {
     return {
       appName: APP_NAME,
       version: app.getVersion(),
+      paths: {
+        userData: app.getPath("userData"),
+        models: process.env.OLLAMA_MODELS || "",
+      },
       model,
     };
   });
@@ -433,19 +438,24 @@ function registerIpc() {
 }
 
 app.whenReady().then(async () => {
+  const userDataPath = app.getPath("userData");
   // Hafıza ve ayarlar kullanıcının userData dizininde kalıcı olsun
   process.env.CODEGA_MEMORY_PATH =
-    process.env.CODEGA_MEMORY_PATH || path.join(app.getPath("userData"), "memory.json");
+    process.env.CODEGA_MEMORY_PATH || path.join(userDataPath, "memory.json");
   process.env.CODEGA_SETTINGS_PATH =
-    process.env.CODEGA_SETTINGS_PATH || path.join(app.getPath("userData"), "agent-settings.json");
+    process.env.CODEGA_SETTINGS_PATH || path.join(userDataPath, "agent-settings.json");
   process.env.CODEGA_RAG_PATH =
-    process.env.CODEGA_RAG_PATH || path.join(app.getPath("userData"), "rag-store.json");
+    process.env.CODEGA_RAG_PATH || path.join(userDataPath, "rag-store.json");
   process.env.CODEGA_IMPROVE_PATH =
-    process.env.CODEGA_IMPROVE_PATH || path.join(app.getPath("userData"), "improve-drafts.json");
+    process.env.CODEGA_IMPROVE_PATH || path.join(userDataPath, "improve-drafts.json");
   process.env.CODEGA_FEEDBACK_PATH =
-    process.env.CODEGA_FEEDBACK_PATH || path.join(app.getPath("userData"), "feedback.json");
+    process.env.CODEGA_FEEDBACK_PATH || path.join(userDataPath, "feedback.json");
   process.env.CODEGA_LEARNING_PATH =
-    process.env.CODEGA_LEARNING_PATH || path.join(app.getPath("userData"), "learning.json");
+    process.env.CODEGA_LEARNING_PATH || path.join(userDataPath, "learning.json");
+  process.env.CODEGA_MODELS_PATH =
+    process.env.CODEGA_MODELS_PATH || path.join(userDataPath, "ollama-models");
+  process.env.OLLAMA_MODELS = process.env.OLLAMA_MODELS || process.env.CODEGA_MODELS_PATH;
+  try { fs.mkdirSync(process.env.OLLAMA_MODELS, { recursive: true }); } catch (_e) {}
 
   registerIpc();
   createWindow();
