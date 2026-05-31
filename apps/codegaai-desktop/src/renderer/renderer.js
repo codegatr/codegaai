@@ -49,6 +49,9 @@ const els = {
   toggleAutoPropose: document.getElementById("toggle-autopropose"),
   expertSelect: document.getElementById("expert-select"),
   toggleStreaming: document.getElementById("toggle-streaming"),
+  toggleContinuous: document.getElementById("toggle-continuous"),
+  learnTopics: document.getElementById("learn-topics"),
+  learnRepo: document.getElementById("learn-repo"),
   providerSelect: document.getElementById("provider-select"),
   openaiBase: document.getElementById("openai-base"),
   openaiKey: document.getElementById("openai-key"),
@@ -928,6 +931,7 @@ els.settingsButton.addEventListener("click", async () => {
   await refreshAgentSettings();
   updateOverview();
   refreshImproveDrafts();
+  if (typeof refreshLearnList === "function") refreshLearnList();
   window.codega.feedbackStats().then((f) => {
     const el = document.getElementById("ov-feedback");
     if (el && f) el.textContent = `👍 ${f.up || 0} · 👎 ${f.down || 0}`;
@@ -1261,6 +1265,49 @@ if (mcpCallBtn) {
   });
 }
 
+if (els.toggleContinuous) els.toggleContinuous.addEventListener("click", () => toggleSetting("continuousLearning", els.toggleContinuous));
+function bindLearnField(el, key) {
+  if (!el) return;
+  el.addEventListener("change", async () => { agentSettings = await window.codega.setSettings({ [key]: el.value.trim() }); });
+}
+bindLearnField(els.learnTopics, "learningTopics");
+bindLearnField(els.learnRepo, "learningSyncRepo");
+
+async function refreshLearnList() {
+  const box = document.getElementById("learn-list");
+  if (!box) return;
+  try {
+    const r = await window.codega.learningList();
+    const notes = (r && r.notes) || [];
+    box.innerHTML = "";
+    const head = document.createElement("p");
+    head.className = "section-label";
+    head.textContent = `Öğrenilen bilgi: ${(r && r.total) || 0}` + (r && r.last ? ` · son konu: ${r.last.topic}` : "");
+    box.appendChild(head);
+    notes.slice(0, 15).forEach((n) => {
+      const row = document.createElement("div");
+      row.className = "settings-row";
+      row.innerHTML = `<div><strong>[${n.source}] ${n.topic}</strong><p>${(n.text||"").replace(/</g,"&lt;").slice(0,160)}</p></div>`;
+      box.appendChild(row);
+    });
+  } catch (_e) {}
+}
+const learnNowBtn = document.getElementById("learn-now");
+if (learnNowBtn) learnNowBtn.addEventListener("click", async () => {
+  learnNowBtn.disabled = true;
+  setTransientStatus("Öğreniliyor… (GitHub + Web + Wikipedia)");
+  try {
+    const r = await window.codega.learnNow({});
+    setTransientStatus(r && r.ok ? `Öğrenildi: ${r.topic} (+${r.added}, toplam ${r.total})` : (r && r.message) || "Öğrenilemedi.");
+    refreshLearnList();
+  } catch (e) { setTransientStatus("Öğrenme hatası: " + (e.message || e)); }
+  finally { learnNowBtn.disabled = false; }
+});
+const learnClearBtn = document.getElementById("learn-clear");
+if (learnClearBtn) learnClearBtn.addEventListener("click", async () => {
+  try { await window.codega.clearLearning(); refreshLearnList(); setTransientStatus("Öğrenilenler temizlendi."); } catch (_e) {}
+});
+
 buildSettingsNav();
 
 // Denetimli kendini geliştirme: öneriyi PR olarak aç
@@ -1391,6 +1438,9 @@ async function refreshAgentSettings() {
     if (els.toggleAutoPropose) applyToggleLabel(els.toggleAutoPropose, !!agentSettings.autoProposePR);
     if (els.expertSelect) els.expertSelect.value = agentSettings.expertMode || "genel";
     if (els.toggleStreaming) applyToggleLabel(els.toggleStreaming, agentSettings.streaming !== false);
+    if (els.toggleContinuous) applyToggleLabel(els.toggleContinuous, !!agentSettings.continuousLearning);
+    if (els.learnTopics) els.learnTopics.value = agentSettings.learningTopics || "";
+    if (els.learnRepo) els.learnRepo.value = agentSettings.learningSyncRepo || "";
     if (els.providerSelect) els.providerSelect.value = agentSettings.provider || "ollama";
     if (els.openaiBase) els.openaiBase.value = agentSettings.openaiBaseUrl || "";
     if (els.openaiKey) els.openaiKey.value = agentSettings.openaiApiKey || "";

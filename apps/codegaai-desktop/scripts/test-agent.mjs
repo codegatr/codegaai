@@ -572,4 +572,21 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   }
 }
 
+// 36) Sürekli öğrenme: kaynak çekimi (canlı) + depo tekrar engelleme
+{
+  const lMod = await import(path.join(mainDir, "agent", "learning.js"));
+  const L = lMod.default || lMod;
+  const notes = await L.fetchKnowledge("Wikipedia");
+  assert.ok(Array.isArray(notes) && notes.length >= 1, "en az bir kaynaktan bilgi");
+  const storeMod = await import(path.join(mainDir, "agent", "learning-store.js"));
+  const store = storeMod.default || storeMod;
+  process.env.CODEGA_LEARNING_PATH = path.join(os.tmpdir(), "codega-learn-test-" + Date.now() + ".json");
+  const a1 = store.addNotes(notes);
+  const a2 = store.addNotes(notes);
+  assert.ok(a1 >= 1, "ilk ekleme");
+  assert.strictEqual(a2, 0, "tekrarlar eklenmez");
+  store.clearAll();
+  ok("Sürekli öğrenme: kaynak çekimi + tekrar engelleme");
+}
+
 console.log(`\n${passed} test geçti ✅`);

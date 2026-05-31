@@ -4,6 +4,30 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 90 — Sürekli Öğrenme (GitHub + Web + Wikipedia) — gerçek (B) (30 May 2026, Claude)
+
+Kullanıcı (B)'yi seçti: kaynaklardan sürekli öğrenme. GERÇEK, opt-in, ana akışa dokunmaz.
+
+- learning.js: fetchKnowledge(topic) -> 3 kaynak (her biri korumalı, Promise.allSettled):
+  wikipedia (REST summary), duckduckgo (Anlık Yanıt; Google'ın ücretsiz API'si yok),
+  github (search/repositories). Canlı test edildi (Wikipedia+GitHub döndü).
+- learning-store.js: kalıcı not deposu (CODEGA_LEARNING_PATH), dedupe (source|topic|text),
+  max 300, list/count/clear.
+- main: learnOnce(topic) tur başına 1 konu (round-robin), learningTopics ayardan ya da
+  kişisel hafızadan türetilir; addNotes; opsiyonel GitHub yedeği (learningSyncRepo +
+  token -> ogrenilenler.md appendToFile). scheduleLearning: ilk ~1dk, sonra her 25dk,
+  yalnız continuousLearning AÇIKSA. IPC learning:now/list/clear. env CODEGA_LEARNING_PATH.
+- settings: continuousLearning(off), learningTopics(""), learningSyncRepo("").
+- UI (Ajan Davranışı): "Sürekli Öğrenme" toggle (#toggle-continuous — eski 'Otonom
+  Öğrenme'/toggle-learning ile ÇAKIŞMA giderildi), konular, yedek repo, "Şimdi Öğren",
+  öğrenilenler listesi+sayaç, temizle.
+
+DÜRÜST: Uygulama açık + Ollama gerekmez (özet için model kullanılmıyor; kaynak metni
+saklanır). Google resmi ücretsiz API yok -> DuckDuckGo. Test 36/36. Surum 0.32->**0.33.0**.
+
+---
+
+
 ## ✅ Faz 89 — Sil-sonrası yazma + sadelik (çizgiler) düzeltmeleri (30 May 2026, Claude)
 
 Kullanıcı şikayetleri: (1) sohbet silince ana ekrana atıyor + yazamıyor, (2) sohbet

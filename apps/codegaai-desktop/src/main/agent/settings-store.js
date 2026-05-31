@@ -32,6 +32,9 @@ const DEFAULTS = {
   openaiBaseUrl: "https://api.openai.com/v1",
   openaiApiKey: "", // YALNIZCA yerelde saklanır; kullanıcının kendi sağlayıcısına gider
   openaiModel: "gpt-4o-mini",
+  continuousLearning: false, // açıkken kaynaklardan (GitHub/Web/Wikipedia) sürekli öğren
+  learningTopics: "", // virgülle ayrılmış konular (boşsa öğrenilen/kişisel hafızadan türetilir)
+  learningSyncRepo: "", // owner/repo — öğrenilenleri buraya yedekle (boşsa yalnız yerel)
   theme: "oled", // görünüm teması (oled/slate/midnight/warm)
   accent: "#f59e0b", // vurgu rengi (prototip amber)
   fontScale: "orta", // sohbet yazı boyutu (kucuk/orta/buyuk)

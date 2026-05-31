@@ -13,6 +13,8 @@ const selfImprove = require("./agent/self-improve");
 const improveDrafts = require("./agent/improve-drafts");
 const feedback = require("./agent/feedback");
 const systemInfo = require("./agent/system-info");
+const learning = require("./agent/learning");
+const learningStore = require("./agent/learning-store");
 const { ollamaReachable } = require("./agent/ollama-client");
 
 const modelManager = new ModelManager();
@@ -46,6 +48,55 @@ async function doMaintenance() {
 // Otonom öneri (opt-in): ajan kendi gözlemlerinden KENDİLİĞİNDEN PR açar.
 // GÜVENLİK SINIRI (kod akışında sabit, model değiştiremez): yalnızca AYRI DALDA PR
 // açar; ASLA main'e yazmaz, ASLA merge etmez. Her turda en fazla 1 PR (spam yok).
+// Sürekli öğrenme (opt-in): açıkken kaynaklardan konu araştırıp belleğe yazar.
+// Tur başına 1 konu (yük/spam olmasın). Round-robin için sayaç.
+let _learnIdx = 0;
+let lastLearn = null;
+function learningTopics() {
+  const s = settingsStore.getSettings();
+  const fromSettings = String(s.learningTopics || "").split(",").map((t) => t.trim()).filter(Boolean);
+  if (fromSettings.length) return fromSettings;
+  // Konu verilmemişse kişisel hafızadan türet
+  try {
+    const mem = require("./agent/memory");
+    const facts = mem.listFacts ? mem.listFacts() : [];
+    return facts.map((f) => String(f.text || f).replace(/^Kullanıcı(nın)?\s+/i, "").slice(0, 40)).filter(Boolean).slice(0, 5);
+  } catch (_e) {
+    return [];
+  }
+}
+
+async function learnOnce(manualTopic) {
+  const topics = manualTopic ? [manualTopic] : learningTopics();
+  if (!topics.length) return { ok: false, message: "Öğrenilecek konu yok (Ayarlar'dan konu ekle)." };
+  const topic = topics[_learnIdx % topics.length];
+  _learnIdx += 1;
+  const notes = await learning.fetchKnowledge(topic, { token: "" });
+  const added = learningStore.addNotes(notes);
+  lastLearn = { at: Date.now(), topic, found: notes.length, added, total: learningStore.count() };
+
+  // GitHub yedeği (opsiyonel): learningSyncRepo + token varsa ekle
+  const repo = settingsStore.getSettings().learningSyncRepo || "";
+  if (added && repo && githubClient.hasToken()) {
+    try {
+      const { owner, repo: r } = githubClient.splitRepo(repo);
+      const meta = await githubClient.getRepoMeta(owner, r);
+      const branch = (meta && meta.default_branch) || "main";
+      const lines = notes.map((n) => `- [${n.source}] ${n.topic}: ${String(n.text).replace(/\n/g, " ")}${n.url ? ` (${n.url})` : ""}`);
+      await githubClient.appendToFile(owner, r, "ogrenilenler.md", branch, lines, `CODEGA AI öğrendi: ${topic}`);
+    } catch (_e) { /* yedek hatası öğrenmeyi durdurmasın */ }
+  }
+  return { ok: true, ...lastLearn };
+}
+
+function scheduleLearning() {
+  const tick = async () => {
+    try { if (settingsStore.getSettings().continuousLearning) await learnOnce(); } catch (_e) {}
+  };
+  setTimeout(tick, 60 * 1000); // ilk tur ~1 dk sonra
+  setInterval(tick, 25 * 60 * 1000); // sonra her 25 dk
+}
+
 let lastAutoPropose = null;
 async function maybeAutoPropose() {
   try {
@@ -228,6 +279,10 @@ function registerIpc() {
 
   ipcMain.handle("system:analyze", async () => systemInfo.analyze(MODEL_OPTIONS));
 
+  ipcMain.handle("learning:now", async (_event, payload) => learnOnce(payload && payload.topic));
+  ipcMain.handle("learning:list", async () => ({ notes: learningStore.list(40), total: learningStore.count(), last: lastLearn }));
+  ipcMain.handle("learning:clear", async () => { learningStore.clearAll(); return true; });
+
   ipcMain.handle("mcp:listTools", async (_event, payload) => {
     const mcp = require("./agent/mcp-client");
     const url = (payload && payload.url) || "";
@@ -279,6 +334,8 @@ app.whenReady().then(async () => {
     process.env.CODEGA_IMPROVE_PATH || path.join(app.getPath("userData"), "improve-drafts.json");
   process.env.CODEGA_FEEDBACK_PATH =
     process.env.CODEGA_FEEDBACK_PATH || path.join(app.getPath("userData"), "feedback.json");
+  process.env.CODEGA_LEARNING_PATH =
+    process.env.CODEGA_LEARNING_PATH || path.join(app.getPath("userData"), "learning.json");
 
   registerIpc();
   createWindow();
@@ -288,6 +345,7 @@ app.whenReady().then(async () => {
   // Kendi kendine bakım: açılışta bir kez + her 5 dakikada bir (güvenli, kod değiştirmez)
   doMaintenance().then(() => maybeAutoPropose()).catch(() => {});
   setInterval(() => { doMaintenance().then(() => maybeAutoPropose()).catch(() => {}); }, 5 * 60 * 1000);
+  scheduleLearning();
 
   // Başlangıçta GitHub'daki bilgi dosyasını yerel belleğe yükle (yapılandırıldıysa)
   knowledge.syncDown().catch(() => {});
