@@ -382,6 +382,34 @@ function registerIpc() {
 
   ipcMain.handle("maintenance:run", async () => (await doMaintenance()) || { items: [], repairs: [], healthy: true });
   ipcMain.handle("maintenance:status", async () => lastMaintenance);
+  ipcMain.handle("automations:status", async () => {
+    const s = settingsStore.getSettings();
+    return {
+      items: [
+        {
+          key: "continuousLearning",
+          label: "Sürekli Öğrenme",
+          desc: "GitHub + Web + Wikipedia (+arXiv/SO/HN/MDN) kaynaklarından her ~25 dk konu araştırır.",
+          enabled: !!s.continuousLearning,
+          last: lastLearn ? { at: lastLearn.at, info: `son konu: ${lastLearn.topic} (+${lastLearn.added})` } : null,
+        },
+        {
+          key: "selfMaintenance",
+          label: "Sağlık Denetimi (Kendini Bakım)",
+          desc: "Her 5 dk güvenli sağlık denetimi + bozuk JSON onarımı (kod değiştirmez).",
+          enabled: !!s.selfMaintenance,
+          last: lastMaintenance ? { at: Date.now(), info: lastMaintenance.healthy ? "sağlıklı" : "sorun bulundu/onarıldı" } : null,
+        },
+        {
+          key: "autoProposePR",
+          label: "Otomatik Öneri PR",
+          desc: "Gözlenen hatalardan iyileştirme taslağı üretip GitHub'da PR açar (yalnız dal; ana dala merge etmez).",
+          enabled: !!s.autoProposePR,
+          last: lastAutoPropose ? { at: lastAutoPropose.at, info: `PR #${lastAutoPropose.number}` } : null,
+        },
+      ],
+    };
+  });
 
   ipcMain.handle("improve:propose", async (_event, payload) => {
     const repo = (payload && payload.repo) || settingsStore.getSettings().knowledgeRepo || "";

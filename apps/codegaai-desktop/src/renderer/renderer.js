@@ -1147,6 +1147,39 @@ async function refreshModelsPage() {
 const modelsRefreshBtn = document.getElementById("models-refresh");
 if (modelsRefreshBtn) modelsRefreshBtn.addEventListener("click", () => refreshModelsPage());
 
+async function refreshAutomations() {
+  const box = document.getElementById("auto-list");
+  if (!box) return;
+  try {
+    const data = await window.codega.automationsStatus();
+    box.innerHTML = "";
+    for (const it of (data && data.items) || []) {
+      const row = document.createElement("div");
+      row.className = "settings-row";
+      let lastTxt = "Henüz çalışmadı";
+      if (it.last && it.last.at) {
+        const t = new Date(it.last.at);
+        const hh = String(t.getHours()).padStart(2,"0")+":"+String(t.getMinutes()).padStart(2,"0");
+        lastTxt = `Son: ${hh}${it.last.info ? " · " + it.last.info : ""}`;
+      }
+      row.innerHTML = `<div><strong>${it.label}</strong><p>${(it.desc||"").replace(/</g,"&lt;")}<br><span class="log-time">${lastTxt.replace(/</g,"&lt;")}</span></p></div>`;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      applyToggleLabel(btn, it.enabled);
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        try { agentSettings = await window.codega.setSettings({ [it.key]: !it.enabled }); applyToggleLabel(btn, !it.enabled); refreshAutomations(); }
+        catch (e) { setTransientStatus("Hata: " + (e.message||e)); }
+        finally { btn.disabled = false; }
+      });
+      row.appendChild(btn);
+      box.appendChild(row);
+    }
+  } catch (_e) {}
+}
+const autoRefreshBtn = document.getElementById("auto-refresh");
+if (autoRefreshBtn) autoRefreshBtn.addEventListener("click", () => refreshAutomations());
+
 els.settingsButton.addEventListener("click", async () => {
   els.settings.showModal();
   setActiveCat("overview");
@@ -1159,6 +1192,7 @@ els.settingsButton.addEventListener("click", async () => {
   refreshLogs();
   refreshRouter();
   refreshModelsPage();
+  refreshAutomations();
   // Aktif Model: gerçek model durumundan (dinamik seçilir)
   window.codega.getStatus().then((st) => {
     const raw = st && st.model;

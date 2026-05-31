@@ -4,6 +4,22 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 101 — Otomasyonlar yönetim sayfası (31 May 2026, Claude)
+
+PLANLI olan Otomasyonlar gerçek oldu. Arka plandaki 3 zamanlı iş görünür + aç/kapa.
+
+- main IPC automations:status: continuousLearning (her ~25dk öğrenme), selfMaintenance
+  (her 5dk sağlık denetimi), autoProposePR (gözlenen hatadan PR taslağı — yalnız dal).
+  Her biri için açıklama + son çalışma (lastLearn/lastMaintenance/lastAutoPropose).
+  preload automationsStatus.
+- UI: Otomasyonlar sayfası dinamik (#auto-list); her görev için açıklama + son çalışma
+  zamanı + aç/kapa toggle (setSettings ile). Yenile. PLANLI kaldırıldı.
+
+Test 49/49. Surum 0.49.0 -> **0.50.0**. Sıradaki: Güvenlik / Geliştirici.
+
+---
+
+
 ## ✅ Faz 100 — Modeller yönetim sayfası (31 May 2026, Claude)
 
 PLANLI olan Modeller sayfası gerçek oldu.

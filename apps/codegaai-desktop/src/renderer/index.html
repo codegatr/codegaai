@@ -383,10 +383,13 @@
           <div class="settings-section"><h2>Araçlar</h2><div class="settings-row"><div><strong>Web Search</strong><p>Arama aracı</p></div><span class="badge-active">Aktif</span></div><div class="settings-row"><div><strong>Research</strong><p>Araştırma aracı</p></div><span class="badge-active">Aktif</span></div><div class="settings-row"><div><strong>Terminal / Python</strong><p>Denetimli çalıştırma</p></div><span class="badge-plan">Planlı</span></div></div>
         </details>
 
-        <details class="settings-group planned-group" data-cat="auto" data-label="Otomasyonlar">
+        <details class="settings-group" data-cat="auto" data-label="Otomasyonlar">
           <summary>Otomasyonlar</summary>
-          <div class="settings-page-head"><h1>Otomasyonlar <span class="badge-plan">Planlı modül</span></h1><p>Zamanlanmış görevler ve workflow.</p></div>
-          <div class="settings-section"><h2>Otomasyon</h2><div class="settings-row"><div><strong>Zamanlanmış görevler</strong><p>Cron benzeri tetikleyici</p></div><span class="badge-plan">Planlı</span></div><div class="settings-row"><div><strong>Workflow oluşturucu</strong><p>Adım adım akış</p></div><span class="badge-plan">Planlı</span></div></div>
+          <div class="settings-page-head"><h1>Otomasyonlar</h1><p>Arka planda çalışan zamanlı işler. Uygulama açıkken çalışır; her birini buradan aç/kapatabilirsin.</p></div>
+          <div class="settings-section">
+            <h2>Zamanlı Görevler <button type="button" id="auto-refresh" class="mini-btn">Yenile</button></h2>
+            <div class="model-list" id="auto-list"></div>
+          </div>
         </details>
 
         <details class="settings-group" data-cat="general" data-label="Genel">
