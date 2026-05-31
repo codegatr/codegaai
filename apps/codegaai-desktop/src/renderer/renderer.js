@@ -52,6 +52,7 @@ const els = {
   toggleContinuous: document.getElementById("toggle-continuous"),
   toggleSemantic: document.getElementById("toggle-semantic"),
   toggleMcpAuto: document.getElementById("toggle-mcp-auto"),
+  toggleDistill: document.getElementById("toggle-distill"),
   learnTopics: document.getElementById("learn-topics"),
   learnRepo: document.getElementById("learn-repo"),
   providerSelect: document.getElementById("provider-select"),
@@ -1274,6 +1275,7 @@ if (mcpCallBtn) {
 
 if (els.toggleContinuous) els.toggleContinuous.addEventListener("click", () => toggleSetting("continuousLearning", els.toggleContinuous));
 if (els.toggleSemantic) els.toggleSemantic.addEventListener("click", () => toggleSetting("semanticSearch", els.toggleSemantic));
+if (els.toggleDistill) els.toggleDistill.addEventListener("click", () => toggleSetting("distillLearning", els.toggleDistill));
 function bindLearnField(el, key) {
   if (!el) return;
   el.addEventListener("change", async () => { agentSettings = await window.codega.setSettings({ [key]: el.value.trim() }); });
@@ -1462,6 +1464,7 @@ async function refreshAgentSettings() {
     if (els.toggleStreaming) applyToggleLabel(els.toggleStreaming, agentSettings.streaming !== false);
     if (els.toggleContinuous) applyToggleLabel(els.toggleContinuous, !!agentSettings.continuousLearning);
     if (els.toggleSemantic) applyToggleLabel(els.toggleSemantic, !!agentSettings.semanticSearch);
+    if (els.toggleDistill) applyToggleLabel(els.toggleDistill, !!agentSettings.distillLearning);
     if (els.toggleMcpAuto) applyToggleLabel(els.toggleMcpAuto, !!agentSettings.mcpAutoTools);
     if (els.learnTopics) els.learnTopics.value = agentSettings.learningTopics || "";
     if (els.learnRepo) els.learnRepo.value = agentSettings.learningSyncRepo || "";

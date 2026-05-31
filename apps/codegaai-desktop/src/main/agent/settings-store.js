@@ -21,6 +21,7 @@ const DEFAULTS = {
   idleLearning: false, // boşta öğrenilenleri GitHub'a senkronla (opt-in, sadece NOT)
   ragEnabled: true, // semantik bellek/doküman getirimi (RAG)
   embedModel: "nomic-embed-text",
+  distillLearning: false, // öğrenilen ham notları modelle kısa özete indir (Ollama/model gerekir)
   mcpServerUrl: "", // ajana bağlanacak MCP sunucu URL
   mcpAutoTools: false, // açıkken MCP sunucu araçları ajanın araç döngüsüne eklenir // Ollama embedding modeli
   selfReflection: false, // cevabı denetleyip düzelt (yavaş; opt-in)

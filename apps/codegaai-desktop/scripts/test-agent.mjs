@@ -653,4 +653,15 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("MCP -> ajan döngüsü: kayıt + tanıma + promptta görünme");
 }
 
+// 41) Damıtım promptu (saf): konu + kaynak notları içerir
+{
+  const lMod = await import(path.join(mainDir, "agent", "learning.js"));
+  const L = lMod.default || lMod;
+  const msgs = L.buildDistillMessages("PHP 8.3", "[wikipedia] PHP betik dili\n[github] repo");
+  assert.ok(Array.isArray(msgs) && msgs.length === 2, "iki mesaj");
+  assert.ok(/damıtıcı/i.test(msgs[0].content), "sistem rolü damıtıcı");
+  assert.ok(/PHP 8\.3/.test(msgs[1].content) && /betik dili/.test(msgs[1].content), "konu+notlar kullanıcı mesajında");
+  ok("Damıtım promptu: konu + kaynak notları doğru kurulur");
+}
+
 console.log(`\n${passed} test geçti ✅`);

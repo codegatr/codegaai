@@ -4,6 +4,25 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 96 — Notları modelle damıtma — plan #5 (30 May 2026, Claude)
+
+Eksik #5: sürekli öğrenme ham kaynak metni saklıyordu; artık opt-in olarak modelle
+kısa kalıcı özete indiriyor.
+
+- learning.js: buildDistillMessages(topic, notesText) (saf, test edilebilir) — sistem:
+  "bilgi damıtıcısı, TR, en fazla 2 cümle, sadece olgu"; kullanıcı: konu + kaynak notlar.
+- main.learnOnce: distillLearning açıkken addNotes sonrası ham notları birleştir ->
+  modelManager.generate(model, buildDistillMessages) -> özet boş değilse depoya
+  {source:"özet"} olarak ekle (sonraki embedding backfill bunu da vektörler). Model
+  yoksa/başarısızsa ham notlar kalır.
+- settings: distillLearning(off). UI: "Notları Damıt (model ile özetle)" toggle + uyarı.
+
+Opt-in (yavaş donanım yükü). Test 41/41. Surum 0.38.0 -> **0.39.0**.
+Karşılaştırma planının kalanı: yeni meşru kaynaklar; vision; gerçek Docker sandbox.
+
+---
+
+
 ## ✅ Faz 95 — Ana ekrandaki amber çizgi düzeltmesi (30 May 2026, Claude)
 
 Kullanıcı: ana ekranda composer üstünde kahverengi/amber bir çizgi, "ruhu bozulmuş".

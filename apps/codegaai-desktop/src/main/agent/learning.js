@@ -79,4 +79,20 @@ async function fetchKnowledge(topic, opts = {}) {
     .map((r) => ({ ...r.value, at: Date.now() }));
 }
 
-module.exports = { fetchKnowledge, wikipedia, duckduckgo, github };
+/** Damıtım için model mesajları (saf — test edilebilir). */
+function buildDistillMessages(topic, notesText) {
+  return [
+    {
+      role: "system",
+      content:
+        "Sen bir bilgi damıtıcısın. Verilen kaynak notlarını TÜRKÇE, en fazla 2 kısa cümlede, " +
+        "yalnızca olgulara dayalı kalıcı bir bilgiye indir. Yorum katma, uydurma yapma. Sadece özet metnini yaz.",
+    },
+    {
+      role: "user",
+      content: `Konu: ${topic}\n\nKaynak notlar:\n${String(notesText || "").slice(0, 2000)}\n\nKısa kalıcı özet:`,
+    },
+  ];
+}
+
+module.exports = { fetchKnowledge, wikipedia, duckduckgo, github, buildDistillMessages };
