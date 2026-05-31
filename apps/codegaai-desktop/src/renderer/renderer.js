@@ -995,6 +995,48 @@ els.input.addEventListener("keydown", (event) => {
 
 document.getElementById("new-chat").addEventListener("click", () => createChat());
 if (els.historySearch) els.historySearch.addEventListener("input", () => { historyQuery = els.historySearch.value; renderHistory(); });
+let _metricsTimer = null;
+function _fillUsage(prefix, m) {
+  const setV = (id, t) => { const e = document.getElementById(id); if (e) e.textContent = t; };
+  const setB = (id, p) => { const e = document.getElementById(id); if (e) e.style.width = (p == null ? 0 : p) + "%"; };
+  setV(`${prefix}-cpu-v`, m.cpu == null ? "—" : "%" + m.cpu); setB(`${prefix}-cpu-b`, m.cpu);
+  setV(`${prefix}-ram-v`, m.ram == null ? "—" : "%" + m.ram); setB(`${prefix}-ram-b`, m.ram);
+  setV(`${prefix}-gpu-v`, m.gpu == null ? "GPU yok" : "%" + m.gpu); setB(`${prefix}-gpu-b`, m.gpu || 0);
+}
+async function refreshLiveMetrics() {
+  try {
+    const m = await window.codega.getMetrics();
+    if (!m) return;
+    _fillUsage("ov", m);
+    _fillUsage("sys", m);
+    const badge = document.getElementById("ov-usage-badge");
+    if (badge) badge.hidden = true; // gerçek ölçüm; "Demo" rozeti gizlenir
+  } catch (_e) { /* metrik hatası paneli bozmasın */ }
+}
+function startLiveMetrics() {
+  refreshLiveMetrics();
+  if (_metricsTimer) clearInterval(_metricsTimer);
+  _metricsTimer = setInterval(refreshLiveMetrics, 4000);
+}
+function stopLiveMetrics() {
+  if (_metricsTimer) { clearInterval(_metricsTimer); _metricsTimer = null; }
+}
+async function refreshLiveStats() {
+  try {
+    const s = await window.codega.getStats();
+    if (!s) return;
+    const setV = (id, t) => { const e = document.getElementById(id); if (e) e.textContent = t; };
+    const fmt = (n) => (n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(n));
+    setV("ov-total", (s.total || 0).toLocaleString("tr-TR"));
+    setV("ov-today", String(s.today || 0));
+    setV("ov-tokens", fmt(s.tokensToday || 0));
+    setV("ov-avg", (s.avgSeconds || 0) + " sn");
+    setV("ov-model", s.topModel || "—");
+    setV("ov-agent", s.topAgent || "—");
+  } catch (_e) { /* istatistik hatası paneli bozmasın */ }
+}
+if (els.settings) els.settings.addEventListener("close", stopLiveMetrics);
+
 els.settingsButton.addEventListener("click", async () => {
   els.settings.showModal();
   setActiveCat("overview");
@@ -1002,6 +1044,8 @@ els.settingsButton.addEventListener("click", async () => {
   await refreshAgentSettings();
   updateOverview();
   refreshImproveDrafts();
+  refreshLiveStats();
+  startLiveMetrics();
   if (typeof refreshLearnList === "function") refreshLearnList();
   window.codega.feedbackStats().then((f) => {
     const el = document.getElementById("ov-feedback");

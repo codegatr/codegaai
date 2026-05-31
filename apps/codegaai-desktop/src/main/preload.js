@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld("codega", {
   shareChat: (chat) => ipcRenderer.invoke("chat:share", chat),
   prepareModel: (modelId) => ipcRenderer.invoke("model:prepare", modelId),
   setupModel: (payload) => ipcRenderer.invoke("model:setup", payload),
+  getMetrics: () => ipcRenderer.invoke("metrics:get"),
+  getStats: () => ipcRenderer.invoke("stats:get"),
   checkForUpdates: () => ipcRenderer.invoke("updates:check"),
   downloadUpdate: () => ipcRenderer.invoke("updates:download"),
   installUpdate: () => ipcRenderer.invoke("updates:install"),

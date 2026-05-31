@@ -96,14 +96,14 @@
             <p>Sistem durumu, model ve kullanım istatistikleri.</p>
           </div>
           <div class="ov-grid">
-            <div class="ov-card"><span class="k">Toplam İstek</span><span class="v">1.284</span></div>
-            <div class="ov-card"><span class="k">Bugün</span><span class="v">37</span></div>
-            <div class="ov-card"><span class="k">Token (gün)</span><span class="v">58.2k</span></div>
-            <div class="ov-card"><span class="k">Ort. Yanıt</span><span class="v">2.4<small>sn</small></span></div>
+            <div class="ov-card"><span class="k">Toplam İstek</span><span class="v" id="ov-total">—</span></div>
+            <div class="ov-card"><span class="k">Bugün</span><span class="v" id="ov-today">—</span></div>
+            <div class="ov-card"><span class="k">Token (gün)</span><span class="v" id="ov-tokens">—</span></div>
+            <div class="ov-card"><span class="k">Ort. Yanıt</span><span class="v" id="ov-avg">—</span></div>
             <div class="ov-card"><span class="k">En Çok Model</span><span class="v" id="ov-model">qwen2.5:3b</span></div>
-            <div class="ov-card"><span class="k">En Çok Ajan</span><span class="v">Yazılımcı</span></div>
+            <div class="ov-card"><span class="k">En Çok Ajan</span><span class="v" id="ov-agent">—</span></div>
           </div>
-          <p class="overview-note">İstatistik ve kaynak değerleri demo amaçlıdır; gerçek ölçüm için arka uç sayaçları gerekir.</p>
+          <p class="overview-note">İstatistikler ve kaynak kullanımı gerçek ölçümlerdir (GPU yalnızca NVIDIA + nvidia-smi varsa).</p>
           <div class="overview-dashboard">
             <section class="dashboard-card">
               <h2>AI Health Dashboard</h2>
@@ -118,10 +118,10 @@
               <div class="status-line"><span class="dot ok"></span><strong>Veritabanı (yerel)</strong><span>hazır</span></div>
             </section>
             <section class="dashboard-card">
-              <h2>Kaynak Kullanımı <span class="badge-plan">Demo</span></h2>
-              <div class="usage-row"><span>CPU</span><strong>%32</strong><i><b style="width:32%"></b></i></div>
-              <div class="usage-row"><span>RAM</span><strong>%58</strong><i><b style="width:58%"></b></i></div>
-              <div class="usage-row"><span>GPU (VRAM)</span><strong>%74</strong><i><b style="width:74%"></b></i></div>
+              <h2>Kaynak Kullanımı <span class="badge-plan" id="ov-usage-badge" hidden>Demo</span></h2>
+              <div class="usage-row"><span>CPU</span><strong id="ov-cpu-v">—</strong><i><b id="ov-cpu-b" style="width:0%"></b></i></div>
+              <div class="usage-row"><span>RAM</span><strong id="ov-ram-v">—</strong><i><b id="ov-ram-b" style="width:0%"></b></i></div>
+              <div class="usage-row"><span>GPU (VRAM)</span><strong id="ov-gpu-v">—</strong><i><b id="ov-gpu-b" style="width:0%"></b></i></div>
             </section>
           </div>
           <div class="settings-row">
@@ -539,7 +539,7 @@
         <details class="settings-group planned-group" data-cat="system" data-label="Sistem">
           <summary>Sistem</summary>
           <div class="settings-page-head"><h1>Sistem <span class="badge-plan">Planlı modül</span></h1><p>Kaynak kullanımı.</p></div>
-          <div class="settings-section"><h2>Kaynaklar</h2><div class="usage-row"><span>CPU</span><strong>%32</strong><i><b style="width:32%"></b></i></div><div class="usage-row"><span>RAM</span><strong>%58</strong><i><b style="width:58%"></b></i></div><div class="usage-row"><span>GPU (VRAM 6GB)</span><strong>%74</strong><i><b style="width:74%"></b></i></div><div class="usage-row"><span>Disk</span><strong>%41</strong><i><b style="width:41%"></b></i></div></div>
+          <div class="settings-section"><h2>Kaynaklar</h2><div class="usage-row"><span>CPU</span><strong id="sys-cpu-v">—</strong><i><b id="sys-cpu-b" style="width:0%"></b></i></div><div class="usage-row"><span>RAM</span><strong id="sys-ram-v">—</strong><i><b id="sys-ram-b" style="width:0%"></b></i></div><div class="usage-row"><span>GPU (VRAM)</span><strong id="sys-gpu-v">—</strong><i><b id="sys-gpu-b" style="width:0%"></b></i></div></div>
         </details>
 
         <details class="settings-group" data-cat="logs" data-label="Log Merkezi">

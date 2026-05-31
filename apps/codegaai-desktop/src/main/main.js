@@ -17,6 +17,8 @@ const systemInfo = require("./agent/system-info");
 const learning = require("./agent/learning");
 const learningStore = require("./agent/learning-store");
 const installer = require("./agent/installer");
+const metrics = require("./agent/metrics");
+const stats = require("./agent/stats");
 const agentTools = require("./agent/tools");
 const { ollamaReachable } = require("./agent/ollama-client");
 
@@ -393,6 +395,8 @@ function registerIpc() {
   ipcMain.handle("feedback:stats", async () => feedback.stats());
 
   ipcMain.handle("system:analyze", async () => systemInfo.analyze(MODEL_OPTIONS));
+  ipcMain.handle("metrics:get", async () => metrics.snapshot());
+  ipcMain.handle("stats:get", async () => stats.summary());
 
   ipcMain.handle("learning:now", async (_event, payload) => learnOnce(payload && payload.topic));
   ipcMain.handle("learning:list", async () => ({ notes: learningStore.list(40), total: learningStore.count(), last: lastLearn }));
@@ -452,6 +456,8 @@ app.whenReady().then(async () => {
     process.env.CODEGA_FEEDBACK_PATH || path.join(userDataPath, "feedback.json");
   process.env.CODEGA_LEARNING_PATH =
     process.env.CODEGA_LEARNING_PATH || path.join(userDataPath, "learning.json");
+  process.env.CODEGA_STATS_PATH =
+    process.env.CODEGA_STATS_PATH || path.join(userDataPath, "stats.json");
   process.env.CODEGA_MODELS_PATH =
     process.env.CODEGA_MODELS_PATH || path.join(userDataPath, "ollama-models");
   process.env.OLLAMA_MODELS = process.env.OLLAMA_MODELS || process.env.CODEGA_MODELS_PATH;

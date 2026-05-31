@@ -535,6 +535,7 @@ class ModelManager {
   }
 
   async _ask(input, opts = {}) {
+    const _t0 = Date.now();
     const onToken = opts.onToken || null;
     // Yeniden üretim: önceki turu (user+assistant) geçmişten çıkar ki bağlam tekrarlanmasın
     if (opts.regenerate) {
@@ -798,6 +799,17 @@ class ModelManager {
     if (this.history.length > MAX_HISTORY_MESSAGES) {
       this.history = this.history.slice(-MAX_HISTORY_MESSAGES);
     }
+
+    // Gerçek kullanım istatistiği (demo değil): istek/token/süre/model/ajan
+    try {
+      const stats = require("./agent/stats");
+      stats.record({
+        model: selectedModel,
+        agent: task,
+        tokens: Math.round((String(input).length + String(finalText).length) / 4),
+        ms: Date.now() - _t0,
+      });
+    } catch (_e) { /* istatistik hatası akışı bozmasın */ }
 
     // Otonom öğrenme: kullanıcı mesajından kalıcı kişisel gerçekleri öğren
     if (settings.autonomousLearning) {

@@ -716,4 +716,25 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Sürekli öğrenme kaynakları: seçim + yeni çekiciler");
 }
 
+
+// Gerçek metrik + istatistik (demo değil)
+{
+  const mMod = await import(path.join(mainDir, "agent", "metrics.js"));
+  const M = mMod.default || mMod;
+  const snap = await M.snapshot();
+  assert.ok(snap.cpu >= 0 && snap.cpu <= 100, "cpu 0-100");
+  assert.ok(snap.ram >= 0 && snap.ram <= 100, "ram 0-100");
+  const sMod = await import(path.join(mainDir, "agent", "stats.js"));
+  const ST = sMod.default || sMod;
+  process.env.CODEGA_STATS_PATH = path.join(os.tmpdir(), "codega-stats-" + Date.now() + ".json");
+  ST.record({ model: "qwen2.5:3b", agent: "Yazılımcı", tokens: 100, ms: 2000 });
+  ST.record({ model: "qwen2.5:3b", agent: "Genel", tokens: 50, ms: 1000 });
+  const sum = ST.summary();
+  assert.strictEqual(sum.total, 2, "iki istek sayıldı");
+  assert.strictEqual(sum.topModel, "qwen2.5:3b", "en çok model");
+  assert.ok(sum.avgSeconds > 0, "ortalama süre");
+  ST.clearAll();
+  ok("Gerçek metrik (CPU/RAM) + istatistik (istek/model/süre) çalışır");
+}
+
 console.log(`\n${passed} test geçti ✅`);

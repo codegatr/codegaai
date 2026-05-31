@@ -4,6 +4,27 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 97 — Panelin DEMO sayılarını GERÇEK ölçüme çevirme (0.45 üstüne) (31 May 2026, Claude)
+
+CODEX 0.40->0.45 ile yeni paneli + kaynakları (so/arxiv/hn/mdn) yapmış (senkron oldum).
+En acil eksik: panel "demo amaçlıdır" diyordu — CPU/RAM/GPU ve istek/token/yanıt sahteydi.
+
+- metrics.js: cpuPercent (iki örnek), ramPercent (os), gpuVram (nvidia-smi; yoksa null),
+  snapshot. Bu ortamda test edildi (CPU/RAM gerçek, GPU null).
+- stats.js: record({model,agent,tokens,ms}) + summary (total/today/tokensToday/avgSeconds/
+  topModel/topAgent), günlük buda. Kalıcı (CODEGA_STATS_PATH).
+- model-manager._ask: _t0 süre + başarılı turda stats.record (gerçek model/ajan/token/süre).
+- main: metrics:get, stats:get IPC; CODEGA_STATS_PATH env. preload getMetrics/getStats.
+- renderer: ov-* + sys-* id'leri; refreshLiveMetrics (4sn aralık, panel kapanınca durur),
+  refreshLiveStats; "Demo" rozeti gerçek ölçümde gizlenir; overview-note güncellendi.
+  HTML'deki tüm sabit %32/%58/%74/1.284 demo değerleri kaldırıldı.
+
+DÜRÜST: GPU yalnız NVIDIA+nvidia-smi varsa; yoksa "GPU yok". Test 46/46.
+Surum 0.45.0 -> **0.46.0**.
+
+---
+
+
 ## ✅ Faz 96 — Notları modelle damıtma — plan #5 (30 May 2026, Claude)
 
 Eksik #5: sürekli öğrenme ham kaynak metni saklıyordu; artık opt-in olarak modelle
