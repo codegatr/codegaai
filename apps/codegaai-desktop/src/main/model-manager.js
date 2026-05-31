@@ -20,7 +20,13 @@ const { recall, remember, extractDurableFacts } = require("./agent/memory");
 const learningStore = require("./agent/learning-store");
 const rag = require("./agent/rag");
 const { reflect } = require("./agent/reflect");
-const { classifyReasoningProblem, shouldVerifyAnswer, verifyAnswer } = require("./agent/reasoning-guard");
+const {
+  classifyReasoningProblem,
+  enforceConclusion,
+  shouldEnforceConclusion,
+  shouldVerifyAnswer,
+  verifyAnswer,
+} = require("./agent/reasoning-guard");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
 const { SPECIALISTS, routeStep, buildSpecialistPrompt } = require("./agent/agents");
@@ -539,7 +545,8 @@ class ModelManager {
     const _t0 = Date.now();
     const reasoningCategories = classifyReasoningProblem(input);
     const inputNeedsVerification = shouldVerifyAnswer(input);
-    const onToken = inputNeedsVerification ? null : (opts.onToken || null);
+    const inputNeedsConclusion = shouldEnforceConclusion(input);
+    const onToken = (inputNeedsVerification || inputNeedsConclusion) ? null : (opts.onToken || null);
     // Yeniden üretim: önceki turu (user+assistant) geçmişten çıkar ki bağlam tekrarlanmasın
     if (opts.regenerate) {
       if (this.history.length && this.history[this.history.length - 1].role === "assistant") this.history.pop();
@@ -808,6 +815,19 @@ class ModelManager {
         if (v.answer && v.answer.trim()) finalText = v.answer.trim();
       } catch (_e) {
         // reasoning dogrulama hatasi cevabi bozmasin
+      }
+    }
+
+    if (inputNeedsConclusion && agent.stoppedReason !== "smalltalk") {
+      try {
+        const c = await enforceConclusion(
+          input,
+          finalText,
+          (msgs) => this.generate(selectedModel, msgs, attemptModels)
+        );
+        if (c.answer && c.answer.trim()) finalText = c.answer.trim();
+      } catch (_e) {
+        // sonuc kapisi hatasi cevabi bozmasin
       }
     }
 

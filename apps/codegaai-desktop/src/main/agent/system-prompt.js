@@ -11,7 +11,11 @@
  */
 
 const { toolsSystemPrompt } = require("./tools");
-const { answerVerificationInstruction, reasoningSystemInstruction } = require("./reasoning-guard");
+const {
+  answerVerificationInstruction,
+  mandatoryConclusionInstruction,
+  reasoningSystemInstruction,
+} = require("./reasoning-guard");
 
 function buildSystemPrompt(task = "chat", opts = {}) {
   const { memory = [], humanTone = true, ragContext = [], plan = [], expertPersona = "", projectContext = "", learnedContext = [] } = opts;
@@ -50,6 +54,8 @@ function buildSystemPrompt(task = "chat", opts = {}) {
     reasoningSystemInstruction(),
     "",
     answerVerificationInstruction(),
+    "",
+    mandatoryConclusionInstruction(),
   );
 
   if (humanTone) {

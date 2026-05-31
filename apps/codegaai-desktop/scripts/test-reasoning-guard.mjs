@@ -18,6 +18,10 @@ assert.ok(
 );
 assert.ok(guard.shouldVerifyAnswer("Bu hata neden oluyor, analiz et"), "analysis/debug answers are verified by AVE");
 assert.equal(guard.APPROVAL_THRESHOLD, 95, "AVE approval threshold is 95");
+assert.ok(guard.shouldEnforceConclusion("Hangisini seçmeliyim?"), "substantive answers require MCE");
+assert.equal(guard.shouldEnforceConclusion("merhaba"), false, "smalltalk does not require MCE");
+assert.equal(guard.hasVisibleConclusion("Açıklama...\n\nFinal Answer: 42"), true, "visible final answer is detected");
+assert.equal(guard.hasVisibleConclusion("Bu birkaç yolla ele alınabilir."), false, "non-conclusive answer is rejected by MCE detector");
 
 const lowConfidence = guard.parseVerificationResult(
   JSON.stringify({
@@ -77,5 +81,17 @@ assert.match(
   /1, 4, 9, 16, 25, 36, 49, 64, 81, 100/,
   "100 doors answer is corrected to perfect squares"
 );
+
+const concluded = await guard.enforceConclusion(
+  "Hangisini seçmeliyim?",
+  "A seçeneği daha düşük riskli çünkü kurulumu daha basit.",
+  async () => JSON.stringify({
+    ok: true,
+    answer: "A seçeneği daha düşük riskli çünkü kurulumu daha basit.\n\nFinal Answer: A seçeneğini seç.",
+    errors: [],
+  })
+);
+assert.equal(concluded.enforced, true, "MCE rewrites answers without a final conclusion");
+assert.match(concluded.answer, /Final Answer:/, "MCE output includes final answer section");
 
 console.log("Reasoning guard tests passed");

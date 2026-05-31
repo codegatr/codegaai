@@ -2,6 +2,7 @@
 
 const JSON_BLOCK = /```(?:json)?\s*([\s\S]*?)```/i;
 const APPROVAL_THRESHOLD = 95;
+const FINAL_ANSWER_RE = /\b(final answer|final cevap|son cevap|sonu[çc]|nihai cevap|cevap)\s*:/i;
 
 function lower(text) {
   return String(text || "").toLocaleLowerCase("tr");
@@ -52,12 +53,68 @@ function answerVerificationInstruction() {
   ].join("\n");
 }
 
+function mandatoryConclusionInstruction() {
+  return [
+    "## Mandatory Conclusion Engine (MCE)",
+    "Never end a substantive response without answering the actual question.",
+    "The user must receive a clear conclusion, result, recommendation, decision, final value, final list, or final output.",
+    "Before finalizing, ask internally: if the user reads only the last two lines, did they receive the answer?",
+    "For math questions, include a visible 'Final Answer:' line with the final value.",
+    "For logic questions, include a visible 'Final Answer:' line with the final conclusion/list/count.",
+    "For decisions, recommendations, debugging, and analysis, include a visible final conclusion such as 'Sonuç:' or 'Final Answer:'.",
+    "Do not stop after process, context, or explanation. End with the answer.",
+  ].join("\n");
+}
+
 function shouldVerifyAnswer(question) {
   const q = lower(question);
   return (
     isReasoningProblem(question) ||
     /\b(neden|nasıl|nasil|açıkla|acikla|analiz|karşılaştır|karsilastir|kanıtla|kanitla|ispat|plan|debug|hata|neden oluyor|why|how|explain|analyze|compare|prove|debug)\b/.test(q)
   );
+}
+
+function shouldEnforceConclusion(question) {
+  const q = lower(question);
+  if (!q.trim()) return false;
+  if (/^(selam|merhaba|merhabalar|hello|hi|hey|te[sş]ekk[uü]r|sag ol|sa[ğg]ol)\b/.test(q)) return false;
+  return true;
+}
+
+function hasVisibleConclusion(answer) {
+  const text = String(answer || "").trim();
+  if (!text) return false;
+  if (FINAL_ANSWER_RE.test(text)) return true;
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (!lines.length) return false;
+  const last = lines.slice(-2).join(" ");
+  return /\b(sonu[çc]|final|cevap|karar|[öo]neri|open doors|a[çc][ıi]k kap[ıi]lar)\b\s*[:=]/i.test(last);
+}
+
+function buildConclusionMessages(question, draftAnswer) {
+  return [
+    {
+      role: "system",
+      content: [
+        "You are CODEGA AI's Mandatory Conclusion Engine (MCE).",
+        "Your only job is to make the answer complete and conclusive.",
+        "Never add unsupported facts. Do not change correct reasoning. Do not make the answer longer than needed.",
+        "If the draft already has a clear final answer, keep it and improve only minimally.",
+        "If the draft lacks a result, extract the result from the draft when possible; otherwise state the most direct supported conclusion.",
+        "The rewritten answer must end with a clearly identifiable 'Final Answer:' section or line.",
+        "Return ONLY valid JSON with this schema:",
+        '{"ok":true|false,"answer":"rewritten final answer text","errors":["..."]}',
+      ].join("\n"),
+    },
+    {
+      role: "user",
+      content: [
+        `Question:\n${question}`,
+        `Draft answer:\n${draftAnswer}`,
+        "Rewrite so the user receives the actual requested result. JSON only.",
+      ].join("\n\n"),
+    },
+  ];
 }
 
 function buildVerificationMessages(question, draftAnswer, categories = []) {
@@ -191,15 +248,42 @@ async function verifyReasoningAnswer(question, draftAnswer, generateFn, opts = {
   return verifyAnswer(question, draftAnswer, generateFn, { ...opts, force: true });
 }
 
+async function enforceConclusion(question, draftAnswer, generateFn, opts = {}) {
+  const force = !!opts.force;
+  const current = String(draftAnswer || "").trim();
+  if ((!force && !shouldEnforceConclusion(question)) || hasVisibleConclusion(current) || typeof generateFn !== "function") {
+    return { answer: current, enforced: false, approved: hasVisibleConclusion(current) };
+  }
+
+  try {
+    const raw = await generateFn(buildConclusionMessages(question, current));
+    const parsed = extractJson(raw);
+    const answer = String((parsed && parsed.answer) || current).trim();
+    return {
+      answer: answer || current,
+      enforced: true,
+      approved: Boolean(parsed && parsed.ok !== false && hasVisibleConclusion(answer)),
+      errors: parsed && Array.isArray(parsed.errors) ? parsed.errors.map(String).slice(0, 8) : [],
+    };
+  } catch (_e) {
+    return { answer: current, enforced: false, approved: false, errors: ["mce_generation_failed"] };
+  }
+}
+
 module.exports = {
   APPROVAL_THRESHOLD,
   classifyReasoningProblem,
+  shouldEnforceConclusion,
+  hasVisibleConclusion,
   isReasoningProblem,
   shouldVerifyAnswer,
   reasoningSystemInstruction,
   answerVerificationInstruction,
+  mandatoryConclusionInstruction,
   buildVerificationMessages,
+  buildConclusionMessages,
   parseVerificationResult,
   verifyAnswer,
   verifyReasoningAnswer,
+  enforceConclusion,
 };
