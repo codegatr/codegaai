@@ -93,6 +93,10 @@ function shouldEnforceConclusion(question) {
   return true;
 }
 
+function shouldUnderstandQuestion(question) {
+  return shouldEnforceConclusion(question);
+}
+
 function hasVisibleConclusion(answer) {
   const text = String(answer || "").trim();
   if (!text) return false;
@@ -282,7 +286,7 @@ async function verifyAnswer(question, draftAnswer, generateFn, opts = {}) {
 
 async function understandQuestion(question, generateFn, opts = {}) {
   const categories = opts.categories || classifyReasoningProblem(question);
-  if (typeof generateFn !== "function" || !shouldEnforceConclusion(question)) {
+  if (typeof generateFn !== "function" || !shouldUnderstandQuestion(question)) {
     return { ok: false, summary: "", skipped: true };
   }
   try {
@@ -349,6 +353,7 @@ module.exports = {
   APPROVAL_THRESHOLD,
   classifyReasoningProblem,
   questionUnderstandingInstruction,
+  shouldUnderstandQuestion,
   shouldEnforceConclusion,
   hasVisibleConclusion,
   isReasoningProblem,

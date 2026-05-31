@@ -818,17 +818,6 @@ function showUpdatePrompt(mode, detail = {}) {
     }
   }
   if (!els.updatePrompt.open) els.updatePrompt.showModal();
-  return;
-  if (mode === "available") {
-    els.updatePromptTitle.textContent = "Yeni güncelleme var";
-    els.updatePromptDetail.textContent = "Daha iyi ve kararlı bir sürüm bulundu. İstersen şimdi indirebilirim.";
-    els.updateNow.textContent = "Şimdi Güncelle";
-  } else {
-    els.updatePromptTitle.textContent = "Güncelleme hazır";
-    els.updatePromptDetail.textContent = "Yeni sürüm indirildi. Kurulum için CODEGA AI yeniden başlatılacak.";
-    els.updateNow.textContent = "Uygula ve Yeniden Başlat";
-  }
-  if (!els.updatePrompt.open) els.updatePrompt.showModal();
 }
 
 function closeUpdatePrompt() {

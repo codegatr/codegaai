@@ -19,7 +19,9 @@ assert.ok(
 assert.ok(guard.shouldVerifyAnswer("Bu hata neden oluyor, analiz et"), "analysis/debug answers are verified by AVE");
 assert.equal(guard.APPROVAL_THRESHOLD, 95, "AVE approval threshold is 95");
 assert.ok(guard.shouldEnforceConclusion("Hangisini seçmeliyim?"), "substantive answers require MCE");
+assert.ok(guard.shouldUnderstandQuestion("3 hapı 30 dakika arayla içeceğim, ne kadar sürer?"), "substantive answers pass through QUE first");
 assert.equal(guard.shouldEnforceConclusion("merhaba"), false, "smalltalk does not require MCE");
+assert.equal(guard.shouldUnderstandQuestion("merhaba"), false, "smalltalk skips QUE");
 assert.equal(guard.hasVisibleConclusion("Açıklama...\n\nFinal Answer: 42"), true, "visible final answer is detected");
 assert.equal(guard.hasVisibleConclusion("Bu birkaç yolla ele alınabilir."), false, "non-conclusive answer is rejected by MCE detector");
 

@@ -25,6 +25,7 @@ const {
   enforceConclusion,
   formatUnderstandingForPrompt,
   shouldEnforceConclusion,
+  shouldUnderstandQuestion,
   shouldVerifyAnswer,
   understandQuestion,
   verifyAnswer,
@@ -548,6 +549,7 @@ class ModelManager {
     const reasoningCategories = classifyReasoningProblem(input);
     const inputNeedsVerification = shouldVerifyAnswer(input);
     const inputNeedsConclusion = shouldEnforceConclusion(input);
+    const inputNeedsUnderstanding = shouldUnderstandQuestion(input);
     const onToken = (inputNeedsVerification || inputNeedsConclusion) ? null : (opts.onToken || null);
     // Yeniden üretim: önceki turu (user+assistant) geçmişten çıkar ki bağlam tekrarlanmasın
     if (opts.regenerate) {
@@ -654,18 +656,8 @@ class ModelManager {
     }
 
     // Hedef-odaklı planlama (opt-in): karmaşık hedefi alt adımlara böl
-    let plan = [];
-    if (settings.planner && looksLikeGoal(input)) {
-      try {
-        plan = await makePlan(input, (msgs) => this.generate(selectedModel, msgs));
-      } catch (_e) {
-        plan = [];
-      }
-    }
-
-    // Mesaj dizisi: system (karakter + hafıza + RAG + plan + araç protokolü) + geçmiş + kullanıcı
     let questionUnderstanding = "";
-    if (inputNeedsConclusion || inputNeedsVerification) {
+    if (inputNeedsUnderstanding) {
       try {
         const understood = await understandQuestion(
           input,
@@ -678,6 +670,19 @@ class ModelManager {
       }
     }
 
+    let plan = [];
+    if (settings.planner && looksLikeGoal(input)) {
+      try {
+        const plannerInput = questionUnderstanding
+          ? `${questionUnderstanding}\n\nOriginal user request:\n${input}`
+          : input;
+        plan = await makePlan(plannerInput, (msgs) => this.generate(selectedModel, msgs));
+      } catch (_e) {
+        plan = [];
+      }
+    }
+
+    // Mesaj dizisi: system (karakter + hafıza + RAG + plan + araç protokolü) + geçmiş + kullanıcı
     const messages = [
       {
         role: "system",
