@@ -4,6 +4,28 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 89 — Sil-sonrası yazma + sadelik (çizgiler) düzeltmeleri (30 May 2026, Claude)
+
+Kullanıcı şikayetleri: (1) sohbet silince ana ekrana atıyor + yazamıyor, (2) sohbet
+ekranı "çizgiler"le dolmuş, sadelik bozulmuş, (3) otonom öğrenme bir gecede hiçbir şey
+öğrenmemiş, GitHub'a yazmamış.
+
+(1) deleteChat: kalan sohbet varsa renderHistory+renderConversation, yoksa createChat;
+    HER iki durumda da els.input.focus() — silince yazma alanına odak.
+(2) Sadelik: composer'daki 🧠/📎 düğmelerinin KENARLIĞI kaldırıldı (sade ikon; pill
+    girişin içindeki fazladan çizgiler buydu). 0.23'te Ayarlar satırlarına eklenen kart
+    kenarlıkları kaldırıldı (kutu yok, sadece aralık).
+(3) Kod değil, dürüst açıklama (mesajda): mevcut "otonom öğrenme" = extractDurableFacts
+    ile YALNIZCA kullanıcı mesajından 3 desen (ad/yaş/şehir) -> YEREL memory.json.
+    GitHub'a yazmıyor, gece boyu kendi başına öğrenmiyor (girdi/kaynak yok). Ayrı
+    "otonom PR" özelliği var ama VARSAYILAN KAPALI + repo/etkinlik gerekir. Gerçek
+    self-learning için kaynak+zamanlama+GitHub sync gerekiyor; kullanıcıya plan sunuldu.
+
+Test 35/35. Surum 0.31.0 -> **0.32.0**.
+
+---
+
+
 ## ✅ Faz 88 — MCP araç sunucusu (ilk güvenli katman) — sıra #5 (30 May 2026, Claude)
 
 Listenin en zoru. GÜVENLİ ilk katman: harici MCP sunucusuna opt-in bağlan, araçları

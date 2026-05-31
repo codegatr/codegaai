@@ -429,10 +429,11 @@ function deleteChat(chatId) {
   saveChats();
   if (!state.activeChat) {
     createChat();
-    return;
+  } else {
+    renderHistory();
+    renderConversation();
   }
-  renderHistory();
-  renderConversation();
+  if (els.input) els.input.focus(); // silince yazma alanına odak ver
 }
 
 const ZIP_CRC_TABLE = (() => {
