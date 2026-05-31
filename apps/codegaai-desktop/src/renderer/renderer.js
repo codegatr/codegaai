@@ -1180,6 +1180,37 @@ async function refreshAutomations() {
 const autoRefreshBtn = document.getElementById("auto-refresh");
 if (autoRefreshBtn) autoRefreshBtn.addEventListener("click", () => refreshAutomations());
 
+async function refreshSecurity() {
+  const creds = document.getElementById("security-creds");
+  const perms = document.getElementById("security-perms");
+  if (!creds && !perms) return;
+  try {
+    const data = await window.codega.securityStatus();
+    if (creds) {
+      creds.innerHTML = "";
+      for (const c of (data && data.credentials) || []) {
+        const row = document.createElement("div");
+        row.className = "settings-row";
+        const badge = c.present ? `<span class="badge-active">Var ${c.hint ? "· " + c.hint : ""}</span>` : `<span class="badge-plan">Yok</span>`;
+        row.innerHTML = `<div><strong>${c.key.replace(/</g,"&lt;")}</strong><p>${(c.note||"").replace(/</g,"&lt;")}</p></div>${badge}`;
+        creds.appendChild(row);
+      }
+    }
+    if (perms) {
+      perms.innerHTML = "";
+      for (const pm of (data && data.permissions) || []) {
+        const row = document.createElement("div");
+        row.className = "settings-row";
+        const badge = pm.enabled ? `<span class="badge-active">Açık</span>` : `<span class="badge-plan">Kapalı</span>`;
+        row.innerHTML = `<div><strong>${pm.key.replace(/</g,"&lt;")}</strong><p>${(pm.note||"").replace(/</g,"&lt;")}</p></div>${badge}`;
+        perms.appendChild(row);
+      }
+    }
+  } catch (_e) {}
+}
+const securityRefreshBtn = document.getElementById("security-refresh");
+if (securityRefreshBtn) securityRefreshBtn.addEventListener("click", () => refreshSecurity());
+
 els.settingsButton.addEventListener("click", async () => {
   els.settings.showModal();
   setActiveCat("overview");
@@ -1193,6 +1224,7 @@ els.settingsButton.addEventListener("click", async () => {
   refreshRouter();
   refreshModelsPage();
   refreshAutomations();
+  refreshSecurity();
   // Aktif Model: gerçek model durumundan (dinamik seçilir)
   window.codega.getStatus().then((st) => {
     const raw = st && st.model;

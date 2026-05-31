@@ -4,6 +4,22 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 102 — Güvenlik şeffaflık sayfası (31 May 2026, Claude)
+
+PLANLI olan Güvenlik gerçek oldu — yeni risk YOK, yalnızca şeffaflık (salt-okunur).
+
+- main IPC security:status: kimlik bilgileri (GitHub token, OpenAI-uyumlu anahtar) — DEĞER
+  asla döndürülmez, yalnızca var/yok + maskeli ipucu (ilk4••••son2) + "yalnız bu cihazda"
+  notu. Hassas yetkiler: Kod Çalıştırma (insan tetikli, izolasyon yok), MCP (opt-in),
+  Sürekli Öğrenme (ağ), Otomatik Öneri PR (yalnız dal), GitHub yedek. preload securityStatus.
+- UI: Güvenlik sayfası dinamik (#security-creds + #security-perms); Var/Yok ve Açık/Kapalı
+  rozetleri. PLANLI kaldırıldı.
+
+Test 49/49. Surum 0.50.0 -> **0.51.0**. Sıradaki: Geliştirici / Sistem sayfaları.
+
+---
+
+
 ## ✅ Faz 101 — Otomasyonlar yönetim sayfası (31 May 2026, Claude)
 
 PLANLI olan Otomasyonlar gerçek oldu. Arka plandaki 3 zamanlı iş görünür + aç/kapa.

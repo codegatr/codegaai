@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld("codega", {
   getStats: () => ipcRenderer.invoke("stats:get"),
   getLogs: () => ipcRenderer.invoke("logs:get"),
   automationsStatus: () => ipcRenderer.invoke("automations:status"),
+  securityStatus: () => ipcRenderer.invoke("security:status"),
   routerInfo: () => ipcRenderer.invoke("router:info"),
   routerTest: (payload) => ipcRenderer.invoke("router:test", payload),
   clearLogs: () => ipcRenderer.invoke("logs:clear"),

@@ -382,6 +382,29 @@ function registerIpc() {
 
   ipcMain.handle("maintenance:run", async () => (await doMaintenance()) || { items: [], repairs: [], healthy: true });
   ipcMain.handle("maintenance:status", async () => lastMaintenance);
+  ipcMain.handle("security:status", async () => {
+    const s = settingsStore.getSettings();
+    const mask = (v) => {
+      const t = String(v || "").trim();
+      if (!t) return null;
+      return t.length <= 8 ? "••••" : t.slice(0, 4) + "••••" + t.slice(-2);
+    };
+    return {
+      // Değerler ASLA döndürülmez; yalnızca var/yok + maskeli ipucu
+      credentials: [
+        { key: "GitHub token", present: !!String(s.githubToken || "").trim(), hint: mask(s.githubToken), note: "Yalnızca bu cihazda (userData) saklanır; kaynağa/ağa yazılmaz." },
+        { key: "OpenAI-uyumlu API anahtarı", present: !!String(s.openaiApiKey || "").trim(), hint: mask(s.openaiApiKey), note: "Yalnızca bu cihazda saklanır; yalnızca senin sağlayıcına gider." },
+      ],
+      permissions: [
+        { key: "Kod Çalıştırma", enabled: true, note: "Yalnızca sen 'Çalıştır' deyince; ajan kendiliğinden çalıştırmaz. İzolasyon yok (kendi yetkilerinle)." },
+        { key: "MCP araçları (ajana bağlı)", enabled: !!s.mcpAutoTools, note: "Yalnızca senin tanımladığın sunucu; opt-in." },
+        { key: "Sürekli Öğrenme (ağ erişimi)", enabled: !!s.continuousLearning, note: "Açıkken kaynaklara internet isteği yapar." },
+        { key: "Otomatik Öneri PR", enabled: !!s.autoProposePR, note: "GitHub'da yalnız dal açar; ana dala merge etmez." },
+        { key: "GitHub yedek (öğrenilenler)", enabled: !!String(s.learningSyncRepo || "").trim(), note: "Açıksa öğrenilenleri belirttiğin repoya yazar." },
+      ],
+    };
+  });
+
   ipcMain.handle("automations:status", async () => {
     const s = settingsStore.getSettings();
     return {

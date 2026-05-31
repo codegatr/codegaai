@@ -541,10 +541,17 @@
           </div>
         </details>
 
-        <details class="settings-group planned-group" data-cat="security" data-label="Güvenlik">
+                <details class="settings-group" data-cat="security" data-label="Güvenlik">
           <summary>Güvenlik</summary>
-          <div class="settings-page-head"><h1>Güvenlik</h1><p>Anahtarlar, yedekleme, loglar.</p></div>
-          <div class="settings-section"><h2>Güvenlik</h2><div class="settings-row"><div><strong>GitHub token (yerel)</strong><p>Yalnızca cihazında saklanır, kaynağa yazılmaz</p></div><span class="badge-active">Aktif</span></div><div class="settings-row"><div><strong>API Key yönetimi & şifreleme</strong><p>Sağlayıcı anahtarları</p></div><span class="badge-plan">Planlı</span></div></div>
+          <div class="settings-page-head"><h1>Güvenlik</h1><p>Kimlik bilgileri ve hassas yetkilerin durumu. Anahtar değerleri burada asla gösterilmez; yalnızca var/yok ve maskeli ipucu.</p></div>
+          <div class="settings-section">
+            <h2>Kimlik Bilgileri <button type="button" id="security-refresh" class="mini-btn">Yenile</button></h2>
+            <div class="model-list" id="security-creds"></div>
+          </div>
+          <div class="settings-section">
+            <h2>Hassas Yetkiler</h2>
+            <div class="model-list" id="security-perms"></div>
+          </div>
         </details>
 
         <details class="settings-group planned-group" data-cat="system" data-label="Sistem">
