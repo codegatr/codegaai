@@ -737,4 +737,21 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Gerçek metrik (CPU/RAM) + istatistik (istek/model/süre) çalışır");
 }
 
+
+// Log Merkezi: kayıt + listeleme + temizleme
+{
+  const lMod = await import(path.join(mainDir, "agent", "logs.js"));
+  const LG = lMod.default || lMod;
+  process.env.CODEGA_LOGS_PATH = path.join(os.tmpdir(), "codega-logs-" + Date.now() + ".json");
+  LG.info("app", "başladı");
+  LG.warn("learning", "kaynak boş");
+  LG.error("ollama", "bağlantı yok");
+  const items = LG.list();
+  assert.strictEqual(items.length, 3, "üç kayıt");
+  assert.strictEqual(items[0].level, "error", "en yeni en üstte");
+  LG.clearAll();
+  assert.strictEqual(LG.list().length, 0, "temizlendi");
+  ok("Log Merkezi: kayıt + listeleme + temizleme");
+}
+
 console.log(`\n${passed} test geçti ✅`);

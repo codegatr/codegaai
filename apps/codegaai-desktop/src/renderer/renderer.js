@@ -1037,6 +1037,29 @@ async function refreshLiveStats() {
 }
 if (els.settings) els.settings.addEventListener("close", stopLiveMetrics);
 
+async function refreshLogs() {
+  const box = document.getElementById("log-list");
+  if (!box) return;
+  try {
+    const items = await window.codega.getLogs();
+    box.innerHTML = "";
+    if (!items || !items.length) { box.innerHTML = '<p class="log-empty">Henüz kayıt yok.</p>'; return; }
+    for (const it of items) {
+      const row = document.createElement("div");
+      row.className = "log-item log-" + (it.level || "info");
+      const t = new Date(it.ts || Date.now());
+      const hh = String(t.getHours()).padStart(2, "0") + ":" + String(t.getMinutes()).padStart(2, "0");
+      const esc = (x) => String(x || "").replace(/</g, "&lt;");
+      row.innerHTML = `<span class="log-time">${hh}</span><span class="log-src">${esc(it.source)}</span><span class="log-msg">${esc(it.message)}</span>`;
+      box.appendChild(row);
+    }
+  } catch (_e) {}
+}
+const logsRefreshBtn = document.getElementById("logs-refresh");
+if (logsRefreshBtn) logsRefreshBtn.addEventListener("click", () => refreshLogs());
+const logsClearBtn = document.getElementById("logs-clear");
+if (logsClearBtn) logsClearBtn.addEventListener("click", async () => { try { await window.codega.clearLogs(); refreshLogs(); } catch (_e) {} });
+
 els.settingsButton.addEventListener("click", async () => {
   els.settings.showModal();
   setActiveCat("overview");
@@ -1046,6 +1069,14 @@ els.settingsButton.addEventListener("click", async () => {
   refreshImproveDrafts();
   refreshLiveStats();
   startLiveMetrics();
+  refreshLogs();
+  // Aktif Model: gerçek model durumundan (dinamik seçilir)
+  window.codega.getStatus().then((st) => {
+    const raw = st && st.model;
+    const m = raw && (raw.model || (typeof raw === "string" ? raw : null));
+    const el = document.getElementById("ov-health-model");
+    if (el) el.textContent = m ? String(m) : "—";
+  }).catch(() => {});
   if (typeof refreshLearnList === "function") refreshLearnList();
   window.codega.feedbackStats().then((f) => {
     const el = document.getElementById("ov-feedback");

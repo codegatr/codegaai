@@ -19,6 +19,7 @@ const learningStore = require("./agent/learning-store");
 const installer = require("./agent/installer");
 const metrics = require("./agent/metrics");
 const stats = require("./agent/stats");
+const logs = require("./agent/logs");
 const agentTools = require("./agent/tools");
 const { ollamaReachable } = require("./agent/ollama-client");
 
@@ -100,6 +101,7 @@ async function learnOnce(manualTopic) {
     } catch (_e) { /* damıtım başarısızsa ham notlar kalır */ }
   }
   lastLearn = { at: Date.now(), topic, found: notes.length, added, total: learningStore.count() };
+  try { logs.info("learning", `Öğrenme: "${topic}" — ${notes.length} kaynak, +${added} not (toplam ${learningStore.count()})`); } catch (_e) {}
 
   // GitHub yedeği (opsiyonel): learningSyncRepo + token varsa ekle
   const repo = settingsStore.getSettings().learningSyncRepo || "";
@@ -130,6 +132,7 @@ async function refreshMcpTools() {
       const mcp = require("./agent/mcp-client");
       const { tools: list } = await mcp.listTools(s.mcpServerUrl);
       const added = agentTools.setMcpTools(s.mcpServerUrl, list || []);
+      try { logs.info("mcp", `Ajana ${added.length} MCP aracı bağlandı (${s.mcpServerUrl})`); } catch (_e) {}
       return { ok: true, count: added.length, tools: added };
     }
     agentTools.clearMcpTools();
@@ -397,6 +400,8 @@ function registerIpc() {
   ipcMain.handle("system:analyze", async () => systemInfo.analyze(MODEL_OPTIONS));
   ipcMain.handle("metrics:get", async () => metrics.snapshot());
   ipcMain.handle("stats:get", async () => stats.summary());
+  ipcMain.handle("logs:get", async () => logs.list(120));
+  ipcMain.handle("logs:clear", async () => { logs.clearAll(); logs.info("logs", "Log temizlendi"); return true; });
 
   ipcMain.handle("learning:now", async (_event, payload) => learnOnce(payload && payload.topic));
   ipcMain.handle("learning:list", async () => ({ notes: learningStore.list(40), total: learningStore.count(), last: lastLearn }));
@@ -458,6 +463,8 @@ app.whenReady().then(async () => {
     process.env.CODEGA_LEARNING_PATH || path.join(userDataPath, "learning.json");
   process.env.CODEGA_STATS_PATH =
     process.env.CODEGA_STATS_PATH || path.join(userDataPath, "stats.json");
+  process.env.CODEGA_LOGS_PATH =
+    process.env.CODEGA_LOGS_PATH || path.join(userDataPath, "logs.json");
   process.env.CODEGA_MODELS_PATH =
     process.env.CODEGA_MODELS_PATH || path.join(userDataPath, "ollama-models");
   process.env.OLLAMA_MODELS = process.env.OLLAMA_MODELS || process.env.CODEGA_MODELS_PATH;
@@ -473,6 +480,9 @@ app.whenReady().then(async () => {
   setInterval(() => { doMaintenance().then(() => maybeAutoPropose()).catch(() => {}); }, 5 * 60 * 1000);
   scheduleLearning();
   refreshMcpTools().catch(() => {});
+  try { logs.info("app", `CODEGA AI ${app.getVersion()} başladı`); } catch (_e) {}
+  process.on("uncaughtException", (e) => { try { logs.error("uncaught", e && (e.stack || e.message || e)); } catch (_e2) {} });
+  process.on("unhandledRejection", (e) => { try { logs.error("rejection", e && (e.message || e)); } catch (_e2) {} });
 
   // Başlangıçta GitHub'daki bilgi dosyasını yerel belleğe yükle (yapılandırıldıysa)
   knowledge.syncDown().catch(() => {});

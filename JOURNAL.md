@@ -4,6 +4,25 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 98 — (1) Aktif Model gerçek + (2) Log Merkezi gerçek (31 May 2026, Claude)
+
+Sıralı eksik kapatma.
+
+(1) AI Health "Aktif Model —" tiresi: panel açılınca window.codega.getStatus() ile gerçek
+    aktif model (modelManager.detect()/getStatus().model) yazdırılıyor.
+(2) Log Merkezi (PLANLI değildi, sadece güncelleme kontrolü içeriyordu) -> GERÇEK olay
+    günlüğü:
+    - logs.js: kalıcı halka tampon (500), add/info/warn/error/list/clear (CODEGA_LOGS_PATH).
+    - main: app start logu, uncaughtException/unhandledRejection yakalama, learnOnce sonucu
+      ve MCP bağlama logu. IPC logs:get/clear. preload getLogs/clearLogs.
+    - UI: Log Merkezi'ne gerçek liste (#log-list) + Yenile + Temizle; renkli seviye
+      (info/warn/error); panel açılınca yüklenir. CSS eklendi.
+
+Test 47/47. Surum 0.46.0 -> **0.47.0**. Sıradaki: Model Router görünür sayfası / Modeller.
+
+---
+
+
 ## ✅ Faz 97 — Panelin DEMO sayılarını GERÇEK ölçüme çevirme (0.45 üstüne) (31 May 2026, Claude)
 
 CODEX 0.40->0.45 ile yeni paneli + kaynakları (so/arxiv/hn/mdn) yapmış (senkron oldum).

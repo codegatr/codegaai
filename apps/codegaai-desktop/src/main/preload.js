@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld("codega", {
   setupModel: (payload) => ipcRenderer.invoke("model:setup", payload),
   getMetrics: () => ipcRenderer.invoke("metrics:get"),
   getStats: () => ipcRenderer.invoke("stats:get"),
+  getLogs: () => ipcRenderer.invoke("logs:get"),
+  clearLogs: () => ipcRenderer.invoke("logs:clear"),
   checkForUpdates: () => ipcRenderer.invoke("updates:check"),
   downloadUpdate: () => ipcRenderer.invoke("updates:download"),
   installUpdate: () => ipcRenderer.invoke("updates:install"),
