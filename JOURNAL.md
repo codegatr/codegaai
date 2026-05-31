@@ -4,6 +4,22 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 100 — Modeller yönetim sayfası (31 May 2026, Claude)
+
+PLANLI olan Modeller sayfası gerçek oldu.
+
+- ollama-client: ollamaDeleteModel (DELETE /api/delete) eklendi (mock ile test).
+- main: models:list artık her seçeneğe installer.modelSizeGb ile boyut ekliyor;
+  model:delete IPC (+log). preload listModels/deleteModel.
+- UI: Modeller sayfası gerçek — Kurulu Modeller (boyut + Sil), İndirilebilir Modeller
+  (açıklama + boyut + İndir -> setupModel rehberli kurulum), Sağlayıcılar (Ollama aktif,
+  OpenAI-uyumlu destekli). Yenile düğmesi. PLANLI kaldırıldı.
+
+Test 49/49. Surum 0.48.0 -> **0.49.0**. Sıradaki: Otomasyonlar / Güvenlik / Geliştirici.
+
+---
+
+
 ## ✅ Faz 99 — Model Router görünür sayfası (31 May 2026, Claude)
 
 PLANLI olan Model Router gerçek oldu. Yönlendirme mantığı (detectTask + TASK_MODELS +

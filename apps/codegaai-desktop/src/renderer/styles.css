@@ -1358,3 +1358,6 @@ body[data-theme="oled"] { --bg: #000; }
 .log-warn .log-msg { color: #f59e0b; }
 .log-error .log-msg { color: #ef4444; }
 .log-empty { color: var(--muted); padding: 12px; }
+
+.mini-btn { font-size: 11px; padding: 2px 8px; margin-left: 8px; border:1px solid var(--line); background:transparent; color:var(--muted); border-radius:8px; cursor:pointer; }
+.mini-btn:hover { color: var(--text); border-color: var(--accent); }

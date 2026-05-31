@@ -259,7 +259,19 @@ function registerIpc() {
     }
   });
 
-  ipcMain.handle("models:list", async () => modelManager.getModels());
+  ipcMain.handle("models:list", async () => {
+    const data = await modelManager.getModels();
+    const options = (data.options || []).map((o) => ({ ...o, sizeGb: installer.modelSizeGb(o.id) }));
+    return { ...data, options };
+  });
+  ipcMain.handle("model:delete", async (_event, payload) => {
+    const name = (payload && payload.id) || "";
+    if (!name) return { ok: false, message: "Model adı gerekli." };
+    const { ollamaDeleteModel } = require("./agent/ollama-client");
+    const r = await ollamaDeleteModel(name);
+    try { logs.info("models", r.ok ? `Model silindi: ${name}` : `Model silinemedi: ${name}`); } catch (_e) {}
+    return r;
+  });
 
   // Rehberli kurulum: OS algıla -> boyut göster -> onay -> Ollama kur -> model indir.
   ipcMain.handle("model:setup", async (event, payload) => {

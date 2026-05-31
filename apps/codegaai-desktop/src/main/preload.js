@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld("codega", {
   sendMessage: (message, opts) => ipcRenderer.invoke("chat:send", message, opts),
   shareChat: (chat) => ipcRenderer.invoke("chat:share", chat),
   prepareModel: (modelId) => ipcRenderer.invoke("model:prepare", modelId),
+  listModels: () => ipcRenderer.invoke("models:list"),
+  deleteModel: (payload) => ipcRenderer.invoke("model:delete", payload),
   setupModel: (payload) => ipcRenderer.invoke("model:setup", payload),
   getMetrics: () => ipcRenderer.invoke("metrics:get"),
   getStats: () => ipcRenderer.invoke("stats:get"),

@@ -1093,6 +1093,60 @@ if (routerTestBtn) routerTestBtn.addEventListener("click", async () => {
   } catch (e) { if (out) out.textContent = "Hata: " + (e.message || e); }
 });
 
+async function refreshModelsPage() {
+  const inst = document.getElementById("models-installed");
+  const avail = document.getElementById("models-available");
+  if (!inst && !avail) return;
+  try {
+    const data = await window.codega.listModels();
+    const options = (data && data.options) || [];
+    const ready = (data && data.status && (data.status.provider === "ollama")) || (data && (data.installed || []).length > 0);
+    if (inst) {
+      inst.innerHTML = "";
+      const installedOpts = options.filter((o) => o.installed);
+      if (!installedOpts.length) { inst.innerHTML = '<p class="log-empty">Kurulu yerel model yok (Ollama kapalı veya henüz indirilmedi).</p>'; }
+      for (const o of installedOpts) {
+        const row = document.createElement("div");
+        row.className = "settings-row";
+        const sz = o.sizeGb ? ` · ~${o.sizeGb} GB` : "";
+        row.innerHTML = `<div><strong>${(o.label||o.id).replace(/</g,"&lt;")}</strong><p>${o.id}${sz}</p></div>`;
+        const del = document.createElement("button");
+        del.type = "button"; del.textContent = "Sil";
+        del.addEventListener("click", async () => {
+          if (!window.confirm(`${o.id} silinsin mi?`)) return;
+          del.disabled = true; setTransientStatus(`${o.id} siliniyor…`);
+          try { const r = await window.codega.deleteModel({ id: o.id }); setTransientStatus(r && r.ok ? `${o.id} silindi.` : "Silinemedi."); refreshModelsPage(); }
+          catch (e) { setTransientStatus("Hata: " + (e.message||e)); del.disabled = false; }
+        });
+        row.appendChild(del);
+        inst.appendChild(row);
+      }
+    }
+    if (avail) {
+      avail.innerHTML = "";
+      const notInstalled = options.filter((o) => !o.installed);
+      for (const o of notInstalled) {
+        const row = document.createElement("div");
+        row.className = "settings-row";
+        const sz = o.sizeGb ? ` · ~${o.sizeGb} GB` : "";
+        row.innerHTML = `<div><strong>${(o.label||o.id).replace(/</g,"&lt;")}</strong><p>${(o.description||"").replace(/</g,"&lt;")} · ${o.id}${sz}</p></div>`;
+        const dl = document.createElement("button");
+        dl.type = "button"; dl.textContent = "İndir";
+        dl.addEventListener("click", async () => {
+          dl.disabled = true; setTransientStatus(`${o.id} indiriliyor…`);
+          try { const st = await window.codega.setupModel({ modelId: o.id }); setTransientStatus(st && st.ok === false ? (st.message||"İndirilemedi") : `${o.label||o.id} hazır.`); refreshModelsPage(); }
+          catch (e) { setTransientStatus("Hata: " + (e.message||e)); }
+          finally { dl.disabled = false; }
+        });
+        row.appendChild(dl);
+        avail.appendChild(row);
+      }
+    }
+  } catch (_e) {}
+}
+const modelsRefreshBtn = document.getElementById("models-refresh");
+if (modelsRefreshBtn) modelsRefreshBtn.addEventListener("click", () => refreshModelsPage());
+
 els.settingsButton.addEventListener("click", async () => {
   els.settings.showModal();
   setActiveCat("overview");
@@ -1104,6 +1158,7 @@ els.settingsButton.addEventListener("click", async () => {
   startLiveMetrics();
   refreshLogs();
   refreshRouter();
+  refreshModelsPage();
   // Aktif Model: gerçek model durumundan (dinamik seçilir)
   window.codega.getStatus().then((st) => {
     const raw = st && st.model;

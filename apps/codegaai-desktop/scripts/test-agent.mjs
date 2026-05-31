@@ -769,4 +769,23 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Model Router: görev tespiti + model seçimi (kurulu duyarlı)");
 }
 
+
+// Modeller: ollama silme istemcisi (mock)
+{
+  const http = await import("node:http");
+  const ocMod = await import(path.join(mainDir, "agent", "ollama-client.js"));
+  const OC = ocMod.default || ocMod;
+  const server = http.createServer((req, res) => {
+    if (req.method === "DELETE" && req.url === "/api/delete") { res.writeHead(200); return res.end("{}"); }
+    res.writeHead(404); res.end();
+  });
+  await new Promise((r) => server.listen(0, r));
+  const host = "http://127.0.0.1:" + server.address().port;
+  try {
+    const r = await OC.ollamaDeleteModel("qwen2.5:3b", host);
+    assert.ok(r.ok && r.status === 200, "silme isteği başarılı");
+    ok("Modeller: ollama model silme istemcisi (mock)");
+  } finally { server.close(); }
+}
+
 console.log(`\n${passed} test geçti ✅`);

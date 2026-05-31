@@ -207,21 +207,24 @@
           </details>
         </details>
 
-        <details class="settings-group planned-group" data-cat="models" data-label="Modeller">
+        <details class="settings-group" data-cat="models" data-label="Modeller">
           <summary>Modeller</summary>
           <div class="settings-page-head">
-            <h1>Modeller <span class="badge-plan">Planlı modül</span></h1>
-            <p>Çoklu sağlayıcı API yönetimi.</p>
+            <h1>Modeller</h1>
+            <p>Kurulu yerel modeller ve indirilebilir öneriler. İndirme/silme Ollama üzerinden yapılır.</p>
+          </div>
+          <div class="settings-section">
+            <h2>Kurulu Modeller <button type="button" id="models-refresh" class="mini-btn">Yenile</button></h2>
+            <div class="model-list" id="models-installed"></div>
+          </div>
+          <div class="settings-section">
+            <h2>İndirilebilir Modeller</h2>
+            <div class="model-list" id="models-available"></div>
           </div>
           <div class="settings-section">
             <h2>Sağlayıcılar</h2>
             <div class="settings-row"><div><strong>Ollama</strong><p>Yerel — aktif</p></div><span class="badge-active">Aktif</span></div>
-            <div class="settings-row"><div><strong>OpenAI</strong><p>API anahtarı gerekli</p></div><span class="badge-plan">Planlı</span></div>
-            <div class="settings-row"><div><strong>Claude (Anthropic)</strong><p>API anahtarı gerekli</p></div><span class="badge-plan">Planlı</span></div>
-            <div class="settings-row"><div><strong>Gemini</strong><p>API anahtarı gerekli</p></div><span class="badge-plan">Planlı</span></div>
-            <div class="settings-row"><div><strong>DeepSeek</strong><p>API anahtarı gerekli</p></div><span class="badge-plan">Planlı</span></div>
-            <div class="settings-row"><div><strong>OpenRouter</strong><p>API anahtarı gerekli</p></div><span class="badge-plan">Planlı</span></div>
-            <div class="settings-row"><div><strong>Qwen / Llama</strong><p>Yerel veya uzak</p></div><span class="badge-plan">Planlı</span></div>
+            <div class="settings-row"><div><strong>OpenAI-uyumlu (OpenAI/OpenRouter/DeepSeek/Groq)</strong><p>Zekâ &amp; Model sekmesinden API anahtarı</p></div><span class="badge-active">Destekli</span></div>
           </div>
         </details>
 

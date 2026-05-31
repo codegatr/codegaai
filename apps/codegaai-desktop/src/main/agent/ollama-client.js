@@ -159,4 +159,22 @@ async function ollamaListModels(host = OLLAMA_HOST, timeoutMs = 4000) {
   }
 }
 
-module.exports = { ollamaChat, ollamaChatStream, ollamaReachable, ollamaListModels, OLLAMA_HOST };
+async function ollamaDeleteModel(name, host = OLLAMA_HOST, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${host}/api/delete`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+      signal: controller.signal,
+    });
+    return { ok: res.ok, status: res.status };
+  } catch (e) {
+    return { ok: false, error: e.message || String(e) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+module.exports = { ollamaChat, ollamaChatStream, ollamaReachable, ollamaListModels, ollamaDeleteModel, OLLAMA_HOST };
