@@ -42,6 +42,11 @@ const els = {
   updatePrompt: document.getElementById("update-prompt"),
   updatePromptTitle: document.getElementById("update-prompt-title"),
   updatePromptDetail: document.getElementById("update-prompt-detail"),
+  updateProgress: document.getElementById("update-progress"),
+  updateProgressPercent: document.getElementById("update-progress-percent"),
+  updateProgressSpeed: document.getElementById("update-progress-speed"),
+  updateProgressBar: document.getElementById("update-progress-bar"),
+  updateProgressSize: document.getElementById("update-progress-size"),
   updateNow: document.getElementById("update-now"),
   updateLater: document.getElementById("update-later"),
   updateLaterX: document.getElementById("update-later-x"),
@@ -749,8 +754,71 @@ function checkUpdatesAfterFirstQuery() {
   window.codega.checkForUpdates().catch(() => {});
 }
 
+function formatBytes(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  const units = ["B", "KB", "MB", "GB"];
+  let size = n;
+  let unit = 0;
+  while (size >= 1024 && unit < units.length - 1) {
+    size /= 1024;
+    unit += 1;
+  }
+  return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+}
+
+function updatePromptProgress(detail = {}) {
+  if (!els.updateProgress) return;
+  const percent = Math.max(0, Math.min(100, Number(detail.percent) || 0));
+  const transferred = formatBytes(detail.transferred);
+  const total = formatBytes(detail.total);
+  const speed = formatBytes(detail.bytesPerSecond);
+  els.updateProgress.hidden = false;
+  if (els.updateProgressPercent) els.updateProgressPercent.textContent = `%${Math.round(percent)}`;
+  if (els.updateProgressBar) els.updateProgressBar.style.width = `${percent}%`;
+  if (els.updateProgressSize) {
+    els.updateProgressSize.textContent = transferred && total
+      ? `${transferred} / ${total} indirildi`
+      : "İndirme hazırlanıyor...";
+  }
+  if (els.updateProgressSpeed) els.updateProgressSpeed.textContent = speed ? `${speed}/sn` : "";
+}
+
+function hideUpdatePromptProgress() {
+  if (els.updateProgress) els.updateProgress.hidden = true;
+  if (els.updateProgressBar) els.updateProgressBar.style.width = "0%";
+  if (els.updateProgressPercent) els.updateProgressPercent.textContent = "%0";
+  if (els.updateProgressSize) els.updateProgressSize.textContent = "Hazırlanıyor...";
+  if (els.updateProgressSpeed) els.updateProgressSpeed.textContent = "";
+}
+
 function showUpdatePrompt(mode, detail = {}) {
   state.updatePromptState = mode;
+  if (mode === "available") {
+    els.updatePromptTitle.textContent = "Yeni güncelleme var";
+    els.updatePromptDetail.textContent = "Daha iyi ve kararlı bir sürüm bulundu. İstersen şimdi indirebilirim.";
+    els.updateNow.textContent = "Şimdi Güncelle";
+    els.updateNow.disabled = false;
+    hideUpdatePromptProgress();
+  } else if (mode === "downloading") {
+    els.updatePromptTitle.textContent = "Güncelleme indiriliyor";
+    els.updatePromptDetail.textContent = "İndirme sürüyor. Tamamlandığında kurulum için onay isteyeceğim.";
+    els.updateNow.textContent = "İndiriliyor";
+    els.updateNow.disabled = true;
+    updatePromptProgress(detail);
+  } else {
+    els.updatePromptTitle.textContent = "Güncelleme hazır";
+    els.updatePromptDetail.textContent = "Yeni sürüm indirildi. Kurulum için CODEGA AI yeniden başlatılacak.";
+    els.updateNow.textContent = "Uygula ve Yeniden Başlat";
+    els.updateNow.disabled = false;
+    if (detail && (detail.percent || detail.total || detail.transferred)) {
+      updatePromptProgress({ ...detail, percent: 100, transferred: detail.total || detail.transferred });
+    } else {
+      hideUpdatePromptProgress();
+    }
+  }
+  if (!els.updatePrompt.open) els.updatePrompt.showModal();
+  return;
   if (mode === "available") {
     els.updatePromptTitle.textContent = "Yeni güncelleme var";
     els.updatePromptDetail.textContent = "Daha iyi ve kararlı bir sürüm bulundu. İstersen şimdi indirebilirim.";
@@ -2176,6 +2244,7 @@ els.checkUpdate.addEventListener("click", async () => {
 });
 els.downloadUpdate.addEventListener("click", async () => {
   els.downloadUpdate.disabled = true;
+  showUpdatePrompt("downloading", { percent: 0 });
   els.updateDetail.textContent = "Güncelleme indiriliyor...";
   try {
     await window.codega.downloadUpdate();
@@ -2189,11 +2258,13 @@ els.updateLater.addEventListener("click", closeUpdatePrompt);
 els.updateLaterX.addEventListener("click", closeUpdatePrompt);
 els.updateNow.addEventListener("click", async () => {
   els.updateNow.disabled = true;
+  if (state.updatePromptState !== "ready") showUpdatePrompt("downloading", { percent: 0 });
   try {
     if (state.updatePromptState === "ready") {
       await window.codega.installUpdate();
     } else {
       els.updatePromptDetail.textContent = "Güncelleme indiriliyor. Hazır olunca tekrar soracağım.";
+      showUpdatePrompt("downloading", { percent: 0 });
       await window.codega.downloadUpdate();
     }
   } catch (error) {
@@ -2230,6 +2301,9 @@ window.codega.onUpdateStatus((payload) => {
     els.installUpdate.hidden = true;
     els.downloadUpdate.disabled = false;
     showUpdatePrompt("available", detail);
+  }
+  if (state === "downloading") {
+    showUpdatePrompt("downloading", detail);
   }
   if (state === "ready") {
     els.updateActions.hidden = false;

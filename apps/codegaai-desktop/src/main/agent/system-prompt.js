@@ -14,6 +14,7 @@ const { toolsSystemPrompt } = require("./tools");
 const {
   answerVerificationInstruction,
   mandatoryConclusionInstruction,
+  questionUnderstandingInstruction,
   reasoningSystemInstruction,
 } = require("./reasoning-guard");
 
@@ -50,6 +51,8 @@ function buildSystemPrompt(task = "chat", opts = {}) {
     "- Türkçe, doğal, net konuş. Dolgu cümlesi, gereksiz tekrar, kıvırtma yok.",
     "- Düşünen biri gibisin: yorum yap, gerekçe göster, gerektiğinde fikrini söyle.",
     "- İç model/paket adlarını söyleme; doğal yanıt ver.",
+    "",
+    questionUnderstandingInstruction(),
     "",
     reasoningSystemInstruction(),
     "",

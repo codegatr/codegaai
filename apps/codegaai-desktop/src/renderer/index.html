@@ -645,6 +645,16 @@
         </header>
         <h2 id="update-prompt-title">Yeni güncelleme hazır</h2>
         <p id="update-prompt-detail">Daha iyi ve kararlı bir sürüm bulundu.</p>
+        <div class="update-progress" id="update-progress" hidden>
+          <div class="update-progress__top">
+            <strong id="update-progress-percent">%0</strong>
+            <span id="update-progress-speed"></span>
+          </div>
+          <div class="update-progress__bar" aria-hidden="true">
+            <span id="update-progress-bar"></span>
+          </div>
+          <div class="update-progress__meta" id="update-progress-size">Hazırlanıyor...</div>
+        </div>
         <div class="update-prompt-actions">
           <button type="button" id="update-later">Daha Sonra</button>
           <button type="button" id="update-now">Şimdi Güncelle</button>

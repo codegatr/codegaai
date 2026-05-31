@@ -43,6 +43,18 @@ function reasoningSystemInstruction() {
   ].join("\n");
 }
 
+function questionUnderstandingInstruction() {
+  return [
+    "## Question Understanding Engine (QUE)",
+    "Before solving, first understand exactly what the user asks.",
+    "Internally extract: what is asked, what is not asked, given facts, constraints, required output type, and possible wording traps.",
+    "Scan for attention traps such as 'all except 9', interval wording, every nth item, hidden assumptions, and contradicted facts.",
+    "Do not introduce facts not present in the question.",
+    "Only reason after the question is understood and the required output is identified.",
+    "A correct calculation for a misunderstood question is still wrong.",
+  ].join("\n");
+}
+
 function answerVerificationInstruction() {
   return [
     "## Answer Verification Engine (AVE)",
@@ -112,6 +124,30 @@ function buildConclusionMessages(question, draftAnswer) {
         `Question:\n${question}`,
         `Draft answer:\n${draftAnswer}`,
         "Rewrite so the user receives the actual requested result. JSON only.",
+      ].join("\n\n"),
+    },
+  ];
+}
+
+function buildUnderstandingMessages(question, categories = []) {
+  return [
+    {
+      role: "system",
+      content: [
+        "You are CODEGA AI's Question Understanding Engine (QUE).",
+        "Your job is NOT to solve. Your job is to understand the user's request before reasoning begins.",
+        "Extract what is asked, what is not asked, given data, constraints, output type, and potential traps.",
+        "Do not answer the problem. Do not solve calculations. Do not add external facts.",
+        "Return ONLY valid JSON with this schema:",
+        '{"ok":true|false,"userWants":"...","givenData":["..."],"notAsked":["..."],"constraints":["..."],"expectedOutput":"number|list|boolean|explanation|decision|recommendation|artifact|unknown","potentialTraps":["..."],"summary":"short internal summary"}',
+      ].join("\n"),
+    },
+    {
+      role: "user",
+      content: [
+        `Categories: ${categories.join(", ") || "general"}`,
+        `Question:\n${question}`,
+        "Understand the question. JSON only.",
       ].join("\n\n"),
     },
   ];
@@ -244,6 +280,45 @@ async function verifyAnswer(question, draftAnswer, generateFn, opts = {}) {
   };
 }
 
+async function understandQuestion(question, generateFn, opts = {}) {
+  const categories = opts.categories || classifyReasoningProblem(question);
+  if (typeof generateFn !== "function" || !shouldEnforceConclusion(question)) {
+    return { ok: false, summary: "", skipped: true };
+  }
+  try {
+    const raw = await generateFn(buildUnderstandingMessages(question, categories));
+    const parsed = extractJson(raw);
+    if (!parsed || typeof parsed !== "object") return { ok: false, summary: "", malformed: true };
+    return {
+      ok: parsed.ok !== false,
+      userWants: String(parsed.userWants || "").trim(),
+      givenData: Array.isArray(parsed.givenData) ? parsed.givenData.map(String).slice(0, 8) : [],
+      notAsked: Array.isArray(parsed.notAsked) ? parsed.notAsked.map(String).slice(0, 8) : [],
+      constraints: Array.isArray(parsed.constraints) ? parsed.constraints.map(String).slice(0, 8) : [],
+      expectedOutput: String(parsed.expectedOutput || "unknown").trim(),
+      potentialTraps: Array.isArray(parsed.potentialTraps) ? parsed.potentialTraps.map(String).slice(0, 8) : [],
+      summary: String(parsed.summary || "").trim(),
+    };
+  } catch (_e) {
+    return { ok: false, summary: "", error: "que_generation_failed" };
+  }
+}
+
+function formatUnderstandingForPrompt(result) {
+  if (!result || !result.ok) return "";
+  const lines = [
+    "## Question Understanding Summary (QUE)",
+    `USER WANTS: ${result.userWants || result.summary || "unknown"}`,
+    `EXPECTED OUTPUT: ${result.expectedOutput || "unknown"}`,
+  ];
+  if (result.givenData && result.givenData.length) lines.push(`GIVEN DATA: ${result.givenData.join("; ")}`);
+  if (result.constraints && result.constraints.length) lines.push(`CONSTRAINTS: ${result.constraints.join("; ")}`);
+  if (result.notAsked && result.notAsked.length) lines.push(`NOT ASKED: ${result.notAsked.join("; ")}`);
+  if (result.potentialTraps && result.potentialTraps.length) lines.push(`POTENTIAL TRAPS: ${result.potentialTraps.join("; ")}`);
+  lines.push("Use this understanding to answer the actual question. Do not expose this checklist unless the user asks.");
+  return lines.join("\n");
+}
+
 async function verifyReasoningAnswer(question, draftAnswer, generateFn, opts = {}) {
   return verifyAnswer(question, draftAnswer, generateFn, { ...opts, force: true });
 }
@@ -273,6 +348,7 @@ async function enforceConclusion(question, draftAnswer, generateFn, opts = {}) {
 module.exports = {
   APPROVAL_THRESHOLD,
   classifyReasoningProblem,
+  questionUnderstandingInstruction,
   shouldEnforceConclusion,
   hasVisibleConclusion,
   isReasoningProblem,
@@ -280,8 +356,11 @@ module.exports = {
   reasoningSystemInstruction,
   answerVerificationInstruction,
   mandatoryConclusionInstruction,
+  buildUnderstandingMessages,
   buildVerificationMessages,
   buildConclusionMessages,
+  understandQuestion,
+  formatUnderstandingForPrompt,
   parseVerificationResult,
   verifyAnswer,
   verifyReasoningAnswer,

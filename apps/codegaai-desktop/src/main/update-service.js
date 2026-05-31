@@ -14,6 +14,9 @@ function updateErrorMessage(error) {
   if (/status code 502|HttpError:\s*502|Unicorn|This page is taking too long to load|github\.com/i.test(message)) {
     return "GitHub güncelleme dosyasına şu an ulaşılamadı. Bağlantı veya GitHub geçici olarak yoğun olabilir; birazdan tekrar dene.";
   }
+  if (/sha512 checksum mismatch|checksum mismatch/i.test(message)) {
+    return "Güncelleme dosyası doğrulanamadı. İndirme bozulmuş veya GitHub release dosyası yeni güncellenmiş olabilir; birazdan tekrar kontrol edip yeniden indir.";
+  }
   if (/latest\.ya?ml|release|download/i.test(message)) {
     return "Güncelleme bilgisi okunamadı. Release dosyası henüz hazır olmayabilir; birazdan tekrar dene.";
   }

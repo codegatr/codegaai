@@ -23,6 +23,28 @@ assert.equal(guard.shouldEnforceConclusion("merhaba"), false, "smalltalk does no
 assert.equal(guard.hasVisibleConclusion("Açıklama...\n\nFinal Answer: 42"), true, "visible final answer is detected");
 assert.equal(guard.hasVisibleConclusion("Bu birkaç yolla ele alınabilir."), false, "non-conclusive answer is rejected by MCE detector");
 
+const understandingMessages = guard.buildUnderstandingMessages("17 koyundan 9'u hariç hepsi öldü. Kaç koyun kaldı?", ["logic"]);
+assert.match(understandingMessages[0].content, /Question Understanding Engine/, "QUE prompt is available");
+const understanding = await guard.understandQuestion(
+  "17 koyundan 9'u hariç hepsi öldü. Kaç koyun kaldı?",
+  async () => JSON.stringify({
+    ok: true,
+    userWants: "Kalan koyun sayısı",
+    givenData: ["17 koyun var", "9'u hariç hepsi öldü"],
+    notAsked: ["Ölen koyun sayısı"],
+    constraints: ["'hariç 9' ifadesi 9 koyunun hayatta kaldığı anlamına gelir"],
+    expectedOutput: "number",
+    potentialTraps: ["17 - 9 hesaplamak"],
+    summary: "Kullanıcı hayatta kalan koyun sayısını istiyor.",
+  })
+);
+assert.equal(understanding.expectedOutput, "number", "QUE extracts output type");
+assert.match(
+  guard.formatUnderstandingForPrompt(understanding),
+  /USER WANTS: Kalan koyun sayısı/,
+  "QUE summary is formatted for the answer prompt"
+);
+
 const lowConfidence = guard.parseVerificationResult(
   JSON.stringify({
     ok: true,

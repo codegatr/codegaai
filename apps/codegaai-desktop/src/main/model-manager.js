@@ -23,8 +23,10 @@ const { reflect } = require("./agent/reflect");
 const {
   classifyReasoningProblem,
   enforceConclusion,
+  formatUnderstandingForPrompt,
   shouldEnforceConclusion,
   shouldVerifyAnswer,
+  understandQuestion,
   verifyAnswer,
 } = require("./agent/reasoning-guard");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
@@ -662,6 +664,20 @@ class ModelManager {
     }
 
     // Mesaj dizisi: system (karakter + hafıza + RAG + plan + araç protokolü) + geçmiş + kullanıcı
+    let questionUnderstanding = "";
+    if (inputNeedsConclusion || inputNeedsVerification) {
+      try {
+        const understood = await understandQuestion(
+          input,
+          (msgs) => this.generate(selectedModel, msgs, attemptModels),
+          { categories: reasoningCategories }
+        );
+        questionUnderstanding = formatUnderstandingForPrompt(understood);
+      } catch (_e) {
+        questionUnderstanding = "";
+      }
+    }
+
     const messages = [
       {
         role: "system",
@@ -675,6 +691,7 @@ class ModelManager {
           learnedContext,
         }),
       },
+      ...(questionUnderstanding ? [{ role: "system", content: questionUnderstanding }] : []),
       ...this.history,
       { role: "user", content: input },
     ];
