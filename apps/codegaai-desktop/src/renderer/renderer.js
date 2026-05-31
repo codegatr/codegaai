@@ -596,6 +596,7 @@ function setModelStatus(status) {
   const ready = status?.status === "ready";
   const missing = status?.status === "missing";
   const progress = status?.progress || null;
+  const isDownloading = status?.status === "checking" && progress;
   els.modelPill.textContent = ready
     ? "Hazır"
     : missing
@@ -622,7 +623,7 @@ function setModelStatus(status) {
   }
   const ovModel = document.getElementById("ov-model");
   if (ovModel && status && status.model) ovModel.textContent = status.model;
-  if (typeof updateOverview === "function") updateOverview();
+  if (!isDownloading && typeof updateOverview === "function") updateOverview();
 }
 
 function formatBytes(bytes) {
@@ -661,6 +662,20 @@ function updateModelDownload(status) {
     const speed = formatBytes(progress.speedBytesPerSec);
     els.modelDownloadSpeed.textContent = speed ? `${speed}/sn` : "";
   }
+}
+
+let modelStatusRaf = 0;
+let pendingModelStatus = null;
+function scheduleModelStatus(status) {
+  pendingModelStatus = status;
+  if (modelStatusRaf) return;
+  modelStatusRaf = requestAnimationFrame(() => {
+    modelStatusRaf = 0;
+    const next = pendingModelStatus;
+    pendingModelStatus = null;
+    setModelStatus(next);
+    if (next?.status !== "checking") refreshModels();
+  });
 }
 
 function renderModelList(payload) {
@@ -1762,8 +1777,7 @@ els.updateNow.addEventListener("click", async () => {
 });
 
 window.codega.onModelStatus((status) => {
-  setModelStatus(status);
-  if (status?.status !== "checking") refreshModels();
+  scheduleModelStatus(status);
 });
 window.codega.onUpdateStatus((payload) => {
   const state = payload?.state || "unknown";

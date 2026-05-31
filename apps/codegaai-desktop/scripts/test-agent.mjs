@@ -414,6 +414,7 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   const modelSetupBlock = mainText.slice(mainText.indexOf('ipcMain.handle("model:setup"'), mainText.indexOf('ipcMain.handle("model:prepare"'));
   assert.ok(!/title:\s*"Model İndir"/.test(modelSetupBlock), "model indirme için native popup yok");
   assert.ok(/prepareModel\(modelId/.test(modelSetupBlock), "model setup doğrudan prepareModel çağırır");
+  assert.ok(/isDestroyed\(\)/.test(modelSetupBlock), "destroy edilmiş renderer'a status gönderilmez");
   ok("Rehberli model indirme: progress panelini örten popup yok");
 }
 

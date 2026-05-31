@@ -254,7 +254,12 @@ function registerIpc() {
   // Rehberli kurulum: OS algıla -> boyut göster -> onay -> Ollama kur -> model indir.
   ipcMain.handle("model:setup", async (event, payload) => {
     const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0] || null;
-    const send = (m) => { try { event.sender.send("model:status", m); } catch (_e) {} };
+    const send = (m) => {
+      try {
+        if (!event.sender || event.sender.isDestroyed()) return;
+        event.sender.send("model:status", m);
+      } catch (_e) {}
+    };
     const fmtMB = (b) => (b ? `~${Math.round(b / 1e6)} MB` : "boyut bilinmiyor");
 
     // 1) Ollama kurulu mu?
@@ -302,7 +307,10 @@ function registerIpc() {
 
   ipcMain.handle("model:prepare", async (event, modelId) => {
     const status = await modelManager.prepareModel(modelId, (progress) => {
-      event.sender.send("model:status", progress);
+      try {
+        if (!event.sender || event.sender.isDestroyed()) return;
+        event.sender.send("model:status", progress);
+      } catch (_e) {}
     });
     if (status.action === "install_ollama" && status.actionUrl) {
       await shell.openExternal(status.actionUrl);
