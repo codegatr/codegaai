@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld("codega", {
   abortChat: () => ipcRenderer.invoke("chat:abort"),
   mcpListTools: (payload) => ipcRenderer.invoke("mcp:listTools", payload),
   mcpCallTool: (payload) => ipcRenderer.invoke("mcp:callTool", payload),
+  mcpRefreshTools: () => ipcRenderer.invoke("mcp:refreshTools"),
   learnNow: (payload) => ipcRenderer.invoke("learning:now", payload),
   learningList: () => ipcRenderer.invoke("learning:list"),
   clearLearning: () => ipcRenderer.invoke("learning:clear"),

@@ -51,6 +51,7 @@ const els = {
   toggleStreaming: document.getElementById("toggle-streaming"),
   toggleContinuous: document.getElementById("toggle-continuous"),
   toggleSemantic: document.getElementById("toggle-semantic"),
+  toggleMcpAuto: document.getElementById("toggle-mcp-auto"),
   learnTopics: document.getElementById("learn-topics"),
   learnRepo: document.getElementById("learn-repo"),
   providerSelect: document.getElementById("provider-select"),
@@ -1315,6 +1316,20 @@ if (learnClearBtn) learnClearBtn.addEventListener("click", async () => {
   try { await window.codega.clearLearning(); refreshLearnList(); setTransientStatus("Öğrenilenler temizlendi."); } catch (_e) {}
 });
 
+if (els.toggleMcpAuto) els.toggleMcpAuto.addEventListener("click", async () => {
+  const next = !agentSettings.mcpAutoTools;
+  const url = ((document.getElementById("mcp-url") || {}).value || "").trim();
+  if (next && !/^https?:\/\//i.test(url)) { setTransientStatus("Önce geçerli bir MCP sunucu URL gir."); return; }
+  els.toggleMcpAuto.disabled = true;
+  try {
+    agentSettings = await window.codega.setSettings({ mcpAutoTools: next, mcpServerUrl: url });
+    applyToggleLabel(els.toggleMcpAuto, !!agentSettings.mcpAutoTools);
+    const r = await window.codega.mcpRefreshTools();
+    setTransientStatus(next ? (r && r.ok ? `Ajana ${r.count} MCP aracı bağlandı.` : "Bağlanamadı: " + ((r && r.message) || "")) : "MCP araçları ajandan çıkarıldı.");
+  } catch (e) { setTransientStatus("Hata: " + (e.message || e)); }
+  finally { els.toggleMcpAuto.disabled = false; }
+});
+
 buildSettingsNav();
 
 // Denetimli kendini geliştirme: öneriyi PR olarak aç
@@ -1447,6 +1462,7 @@ async function refreshAgentSettings() {
     if (els.toggleStreaming) applyToggleLabel(els.toggleStreaming, agentSettings.streaming !== false);
     if (els.toggleContinuous) applyToggleLabel(els.toggleContinuous, !!agentSettings.continuousLearning);
     if (els.toggleSemantic) applyToggleLabel(els.toggleSemantic, !!agentSettings.semanticSearch);
+    if (els.toggleMcpAuto) applyToggleLabel(els.toggleMcpAuto, !!agentSettings.mcpAutoTools);
     if (els.learnTopics) els.learnTopics.value = agentSettings.learningTopics || "";
     if (els.learnRepo) els.learnRepo.value = agentSettings.learningSyncRepo || "";
     if (els.providerSelect) els.providerSelect.value = agentSettings.provider || "ollama";

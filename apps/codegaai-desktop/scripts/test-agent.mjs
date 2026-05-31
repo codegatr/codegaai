@@ -639,4 +639,18 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Kurucu: boyut tablosu + URL + algılama");
 }
 
+// 40) MCP -> ajan araç döngüsü: kayıt + tanıma + araç-promptunda görünme
+{
+  const tMod = await import(path.join(mainDir, "agent", "tools.js"));
+  const T = tMod.default || tMod;
+  const added = T.setMcpTools("http://x/mcp", [{ name: "saat", description: "saat verir" }]);
+  assert.ok(added.includes("mcp_saat"), "mcp aracı kaydedilir");
+  const prompt = T.toolsSystemPrompt();
+  assert.ok(/mcp_saat/.test(prompt), "mcp aracı araç-promptunda görünür");
+  T.clearMcpTools();
+  const prompt2 = T.toolsSystemPrompt();
+  assert.ok(!/mcp_saat/.test(prompt2), "temizlenince prompttan çıkar");
+  ok("MCP -> ajan döngüsü: kayıt + tanıma + promptta görünme");
+}
+
 console.log(`\n${passed} test geçti ✅`);

@@ -310,6 +310,45 @@ const TOOLS = {
   recall: { fn: toolRecall, desc: "Kalıcı bellekte ara" },
 };
 
+// --------------------------------------------------- MCP araçları (dinamik)
+// Kullanıcı bir MCP sunucusunu "ajana bağla" derse, sunucunun araçları TOOLS'a
+// mcp_<ad> olarak eklenir; extractToolCalls ve araç-promptu otomatik tanır.
+let _mcpServerUrl = "";
+function _sanitizeToolName(n) {
+  return String(n || "").replace(/[^A-Za-z0-9_]/g, "_").slice(0, 40);
+}
+function clearMcpTools() {
+  for (const k of Object.keys(TOOLS)) if (k.startsWith("mcp_")) delete TOOLS[k];
+  _mcpServerUrl = "";
+}
+function setMcpTools(serverUrl, toolList) {
+  clearMcpTools();
+  _mcpServerUrl = String(serverUrl || "");
+  const added = [];
+  for (const t of toolList || []) {
+    if (!t || !t.name) continue;
+    const key = "mcp_" + _sanitizeToolName(t.name);
+    const realName = t.name;
+    TOOLS[key] = {
+      desc: `[MCP] ${String(t.description || realName).slice(0, 80)}`,
+      fn: async (arg) => {
+        const mcp = require("./mcp-client");
+        let args = {};
+        const a = arg === undefined || arg === null ? "" : String(arg).trim();
+        if (a.startsWith("{")) {
+          try { args = JSON.parse(a); } catch (_e) { args = { input: a }; }
+        } else if (a) {
+          args = { input: a };
+        }
+        const r = await mcp.callTool(_mcpServerUrl, realName, args);
+        return (r && r.text) || "(boş)";
+      },
+    };
+    added.push(key);
+  }
+  return added;
+}
+
 function parseArgs(argsStr) {
   const s = String(argsStr || "").trim();
   if (!s) return [];
@@ -434,6 +473,8 @@ function toolsSystemPrompt() {
 
 module.exports = {
   TOOLS,
+  setMcpTools,
+  clearMcpTools,
   TOOL_PATTERN,
   hasToolCall,
   parseAndRunTools,

@@ -20,7 +20,9 @@ const DEFAULTS = {
   knowledgePath: "knowledge/codega-learnings.jsonl",
   idleLearning: false, // boşta öğrenilenleri GitHub'a senkronla (opt-in, sadece NOT)
   ragEnabled: true, // semantik bellek/doküman getirimi (RAG)
-  embedModel: "nomic-embed-text", // Ollama embedding modeli
+  embedModel: "nomic-embed-text",
+  mcpServerUrl: "", // ajana bağlanacak MCP sunucu URL
+  mcpAutoTools: false, // açıkken MCP sunucu araçları ajanın araç döngüsüne eklenir // Ollama embedding modeli
   selfReflection: false, // cevabı denetleyip düzelt (yavaş; opt-in)
   planner: false, // karmaşık hedefleri alt adımlara böl (opt-in)
   multiAgent: false, // orchestrator + uzman ajanlar (opt-in, deneysel, yavaş)

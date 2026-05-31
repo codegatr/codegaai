@@ -4,6 +4,26 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 94 — MCP araçlarını ajan döngüsüne bağlama — plan #2 (30 May 2026, Claude)
+
+Eksik #2: MCP manuel idi; artık ajan bağlı sunucunun araçlarını KENDİ çağırabilir.
+
+- tools.js: setMcpTools(serverUrl, list) -> TOOLS'a mcp_<ad> ekler (fn mcp.callTool;
+  düz arg -> {input}, JSON arg -> parse). clearMcpTools. extractToolCalls Object.keys(TOOLS)
+  kullandığı için otomatik tanınır; toolsSystemPrompt'ta görünür; ana sohbet runReact
+  allowedTools=null olduğundan kullanılabilir. Mock ile test edildi (kayıt/dispatch/temizleme).
+- settings: mcpServerUrl, mcpAutoTools (off). main: refreshMcpTools (mcpAutoTools + geçerli
+  URL -> listTools -> setMcpTools; değilse clear). startup + settings:set(mcp*) tetikler.
+  IPC mcp:refreshTools. preload mcpRefreshTools.
+- UI: MCP bölümüne "Bu sunucuyu ajana bağla (otonom kullanım)" toggle (#toggle-mcp-auto);
+  açınca #mcp-url'i mcpServerUrl olarak kaydeder + araçları bağlar.
+
+OPT-IN ve kullanıcının güvendiği kendi sunucusu. Test 40/40. Surum 0.36.0 -> **0.37.0**.
+Kalan plan: #5 notları modelle damıt; yeni kaynaklar; vision/sandbox.
+
+---
+
+
 ## ✅ Faz 93 — Rehberli Ollama+Model kurulumu (OS algıla + boyut + onay) (30 May 2026, Claude)
 
 Kullanıcı: "Önerilen Modeli Kur" indirme sayfasına atıyor; OS'u algılayıp PowerShell ile

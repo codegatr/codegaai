@@ -16,6 +16,7 @@ const systemInfo = require("./agent/system-info");
 const learning = require("./agent/learning");
 const learningStore = require("./agent/learning-store");
 const installer = require("./agent/installer");
+const agentTools = require("./agent/tools");
 const { ollamaReachable } = require("./agent/ollama-client");
 
 const modelManager = new ModelManager();
@@ -102,6 +103,23 @@ async function learnOnce(manualTopic) {
     } catch (_e) { /* embedding hatası öğrenmeyi durdurmasın */ }
   }
   return { ok: true, ...lastLearn };
+}
+
+async function refreshMcpTools() {
+  try {
+    const s = settingsStore.getSettings();
+    if (s.mcpAutoTools && /^https?:\/\//i.test(s.mcpServerUrl || "")) {
+      const mcp = require("./agent/mcp-client");
+      const { tools: list } = await mcp.listTools(s.mcpServerUrl);
+      const added = agentTools.setMcpTools(s.mcpServerUrl, list || []);
+      return { ok: true, count: added.length, tools: added };
+    }
+    agentTools.clearMcpTools();
+    return { ok: true, count: 0, tools: [] };
+  } catch (e) {
+    try { agentTools.clearMcpTools(); } catch (_e) {}
+    return { ok: false, message: e.message || String(e) };
+  }
 }
 
 function scheduleLearning() {
@@ -297,7 +315,12 @@ function registerIpc() {
   ipcMain.handle("updates:install", async () => updateService.installNow());
 
   ipcMain.handle("settings:get", async () => settingsStore.getSettings());
-  ipcMain.handle("settings:set", async (_event, patch) => settingsStore.setSettings(patch));
+  ipcMain.handle("settings:set", async (_event, patch) => {
+    const next = settingsStore.setSettings(patch);
+    if (patch && (("mcpAutoTools" in patch) || ("mcpServerUrl" in patch))) { refreshMcpTools().catch(() => {}); }
+    return next;
+  });
+  ipcMain.handle("mcp:refreshTools", async () => refreshMcpTools());
   ipcMain.handle("memory:list", async () => memory.listFacts());
   ipcMain.handle("memory:clear", async () => memory.clearAll());
 
@@ -421,6 +444,7 @@ app.whenReady().then(async () => {
   doMaintenance().then(() => maybeAutoPropose()).catch(() => {});
   setInterval(() => { doMaintenance().then(() => maybeAutoPropose()).catch(() => {}); }, 5 * 60 * 1000);
   scheduleLearning();
+  refreshMcpTools().catch(() => {});
 
   // Başlangıçta GitHub'daki bilgi dosyasını yerel belleğe yükle (yapılandırıldıysa)
   knowledge.syncDown().catch(() => {});
