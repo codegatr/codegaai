@@ -1,5 +1,5 @@
 const path = require("node:path");
-const { app, BrowserWindow, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const { APP_NAME, FEDERATION_BASE_URL, MODEL_OPTIONS } = require("../shared/constants");
 const { ModelManager } = require("./model-manager");
 const { UpdateService } = require("./update-service");
@@ -15,6 +15,7 @@ const feedback = require("./agent/feedback");
 const systemInfo = require("./agent/system-info");
 const learning = require("./agent/learning");
 const learningStore = require("./agent/learning-store");
+const installer = require("./agent/installer");
 const { ollamaReachable } = require("./agent/ollama-client");
 
 const modelManager = new ModelManager();
@@ -216,6 +217,66 @@ function registerIpc() {
   });
 
   ipcMain.handle("models:list", async () => modelManager.getModels());
+
+  // Rehberli kurulum: OS algıla -> boyut göster -> onay -> Ollama kur -> model indir.
+  ipcMain.handle("model:setup", async (event, payload) => {
+    const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0] || null;
+    const send = (m) => { try { event.sender.send("model:status", m); } catch (_e) {} };
+    const fmtMB = (b) => (b ? `~${Math.round(b / 1e6)} MB` : "boyut bilinmiyor");
+
+    // 1) Ollama kurulu mu?
+    let hasOllama = await installer.detectOllama();
+    if (!hasOllama) {
+      const url = installer.ollamaInstallerUrl();
+      const size = await installer.headSize(url);
+      const confirm = await dialog.showMessageBox(win, {
+        type: "question",
+        buttons: ["Kur", "Vazgeç"],
+        defaultId: 0,
+        cancelId: 1,
+        title: "Ollama Kurulumu",
+        message: "Yerel motor Ollama kurulu değil.",
+        detail: `Ollama indirilip kurulacak (${fmtMB(size)}). İşletim sistemin algılandı: ${process.platform}. Onaylıyor musun?`,
+      });
+      if (confirm.response !== 0) return { ok: false, message: "Kurulum iptal edildi." };
+
+      send({ status: "checking", message: "Ollama kuruluyor… (yönetici onayı çıkabilir)" });
+      const r = await installer.installOllama((line) => {
+        const clean = String(line).replace(/\s+/g, " ").trim();
+        if (clean) send({ status: "checking", message: "Ollama kurulumu: " + clean.slice(0, 90) });
+      });
+      hasOllama = await installer.detectOllama();
+      if (!hasOllama) {
+        return {
+          ok: false,
+          needsManual: !!r.needsManual,
+          message: r.needsManual
+            ? "Kurulum penceresini tamamlayıp 'Önerilen Modeli Kur'a tekrar bas."
+            : (r.message || "Ollama kurulumu doğrulanamadı. Tamamlandıysa tekrar dene."),
+        };
+      }
+      send({ status: "checking", message: "Ollama kuruldu ✓" });
+    }
+
+    // 2) Model indir (önerilen ya da verilen) — boyut göster + onay
+    const sys = systemInfo.analyze(MODEL_OPTIONS);
+    const modelId = (payload && payload.modelId) || (sys.recommended && sys.recommended.id) || undefined;
+    const gb = installer.modelSizeGb(modelId);
+    const sizeTxt = gb ? `~${gb} GB` : "boyut yaklaşık olarak bilinmiyor";
+    const confirm2 = await dialog.showMessageBox(win, {
+      type: "question",
+      buttons: ["İndir", "Vazgeç"],
+      defaultId: 0,
+      cancelId: 1,
+      title: "Model İndir",
+      message: `${modelId || "Önerilen model"} indirilsin mi?`,
+      detail: `Tahmini indirme: ${sizeTxt}. Bilgisayarına uygun önerilen model. İndirme bağlantına göre sürebilir.`,
+    });
+    if (confirm2.response !== 0) return { ok: false, message: "Model indirme iptal edildi." };
+
+    const status = await modelManager.prepareModel(modelId, (progress) => send(progress));
+    return status;
+  });
 
   ipcMain.handle("model:prepare", async (event, modelId) => {
     const status = await modelManager.prepareModel(modelId, (progress) => {

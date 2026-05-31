@@ -946,12 +946,17 @@ els.settingsButton.addEventListener("click", async () => {
       btn.hidden = false;
       btn.onclick = async () => {
         btn.disabled = true;
-        setTransientStatus(`${sys.recommended.label} indiriliyor… (Ollama)`);
+        setTransientStatus("Sistem algılanıyor, kurulum hazırlanıyor…");
         try {
-          await window.codega.prepareModel(sys.recommended.id);
-          setTransientStatus(`${sys.recommended.label} hazır.`);
+          const status = await window.codega.setupModel({ modelId: sys.recommended.id });
+          if (status && status.ok === false) {
+            setTransientStatus(status.message || "Kurulum tamamlanmadı.");
+          } else {
+            setTransientStatus(`${sys.recommended.label} hazır.`);
+            if (typeof refreshModels === "function") refreshModels();
+          }
         } catch (e) {
-          setTransientStatus("Model indirilemedi: " + (e.message || e));
+          setTransientStatus("Kurulum hatası: " + (e.message || e));
         } finally {
           btn.disabled = false;
         }

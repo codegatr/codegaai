@@ -627,4 +627,16 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Anlamsal arama: cosine + geri-doldurma + semantik sıralama");
 }
 
+// 39) Kurucu: model boyut tablosu + OS-uygun kurucu URL + algılama
+{
+  const iMod = await import(path.join(mainDir, "agent", "installer.js"));
+  const I = iMod.default || iMod;
+  assert.strictEqual(I.modelSizeGb("qwen3:8b"), 5.2, "bilinen model boyutu");
+  assert.strictEqual(I.modelSizeGb("bilinmeyen-model"), null, "bilinmeyen -> null");
+  assert.ok(/ollama\.com/.test(I.ollamaInstallerUrl()), "kurucu URL ollama.com");
+  const det = await I.detectOllama();
+  assert.strictEqual(typeof det, "boolean", "detectOllama boolean döner");
+  ok("Kurucu: boyut tablosu + URL + algılama");
+}
+
 console.log(`\n${passed} test geçti ✅`);

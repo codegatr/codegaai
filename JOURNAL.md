@@ -4,6 +4,28 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 93 — Rehberli Ollama+Model kurulumu (OS algıla + boyut + onay) (30 May 2026, Claude)
+
+Kullanıcı: "Önerilen Modeli Kur" indirme sayfasına atıyor; OS'u algılayıp PowerShell ile
+kendi kurmalı, sistemin kaldırabileceği modeli sunmalı, TAHMİNİ BOYUT gösterip ONAY sonrası
+indirmeli.
+
+- installer.js: detectOllama (`ollama --version`); headSize(url) (HEAD ile GERÇEK boyut —
+  OllamaSetup.exe ~2.1 GB doğrulandı); modelSizeGb (yaklaşık tablo); hasCommand;
+  installOllama: Windows PowerShell+winget (yoksa resmi OllamaSetup.exe indir+çalıştır),
+  macOS brew (yoksa elle), Linux resmi betik. KURULUM YALNIZCA ONAYDAN SONRA.
+- main IPC model:setup: OS algıla -> Ollama yoksa boyutlu ONAY diyaloğu -> kur -> yeniden
+  algıla -> model için boyutlu ONAY diyaloğu -> prepareModel (akışlı ilerleme model:status).
+  Native dialog.showMessageBox ile onay.
+- preload setupModel. renderer: #ov-use-recommended artık setupModel çağırır.
+
+DÜRÜST: Windows'taki gerçek winget/exe kurulumunu bu ortamda çalıştıramadım; test
+edilebilir kısımlar (boyut HEAD, tablo, algılama, URL) doğrulandı. Test 39/39.
+Surum 0.35.0 -> **0.36.0**.
+
+---
+
+
 ## ✅ Faz 92 — Anlamsal arama (embeddings) — karşılaştırma planı #1 (30 May 2026, Claude)
 
 En yüksek getirili madde. Öğrenilen bilgide anahtar-kelime yerine ANLAM benzerliği.
