@@ -839,4 +839,32 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("RAG: belge ekle/listele/ara/sil");
 }
 
+
+// MLVC çok-test paketi: tümü deterministik değilse KISA DEVRE YAPMAMALI (eksik cevap düzeltmesi)
+{
+  const mMod = await import(path.join(mainDir, "agent", "mlvc.js"));
+  const M = mMod.default || mMod;
+  const mixedSuite = [
+    "Test 1 — Yas",
+    "Baba ile oglun toplam 72, baba oglun 5 kati. Kac yil sonra baba oglun 3 kati olur?",
+    "Test 2 — Mantik",
+    "Bir odada 3 ampul var, anahtarlar baska odada...",
+    "Test 4 — Yuzde",
+    "Urun %20 zam, %10 indirim, %25 zam. 100 TL ise son fiyat?",
+    "Test 6 — Mantik",
+    "Yarista ikinci siradaki kisiyi geciyorsun. Kacinci olursun?",
+    "Test 8 — Final",
+    "100 kapi... en sonunda hangi kapilar acik kalir?",
+  ].join("\n");
+  // Karışık paket: bazı testler deterministik değil -> kısa devre YOK (boş döner, model yanıtlar)
+  assert.strictEqual(M.solveDeterministic(mixedSuite), "", "karışık paket kısa devre yapmamalı");
+  // Çok-parçalı: model yokken deterministik 'düzeltme' tüm cevabı KIRPMAMALI
+  const draft = "Test 1: 12 yil. Test 4: 135 TL. Test 6: 2. Test 8: tam kareler.";
+  const r = await M.verifyMathLogic(mixedSuite, draft, null);
+  assert.strictEqual(r.answer, draft, "çok-parçalı cevap korunmalı (kırpılmamalı)");
+  // Tek deterministik soru hâlâ anında çözülmeli (regresyon)
+  assert.ok(M.solveDeterministic("Urun %20 zam, %10 indirim, %25 zam. 100 TL ise?").includes("135"), "tek soru hâlâ anında");
+  ok("MLVC: karışık çok-test paketi kısa devre yapmaz; cevap kırpılmaz; tek soru anında");
+}
+
 console.log(`\n${passed} test geçti ✅`);

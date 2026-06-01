@@ -311,9 +311,14 @@ function solveDeterministic(question) {
       lines.push(`${test.label}: ${body}`);
       finalParts.push(`${test.label}: ${checks.map(formatCheckAnswer).join(", ")}`);
     }
+    // Yalnızca TÜM alt testler deterministik çözülebiliyorsa kısa devre yap.
     if (lines.length === tests.length) {
       return `${lines.join("\n")}\n\nFinal Answer: ${finalParts.join(" | ")}`;
     }
+    // Aksi halde kısa devre YAPMA: bazı testler deterministik değil; tüm metne dedektör
+    // uygulayıp yalnızca eşleşenleri döndürmek diğer soruları DÜŞÜRÜR. Modelin tüm
+    // paketi (her testi) yanıtlamasına izin ver.
+    return "";
   }
   const check = deterministicCheck(question, "");
   if (check.checks.length && check.correctedAnswer) return check.correctedAnswer;
@@ -381,7 +386,12 @@ async function verifyMathLogic(question, draftAnswer, generateFn, opts = {}) {
   if (!domains.length && !opts.force) return { answer: current, verified: false, approved: true, domains };
 
   const deterministic = deterministicCheck(question, current);
-  if (!deterministic.ok && deterministic.correctedAnswer) {
+  // Çok parçalı girişlerde (çok-test paketi veya birden fazla bağımsız deterministik
+  // kontrol) deterministik "düzeltme" cevabın TAMAMININ yerine geçmemeli — yoksa
+  // kapsanmayan sorular düşer. Bu durumda bulgular yalnızca LLM doğrulama turuna ipucu
+  // olarak verilir (buildMLVCMessages'e geçer), tam cevap korunur.
+  const multiPart = splitNumberedTests(question).length > 1 || deterministic.checks.length > 1;
+  if (!deterministic.ok && deterministic.correctedAnswer && !multiPart) {
     current = deterministic.correctedAnswer;
     errorMemory.recordFailure("mlvc_deterministic", deterministic.failures[0] ? deterministic.failures[0].kind : "math_logic_mismatch");
   }

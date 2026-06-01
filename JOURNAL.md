@@ -4,6 +4,38 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 106 — CODEX MLVC çok-test "eksik cevaplama" hatası düzeltildi (1 Haz 2026, Claude)
+
+CODEX 0.54->0.66 ile büyük bir muhakeme katmanı eklemiş: mlvc.js (Math Logic Verification
+Core), cognitive-pipeline, reasoning-guard, benchmark-reasoner, error-memory. Çoğu sağlam.
+ANCAK çok-soruluk (multi-test) istemlerde KÖK HATA: 8 sorudan sadece 2'sini cevaplıyordu.
+
+Kök neden:
+- model-manager: `solveDeterministic(input)` boş değilse modeli HİÇ çalıştırmadan kısa devre.
+- mlvc.solveDeterministic: çok-test paketinde tüm testler deterministik DEĞİLSE per-test
+  yolunu bırakıp TÜM metne dedektör uyguluyor, yalnızca yüzde(135)+sıra(2) yakalanıp
+  "Final Answer: 135 | 2" dönüyor; diğer 6 soru DÜŞÜYOR.
+- verifyMathLogic: çok-parçalı girişte deterministik 'correctedAnswer' tüm cevabın yerine
+  geçip yine kırpıyordu.
+
+Düzeltme (mlvc.js):
+- solveDeterministic: çok-test paketinde yalnız TÜM testler çözülürse kısa devre; aksi halde
+  "" döner (model tüm paketi yanıtlar). Eksik-kapsamlı whole-blob fallback kaldırıldı.
+- verifyMathLogic: multiPart (çok-test veya >1 deterministik kontrol) ise correctedAnswer
+  TAM cevabın yerine GEÇMEZ; bulgular yalnız LLM doğrulama turuna ipucu olur, tam cevap korunur.
+- Regresyon korundu: tek deterministik soru hâlâ anında; hepsi-çözülen paket hâlâ birleşik.
+
+Doğru cevaplar (yer gerçeği): T1=12 yıl, T2=anahtar dizisi (sıcak ampul=ilk açılan),
+T3=1 saat (60 dk), T4=135 TL, T5=5/33, T6=2., T7=3 (anneanne-anne-kız), T8=tam kareler
+(1,4,9,16,25,36,49,64,81,100).
+
+Test 52/52 (CODEX'in reasoning-guard testi dahil yeşil). Surum 0.66.0 -> **0.67.0**.
+NOT: 3B model hâlâ bazılarını yanlış yapabilir ama artık 8'inin TAMAMINI yanıtlar; deterministik
+çekirdek yakaladıklarını (yüzde/yaş/süre/olasılık/sıra) doğrular/düzeltir.
+
+---
+
+
 ## ✅ Faz 105 — RAG yönetim sayfası gerçek (31 May 2026, Claude)
 
 PLANLI olan RAG sayfası gerçek oldu — sadece rozet değil, gerçek yetenek.
