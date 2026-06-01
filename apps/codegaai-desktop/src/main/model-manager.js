@@ -40,6 +40,7 @@ const hril = require("./agent/hril");
 const ree = require("./agent/ree");
 const tde = require("./agent/tde");
 const finalAnswerSanitizer = require("./agent/final-answer-sanitizer");
+const cognitiveKernel = require("./cognitive/kernel/cognitive-kernel");
 const { repairBenchmarkAnswer, solveKnownReasoningBenchmarks } = require("./agent/benchmark-reasoner");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
@@ -598,7 +599,16 @@ class ModelManager {
     const inputNeedsConclusion = shouldEnforceConclusion(input);
     const inputNeedsMLVC = shouldRunMLVC(input);
     const deepReasoning = getSettings().deepReasoning === true; // ağır çok-turlu LLM doğrulaması (opt-in, varsayılan KAPALI)
-    const taskDecomposition = tde.decomposeTasks(input);
+    const cognitiveContextState = cognitiveKernel.createContext(input, {
+      flags: {
+        deepReasoning,
+        inputNeedsConclusion,
+        inputNeedsMLVC,
+        inputNeedsVerification,
+      },
+    });
+    const cognitiveIntake = cognitiveKernel.runIntake(cognitiveContextState);
+    const taskDecomposition = cognitiveIntake.taskReport;
     const inputNeedsCognitivePipeline = deepReasoning && shouldRunCognitivePipeline(input) && !inputNeedsMLVC;
     // Akış yalnızca (opt-in) bilişsel hat çalışırken kapanır. Aksi halde cevap token token
     // akar — kullanıcı "düşünüyorum"da DONMAZ. Doğrulama/sonuç turları akışı engellemez.
@@ -761,7 +771,7 @@ class ModelManager {
           learnedContext,
         }),
       },
-      ...(taskDecomposition.applicable ? [{ role: "system", content: tde.formatTaskContext(taskDecomposition) }] : []),
+      ...(cognitiveIntake.messages || []),
       ...(cognitiveContext ? [{ role: "system", content: cognitiveContext }] : []),
       ...this.history,
       { role: "user", content: input },
@@ -1097,6 +1107,32 @@ class ModelManager {
         if (c.answer && c.answer.trim()) finalText = c.answer.trim();
       } catch (_e) {
         // sonuc kapisi hatasi cevabi bozmasin
+      }
+    }
+
+    // Cognitive Kernel final authority: every non-smalltalk answer exits through the
+    // same staged orchestration pipeline. If a blocking gate still fails after repair,
+    // the unsafe draft is not delivered to the user.
+    if (agent.stoppedReason !== "smalltalk") {
+      try {
+        const post = await cognitiveKernel.runPostValidation(cognitiveContextState, finalText, {
+          stoppedReason: agent.stoppedReason,
+          needsVerification: inputNeedsVerification,
+          needsMLVC: inputNeedsMLVC,
+          needsConclusion: inputNeedsConclusion,
+          deepReasoning,
+          reasoningCategories,
+          generate: (msgs) => this.generate(selectedModel, msgs, attemptModels),
+          onSignal: (signal) => {
+            try { improveDrafts.recordSignal(signal); } catch (_e) {}
+          },
+        });
+        if (post.answer && String(post.answer).trim()) finalText = String(post.answer).trim();
+        if (!post.ok) {
+          try { improveDrafts.recordSignal({ kind: "cognitive_kernel_block", subject: cognitiveContextState.blockReason }); } catch (_e) {}
+        }
+      } catch (_e) {
+        // Kernel failures must not crash the app; previous deterministic gates have already run.
       }
     }
 

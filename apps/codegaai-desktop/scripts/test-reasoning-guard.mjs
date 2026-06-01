@@ -21,6 +21,8 @@ const tdeMod = await import(pathToFileURL(path.join(mainDir, "agent", "tde.js"))
 const tde = tdeMod.default || tdeMod;
 const finalMod = await import(pathToFileURL(path.join(mainDir, "agent", "final-answer-sanitizer.js")).href);
 const finalSanitizer = finalMod.default || finalMod;
+const cognitiveKernelMod = await import(pathToFileURL(path.join(mainDir, "cognitive", "kernel", "cognitive-kernel.js")).href);
+const cognitiveKernel = cognitiveKernelMod.default || cognitiveKernelMod;
 
 assert.ok(
   guard.classifyReasoningProblem("2x + 4 = 52 ise x kac?").includes("math"),
@@ -363,6 +365,29 @@ const duplicateFinal = finalSanitizer.validateFinalAnswer(
   taskReport
 );
 assert.equal(duplicateFinal.ok, false, "Final Answer rejects duplicate task answers");
+
+const kernelContext = cognitiveKernel.createContext(`## Test 1
+3x + 12 = 57 ise x kactir?
+
+## Test 2
+45/135 sadelestirilmis hali nedir?`);
+const kernelIntake = cognitiveKernel.runIntake(kernelContext);
+assert.equal(kernelIntake.taskReport.count, 2, "Cognitive Kernel stores detected tasks in task state");
+assert.equal(kernelIntake.messages.length, 1, "Cognitive Kernel emits task middleware context");
+assert.equal(kernelContext.stages[0].name, "tde:intake", "Cognitive Kernel records intake stage");
+
+const leakedKernelContext = cognitiveKernel.createContext(
+  "Bir ciftcinin 50 tavugu vardi. 17'si haric hepsi oldu. Kac tavugu kaldi?"
+);
+cognitiveKernel.runIntake(leakedKernelContext);
+const blockedKernel = await cognitiveKernel.runPostValidation(
+  leakedKernelContext,
+  "Final Answer: Bir ciftcinin 50 tavugu vardi. 17'si haric hepsi oldu. Kac tavugu kaldi?",
+  { stoppedReason: "final_answer", needsVerification: false, deepReasoning: false }
+);
+assert.equal(blockedKernel.ok, false, "Cognitive Kernel blocks answers that fail final validation");
+assert.match(blockedKernel.answer, /Final Answer: Yanıt güvenli şekilde doğrulanamadı/, "blocked answers do not leak unsafe drafts");
+assert.equal(leakedKernelContext.blockReason, "final-answer-sanitizer", "Cognitive Kernel records blocking gate");
 
 fs.rmSync(process.env.CODEGA_ERROR_MEMORY_PATH, { force: true });
 console.log("Reasoning guard tests passed");
