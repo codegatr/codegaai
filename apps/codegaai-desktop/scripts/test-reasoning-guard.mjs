@@ -471,6 +471,21 @@ assert.match(
   /APPROVED/,
   "EBSE verifies Father + Son sum-multiple prompts by substitution"
 );
+const fakeInstructionTasks = finalSanitizer.validateFinalAnswer(
+  [
+    "**Görev 1**",
+    "Cevap: x + 2 = 5",
+    "",
+    "**Görev 2**",
+    "Cevap: Lütfen daha fazla bilgi verin.",
+    "",
+    "Final Answer: Görev 1: x + 2 = 5 | Görev 2: bilgi eksik",
+  ].join("\n"),
+  "Father + Son = 70\nFather = 4 x Son",
+  instructionVsTask
+);
+assert.equal(fakeInstructionTasks.ok, false, "Final sanitizer rejects fake task labels for one-problem output requirements");
+assert.match(fakeInstructionTasks.errors.join(" "), /separate tasks/, "Final sanitizer explains instruction-vs-task leakage");
 
 const leakedFinal = finalSanitizer.validateFinalAnswer(
   "Final Answer: Bir ciftcinin 50 tavugu vardi. 17'si haric hepsi oldu. Kac tavugu kaldi?",

@@ -52,6 +52,17 @@ function questionLeakEvidence(question, finalText, tasks = []) {
   return "";
 }
 
+function fakeTaskSplitEvidence(answer, taskReport) {
+  if (!taskReport || !taskReport.instructionOnly || !(taskReport.outputRequirements || []).length) return "";
+  const text = String(answer || "");
+  const labels = [...text.matchAll(/(?:^|\n)\s*(?:\*\*)?\s*(?:görev|gorev|task|soru)\s+\d+\s*(?:\*\*)?\s*[:\n]/gi)];
+  if (labels.length >= 2) return `${labels.length} fake task labels`;
+  const final = finalAnswerText(answer);
+  const finalLabels = [...String(final || "").matchAll(/\b(?:görev|gorev|task|soru)\s+\d+\b/gi)];
+  if (finalLabels.length >= 2) return `${finalLabels.length} fake task labels in Final Answer`;
+  return "";
+}
+
 function validateFinalAnswer(answer, question, taskReport = null) {
   const finalText = finalAnswerText(answer);
   const tasks = taskReport && taskReport.applicable ? taskReport.tasks : [];
@@ -59,6 +70,8 @@ function validateFinalAnswer(answer, question, taskReport = null) {
   if (!finalText) errors.push("Final Answer section is missing.");
   const leak = questionLeakEvidence(question, finalText, tasks);
   if (leak) errors.push(`Question text leaked into Final Answer: ${leak}`);
+  const fakeTasks = fakeTaskSplitEvidence(answer, taskReport);
+  if (fakeTasks) errors.push(`Output instructions were incorrectly answered as separate tasks: ${fakeTasks}`);
 
   return {
     ok: errors.length === 0,
@@ -80,16 +93,22 @@ function buildFinalAnswerRepairMessages(question, answer, taskReport, validation
         "1. Question text may never appear inside Final Answer.",
         "2. Final Answer contains completed answer results only.",
         "Do not repeat problem statements. Do not include question wording. Task labels are optional, not required.",
+        taskReport && taskReport.instructionOnly
+          ? "This request is ONE problem with output requirements. Do NOT write Görev 1/Görev 2/etc. Apply the required steps to the same problem."
+          : "",
         "Return a complete corrected response ending with Final Answer.",
-      ].join("\n"),
+      ].filter(Boolean).join("\n"),
     },
     {
       role: "user",
       content: [
         `Detected final answer errors:\n${(validation.errors || []).join("\n")}`,
+        taskReport && taskReport.instructionOnly
+          ? `Output requirements:\n${(taskReport.outputRequirements || []).map((req) => `- ${req.body}`).join("\n")}`
+          : "",
         `Original question:\n${question}`,
         `Previous answer:\n${answer}`,
-      ].join("\n\n"),
+      ].filter(Boolean).join("\n\n"),
     },
   ];
 }

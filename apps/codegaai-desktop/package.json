@@ -1,7 +1,7 @@
 {
   "name": "codega-ai-desktop",
   "productName": "CODEGA AI",
-  "version": "0.88.0",
+  "version": "0.89.0",
   "description": "CODEGA AI clean Windows-first desktop app.",
   "author": "CODEGA",
   "private": true,
