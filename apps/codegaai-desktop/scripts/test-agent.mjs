@@ -946,6 +946,11 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   // Bir gorev eksik -> reddeder
   const partial = rep.tasks.slice(0, 3).map((t) => `**${t.label}**\nCevap: x`).join("\n\n");
   assert.strictEqual(TDE.validateTaskCoverage(partial, rep).ok, false, "eksik gorev -> reddedilir");
+  // Madde / tire / etiketli satır formatları da algılanmalı (tek-üretim fallback'i engelle)
+  assert.strictEqual(TDE.decomposeTasks("* Koyun: kac kaldi?\n* Yaris: kacinci olursun?\n* Hap: kac saat?").count, 3, "madde imli 3 gorev");
+  assert.strictEqual(TDE.decomposeTasks("- Soru bir nedir?\n- Soru iki nedir?").count, 2, "tire imli 2 gorev");
+  assert.strictEqual(TDE.decomposeTasks("Koyun: kac kaldi\nYaris: kacinci\nHap: kac saat").count, 3, "etiketli satir 3 gorev");
+  assert.strictEqual(TDE.decomposeTasks("Bu tek konulu uzun bir paragraf. Bolunmemeli cunku tek gorev.").applicable, false, "duz metin bolunmez");
   ok("Çok-görev: 5 görev algılanır; eksik kapsama reddedilir");
 }
 

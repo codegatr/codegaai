@@ -4,6 +4,31 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 115 — Çok-görev kaybının GERÇEK kök nedeni: TDE algılama boşluğu (1 Haz 2026, Claude)
+
+Hata sürüyordu: çok görevden 1 cevap (genelde "yarış"). Kullanıcı haklı — mimari değil,
+KOD/algılama. Erken-return/overwrite ARANDI; bulunan: multi_task dalımda (Faz 113) erken
+return YOK. Asıl neden:
+
+tde.decomposeTasks YALNIZCA "Test/Soru N", numara, veya tek-satır "?"-ayrımı algılıyordu.
+MADDE imli ("* …", "- …") ve ETİKETLİ SATIR ("Koyun: …") formatlarını algılamıyordu
+-> applicable=FALSE -> multi_task dalı HİÇ tetiklenmiyor -> tek runReact üretimi -> tek cevap.
+Yani "ne kadar prompt eklersen ekle aynı soruya takılıyordu" çünkü kod yolu çoklu-göreve hiç
+girmiyordu.
+
+Düzeltme (tde.js):
+- bulletTasks: "* / - / • / –" madde listesi (≥2).
+- lineTasks: her satır görev sinyali ("?" ile biter VEYA "Etiket:" deseni) ise böl; aksi halde
+  düz metni BÖLME (yanlış bölmeyi engelle).
+- mkTask: "Etiket: gövde" -> doğal etiket (Koyun/Yarış/Hap), yoksa "Görev N".
+- decomposeTasks fallback zinciri: heading -> bullet -> question -> line.
+
+Artık madde/tire/etiketli/soru-işaretli formatlar 3=3, 5=5 algılanıyor; düz metin bölünmüyor.
+Test 56/56 + reasoning-guard. Surum -> **0.84.0**.
+
+---
+
+
 ## ✅ Faz 114 — Çok-görev: görev→cevap eşlemesini koru (etiket kaybı) (1 Haz 2026, Claude)
 
 Hata raporu: görevler doğru çözülüyor ama birleştirmede etiket kayboluyor; çıktı "2 | 12"

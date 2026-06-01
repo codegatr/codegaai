@@ -72,15 +72,46 @@ function questionTasks(text) {
   }));
 }
 
+function mkTask(i, body) {
+  const b = String(body || "").trim();
+  const lm = b.match(/^([\wÇĞİÖŞÜçğıöşü .]{1,24}):\s*(\S[\s\S]*)$/);
+  const label = lm ? lm[1].trim() : `Görev ${i + 1}`;
+  return { id: String(i + 1), label, title: label, body: b, domain: classifyTask(b) };
+}
+
+/** Madde imli liste: "* …", "- …", "• …" (≥2 madde). */
+function bulletTasks(text) {
+  const items = [];
+  for (const ln of String(text || "").split(/\r?\n/)) {
+    const m = ln.match(/^\s*[-*•–—]\s+(.+\S)\s*$/);
+    if (m) items.push(m[1].trim());
+  }
+  if (items.length <= 1) return [];
+  return items.map((body, i) => mkTask(i, body));
+}
+
+/** Satır bazlı liste: her satır görev sinyali taşımalı ("?" ile biter VEYA "Etiket:" deseni). */
+function lineTasks(text) {
+  const lines = String(text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length <= 1) return [];
+  const looksTask = (l) => /\?\s*$/.test(l) || /^[\wÇĞİÖŞÜçğıöşü .]{1,24}:\s*\S/.test(l);
+  const taskLines = lines.filter(looksTask);
+  // Yalnızca TÜM satırlar görev gibi görünüyorsa böl (rastgele düz metni bölme)
+  if (taskLines.length < 2 || taskLines.length !== lines.length) return [];
+  return taskLines.map((body, i) => mkTask(i, body));
+}
+
 function decomposeTasks(input) {
   const text = String(input || "");
-  const tasks = headingTasks(text);
-  const fallbackTasks = tasks.length ? tasks : questionTasks(text);
+  let tasks = headingTasks(text);
+  if (tasks.length <= 1) tasks = bulletTasks(text);
+  if (tasks.length <= 1) tasks = questionTasks(text);
+  if (tasks.length <= 1) tasks = lineTasks(text);
   return {
-    applicable: fallbackTasks.length > 1,
-    count: fallbackTasks.length,
-    tasks: fallbackTasks,
-    confidence: fallbackTasks.length > 1 ? 100 : 100,
+    applicable: tasks.length > 1,
+    count: tasks.length,
+    tasks,
+    confidence: 100,
   };
 }
 
