@@ -23,6 +23,8 @@ const tdeMod = await import(pathToFileURL(path.join(mainDir, "agent", "tde.js"))
 const tde = tdeMod.default || tdeMod;
 const finalMod = await import(pathToFileURL(path.join(mainDir, "agent", "final-answer-sanitizer.js")).href);
 const finalSanitizer = finalMod.default || finalMod;
+const factLockMod = await import(pathToFileURL(path.join(mainDir, "agent", "fact-lock.js")).href);
+const factLock = factLockMod.default || factLockMod;
 const sacvMod = await import(pathToFileURL(path.join(mainDir, "agent", "sacv.js")).href);
 const sacv = sacvMod.default || sacvMod;
 const cognitiveKernelMod = await import(pathToFileURL(path.join(mainDir, "cognitive", "kernel", "cognitive-kernel.js")).href);
@@ -370,6 +372,24 @@ assert.equal((assembled.answer.match(/Final Answer:/g) || []).length, 1, "RAE ke
 assert.doesNotMatch(assembled.answer, /İnsan Yorumu:/, "RAE folds duplicate human interpretation into Yorum");
 assert.doesNotMatch(assembled.answer, /MLVC percentage:/, "RAE removes raw engine labels");
 
+const lockedAgeFacts = factLock.extractFacts("Father + Son = 84. Father = 6 x Son. How old are they?");
+assert.deepEqual(
+  lockedAgeFacts.numericFacts.map((item) => item.value),
+  [84, 6],
+  "Fact Lock extracts original numeric facts"
+);
+assert.match(factLock.formatFactLockContext(lockedAgeFacts), /Locked numeric facts: 84, 6/, "Fact Lock formats locked facts for middleware");
+assert.equal(
+  factLock.validateFactPreservation("Use 4 parts and 1 part, total 5 parts. Then 6 / 5 = 1.2.", lockedAgeFacts).ok,
+  false,
+  "Fact Lock rejects replacing 6x relation with invented 5-part reasoning"
+);
+assert.equal(
+  factLock.validateFactPreservation("Use 6 parts and 1 part, total 7 parts. 84 / 7 = 12.", lockedAgeFacts).ok,
+  true,
+  "Fact Lock accepts preserved 84 and 6 facts with derived 7 parts"
+);
+
 const taskReport = tde.decomposeTasks(`## Test 1 - Denklem
 3x + 12 = 57 ise x kactir?
 
@@ -429,8 +449,9 @@ const kernelContext = cognitiveKernel.createContext(`## Test 1
 45/135 sadelestirilmis hali nedir?`);
 const kernelIntake = cognitiveKernel.runIntake(kernelContext);
 assert.equal(kernelIntake.taskReport.count, 2, "Cognitive Kernel stores detected tasks in task state");
-assert.equal(kernelIntake.messages.length, 1, "Cognitive Kernel emits task middleware context");
-assert.equal(kernelContext.stages[0].name, "tde:intake", "Cognitive Kernel records intake stage");
+assert.equal(kernelIntake.messages.length, 2, "Cognitive Kernel emits fact-lock and task middleware context");
+assert.equal(kernelContext.stages[0].name, "fact-lock:intake", "Cognitive Kernel records fact-lock stage");
+assert.equal(kernelContext.stages[1].name, "tde:intake", "Cognitive Kernel records intake stage");
 assert.equal(kernelContext.taskRegistry.summary().expected, 2, "Cognitive Kernel creates a persistent task registry");
 
 const lostTaskContext = cognitiveKernel.createContext(`## Test 1

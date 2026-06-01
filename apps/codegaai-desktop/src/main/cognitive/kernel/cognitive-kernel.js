@@ -3,6 +3,7 @@
 const { CognitiveContext } = require("./cognitive-context");
 const { blockedAnswer, runStage } = require("./stage-runner");
 const { TaskRegistry } = require("./task-registry");
+const factLock = require("../../agent/fact-lock");
 const tde = require("../../agent/tde");
 const rpre = require("../../agent/rpre");
 const ebse = require("../../agent/ebse");
@@ -21,8 +22,20 @@ function createContext(input, opts = {}) {
 
 function runIntake(context) {
   const taskReport = tde.decomposeTasks(context.input);
+  const factReport = factLock.extractFacts(context.input);
   context.taskReport = taskReport;
   context.taskRegistry = taskReport.applicable ? new TaskRegistry(taskReport.tasks) : null;
+  context.factLock = factReport;
+  context.record({
+    name: "fact-lock:intake",
+    ok: true,
+    confidence: factReport.confidence,
+    detail: {
+      applicable: factReport.applicable,
+      numericFacts: factReport.numericFacts.map((item) => item.raw),
+      constraints: factReport.constraints.map((item) => item.description),
+    },
+  });
   context.record({
     name: "tde:intake",
     ok: true,
@@ -34,6 +47,9 @@ function runIntake(context) {
       tasks: taskReport.tasks.map((task) => ({ id: task.id, label: task.label, domain: task.domain })),
     },
   });
+  if (factReport.applicable) {
+    context.addMessage({ role: "system", content: factLock.formatFactLockContext(factReport) });
+  }
   if (taskReport.applicable) {
     context.addMessage({ role: "system", content: tde.formatTaskContext(taskReport) });
   }
@@ -121,6 +137,18 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
     }
     return { ok: true };
   });
+
+  await runStage(context, "fact-lock:preservation", async () => {
+    const check = factLock.validateFactPreservation(finalText, context.factLock);
+    return {
+      ok: check.ok,
+      confidence: check.confidence,
+      errors: check.errors,
+      detail: {
+        numericFacts: context.factLock ? context.factLock.numericFacts.map((item) => item.raw) : [],
+      },
+    };
+  }, { blocking: true });
 
   await runStage(context, "hril", async () => {
     const interpreted = hril.interpret(context.input, finalText);

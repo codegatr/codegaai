@@ -7,6 +7,7 @@ class CognitiveContext {
     this.flags = opts.flags || {};
     this.taskReport = opts.taskReport || null;
     this.taskRegistry = opts.taskRegistry || null;
+    this.factLock = opts.factLock || null;
     this.messages = [];
     this.stages = [];
     this.blocked = false;

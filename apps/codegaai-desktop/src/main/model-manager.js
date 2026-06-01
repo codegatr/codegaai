@@ -41,6 +41,7 @@ const ree = require("./agent/ree");
 const tde = require("./agent/tde");
 const finalAnswerSanitizer = require("./agent/final-answer-sanitizer");
 const cognitiveKernel = require("./cognitive/kernel/cognitive-kernel");
+const factLock = require("./agent/fact-lock");
 const { repairBenchmarkAnswer, solveKnownReasoningBenchmarks } = require("./agent/benchmark-reasoner");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
@@ -835,6 +836,7 @@ class ModelManager {
         for (let i = 0; i < detectedTasks.length; i++) {
           const t = detectedTasks[i];
           if (onToken) onToken(`\n\n### ${t.label}\n`);
+          const taskFactLock = factLock.extractFacts(t.body);
           const tMsgs = [
             {
               role: "system",
@@ -842,6 +844,7 @@ class ModelManager {
                 "Sana TEK bir görev verilecek. SADECE bu görevi çöz. Adım adım, kısa ve net düşün; " +
                 "sonunda mutlaka 'Cevap: …' satırı yaz. Başka görevlere değinme, soruyu tekrar etme.",
             },
+            ...(taskFactLock.applicable ? [{ role: "system", content: factLock.formatFactLockContext(taskFactLock) }] : []),
             { role: "user", content: t.body },
           ];
           let aTxt = "";
