@@ -42,6 +42,7 @@ const tde = require("./agent/tde");
 const finalAnswerSanitizer = require("./agent/final-answer-sanitizer");
 const cognitiveKernel = require("./cognitive/kernel/cognitive-kernel");
 const factLock = require("./agent/fact-lock");
+const cvl = require("./agent/cvl");
 const { repairBenchmarkAnswer, solveKnownReasoningBenchmarks } = require("./agent/benchmark-reasoner");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
@@ -980,6 +981,15 @@ class ModelManager {
 
     // Öz değerlendirme (opt-in): cevabı denetle, gerekiyorsa düzelt
     let finalText = text;
+    const applyCorrection = (candidate, source) => {
+      const check = cvl.validateCorrection(input, finalText, candidate, { source });
+      if (!check.accepted) {
+        try { improveDrafts.recordSignal({ kind: "cvl_reject", subject: check.errors[0] || source }); } catch (_e) {}
+        return false;
+      }
+      finalText = check.answer;
+      return true;
+    };
     // multi_task: etiketli görev birleştirmesi (Görev N: cevap) korunmalı. Aşağıdaki
     // dönüştürücü motorlar (HRIL/REE/sanitizer/kernel) "Final Answer" çıkarıp etiketleri
     // silebiliyor ("2 | 12" gibi anonim çıktı). Bu modda onları atlar, sonda geri yükleriz.
@@ -988,7 +998,7 @@ class ModelManager {
     if (settings.selfReflection && !inputNeedsCognitivePipeline && agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         const r = await reflect(input, text, (msgs) => this.generate(selectedModel, msgs));
-        if (r.answer && r.answer.trim()) finalText = r.answer.trim();
+        if (r.answer && r.answer.trim()) applyCorrection(r.answer.trim(), "reflect");
       } catch (_e) {
         // denetim hatası cevabı etkilemesin
       }
@@ -1003,7 +1013,7 @@ class ModelManager {
           cognitivePreflight.report,
           (msgs) => this.generate(selectedModel, msgs, attemptModels)
         );
-        if (review.answer && review.answer.trim()) finalText = review.answer.trim();
+        if (review.answer && review.answer.trim()) applyCorrection(review.answer.trim(), "adversarial-review");
         if (!review.ok && review.errors && review.errors.length) {
           try { improveDrafts.recordSignal({ kind: "cognitive_review", subject: review.errors[0] }); } catch (_e) {}
         }
@@ -1021,8 +1031,9 @@ class ModelManager {
       try {
         const rp = rpre.verify(input, finalText);
         if (rp.applicable && rp.status === "REJECTED" && rp.correctedAnswer) {
-          finalText = rp.correctedAnswer;
-          try { improveDrafts.recordSignal({ kind: "rpre_reject", subject: (rp.checks.find((c) => !c.ok) || {}).name || "ratio_parts" }); } catch (_e) {}
+          if (applyCorrection(rp.correctedAnswer, "rpre")) {
+            try { improveDrafts.recordSignal({ kind: "rpre_reject", subject: (rp.checks.find((c) => !c.ok) || {}).name || "ratio_parts" }); } catch (_e) {}
+          }
         }
       } catch (_e) { /* RPRE hatası cevabı bozmasın */ }
     }
@@ -1034,8 +1045,9 @@ class ModelManager {
       try {
         const eb = ebse.verify(input, finalText);
         if (eb.applicable && eb.status === "REJECTED" && eb.correctedAnswer) {
-          finalText = eb.correctedAnswer;
-          try { improveDrafts.recordSignal({ kind: "ebse_reject", subject: (eb.checks.find((c) => !c.ok) || {}).name || "back_substitution" }); } catch (_e) {}
+          if (applyCorrection(eb.correctedAnswer, "ebse")) {
+            try { improveDrafts.recordSignal({ kind: "ebse_reject", subject: (eb.checks.find((c) => !c.ok) || {}).name || "back_substitution" }); } catch (_e) {}
+          }
         }
       } catch (_e) { /* EBSE hatası cevabı bozmasın */ }
     }
@@ -1052,7 +1064,7 @@ class ModelManager {
             deepReasoning ? (msgs) => this.generate(selectedModel, msgs, attemptModels) : null,
             { passes: 1 }
           );
-          if (mlvc.answer && mlvc.answer.trim()) finalText = mlvc.answer.trim();
+          if (mlvc.answer && mlvc.answer.trim()) applyCorrection(mlvc.answer.trim(), "mlvc");
           mlvcApproved = !!mlvc.approved;
           if (!mlvc.approved && mlvc.errors && mlvc.errors.length) {
             try { improveDrafts.recordSignal({ kind: "mlvc", subject: mlvc.errors[0] }); } catch (_e) {}
@@ -1065,7 +1077,7 @@ class ModelManager {
             (msgs) => this.generate(selectedModel, msgs, attemptModels),
             { categories: reasoningCategories, passes: 1 }
           );
-          if (v.answer && v.answer.trim()) finalText = v.answer.trim();
+          if (v.answer && v.answer.trim()) applyCorrection(v.answer.trim(), "ave");
         }
       } catch (_e) {
         // reasoning dogrulama hatasi cevabi bozmasin
@@ -1075,7 +1087,7 @@ class ModelManager {
     if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         const repaired = repairBenchmarkAnswer(input, finalText);
-        if (repaired.repaired && repaired.answer && repaired.answer.trim()) finalText = repaired.answer.trim();
+        if (repaired.repaired && repaired.answer && repaired.answer.trim()) applyCorrection(repaired.answer.trim(), "benchmark-repair");
       } catch (_e) {
         // deterministic benchmark repair must not break chat
       }
@@ -1086,7 +1098,7 @@ class ModelManager {
     if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         const interpreted = hril.interpret(input, finalText);
-        if (interpreted.answer && interpreted.answer.trim()) finalText = interpreted.answer.trim();
+        if (interpreted.answer && interpreted.answer.trim()) applyCorrection(interpreted.answer.trim(), "hril");
       } catch (_e) {
         // yorum katmanı cevabı bozmasın
       }
@@ -1097,7 +1109,7 @@ class ModelManager {
     if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         const explained = ree.explain(input, finalText);
-        if (explained.answer && explained.answer.trim()) finalText = explained.answer.trim();
+        if (explained.answer && explained.answer.trim()) applyCorrection(explained.answer.trim(), "ree");
       } catch (_e) {
         // açıklama katmanı cevabı bozmasın
       }
@@ -1115,11 +1127,11 @@ class ModelManager {
             attemptModels
           );
           if (repaired && String(repaired).trim()) {
-            finalText = String(repaired).trim();
+            applyCorrection(String(repaired).trim(), "tde-coverage-repair");
             const interpreted = hril.interpret(input, finalText);
-            if (interpreted.answer && interpreted.answer.trim()) finalText = interpreted.answer.trim();
+            if (interpreted.answer && interpreted.answer.trim()) applyCorrection(interpreted.answer.trim(), "hril-after-tde");
             const explained = ree.explain(input, finalText);
-            if (explained.answer && explained.answer.trim()) finalText = explained.answer.trim();
+            if (explained.answer && explained.answer.trim()) applyCorrection(explained.answer.trim(), "ree-after-tde");
           }
           coverage = tde.validateTaskCoverage(finalText, taskDecomposition);
           if (!coverage.ok) {
@@ -1144,7 +1156,7 @@ class ModelManager {
             finalAnswerSanitizer.buildFinalAnswerRepairMessages(input, finalText, taskDecomposition, finalCheck),
             attemptModels
           );
-          if (repaired && String(repaired).trim()) finalText = String(repaired).trim();
+          if (repaired && String(repaired).trim()) applyCorrection(String(repaired).trim(), "final-answer-sanitizer");
           finalCheck = finalAnswerSanitizer.validateFinalAnswer(finalText, input, taskDecomposition);
           if (!finalCheck.ok) {
             finalText = `${finalText}\n\nFinal Answer Kontrol Uyarısı: ${finalCheck.errors.join(" ")}`;
@@ -1162,7 +1174,7 @@ class ModelManager {
           finalText,
           (msgs) => this.generate(selectedModel, msgs, attemptModels)
         );
-        if (c.answer && c.answer.trim()) finalText = c.answer.trim();
+        if (c.answer && c.answer.trim()) applyCorrection(c.answer.trim(), "mce");
       } catch (_e) {
         // sonuc kapisi hatasi cevabi bozmasin
       }

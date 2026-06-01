@@ -4,6 +4,7 @@ const { CognitiveContext } = require("./cognitive-context");
 const { blockedAnswer, runStage } = require("./stage-runner");
 const { TaskRegistry } = require("./task-registry");
 const factLock = require("../../agent/fact-lock");
+const cvl = require("../../agent/cvl");
 const tde = require("../../agent/tde");
 const rpre = require("../../agent/rpre");
 const ebse = require("../../agent/ebse");
@@ -68,6 +69,29 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
     try { onSignal && onSignal({ kind, subject }); } catch (_e) {}
   };
 
+  const applyCorrection = (candidate, source) => {
+    const check = cvl.validateCorrection(context.input, finalText, candidate, { source });
+    if (!check.accepted) {
+      signal("cvl_reject", check.errors[0] || source);
+      context.record({
+        name: `cvl:${source}`,
+        ok: false,
+        confidence: check.confidence,
+        errors: check.errors,
+        detail: { keptOriginal: true },
+      });
+      return false;
+    }
+    finalText = check.answer;
+    context.record({
+      name: `cvl:${source}`,
+      ok: true,
+      confidence: check.confidence,
+      detail: { accepted: true },
+    });
+    return true;
+  };
+
   if (isSmalltalk) {
     context.record({ name: "cognitive:skip-smalltalk", ok: true, detail: { stoppedReason } });
     return { ok: true, answer: finalText, context };
@@ -76,9 +100,9 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
   await runStage(context, "rpre", async () => {
     const rp = rpre.verify(context.input, finalText);
     if (rp.applicable && rp.status === "REJECTED" && rp.correctedAnswer) {
-      finalText = rp.correctedAnswer;
-      signal("rpre_reject", ((rp.checks || []).find((check) => !check.ok) || {}).name || "ratio_parts");
-      return { ok: true, confidence: 100, detail: { corrected: true } };
+      const accepted = applyCorrection(rp.correctedAnswer, "rpre");
+      if (accepted) signal("rpre_reject", ((rp.checks || []).find((check) => !check.ok) || {}).name || "ratio_parts");
+      return { ok: true, confidence: accepted ? 100 : 0, detail: { corrected: accepted } };
     }
     return { ok: true, confidence: rp.applicable ? 100 : null, detail: { applicable: !!rp.applicable } };
   });
@@ -86,9 +110,9 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
   await runStage(context, "ebse", async () => {
     const eb = ebse.verify(context.input, finalText);
     if (eb.applicable && eb.status === "REJECTED" && eb.correctedAnswer) {
-      finalText = eb.correctedAnswer;
-      signal("ebse_reject", ((eb.checks || []).find((check) => !check.ok) || {}).name || "back_substitution");
-      return { ok: true, confidence: 100, detail: { corrected: true } };
+      const accepted = applyCorrection(eb.correctedAnswer, "ebse");
+      if (accepted) signal("ebse_reject", ((eb.checks || []).find((check) => !check.ok) || {}).name || "back_substitution");
+      return { ok: true, confidence: accepted ? 100 : 0, detail: { corrected: accepted } };
     }
     return { ok: true, confidence: eb.applicable ? 100 : null, detail: { applicable: !!eb.applicable } };
   });
@@ -102,7 +126,7 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
         opts.deepReasoning && typeof generate === "function" ? generate : null,
         { passes: 1 }
       );
-      if (mlvc.answer && mlvc.answer.trim()) finalText = mlvc.answer.trim();
+      if (mlvc.answer && mlvc.answer.trim()) applyCorrection(mlvc.answer.trim(), "mlvc");
       mlvcApproved = !!mlvc.approved;
       if (!mlvcApproved && mlvc.errors && mlvc.errors.length) signal("mlvc", mlvc.errors[0]);
       return {
@@ -120,7 +144,7 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
         categories: opts.reasoningCategories || [],
         passes: 1,
       });
-      if (verified.answer && verified.answer.trim()) finalText = verified.answer.trim();
+      if (verified.answer && verified.answer.trim()) applyCorrection(verified.answer.trim(), "ave");
       return {
         ok: verified.ok !== false,
         confidence: verified.confidence || null,
@@ -132,8 +156,8 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
   await runStage(context, "benchmark-repair", async () => {
     const repaired = repairBenchmarkAnswer(context.input, finalText);
     if (repaired.repaired && repaired.answer && repaired.answer.trim()) {
-      finalText = repaired.answer.trim();
-      return { ok: true, confidence: 100, detail: { corrected: true } };
+      const accepted = applyCorrection(repaired.answer.trim(), "benchmark-repair");
+      return { ok: true, confidence: accepted ? 100 : 0, detail: { corrected: accepted } };
     }
     return { ok: true };
   });
@@ -152,13 +176,13 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
 
   await runStage(context, "hril", async () => {
     const interpreted = hril.interpret(context.input, finalText);
-    if (interpreted.answer && interpreted.answer.trim()) finalText = interpreted.answer.trim();
+    if (interpreted.answer && interpreted.answer.trim()) applyCorrection(interpreted.answer.trim(), "hril");
     return { ok: true, confidence: interpreted.changed ? 100 : null, detail: { changed: !!interpreted.changed } };
   });
 
   await runStage(context, "ree", async () => {
     const explained = ree.explain(context.input, finalText);
-    if (explained.answer && explained.answer.trim()) finalText = explained.answer.trim();
+    if (explained.answer && explained.answer.trim()) applyCorrection(explained.answer.trim(), "ree");
     return { ok: true, confidence: explained.changed ? 100 : null, detail: { changed: !!explained.changed } };
   });
 
@@ -182,11 +206,11 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
         signal("sacv_incomplete_tasks", coverage.errors[0] || "semantic completeness failed");
         const repaired = await generate(sacv.buildSemanticRepairMessages(context.input, finalText, context.taskReport, coverage));
         if (repaired && String(repaired).trim()) {
-          finalText = String(repaired).trim();
+          applyCorrection(String(repaired).trim(), "sacv-repair");
           const interpreted = hril.interpret(context.input, finalText);
-          if (interpreted.answer && interpreted.answer.trim()) finalText = interpreted.answer.trim();
+          if (interpreted.answer && interpreted.answer.trim()) applyCorrection(interpreted.answer.trim(), "hril-after-sacv");
           const explained = ree.explain(context.input, finalText);
-          if (explained.answer && explained.answer.trim()) finalText = explained.answer.trim();
+          if (explained.answer && explained.answer.trim()) applyCorrection(explained.answer.trim(), "ree-after-sacv");
         }
         if (context.taskRegistry) {
           const summary = context.taskRegistry.hydrateFromAnswer(finalText);
@@ -218,7 +242,7 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
       const repaired = await generate(
         finalAnswerSanitizer.buildFinalAnswerRepairMessages(context.input, finalText, context.taskReport, check)
       );
-      if (repaired && String(repaired).trim()) finalText = String(repaired).trim();
+      if (repaired && String(repaired).trim()) applyCorrection(String(repaired).trim(), "final-answer-sanitizer");
       check = finalAnswerSanitizer.validateFinalAnswer(finalText, context.input, context.taskReport);
     }
     return {
@@ -232,7 +256,7 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
   if (!context.blocked && opts.deepReasoning && opts.needsConclusion && typeof generate === "function") {
     await runStage(context, "mce", async () => {
       const concluded = await enforceConclusion(context.input, finalText, generate);
-      if (concluded.answer && concluded.answer.trim()) finalText = concluded.answer.trim();
+      if (concluded.answer && concluded.answer.trim()) applyCorrection(concluded.answer.trim(), "mce");
       return { ok: true, detail: { enforced: !!concluded.enforced } };
     });
   }
@@ -240,7 +264,7 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
   if (!context.blocked) {
     await runStage(context, "rae:response-assembly", async () => {
       const assembled = rae.assembleResponse(context.input, finalText, context.taskRegistry);
-      if (assembled.answer && assembled.answer.trim()) finalText = assembled.answer.trim();
+      if (assembled.answer && assembled.answer.trim()) applyCorrection(assembled.answer.trim(), "rae");
       return { ok: true, confidence: assembled.confidence, detail: { changed: !!assembled.changed } };
     });
   }

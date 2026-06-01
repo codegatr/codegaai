@@ -25,6 +25,8 @@ const finalMod = await import(pathToFileURL(path.join(mainDir, "agent", "final-a
 const finalSanitizer = finalMod.default || finalMod;
 const factLockMod = await import(pathToFileURL(path.join(mainDir, "agent", "fact-lock.js")).href);
 const factLock = factLockMod.default || factLockMod;
+const cvlMod = await import(pathToFileURL(path.join(mainDir, "agent", "cvl.js")).href);
+const cvl = cvlMod.default || cvlMod;
 const sacvMod = await import(pathToFileURL(path.join(mainDir, "agent", "sacv.js")).href);
 const sacv = sacvMod.default || sacvMod;
 const cognitiveKernelMod = await import(pathToFileURL(path.join(mainDir, "cognitive", "kernel", "cognitive-kernel.js")).href);
@@ -388,6 +390,34 @@ assert.equal(
   factLock.validateFactPreservation("Use 6 parts and 1 part, total 7 parts. 84 / 7 = 12.", lockedAgeFacts).ok,
   true,
   "Fact Lock accepts preserved 84 and 6 facts with derived 7 parts"
+);
+
+const cvlBadCorrection = cvl.validateCorrection(
+  "x + (x+1) + (x+2) ifadesini sadeleştir.",
+  "İşlem: x + (x+1) + (x+2) = 3x + 3\n\nFinal Answer: 3x + 3",
+  "Düzeltildi: x + (x+1) + (x+2) = 3x + 5\n\nFinal Answer: 3x + 5",
+  { source: "self-critic" }
+);
+assert.equal(cvlBadCorrection.accepted, false, "CVL rejects a correction that makes a true algebra identity false");
+assert.match(cvlBadCorrection.answer, /3x \+ 3/, "CVL keeps the original verified expression");
+
+const cvlGoodCorrection = cvl.validateCorrection(
+  "x + (x+1) + (x+2) ifadesini sadeleştir.",
+  "İşlem: x + (x+1) + (x+2) = 3x + 5\n\nFinal Answer: 3x + 5",
+  "Düzeltildi: x + (x+1) + (x+2) = 3x + 3\n\nFinal Answer: 3x + 3",
+  { source: "self-critic" }
+);
+assert.equal(cvlGoodCorrection.accepted, true, "CVL accepts a correction that restores the true algebra identity");
+assert.match(cvlGoodCorrection.answer, /3x \+ 3/, "CVL returns the corrected verified expression");
+assert.equal(
+  cvl.validateCorrection(
+    "3x + 12 = 57 ise x kaçtır?",
+    "Final Answer: x = 15",
+    "İşlem: 3x + 12 = 57; x = 15\n\nFinal Answer: x = 15",
+    { source: "explanation" }
+  ).accepted,
+  true,
+  "CVL does not confuse normal equations with identity rewrites"
 );
 
 const taskReport = tde.decomposeTasks(`## Test 1 - Denklem
