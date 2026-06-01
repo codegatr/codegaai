@@ -105,6 +105,11 @@ const percentageCheck = mlvc.deterministicCheck(
 );
 assert.equal(percentageCheck.ok, false, "MLVC rejects wrong percentage conclusion");
 assert.match(percentageCheck.correctedAnswer, /84/, "MLVC independently recalculates percentage chains");
+assert.match(
+  mlvc.solveDeterministic("Başlangıç fiyatı 100 TL. Önce %40 zamlanıyor, sonra zamlı fiyat üzerinden %40 indiriliyor. Son fiyat kaç TL?"),
+  /84/,
+  "MLVC can answer deterministic percentage checks without model calls"
+);
 
 const handshakeCheck = mlvc.deterministicCheck(
   "Bir odada 4 kişi var. Her kişi diğer herkesle tam bir kez tokalaşıyor. Toplam kaç tokalaşma olur?",

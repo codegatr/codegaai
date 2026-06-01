@@ -161,6 +161,12 @@ function deterministicCheck(question, answer) {
   };
 }
 
+function solveDeterministic(question) {
+  const check = deterministicCheck(question, "");
+  if (check.checks.length && check.correctedAnswer) return check.correctedAnswer;
+  return "";
+}
+
 function buildMLVCMessages(question, draftAnswer, domains, deterministic) {
   return [
     {
@@ -275,5 +281,6 @@ module.exports = {
   deterministicCheck,
   parseMLVCResult,
   shouldRunMLVC,
+  solveDeterministic,
   verifyMathLogic,
 };

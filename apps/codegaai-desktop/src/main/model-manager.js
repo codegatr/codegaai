@@ -32,7 +32,7 @@ const {
   shouldVerifyAnswer,
   verifyAnswer,
 } = require("./agent/reasoning-guard");
-const { shouldRunMLVC, verifyMathLogic } = require("./agent/mlvc");
+const { shouldRunMLVC, solveDeterministic: solveDeterministicMathLogic, verifyMathLogic } = require("./agent/mlvc");
 const { repairBenchmarkAnswer, solveKnownReasoningBenchmarks } = require("./agent/benchmark-reasoner");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
@@ -553,8 +553,8 @@ class ModelManager {
     const reasoningCategories = classifyReasoningProblem(input);
     const inputNeedsVerification = shouldVerifyAnswer(input);
     const inputNeedsConclusion = shouldEnforceConclusion(input);
-    const inputNeedsCognitivePipeline = shouldRunCognitivePipeline(input);
     const inputNeedsMLVC = shouldRunMLVC(input);
+    const inputNeedsCognitivePipeline = shouldRunCognitivePipeline(input) && !inputNeedsMLVC;
     const onToken = (inputNeedsVerification || inputNeedsConclusion || inputNeedsCognitivePipeline) ? null : (opts.onToken || null);
     // Yeniden üretim: önceki turu (user+assistant) geçmişten çıkar ki bağlam tekrarlanmasın
     if (opts.regenerate) {
@@ -575,6 +575,14 @@ class ModelManager {
         provider: "instant",
         model: "codega-benchmark-reasoner",
         text: benchmarkInstant,
+      };
+    }
+    const mlvcInstant = solveDeterministicMathLogic(input);
+    if (mlvcInstant) {
+      return {
+        provider: "instant",
+        model: "codega-mlvc",
+        text: mlvcInstant,
       };
     }
 
@@ -669,11 +677,13 @@ class ModelManager {
     }
 
     // Hedef-odaklı planlama (opt-in): karmaşık hedefi alt adımlara böl
-    const cognitivePreflight = await runCognitivePreflight(
-      input,
-      (msgs) => this.generate(selectedModel, msgs, attemptModels),
-      { cycles: 2 }
-    );
+    const cognitivePreflight = inputNeedsCognitivePipeline
+      ? await runCognitivePreflight(
+        input,
+        (msgs) => this.generate(selectedModel, msgs, attemptModels),
+        { cycles: 2 }
+      )
+      : { ok: true, skipped: true, report: null, context: "" };
     const cognitiveContext = cognitivePreflight.context || "";
 
     let plan = [];
@@ -849,6 +859,7 @@ class ModelManager {
       }
     }
 
+    let mlvcApproved = false;
     if (inputNeedsVerification && agent.stoppedReason !== "smalltalk") {
       try {
         if (inputNeedsMLVC) {
@@ -856,20 +867,23 @@ class ModelManager {
             input,
             finalText,
             (msgs) => this.generate(selectedModel, msgs, attemptModels),
-            { passes: 2 }
+            { passes: 1 }
           );
           if (mlvc.answer && mlvc.answer.trim()) finalText = mlvc.answer.trim();
+          mlvcApproved = !!mlvc.approved;
           if (!mlvc.approved && mlvc.errors && mlvc.errors.length) {
             try { improveDrafts.recordSignal({ kind: "mlvc", subject: mlvc.errors[0] }); } catch (_e) {}
           }
         }
-        const v = await verifyAnswer(
-          input,
-          finalText,
-          (msgs) => this.generate(selectedModel, msgs, attemptModels),
-          { categories: reasoningCategories, passes: 2 }
-        );
-        if (v.answer && v.answer.trim()) finalText = v.answer.trim();
+        if (!mlvcApproved) {
+          const v = await verifyAnswer(
+            input,
+            finalText,
+            (msgs) => this.generate(selectedModel, msgs, attemptModels),
+            { categories: reasoningCategories, passes: 1 }
+          );
+          if (v.answer && v.answer.trim()) finalText = v.answer.trim();
+        }
       } catch (_e) {
         // reasoning dogrulama hatasi cevabi bozmasin
       }
