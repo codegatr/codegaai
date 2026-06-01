@@ -8,6 +8,25 @@
 
 const { finalAnswerText, trFold } = require("../../agent/final-answer-sanitizer");
 const { solveDeterministic } = require("../../agent/mlvc");
+const { buildSectionMap, extractResultTokens } = require("../../agent/sacv");
+
+function tokenInText(text, token) {
+  const hay = compact(text).replace(/,/g, ".");
+  const needle = compact(token).replace(/,/g, ".");
+  if (!needle) return false;
+  if (hay.includes(needle)) return true;
+  if (/^-?\d+(?:\.\d+)?$/.test(needle)) {
+    const n = Number(needle);
+    return (hay.match(/-?\d+(?:\.\d+)?/g) || []).some((v) => Math.abs(Number(v) - n) < 0.0001);
+  }
+  return false;
+}
+
+function expectedTokensFor(task) {
+  const solved = solveDeterministic(task.body || "");
+  if (!solved) return [];
+  return extractResultTokens(finalAnswerText(solved) || solved);
+}
 
 function compact(text) {
   return trFold(text).replace(/\s+/g, " ").trim();
@@ -94,7 +113,9 @@ class TaskRegistry {
     const final = finalAnswerText(answer) || "";
     const units = splitFinalUnits(final);
     const used = new Set();
+    const sectionMap = buildSectionMap(final, this.records.map((r) => r.task));
 
+    // 1) Açık etiket/id eşleşmesi (birim)
     for (const record of this.records) {
       const explicitIndex = units.findIndex((unit, index) => !used.has(index) && taskMatchesUnit(record.task, unit));
       if (explicitIndex >= 0) {
@@ -107,12 +128,40 @@ class TaskRegistry {
       }
     }
 
+    // 2) Etiket bölümü eşleşmesi (id -> bölüm); sıra-bağımsız
+    for (const record of this.records) {
+      if (record.result) continue;
+      const section = sectionMap.get(String(record.taskId));
+      if (section) {
+        const result = stripTaskPrefix(section.replace(/\s+/g, " ").trim(), record.task);
+        if (result) this.add(record.taskId, { result, verified: true, source: "label-section" });
+      }
+    }
+
+    // 3) Deterministik çözüm (solver biliyorsa)
     for (const record of this.records) {
       if (record.result && record.verified) continue;
       const deterministic = deterministicResultFor(record.task);
       if (deterministic) this.add(record.taskId, deterministic);
     }
 
+    // 4) Sayısal/token eşleşmesi: solverın beklediği token'ı içeren birimi ata
+    for (const record of this.records) {
+      if (record.result) continue;
+      const tokens = expectedTokensFor(record.task);
+      if (!tokens.length) continue;
+      const tokenIndex = units.findIndex((unit, index) => !used.has(index) && tokens.some((t) => tokenInText(unit, t)));
+      if (tokenIndex >= 0) {
+        used.add(tokenIndex);
+        this.add(record.taskId, {
+          result: stripTaskPrefix(units[tokenIndex], record.task),
+          verified: true,
+          source: "numeric-token",
+        });
+      }
+    }
+
+    // 5) Sıralı yedek (yalnız kalan boşluklar için)
     if (units.length >= this.records.length) {
       for (const record of this.records) {
         if (record.result) continue;

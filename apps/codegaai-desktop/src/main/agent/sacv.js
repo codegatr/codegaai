@@ -68,27 +68,73 @@ function hasVerificationTrace(answer) {
   return /(dogrulama|doğrulama|verify|verification|kontrol|pass|saglama|sağlama)/.test(a);
 }
 
-function taskCompleteByMeaning(answer, finalText, task, units, index) {
+function hasDecision(text) {
+  return /\b(ev[et]|hayir|hayır|yes|no|olabilir|mümkün|mumkun|sec|seç|secil|öner|oner|dogru|doğru|yanlis|yanlış|true|false)\b/i.test(String(text || ""));
+}
+
+/** finalText'i görev etiket/id başlıklarına göre bölümlere ayır: Map(taskId -> bölüm metni). */
+function buildSectionMap(finalText, tasks) {
+  const map = new Map();
+  const text = String(finalText || "");
+  const positions = [];
+  for (const task of tasks) {
+    const id = String(task.id || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (!id) continue;
+    // "Test 1" / "Soru 1" / "Görev 1" / "1:" / "1." / "1)" başlıkları
+    const re = new RegExp(`(?:^|\\n)\\s*(?:\\*\\*)?(?:test|soru|g[oö]rev|task)?\\s*${id}\\s*[:).\\-–]`, "i");
+    const m = text.match(re);
+    if (m && m.index != null) positions.push({ id: String(task.id), start: m.index });
+  }
+  positions.sort((a, b) => a.start - b.start);
+  for (let i = 0; i < positions.length; i += 1) {
+    const start = positions[i].start;
+    const end = i + 1 < positions.length ? positions[i + 1].start : text.length;
+    map.set(positions[i].id, text.slice(start, end));
+  }
+  return map;
+}
+
+/**
+ * Sıra-bağımsız tamamlanma kontrolü. Öncelik:
+ *  1) Açık etiket bölümü (Map id->bölüm)
+ *  2) Deterministik beklenen sonuç — finalText'in HERHANGİ yerinde
+ *  3) Sayısal/token eşleşmesi
+ *  4) Anlamsal cevap varlığı (token/karar)
+ *  5) Yalnız HİÇBİR görevde açık etiket yoksa sıralı yedek
+ * Kural: beklenen cevap finalText'te herhangi bir yerde geçiyorsa görev GEÇER (kesin biçim aranmaz).
+ */
+function taskCompleteByMeaning(answer, finalText, task, ctx) {
+  const hay = `${finalText}\n${answer}`;
   const expectedTokens = deterministicExpectedTokens(task);
+  const section = ctx.sectionMap.get(String(task.id));
+
+  // (2) deterministik solver biliyorsa: token herhangi bir yerde -> GEÇER (başarı kriteri)
   if (expectedTokens.length) {
-    const present = expectedTokens.some((token) => tokenPresent(finalText, token) || tokenPresent(answer, token));
-    return {
-      ok: present,
-      method: "deterministic-result",
-      expectedTokens,
-      errors: present ? [] : [`${task.label} result is missing semantically.`],
-    };
+    const present = expectedTokens.some((token) => tokenPresent(hay, token));
+    if (present) return { ok: true, method: "deterministic-result", expectedTokens, errors: [] };
   }
 
-  const unit = units[index] || "";
-  const hasOwnResult = extractResultTokens(unit).length > 0 || /\b(ev[et]|hayir|yes|no|olabilir|mümkün|mumkun|seç|sec|oner|öner)\b/i.test(unit);
-  const enoughUnits = units.length >= index + 1;
-  return {
-    ok: hasOwnResult || enoughUnits,
-    method: "answer-unit",
-    expectedTokens: [],
-    errors: hasOwnResult || enoughUnits ? [] : [`${task.label} does not have a distinguishable answer.`],
-  };
+  // (1) açık etiket bölümü + (3/4) bölümde sonuç/karar var mı
+  if (section != null) {
+    const body = section.replace(/^[\s\S]*?[:).\-–]\s*/, "").trim() || section.trim();
+    if (extractResultTokens(body).length > 0 || hasDecision(body) || body.length >= 2) {
+      return { ok: true, method: "label-section", expectedTokens, errors: [] };
+    }
+  }
+
+  // deterministik biliniyor ama hiçbir yerde yok -> eksik
+  if (expectedTokens.length) {
+    return { ok: false, method: "deterministic-result", expectedTokens, errors: [`${task.label} result is missing semantically.`] };
+  }
+
+  // (5) yalnız hiçbir görevde açık etiket yoksa sıralı yedek
+  if (!ctx.anyLabel) {
+    const unit = ctx.units[ctx.index] || "";
+    const ok = extractResultTokens(unit).length > 0 || hasDecision(unit) || ctx.units.length >= ctx.taskCount;
+    return { ok, method: "sequential-fallback", expectedTokens: [], errors: ok ? [] : [`${task.label} does not have a distinguishable answer.`] };
+  }
+
+  return { ok: false, method: "no-match", expectedTokens: [], errors: [`${task.label} answer not matched.`] };
 }
 
 function validateSemanticCompleteness(answer, taskReport) {
@@ -98,6 +144,8 @@ function validateSemanticCompleteness(answer, taskReport) {
 
   const finalText = finalAnswerText(answer) || "";
   const units = splitAnswerUnits(finalText);
+  const sectionMap = buildSectionMap(finalText, taskReport.tasks);
+  const anyLabel = sectionMap.size > 0;
   const completed = [];
   const missing = [];
   const errors = [];
@@ -108,7 +156,9 @@ function validateSemanticCompleteness(answer, taskReport) {
 
   for (let i = 0; i < taskReport.tasks.length; i += 1) {
     const task = taskReport.tasks[i];
-    const result = taskCompleteByMeaning(answer, finalText, task, units, i);
+    const result = taskCompleteByMeaning(answer, finalText, task, {
+      sectionMap, anyLabel, units, index: i, taskCount: taskReport.tasks.length,
+    });
     if (result.ok) completed.push({ task, method: result.method });
     else {
       missing.push(task);
@@ -159,6 +209,8 @@ function buildSemanticRepairMessages(question, answer, taskReport, validation) {
 
 module.exports = {
   buildSemanticRepairMessages,
+  buildSectionMap,
+  hasDecision,
   deterministicExpectedTokens,
   extractResultTokens,
   hasReasoningTrace,

@@ -954,4 +954,54 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Çok-görev: 5 görev algılanır; eksik kapsama reddedilir");
 }
 
+
+// === REGRESYON (kullanıcı spec'i): SACV/TDE/task-registry final fix ===
+{
+  const tMod = await import(path.join(mainDir, "agent", "tde.js"));
+  const sMod = await import(path.join(mainDir, "agent", "sacv.js"));
+  const rMod = await import(path.join(mainDir, "cognitive", "kernel", "task-registry.js"));
+  const TDE = tMod.default || tMod;
+  const SACV = sMod.default || sMod;
+  const { TaskRegistry } = rMod.default || rMod;
+
+  const input = [
+    "1. 80 sheep. All except 20 die.",
+    "2. 7x + 13 = 90.",
+    "3. 5 red, 5 blue, draw 2 without replacement, both red.",
+    "4. Father + Son = 98, Father = 6×Son, future ratio 4.",
+    "5. 90,000 profit, ratio 2:3:4.",
+  ].join("\n");
+
+  const rep = TDE.decomposeTasks(input);
+  // 5 görev algılanır
+  assert.strictEqual(rep.count, 5, "5 görev algılanır (count)");
+  assert.deepStrictEqual(rep.tasks.map((t) => t.id), ["1", "2", "3", "4", "5"], "id 1..5");
+  // Phantom YOK: Gorev 90 / tek-harf (Test T) / yinelenen id
+  assert.ok(!rep.tasks.some((t) => t.id === "90"), "phantom Gorev 90 yok");
+  assert.ok(!rep.tasks.some((t) => /[A-Za-z]/.test(t.id)), "tek-harf (Test T) yok");
+  assert.strictEqual(new Set(rep.tasks.map((t) => t.id)).size, 5, "yinelenen görev yok");
+
+  // Cevaplar SIRASIZ + etiketli (biçimden bağımsız geçmeli)
+  const finalText = [
+    "Final Answer:",
+    "Gorev 3: iki kirmizi olasiligi 2/9",
+    "Gorev 1: 20 koyun kaldi",
+    "Gorev 5: 20,000 / 30,000 / 40,000",
+    "Gorev 2: x = 11",
+    "Gorev 4: 9.333333 yil sonra",
+  ].join("\n");
+
+  const v = SACV.validateSemanticCompleteness(finalText, rep);
+  assert.strictEqual(v.ok, true, "SACV PASS (5 görev anlamsal tamam): eksik=" + JSON.stringify(v.missing.map((t) => t.label)));
+  assert.strictEqual(v.completed.length, 5, "5 görev tamamlandı");
+
+  // Hard Gate temsili: task registry sıra-bağımsız hidrasyon -> complete
+  const reg = new TaskRegistry(rep.tasks);
+  const sum = reg.hydrateFromAnswer(finalText);
+  assert.strictEqual(sum.complete, true, "Task Registry complete (incomplete OLMAMALI)");
+  assert.strictEqual(sum.answered, 5, "5 görev kayda geçti");
+
+  ok("REGRESYON: 5 görev algıla+cevapla, SACV PASS, registry complete, phantom yok");
+}
+
 console.log(`\n${passed} test geçti ✅`);

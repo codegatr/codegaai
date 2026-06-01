@@ -4,6 +4,34 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 117 — SACV / TDE / Task-Registry FINAL FIX (kullanıcı spec'i) (1 Haz 2026, Claude)
+
+Sorun: Hard Gate çalışıyor ama SACV, görev↔cevap eşlemesini güvenilir kuramadığı için GEÇERLİ
+çok-görev cevaplarını blokluyordu ("Task Registry incomplete"). Yeni katman EKLENMEDİ; yalnız
+sacv.js + tde.js + task-registry.js düzeltildi.
+
+Fix 1 — sacv.js: units[index] (sıra-bağımlı) bağımlılığı kaldırıldı. Öncelik:
+  (1) deterministik beklenen sonuç finalText'in HER yerinde -> GEÇER (solver biliyorsa kabul),
+  (2) açık etiket bölümü (buildSectionMap: id->bölüm), (3/4) token/karar varlığı,
+  (5) yalnız HİÇBİR görevde etiket yoksa sıralı yedek. Kesin biçim aranmaz.
+Fix 2 — tde.js: phantom görev engellendi. heading regex'inden tek-harf [A-Z] yakalama kaldırıldı
+  (Test T reddedilir); bare numara "N." artık (?!\d) ile binlik sayıyı dışlar (90.000 -> Gorev 90
+  OLMAZ); id 1-2 hane. Açık başlık güçlü sinyal olduğundan dil-bağımlı isActualTaskBody yerine
+  yalnız isIgnorableTaskBody ile filtre (İngilizce olasılık görevi artık düşmüyor).
+Fix 3 — task-registry.js: hydrateFromAnswer artık anlamla eşleştirir: etiket/id (birim) ->
+  etiket bölümü (sectionMap) -> deterministik -> sayısal token -> sıralı yedek.
+Fix 4 — regresyon testi: kullanıcının tam 5-görev girdisi (80 sheep=20, 7x+13=90 -> 11,
+  5R5B 2/9, baba+oğul 9.333, 90.000 2:3:4 -> 20k/30k/40k). 5 algılandı, 5 cevaplandı, SACV PASS,
+  registry complete, phantom (Gorev 90 / Test T / yinelenen) YOK.
+
+Test 57/57 + reasoning-guard. İçe-aktarma döngüsü yok. Surum -> **1.0.0**.
+
+NOT (kullanıcı isteği): "internetten araştırıp doğruluğunu sorgulayan ajan" — forced web research
+(Faz 110) zaten var; web ile doğrulama/çapraz-kontrol ayrı bir geliştirme olarak ele alınacak.
+
+---
+
+
 ## ✅ Faz 116 — Çok-görev kaybının NİHAİ kök nedeni: anlık kısa-devre çok-görev dalını öne geçiyordu (1 Haz 2026, Claude)
 
 Kullanıcı paylaşım PDF'i (federation/share) GERÇEK kanıtı gösterdi:

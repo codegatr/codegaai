@@ -90,20 +90,30 @@ function outputRequirementReport(text, tasks) {
 }
 
 function headingTasks(text) {
-  const re = /^[^\S\r\n]*(?:#{1,6}[^\S\r\n]*)?(?:(?:test|soru|task|gorev)[^\S\r\n]+)?(\d+|[A-Z])(?:[.)]|[^\S\r\n]*[-:])?.*$/gim;
-  const matches = [...String(text || "").matchAll(re)]
-    .filter((m) => /test|soru|task|gorev|^\s*\d+[.)]/i.test(m[0]));
-  if (matches.length <= 1) return [];
-  const parsedTasks = matches.map((m, i) => {
+  // Gerçek soru başlıkları: "Test N", "Soru N", "Görev N", "Task N" (anahtar kelimeli) VEYA
+  // numaralı liste "N." / "N)" (N = 1-2 hane). Phantom engelleme:
+  //  - Tek harf ("Test T") REDDEDİLİR ([A-Z] yakalama kaldırıldı).
+  //  - Binlik sayı ("90.000" -> "90.") başlık SAYILMAZ: işaretten sonra rakam gelmemeli (?!\d).
+  const re = /^[^\S\r\n]*(?:#{1,6}[^\S\r\n]*)?(?:(test|soru|task|g[oö]rev)[^\S\r\n]+(\d{1,2})(?!\d)|(\d{1,2})[.)](?!\d))(?:[^\S\r\n]*[-:])?.*$/gim;
+  const raw = [...String(text || "").matchAll(re)]
+    .map((m) => ({ m, id: m[2] || m[3], keyword: (m[1] || "").toLowerCase() }))
+    .filter((x) => x.id); // id yoksa (tek harf vb.) reddet
+  if (raw.length <= 1) return [];
+  const parsedTasks = raw.map((x, i) => {
+    const m = x.m;
     const start = m.index;
-    const end = i + 1 < matches.length ? matches[i + 1].index : text.length;
+    const end = i + 1 < raw.length ? raw[i + 1].m.index : text.length;
     const block = text.slice(start, end).trim();
     const body = block
-      .replace(/^[^\S\r\n]*(?:#{1,6}[^\S\r\n]*)?(?:(?:test|soru|task|gorev)[^\S\r\n]+)?(?:\d+|[A-Z])(?:[.)]|[^\S\r\n]*[-:])?[^\S\r\n]*/i, "")
+      .replace(/^[^\S\r\n]*(?:#{1,6}[^\S\r\n]*)?(?:(?:test|soru|task|g[oö]rev)[^\S\r\n]+)?\d{1,2}(?:[.)]|[^\S\r\n]*[-:])?[^\S\r\n]*/i, "")
       .trim();
+    const label = x.keyword === "test" ? `Test ${x.id}`
+      : x.keyword === "soru" ? `Soru ${x.id}`
+        : x.keyword === "task" ? `Test ${x.id}`
+          : `Gorev ${x.id}`;
     return {
-      id: String(m[1]),
-      label: /test/i.test(m[0]) ? `Test ${m[1]}` : /soru/i.test(m[0]) ? `Soru ${m[1]}` : `Gorev ${m[1]}`,
+      id: String(x.id),
+      label,
       title: m[0].trim(),
       body: body || block,
       domain: classifyTask(body || block),
@@ -117,7 +127,10 @@ function headingTasks(text) {
   }
   headingTasks.lastOutputRequirements = [];
   headingTasks.lastMainTask = null;
-  const tasks = parsedTasks.filter((task) => isActualTaskBody(task.body, task.title));
+  // Açık başlık (Test/Soru/Görev N veya N.) zaten güçlü sinyal; dile bağlı katı filtre yerine
+  // yalnız "yok sayılabilir not"ları (başlık/açıklama/sistem mesajı) ele. Böylece İngilizce/
+  // farklı ifadeli gerçek görevler düşmez.
+  const tasks = parsedTasks.filter((task) => !isIgnorableTaskBody(task.body));
   return tasks;
 }
 
@@ -171,7 +184,7 @@ function bulletTasks(text) {
   }
   bulletTasks.lastOutputRequirements = [];
   bulletTasks.lastMainTask = null;
-  const tasks = parsedTasks.filter((task) => isActualTaskBody(task.body, task.title));
+  const tasks = parsedTasks.filter((task) => !isIgnorableTaskBody(task.body));
   return tasks;
 }
 
