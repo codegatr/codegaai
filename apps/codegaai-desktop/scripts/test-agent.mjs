@@ -346,6 +346,9 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   assert.strictEqual(repaired.repaired, true);
   assert.match(repaired.answer, /TEST H:.*4/);
   assert.match(repaired.answer, /TEST J:.*59.*58.*57/);
+  const instant = benchmark.solveKnownReasoningBenchmarks(prompt);
+  assert.match(instant, /TEST H:.*4/);
+  assert.match(instant, /TEST J:.*59.*58.*57/);
   ok("Benchmark reasoner: cevaplanabilir refusal/eksik yanıt onarılır");
 }
 

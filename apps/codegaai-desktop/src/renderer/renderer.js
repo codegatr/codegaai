@@ -994,7 +994,7 @@ async function regenerateLast() {
     renderConversation();
   }, 8000);
   try {
-    const answer = await window.codega.sendMessage(userText, { regenerate: true, context: (currentChat().context || "") });
+    const answer = await sendMessageWithWatchdog(userText, { regenerate: true, context: (currentChat().context || "") });
     placeholder.text = answer.text;
   } catch (error) {
     placeholder.text = `Bir aksama oldu: ${error.message || error}`;
@@ -1056,7 +1056,7 @@ async function handleSubmit() {
     scrollConversationToBottom();
   }, 8000);
   try {
-    const answer = await window.codega.sendMessage(sendText, { context: (currentChat().context || "") });
+    const answer = await sendMessageWithWatchdog(sendText, { context: (currentChat().context || "") });
     placeholder.text = answer.text; // final cevap otorite (akış bozulsa bile tam metin)
     await refreshModels();
   } catch (error) {
@@ -1095,6 +1095,23 @@ els.input.addEventListener("keydown", (event) => {
 document.getElementById("new-chat").addEventListener("click", () => createChat());
 if (els.historySearch) els.historySearch.addEventListener("input", () => { historyQuery = els.historySearch.value; renderHistory(); });
 let _metricsTimer = null;
+
+function sendMessageWithWatchdog(text, options = {}, timeoutMs = 45000) {
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = window.setTimeout(async () => {
+      try { await window.codega.abortChat(); } catch (_e) {}
+      reject(new Error("Yanıt beklenenden uzun sürdü; işlem güvenli şekilde durduruldu. Tekrar deneyebilirsin."));
+    }, timeoutMs);
+  });
+  return Promise.race([
+    window.codega.sendMessage(text, options),
+    timeout,
+  ]).finally(() => {
+    if (timer) window.clearTimeout(timer);
+  });
+}
+
 function _fillUsage(prefix, m) {
   const setV = (id, t) => { const e = document.getElementById(id); if (e) e.textContent = t; };
   const setB = (id, p) => { const e = document.getElementById(id); if (e) e.style.width = (p == null ? 0 : p) + "%"; };
