@@ -164,6 +164,44 @@ async function verifyTaskLocalAnswer(task, draft, generateFn = null, opts = {}) 
   return { ok: true, answer, errors: [] };
 }
 
+function collapseRunawayTaskAnswer(answer) {
+  const text = String(answer || "").trim();
+  if (!text) return "";
+  const lines = text.split(/\r?\n/);
+  const seen = new Map();
+  const kept = [];
+  let repeated = false;
+  for (const line of lines) {
+    const key = line.trim().replace(/\s+/g, " ").toLocaleLowerCase("tr");
+    if (key && key.length > 12) {
+      const count = (seen.get(key) || 0) + 1;
+      seen.set(key, count);
+      if (count > 3) {
+        repeated = true;
+        continue;
+      }
+    }
+    kept.push(line);
+    if (kept.join("\n").length > 4000) {
+      repeated = true;
+      break;
+    }
+  }
+  if (!repeated) return text;
+  return `${kept.join("\n").trim()}\n\n[Task-local guard: tekrar eden/uzayan taslak kesildi; yanıt yeniden doğrulanacak.]`;
+}
+
+function deterministicTaskAnswer(taskBody) {
+  const body = String(taskBody || "");
+  const math = solveDeterministicMathLogic(body);
+  if (math && math.trim()) return math.trim();
+  const ratio = rpre.solveMainTask(body);
+  if (ratio && ratio.trim()) return ratio.trim();
+  const benchmark = solveKnownReasoningBenchmarks(body);
+  if (benchmark && benchmark.trim()) return benchmark.trim();
+  return "";
+}
+
 // Basit sohbet/selamlaşma tespiti — bunlarda araç/ReAct makinesi devreye girmesin
 function _normTr(s) {
   return String(s || "").toLocaleLowerCase("tr")
@@ -962,7 +1000,6 @@ class ModelManager {
         const taskResults = [];
         for (let i = 0; i < detectedTasks.length; i++) {
           const t = detectedTasks[i];
-          if (onToken) onToken(`\n\n### ${t.label}\n`);
           const taskFactLock = factLock.extractFacts(t.body);
           const tMsgs = [
             {
@@ -974,10 +1011,14 @@ class ModelManager {
             ...(taskFactLock.applicable ? [{ role: "system", content: factLock.formatFactLockContext(taskFactLock) }] : []),
             { role: "user", content: t.body },
           ];
-          let aTxt = "";
-          try {
-            aTxt = String(await this.generate(selectedModel, tMsgs, attemptModels, onToken) || "").trim();
-          } catch (_e) { aTxt = ""; }
+          let aTxt = deterministicTaskAnswer(t.body);
+          if (!aTxt) {
+            try {
+              // Multi-task answers are verified before display; do not stream raw per-task drafts.
+              aTxt = String(await this.generate(selectedModel, tMsgs, attemptModels) || "").trim();
+            } catch (_e) { aTxt = ""; }
+          }
+          aTxt = collapseRunawayTaskAnswer(aTxt);
           // Görev başına ucuz deterministik düzeltme (oran/denklem/matematik)
           try {
             const rp = rpre.verify(t.body, aTxt);
@@ -1491,4 +1532,6 @@ module.exports = {
   parsePullProgress,
   isSmallTalk,
   _verifyTaskLocalAnswer: verifyTaskLocalAnswer,
+  _deterministicTaskAnswer: deterministicTaskAnswer,
+  _collapseRunawayTaskAnswer: collapseRunawayTaskAnswer,
 };

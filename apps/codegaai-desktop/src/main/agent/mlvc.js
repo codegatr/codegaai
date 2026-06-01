@@ -219,7 +219,9 @@ function detectDuration(question) {
 
 function detectColorWithoutReplacement(question) {
   const q = trFold(question);
-  if (!/geri\s+koymadan|without\s+replacement/.test(q)) return null;
+  const hasExplicitNoReplacement = /geri\s+koymadan|without\s+replacement/.test(q);
+  const hasDrawTwo = /(?:2|iki)\s*(?:top|ball)s?\s*(?:cek|draw)/.test(q) || /(?:2|iki)\s*(?:adet\s*)?(?:top|ball)/.test(q);
+  if (!hasExplicitNoReplacement && !hasDrawTwo) return null;
   const colors = [
     { keys: ["kirmizi", "red"], count: 0, label: "kirmizi" },
     { keys: ["mavi", "blue"], count: 0, label: "mavi" },
@@ -245,7 +247,7 @@ function detectColorWithoutReplacement(question) {
       new RegExp(`${escaped}\\s+(?:olma\\s+olasiligi|probability)`).test(q);
   }));
   if (!target) return null;
-  const drawMatch = q.match(/(\d+)\s*(?:top|ball)s?\s*(?:cek|draw)/);
+  const drawMatch = q.match(/(\d+)\s*(?:top|ball)s?\s*(?:cek|draw)/) || q.match(/(\d+)\s*(?:adet\s*)?(?:top|ball)/);
   const drawCount = drawMatch ? Number(drawMatch[1]) : 2;
   if (drawCount !== 2 || target.count < 2) return null;
   const total = present.reduce((sum, color) => sum + color.count, 0);
@@ -286,10 +288,36 @@ function detectPassingPlace(question) {
 
 function detectExceptDied(question) {
   const q = trFold(question);
-  const m = q.match(/(\d+)['\u2019]?si\s+haric\s+hepsi\s+oldu/);
+  const m = q.match(/(\d+)['\u2019]?si\s+(?:haric|disinda)\s+hepsi\s+oldu/);
   if (!m) return null;
   const result = Number(m[1]);
   return { kind: "logic", result, explanation: `"${result}'si haric hepsi oldu" kalan sayinin ${result} oldugu anlamina gelir.` };
+}
+
+function detectAgeRatioFuture(question) {
+  const q = trFold(question);
+  if (!/(baba|father)/.test(q) || !/(ogul|son)/.test(q)) return null;
+  const totalMatch = q.match(/toplam\s+yas(?:lari)?\s+(\d+)/) || q.match(/toplam(?:i)?\s+(\d+)/);
+  const currentRatioMatch = q.match(/baba[^.\n]{0,80}og(?:ul|lunun)[^.\n]{0,40}(\d+)\s*kat/) ||
+    q.match(/father[^.\n]{0,80}son[^.\n]{0,40}(\d+)\s*times/);
+  const futureRatioMatch = q.match(/kac\s+yil\s+sonra[^.\n]{0,120}(\d+)\s*kat/) ||
+    q.match(/(\d+)\s*kat[^\n.]{0,80}olur/);
+  if (!totalMatch || !currentRatioMatch || !futureRatioMatch || !/kac\s+yil\s+sonra|years?\s+later/.test(q)) return null;
+  const total = Number(totalMatch[1]);
+  const currentRatio = Number(currentRatioMatch[1]);
+  const futureRatio = Number(futureRatioMatch[1]);
+  if (!Number.isFinite(total) || !Number.isFinite(currentRatio) || !Number.isFinite(futureRatio) || futureRatio <= 1) return null;
+  const son = total / (currentRatio + 1);
+  const father = currentRatio * son;
+  const years = (father - futureRatio * son) / (futureRatio - 1);
+  if (!Number.isFinite(years) || years < 0) return null;
+  const rounded = Number(years.toFixed(10));
+  return {
+    kind: "algebra",
+    result: rounded,
+    resultText: `${rounded} yil`,
+    explanation: `Oglun bugunku yasi ${son}, babanin bugunku yasi ${father}. Denklem: ${father}+t = ${futureRatio}(${son}+t); t = ${rounded}`,
+  };
 }
 
 function detectSymbolicMultiplier(question) {
@@ -319,6 +347,7 @@ function detectSingleDeterministic(question) {
     detectBlueWithoutReplacement(question),
     detectPassingPlace(question),
     detectExceptDied(question),
+    detectAgeRatioFuture(question),
     detectSymbolicMultiplier(question),
   ].filter(Boolean);
 }

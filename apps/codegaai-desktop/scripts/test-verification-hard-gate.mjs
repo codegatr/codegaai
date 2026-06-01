@@ -172,6 +172,15 @@ suite("multi_task_task_local_verification", async () => {
   assert.equal(regenerated.regenerated, true);
   assert.match(regenerated.answer, /Final Answer:\s*4/);
   assert.match(blocked.answer, /Yanıt güvenli şekilde doğrulanamadı/);
+
+  const exceptAnswer = modelManager._deterministicTaskAnswer("80 koyunlardan 20'si dışında hepsi öldükten sonra 60 koyunu kaldı. Cevap: 60.");
+  assert.match(exceptAnswer, /Final Answer:\s*20/, "task-local deterministic path corrects except/died traps before model generation");
+
+  const ageFutureAnswer = modelManager._deterministicTaskAnswer("Baba ile oğlunun toplam yaşları 98'dir. Baba oğlunun yaşının 6 katıdır. Kaç yıl sonra baba oğlunun yaşının 4 katı olur?");
+  assert.match(ageFutureAnswer, /Final Answer:\s*9\.3333333333 yil/, "task-local deterministic path answers the requested years-later value");
+
+  const runaway = modelManager._collapseRunawayTaskAnswer(Array(20).fill("Şimdi, zamanın ne kadar olduğunu hesaplayalım:").join("\n"));
+  assert.match(runaway, /Task-local guard/, "runaway repeated task drafts are collapsed before verification");
 });
 
 let passed = 0;
