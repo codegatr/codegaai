@@ -10,6 +10,25 @@ function lower(text) {
   return String(text || "").toLocaleLowerCase("tr");
 }
 
+function trFold(text) {
+  return lower(text)
+    .replace(/\u0131/g, "i")
+    .replace(/\u011f/g, "g")
+    .replace(/\u00fc/g, "u")
+    .replace(/\u015f/g, "s")
+    .replace(/\u00f6/g, "o")
+    .replace(/\u00e7/g, "c")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[Ä±Ä°]/g, "i")
+    .replace(/ÄŸ/g, "g")
+    .replace(/Ã¼/g, "u")
+    .replace(/ÅŸ/g, "s")
+    .replace(/Ã¶/g, "o")
+    .replace(/Ã§/g, "c")
+    .replace(/â€™/g, "'");
+}
+
 function extractJson(text) {
   const raw = String(text || "").trim();
   const block = raw.match(JSON_BLOCK);
@@ -20,7 +39,9 @@ function extractJson(text) {
     const start = body.indexOf("{");
     const end = body.lastIndexOf("}");
     if (start >= 0 && end > start) {
-      try { return JSON.parse(body.slice(start, end + 1)); } catch (_e2) {}
+      try {
+        return JSON.parse(body.slice(start, end + 1));
+      } catch (_e2) {}
     }
   }
   return null;
@@ -32,6 +53,17 @@ function score(value) {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
+function gcd(a, b) {
+  let x = Math.abs(Math.trunc(a));
+  let y = Math.abs(Math.trunc(b));
+  while (y) {
+    const t = y;
+    y = x % y;
+    x = t;
+  }
+  return x || 1;
+}
+
 function approxEqual(a, b, eps = 0.0001) {
   return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= eps;
 }
@@ -41,15 +73,32 @@ function answerContainsNumber(answer, expected) {
   return nums.some((n) => approxEqual(Number(n.replace(",", ".")), expected));
 }
 
+function formatCheckAnswer(check) {
+  return check.resultText || String(Number.isFinite(check.result) ? Number(check.result.toFixed(10)) : "");
+}
+
+function splitNumberedTests(question) {
+  const text = String(question || "");
+  const re = /^[^\S\r\n]*#{0,3}[^\S\r\n]*Test[^\S\r\n]+(\d+).*$/gim;
+  const matches = [...text.matchAll(re)];
+  if (matches.length <= 1) return [];
+  return matches.map((m, i) => {
+    const lineEnd = text.indexOf("\n", m.index);
+    const start = lineEnd >= 0 ? lineEnd + 1 : m.index + m[0].length;
+    const end = i + 1 < matches.length ? matches[i + 1].index : text.length;
+    return { label: `Test ${m[1]}`, body: text.slice(start, end).trim() };
+  }).filter((item) => item.body);
+}
+
 function classifyMLVCDomains(question) {
-  const q = lower(question);
+  const q = trFold(question);
   const domains = [];
-  if (/%|yüzde|yuzde|zam|indir/.test(q)) domains.push("percentage");
-  if (/\b\d+\s*(saat|dakika|gün|gun|hafta|ay|yıl|yil)|\b\d{1,2}:\d{2}\b/.test(q)) domains.push("time");
-  if (/\b(x|y|z)\b|denklem|eşitlik|esitlik|çöz|coz/.test(q)) domains.push("algebra");
-  if (/kesin|olasılık|olasilik|probability|ihtimal|top çek|top cek|replacement|yerine koy/.test(q)) domains.push("probability");
-  if (/tokalaş|tokalas|kaç çift|kac cift|combination|kombinasyon|permütasyon|permutasyon/.test(q)) domains.push("combinatorics");
-  if (/mantık|mantik|bulmaca|kapı|kapi|door|hariç|haric|except|yarısı|yarisi|çeyreği|ceyregi|sekizde biri/.test(q)) domains.push("logic");
+  if (/%|yuzde|zam|indir/.test(q)) domains.push("percentage");
+  if (/\b\d+\s*(saat|dakika|gun|hafta|ay|yil)|\b\d{1,2}:\d{2}\b/.test(q)) domains.push("time");
+  if (/\b(x|y|z)\b|denklem|esitlik|coz|katinin\s+\d+\s+fazlasi/.test(q)) domains.push("algebra");
+  if (/kesin|olasilik|probability|ihtimal|top cek|replacement|geri koymadan/.test(q)) domains.push("probability");
+  if (/tokalas|kac cift|combination|kombinasyon|permutasyon/.test(q)) domains.push("combinatorics");
+  if (/mantik|bulmaca|kapi|door|haric|except|yarisi|ceyregi|sekizde biri|sira/.test(q)) domains.push("logic");
   if (/\d+\s*[\+\-*\/=]\s*\d+/.test(q)) domains.push("arithmetic");
   return [...new Set(domains)];
 }
@@ -59,61 +108,65 @@ function shouldRunMLVC(question) {
 }
 
 function detectPercentageChain(question) {
-  const q = lower(question);
-  const baseMatch = q.match(/(?:başlangıç|baslangic|ilk|fiyat[ıi]?)\D{0,20}(\d+(?:[.,]\d+)?)\s*tl|(\d+(?:[.,]\d+)?)\s*tl/);
+  const q = trFold(question);
+  const baseMatch = q.match(/(?:baslangic|ilk|urun|fiyat)\D{0,40}(\d+(?:[.,]\d+)?)\s*tl|(\d+(?:[.,]\d+)?)\s*tl/);
   if (!baseMatch) return null;
   const base = Number((baseMatch[1] || baseMatch[2]).replace(",", "."));
   if (!Number.isFinite(base)) return null;
   const ops = [];
-  const re = /%?\s*(\d+(?:[.,]\d+)?)\s*%?\s*(zam|art|yüksel|yuksel|indir|düş|dus|azal)/g;
+  const re = /%?\s*(\d+(?:[.,]\d+)?)\s*%?\s*(zam|art|yuksel|indir|dus|azal)/g;
   let m;
   while ((m = re.exec(q))) {
     const pct = Number(m[1].replace(",", ".")) / 100;
-    const kind = m[2];
-    ops.push(/zam|art|yüksel|yuksel/.test(kind) ? (1 + pct) : (1 - pct));
+    ops.push(/zam|art|yuksel/.test(m[2]) ? (1 + pct) : (1 - pct));
   }
   if (!ops.length) return null;
   const result = ops.reduce((v, factor) => v * factor, base);
-  return { kind: "percentage", result, explanation: `${base} x ${ops.map((f) => f.toFixed(2)).join(" x ")} = ${Number(result.toFixed(6))}` };
+  return {
+    kind: "percentage",
+    result,
+    resultText: `${Number(result.toFixed(6))} TL`,
+    explanation: `${base} x ${ops.map((f) => f.toFixed(2)).join(" x ")} = ${Number(result.toFixed(6))}`,
+  };
 }
 
 function detectHandshake(question) {
-  const q = lower(question);
-  const m = q.match(/(\d+)\s+kişi/) || q.match(/(\d+)\s+people/);
-  if (!m || !/tokalaş|tokalas|handshake/.test(q)) return null;
+  const q = trFold(question);
+  const m = q.match(/(\d+)\s+kisi/) || q.match(/(\d+)\s+people/);
+  if (!m || !/tokalas|handshake/.test(q)) return null;
   const n = Number(m[1]);
   const result = (n * (n - 1)) / 2;
   return { kind: "combinatorics", result, explanation: `C(${n}, 2) = ${result}` };
 }
 
 function detectSameColorGuarantee(question) {
-  const q = lower(question);
-  if (!/ayn[ıi]\s+renkten\s+2|same color/.test(q)) return null;
+  const q = trFold(question);
+  if (!/ayni\s+renkten\s+2|same color/.test(q)) return null;
   const colors = [];
-  for (const color of ["kırmızı", "kirmizi", "mavi", "yeşil", "yesil", "red", "blue", "green"]) {
+  for (const color of ["kirmizi", "mavi", "yesil", "red", "blue", "green"]) {
     if (q.includes(color)) colors.push(color);
   }
-  const unique = new Set(colors.map((c) => c.replace("kirmizi", "kırmızı").replace("yesil", "yeşil")));
+  const unique = new Set(colors);
   if (unique.size < 2) return null;
   const result = unique.size + 1;
-  return { kind: "probability", result, explanation: `Pigeonhole: ${unique.size} renk varsa aynı renkten 2 garanti etmek için ${unique.size + 1} çekiş gerekir.` };
+  return { kind: "probability", result, explanation: `${unique.size} renk varsa ayni renkten 2 garanti etmek icin ${result} cekis gerekir.` };
 }
 
 function detectLilyDoubling(question) {
-  const q = lower(question);
-  const m = q.match(/(\d+)\.?\s*g[üu]n/);
-  if (!m || !/nil[üu]fer|iki\s+kat|yar[ıi]s[ıi]|çeyrek|ceyrek|sekizde/.test(q)) return null;
+  const q = trFold(question);
+  const m = q.match(/(\d+)\.?\s*gun/);
+  if (!m || !/nilufer|iki\s+kat|yarisi|ceyrek|sekizde/.test(q)) return null;
   const full = Number(m[1]);
   const parts = [];
-  if (/yar[ıi]s[ıi]/.test(q)) parts.push(`yarısı ${full - 1}. gün`);
-  if (/çeyre|ceyre/.test(q)) parts.push(`çeyreği ${full - 2}. gün`);
-  if (/sekizde/.test(q)) parts.push(`sekizde biri ${full - 3}. gün`);
+  if (/yarisi/.test(q)) parts.push(`yarisi ${full - 1}. gun`);
+  if (/ceyrek/.test(q)) parts.push(`ceyregi ${full - 2}. gun`);
+  if (/sekizde/.test(q)) parts.push(`sekizde biri ${full - 3}. gun`);
   if (!parts.length) return null;
-  return { kind: "logic", resultText: parts.join(", "), explanation: `Her gün iki katına çıktığı için her bir yarılama bir gün geriye gider.` };
+  return { kind: "logic", resultText: parts.join(", "), explanation: "Her gun iki katina ciktigi icin her yarilama bir gun geriye gider." };
 }
 
 function detectAlgebraEquation(question) {
-  const q = lower(question).replace(/\s+/g, "");
+  const q = trFold(question).replace(/\s+/g, "");
   const m = q.match(/([+-]?\d*)x([+-]\d+)=([+-]?\d+)/);
   if (!m) return null;
   const a = m[1] === "" || m[1] === "+" ? 1 : m[1] === "-" ? -1 : Number(m[1]);
@@ -121,47 +174,147 @@ function detectAlgebraEquation(question) {
   const c = Number(m[3]);
   if (!Number.isFinite(a) || !Number.isFinite(b) || !Number.isFinite(c) || a === 0) return null;
   const result = (c - b) / a;
-  return { kind: "algebra", result, explanation: `${a}x ${b >= 0 ? "+" : ""}${b} = ${c}; x = (${c} - ${b}) / ${a} = ${result}` };
+  return { kind: "algebra", result, explanation: `${a}x ${b >= 0 ? "+" : ""}${b} = ${c}; x = ${result}` };
 }
 
-function detectSymbolicSeven(question) {
-  const q = lower(question);
-  if (/7\s+ile\s+[cç]arp/.test(q) && /21\s+ekle/.test(q) && /7'?ye\s+b[öo]l/.test(q) && /başlangıç|baslangic/.test(q)) {
-    return { kind: "algebra", result: 3, explanation: `(7x + 21) / 7 - x = x + 3 - x = 3` };
-  }
-  return null;
+function detectWordLinearEquation(question) {
+  const q = trFold(question);
+  const m = q.match(/(\d+)\s+katinin\s+(\d+)\s+fazlasi\s+(\d+)/);
+  if (!m) return null;
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  const c = Number(m[3]);
+  const result = (c - b) / a;
+  return { kind: "algebra", result, explanation: `${a}x + ${b} = ${c}; x = ${result}` };
 }
 
-function deterministicCheck(question, answer) {
-  const checks = [
+function detectFractionSimplification(question) {
+  const m = String(question || "").match(/(\d+)\s*\/\s*(\d+)/);
+  if (!m) return null;
+  const n = Number(m[1]);
+  const d = Number(m[2]);
+  if (!Number.isFinite(n) || !Number.isFinite(d) || d === 0) return null;
+  const div = gcd(n, d);
+  return { kind: "fraction", resultText: `${n / div}/${d / div}`, explanation: `${n}/${d}; gcd=${div}; sadelesmis hali ${n / div}/${d / div}` };
+}
+
+function parseTurkishDateTime(value) {
+  const months = { ocak: 0, subat: 1, mart: 2, nisan: 3, mayis: 4, haziran: 5, temmuz: 6, agustos: 7, eylul: 8, ekim: 9, kasim: 10, aralik: 11 };
+  const m = trFold(value).match(/(\d{1,2})\s+([a-z]+)\s+(\d{1,2}):(\d{2})/i);
+  if (!m || months[m[2]] == null) return null;
+  return new Date(2026, months[m[2]], Number(m[1]), Number(m[3]), Number(m[4]));
+}
+
+function detectDuration(question) {
+  const matches = trFold(question).match(/\d{1,2}\s+[a-z]+\s+\d{1,2}:\d{2}/g) || [];
+  if (matches.length < 2) return null;
+  const start = parseTurkishDateTime(matches[0]);
+  const end = parseTurkishDateTime(matches[1]);
+  if (!start || !end || end < start) return null;
+  const minutes = Math.round((end.getTime() - start.getTime()) / 60000);
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return { kind: "time", resultText: `${hours} saat ${mins} dakika`, explanation: `${minutes} dakika = ${hours} saat ${mins} dakika` };
+}
+
+function detectBlueWithoutReplacement(question) {
+  const q = trFold(question);
+  const red = q.match(/(\d+)\s+kirmizi/);
+  const blue = q.match(/(\d+)\s+mavi/);
+  if (!red || !blue || !/geri\s+koymadan/.test(q) || !/ikisinin\s+de\s+mavi/.test(q)) return null;
+  const r = Number(red[1]);
+  const b = Number(blue[1]);
+  const total = r + b;
+  const num = b * (b - 1);
+  const den = total * (total - 1);
+  const div = gcd(num, den);
+  return { kind: "probability", resultText: `${num / div}/${den / div}`, explanation: `(${b}/${total}) x (${b - 1}/${total - 1}) = ${num / div}/${den / div}` };
+}
+
+function detectPassingPlace(question) {
+  const q = trFold(question);
+  const ordinals = [["birinci", 1], ["ikinci", 2], ["ucuncu", 3], ["dorduncu", 4], ["besinci", 5]];
+  const found = ordinals.find(([word]) => q.includes(word));
+  if (!found || !/geciyorsun|gecersin|pass/.test(q)) return null;
+  return { kind: "logic", result: found[1], explanation: `${found[0]} siradaki kisiyi gecersen ${found[1]}. siraya yukselirsin.` };
+}
+
+function detectExceptDied(question) {
+  const q = trFold(question);
+  const m = q.match(/(\d+)['\u2019]?si\s+haric\s+hepsi\s+oldu/);
+  if (!m) return null;
+  const result = Number(m[1]);
+  return { kind: "logic", result, explanation: `"${result}'si haric hepsi oldu" kalan sayinin ${result} oldugu anlamina gelir.` };
+}
+
+function detectSymbolicMultiplier(question) {
+  const q = trFold(question);
+  const mult = q.match(/(\d+)\s+ile\s+carp/);
+  const div = q.match(/(\d+)['\u2019]?[ae]\s+bol/);
+  const add = q.match(/(\d+)\s+ekle/);
+  if (!add || !/baslangic/.test(q) || !/cikar/.test(q)) return null;
+  const n = Number((mult || div || [])[1]);
+  const k = Number(add[1]);
+  if (!Number.isFinite(n) || !Number.isFinite(k) || n === 0) return null;
+  const result = k / n;
+  return { kind: "algebra", result, explanation: `(${n}x + ${k}) / ${n} - x = ${result}` };
+}
+
+function detectSingleDeterministic(question) {
+  return [
     detectPercentageChain(question),
     detectHandshake(question),
     detectSameColorGuarantee(question),
     detectLilyDoubling(question),
     detectAlgebraEquation(question),
-    detectSymbolicSeven(question),
+    detectWordLinearEquation(question),
+    detectFractionSimplification(question),
+    detectDuration(question),
+    detectBlueWithoutReplacement(question),
+    detectPassingPlace(question),
+    detectExceptDied(question),
+    detectSymbolicMultiplier(question),
   ].filter(Boolean);
+}
 
+function deterministicCheck(question, answer) {
+  const checks = detectSingleDeterministic(question);
   if (!checks.length) return { ok: true, checks: [], correctedAnswer: "" };
+
   const failures = [];
   for (const check of checks) {
     if (Number.isFinite(check.result)) {
       if (!answerContainsNumber(answer, check.result)) failures.push(check);
-    } else if (check.resultText && !lower(answer).includes(lower(check.resultText).split(",")[0])) {
+    } else if (check.resultText && !trFold(answer).includes(trFold(check.resultText).split(",")[0])) {
       failures.push(check);
     }
   }
   if (!failures.length) return { ok: true, checks, correctedAnswer: "" };
-  const lines = failures.map((f) => `MLVC ${f.kind}: ${f.resultText || f.result}. ${f.explanation}`);
+  const lines = failures.map((f) => `MLVC ${f.kind}: ${formatCheckAnswer(f)}. ${f.explanation}`);
   return {
     ok: false,
     checks,
     failures,
-    correctedAnswer: `${lines.join("\n")}\n\nFinal Answer: ${failures.map((f) => f.resultText || f.result).join(" | ")}`,
+    correctedAnswer: `${lines.join("\n")}\n\nFinal Answer: ${failures.map(formatCheckAnswer).join(" | ")}`,
   };
 }
 
 function solveDeterministic(question) {
+  const tests = splitNumberedTests(question);
+  if (tests.length) {
+    const lines = [];
+    const finalParts = [];
+    for (const test of tests) {
+      const checks = detectSingleDeterministic(test.body);
+      if (!checks.length) continue;
+      const body = checks.map((c) => `${formatCheckAnswer(c)} (${c.explanation})`).join("; ");
+      lines.push(`${test.label}: ${body}`);
+      finalParts.push(`${test.label}: ${checks.map(formatCheckAnswer).join(", ")}`);
+    }
+    if (lines.length === tests.length) {
+      return `${lines.join("\n")}\n\nFinal Answer: ${finalParts.join(" | ")}`;
+    }
+  }
   const check = deterministicCheck(question, "");
   if (check.checks.length && check.correctedAnswer) return check.correctedAnswer;
   return "";

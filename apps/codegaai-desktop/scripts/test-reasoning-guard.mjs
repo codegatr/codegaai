@@ -111,6 +111,61 @@ assert.match(
   "MLVC can answer deterministic percentage checks without model calls"
 );
 
+const mlvcSuite = mlvc.solveDeterministic(`## Test 1 - Denklem
+
+Bir say\u0131n\u0131n 4 kat\u0131n\u0131n 18 fazlas\u0131 74't\u00fcr.
+Bu say\u0131 ka\u00e7t\u0131r?
+
+## Test 2 - Kesir Sadele\u015ftirme
+
+45/135 sadele\u015ftirilmi\u015f hali nedir?
+
+## Test 3 - Y\u00fczde
+
+Bir \u00fcr\u00fcn 500 TL.
+\u00d6nce %30 zamlan\u0131yor, sonra zaml\u0131 fiyat \u00fczerinden %20 indirim yap\u0131l\u0131yor.
+Son fiyat ka\u00e7 TL olur?
+
+## Test 4 - S\u00fcre
+
+Bir i\u015f 7 May\u0131s 09:20'de ba\u015flad\u0131.
+9 May\u0131s 14:55'te bitti.
+Toplam ka\u00e7 saat ka\u00e7 dakika s\u00fcrd\u00fc?
+
+## Test 5 - Olas\u0131l\u0131k
+
+Bir torbada 3 k\u0131rm\u0131z\u0131, 7 mavi top var.
+Geri koymadan 2 top \u00e7ekiliyor.
+\u0130kisinin de mavi olma olas\u0131l\u0131\u011f\u0131 nedir?
+
+## Test 6 - Mant\u0131k
+
+Bir yar\u0131\u015fta d\u00f6rd\u00fcnc\u00fc s\u0131radaki ki\u015fiyi ge\u00e7iyorsun.
+Ka\u00e7\u0131nc\u0131 s\u0131raya y\u00fckselirsin?
+
+## Test 7 - Dikkat
+
+Bir \u00e7ift\u00e7inin 50 tavu\u011fu vard\u0131.
+17'si hari\u00e7 hepsi \u00f6ld\u00fc.
+Ka\u00e7 tavu\u011fu kald\u0131?
+
+## Test 8 - Final Kontrol
+
+Bir say\u0131 d\u00fc\u015f\u00fcn.
+9 ile \u00e7arp.
+36 ekle.
+9'a b\u00f6l.
+Ba\u015flang\u0131\u00e7 say\u0131s\u0131n\u0131 \u00e7\u0131kar.
+Sonu\u00e7 ka\u00e7t\u0131r?`);
+assert.match(mlvcSuite, /Test 1: 14/, "MLVC answers equation test in a suite");
+assert.match(mlvcSuite, /Test 2: 1\/3/, "MLVC answers fraction test in a suite");
+assert.match(mlvcSuite, /Test 3: 520 TL/, "MLVC answers percentage test in a suite");
+assert.match(mlvcSuite, /Test 4: 53 saat 35 dakika/, "MLVC answers duration test in a suite");
+assert.match(mlvcSuite, /Test 5: 7\/15/, "MLVC answers probability test in a suite");
+assert.match(mlvcSuite, /Test 6: 4/, "MLVC answers passing-place test in a suite");
+assert.match(mlvcSuite, /Test 7: 17/, "MLVC answers exception wording test in a suite");
+assert.match(mlvcSuite, /Test 8: 4/, "MLVC answers symbolic cancellation test in a suite");
+
 const handshakeCheck = mlvc.deterministicCheck(
   "Bir odada 4 kişi var. Her kişi diğer herkesle tam bir kez tokalaşıyor. Toplam kaç tokalaşma olur?",
   "Final Answer: 12"
