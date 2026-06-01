@@ -231,6 +231,19 @@ function chatMatchesQuery(chat, q) {
   );
 }
 
+function formatChatAge(ts) {
+  const diff = Math.max(0, Date.now() - (Number(ts) || Date.now()));
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  const week = 7 * day;
+  if (diff < minute) return "şimdi";
+  if (diff < hour) return `${Math.floor(diff / minute)} dk.`;
+  if (diff < day) return `${Math.floor(diff / hour)} sa.`;
+  if (diff < week) return `${Math.floor(diff / day)} gün`;
+  return `${Math.floor(diff / week)} hafta`;
+}
+
 function renderHistory() {
   const q = (historyQuery || "").trim();
   const visible = state.chats.filter((chat) => chatMatchesQuery(chat, q));
@@ -241,7 +254,8 @@ function renderHistory() {
   els.history.innerHTML = visible.map((chat) => `
     <div class="history-entry ${chat.id === state.activeChat ? "active" : ""}">
       <button class="history-item" data-chat="${chat.id}">
-        ${escapeHtml(chat.title)}
+        <span class="history-title">${escapeHtml(chat.title)}</span>
+        <span class="history-time">${escapeHtml(formatChatAge(chat.updatedAt))}</span>
       </button>
       <div class="history-actions" aria-label="Sohbet işlemleri">
         <button type="button" data-share-chat="${chat.id}" title="Link olarak paylaş" aria-label="Link olarak paylaş">↗</button>

@@ -21,13 +21,15 @@ const learningStore = require("./agent/learning-store");
 const rag = require("./agent/rag");
 const { reflect } = require("./agent/reflect");
 const {
+  runAdversarialReview,
+  runCognitivePreflight,
+  shouldRunCognitivePipeline,
+} = require("./agent/cognitive-pipeline");
+const {
   classifyReasoningProblem,
   enforceConclusion,
-  formatUnderstandingForPrompt,
   shouldEnforceConclusion,
-  shouldUnderstandQuestion,
   shouldVerifyAnswer,
-  understandQuestion,
   verifyAnswer,
 } = require("./agent/reasoning-guard");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
@@ -549,8 +551,8 @@ class ModelManager {
     const reasoningCategories = classifyReasoningProblem(input);
     const inputNeedsVerification = shouldVerifyAnswer(input);
     const inputNeedsConclusion = shouldEnforceConclusion(input);
-    const inputNeedsUnderstanding = shouldUnderstandQuestion(input);
-    const onToken = (inputNeedsVerification || inputNeedsConclusion) ? null : (opts.onToken || null);
+    const inputNeedsCognitivePipeline = shouldRunCognitivePipeline(input);
+    const onToken = (inputNeedsVerification || inputNeedsConclusion || inputNeedsCognitivePipeline) ? null : (opts.onToken || null);
     // Yeniden üretim: önceki turu (user+assistant) geçmişten çıkar ki bağlam tekrarlanmasın
     if (opts.regenerate) {
       if (this.history.length && this.history[this.history.length - 1].role === "assistant") this.history.pop();
@@ -656,25 +658,18 @@ class ModelManager {
     }
 
     // Hedef-odaklı planlama (opt-in): karmaşık hedefi alt adımlara böl
-    let questionUnderstanding = "";
-    if (inputNeedsUnderstanding) {
-      try {
-        const understood = await understandQuestion(
-          input,
-          (msgs) => this.generate(selectedModel, msgs, attemptModels),
-          { categories: reasoningCategories }
-        );
-        questionUnderstanding = formatUnderstandingForPrompt(understood);
-      } catch (_e) {
-        questionUnderstanding = "";
-      }
-    }
+    const cognitivePreflight = await runCognitivePreflight(
+      input,
+      (msgs) => this.generate(selectedModel, msgs, attemptModels),
+      { cycles: 2 }
+    );
+    const cognitiveContext = cognitivePreflight.context || "";
 
     let plan = [];
     if (settings.planner && looksLikeGoal(input)) {
       try {
-        const plannerInput = questionUnderstanding
-          ? `${questionUnderstanding}\n\nOriginal user request:\n${input}`
+        const plannerInput = cognitiveContext
+          ? `${cognitiveContext}\n\nOriginal user request:\n${input}`
           : input;
         plan = await makePlan(plannerInput, (msgs) => this.generate(selectedModel, msgs));
       } catch (_e) {
@@ -696,7 +691,7 @@ class ModelManager {
           learnedContext,
         }),
       },
-      ...(questionUnderstanding ? [{ role: "system", content: questionUnderstanding }] : []),
+      ...(cognitiveContext ? [{ role: "system", content: cognitiveContext }] : []),
       ...this.history,
       { role: "user", content: input },
     ];
@@ -826,6 +821,23 @@ class ModelManager {
     }
 
     // Çok-turlu hafıza: kullanıcı + final cevabı sakla (araç gözlemleri hariç)
+    if (inputNeedsCognitivePipeline && agent.stoppedReason !== "smalltalk") {
+      try {
+        const review = await runAdversarialReview(
+          input,
+          finalText,
+          cognitivePreflight.report,
+          (msgs) => this.generate(selectedModel, msgs, attemptModels)
+        );
+        if (review.answer && review.answer.trim()) finalText = review.answer.trim();
+        if (!review.ok && review.errors && review.errors.length) {
+          try { improveDrafts.recordSignal({ kind: "cognitive_review", subject: review.errors[0] }); } catch (_e) {}
+        }
+      } catch (_e) {
+        // adversarial/self-critic hatasi cevabi bozmasin
+      }
+    }
+
     if (inputNeedsVerification && agent.stoppedReason !== "smalltalk") {
       try {
         const v = await verifyAnswer(

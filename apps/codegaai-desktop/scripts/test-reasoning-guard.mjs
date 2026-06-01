@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const mainDir = path.join(root, "src", "main");
+process.env.CODEGA_ERROR_MEMORY_PATH = path.join(root, ".tmp-cognitive-error-memory.json");
 const mod = await import(pathToFileURL(path.join(mainDir, "agent", "reasoning-guard.js")).href);
 const guard = mod.default || mod;
+const cognitiveMod = await import(pathToFileURL(path.join(mainDir, "agent", "cognitive-pipeline.js")).href);
+const cognitive = cognitiveMod.default || cognitiveMod;
 
 assert.ok(
   guard.classifyReasoningProblem("2x + 4 = 52 ise x kac?").includes("math"),
@@ -46,6 +50,51 @@ assert.match(
   /USER WANTS: Kalan koyun sayısı/,
   "QUE summary is formatted for the answer prompt"
 );
+
+const semantic = cognitive.validateSemanticIntegrity(
+  "17 koyundan 9'u hariç hepsi öldü. Kaç koyun kaldı?",
+  { parsedQuestion: "17 koyundan 9 koyun öldü, kaç kaldı?", summary: "", errors: [] }
+);
+assert.equal(semantic.ok, false, "SIL rejects dropped exception wording");
+
+const preflight = await cognitive.runCognitivePreflight(
+  "3 hapı 30 dakika arayla içeceğim, ne kadar sürer?",
+  async () => JSON.stringify({
+    ok: true,
+    intent: "logic",
+    parsedQuestion: "3 hap var; ilk hap hemen alınır, kalan iki aralık 30'ar dakikadır.",
+    userGoal: "Toplam süreyi bulmak",
+    facts: ["3 hap", "30 dakika aralık"],
+    constraints: ["İlk hap hemen alınabilir"],
+    unknowns: [],
+    expectedOutput: "number",
+    ambiguities: [],
+    potentialTraps: ["3 x 30 yapmak"],
+    forbiddenAssumptions: [],
+    semanticIntegrityScore: 98,
+    constraintPreservationScore: 98,
+    understandingConfidence: 98,
+    summary: "Cevap 2 aralık üzerinden süre olmalı.",
+    errors: [],
+  })
+);
+assert.equal(preflight.ok, true, "cognitive preflight approves preserved understanding");
+assert.match(preflight.context, /Cognitive Preflight Report/, "preflight formats middleware context");
+
+const adversarial = await cognitive.runAdversarialReview(
+  "All except 9 died. How many survived?",
+  "8 survived.",
+  preflight.report,
+  async () => JSON.stringify({
+    ok: false,
+    reasoningConfidence: 99,
+    verificationConfidence: 99,
+    criticReport: ["The draft subtracts instead of preserving exception wording."],
+    errors: ["Wrong final answer"],
+    answer: "Final Answer: 9 survived.",
+  })
+);
+assert.match(adversarial.answer, /9 survived/, "ARL/self-critic can replace vulnerable answers");
 
 const lowConfidence = guard.parseVerificationResult(
   JSON.stringify({
@@ -118,4 +167,5 @@ const concluded = await guard.enforceConclusion(
 assert.equal(concluded.enforced, true, "MCE rewrites answers without a final conclusion");
 assert.match(concluded.answer, /Final Answer:/, "MCE output includes final answer section");
 
+fs.rmSync(process.env.CODEGA_ERROR_MEMORY_PATH, { force: true });
 console.log("Reasoning guard tests passed");
