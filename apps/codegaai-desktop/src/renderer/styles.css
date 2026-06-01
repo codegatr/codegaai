@@ -1420,3 +1420,25 @@ body[data-theme="oled"] { --bg: #000; }
 
 .mini-btn { font-size: 11px; padding: 2px 8px; margin-left: 8px; border:1px solid var(--line); background:transparent; color:var(--muted); border-radius:8px; cursor:pointer; }
 .mini-btn:hover { color: var(--text); border-color: var(--accent); }
+
+/* Sohbette "en sona git" butonu */
+.scroll-bottom-btn {
+  position: fixed;
+  right: 28px;
+  bottom: 132px;
+  z-index: 8;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(20, 20, 22, 0.92);
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  transition: opacity 0.15s, transform 0.15s;
+}
+.scroll-bottom-btn:hover { border-color: var(--accent); transform: translateY(-2px); }
+.scroll-bottom-btn[hidden] { display: none; }
+@media (max-width: 720px) { .scroll-bottom-btn { right: 16px; bottom: 120px; } }

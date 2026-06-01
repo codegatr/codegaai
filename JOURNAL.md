@@ -4,6 +4,25 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 107 — Zaman aşımı (watchdog) + otomatik kaydırma + "sona git" butonu (1 Haz 2026, Claude)
+
+İki kullanıcı şikayeti: (1) cevap üretirken "beklenenden uzun sürdü" ile yarıda kesiliyor,
+(2) akışta yanıt altta kalıyor, elle aşağı kaydırmak gerekiyor.
+
+(1) Watchdog: SABİT 45 sn toplam süre -> BOŞTA-KALMA sayacı. Her token (akış) geldiğinde
+    sıfırlanır (_kickWatchdog her stream handler'da çağrılır). Yalnız gerçek takılmada
+    (idleMs=90 sn ilerleme yok) güvenli durdurma. Uzun çok-soruluk cevaplar artık kesilmez.
+(2) Kaydırma: gerçek kaydıran eleman tespiti (conversation iç kaydırıcı değilse pencere).
+    "Dibe yapış" mantığı: kullanıcı yukarı kayınca otomatik kaydırma durur + buton görünür;
+    dibe inince geri yapışır. Akışta çift-rAF ile yükseklik oturduktan sonra kaydırma (yeni
+    satır altta kalmaz). Yeni soru/regenerate'te stickToBottom=true.
+    Yeni "↓ sona git" butonu (#scroll-bottom-btn, fixed; dipte değilken görünür).
+
+Test 52/52. Surum -> **0.68.0**.
+
+---
+
+
 ## ✅ Faz 106 — CODEX MLVC çok-test "eksik cevaplama" hatası düzeltildi (1 Haz 2026, Claude)
 
 CODEX 0.54->0.66 ile büyük bir muhakeme katmanı eklemiş: mlvc.js (Math Logic Verification

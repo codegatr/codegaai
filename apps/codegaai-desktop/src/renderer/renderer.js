@@ -13,6 +13,7 @@ const els = {
   version: document.getElementById("version-label"),
   history: document.getElementById("history-list"),
   conversation: document.getElementById("conversation"),
+  scrollBottomBtn: document.getElementById("scroll-bottom-btn"),
   welcome: document.getElementById("welcome"),
   form: document.getElementById("chat-form"),
   input: document.getElementById("prompt-input"),
@@ -368,15 +369,40 @@ function renderConversation() {
   scrollConversationToBottom();
 }
 
-function scrollConversationToBottom() {
+// Hangi elemanın gerçekten kaydığını bul (conversation iç kaydırıcıysa o, değilse pencere).
+function _getScroller() {
+  const c = els.conversation;
+  if (c && c.scrollHeight > c.clientHeight + 8) return c;
+  return null; // null => pencere kayıyor
+}
+function _isNearBottom(threshold = 140) {
+  const c = _getScroller();
+  if (c) return c.scrollHeight - c.scrollTop - c.clientHeight < threshold;
+  const doc = document.documentElement;
+  return doc.scrollHeight - window.scrollY - window.innerHeight < threshold;
+}
+function _scrollToBottomNow() {
+  const c = _getScroller();
+  if (c) c.scrollTop = c.scrollHeight;
+  else window.scrollTo(0, document.documentElement.scrollHeight);
+}
+
+let stickToBottom = true; // kullanıcı yukarı kaymadıysa dibe yapışık kal
+function updateScrollButton() {
+  const btn = els.scrollBottomBtn;
+  if (!btn) return;
+  btn.hidden = _isNearBottom();
+}
+
+// Akış sırasında çağrılır: yalnızca kullanıcı dibe yapışıksa otomatik kaydır.
+// Yükseklik oturduktan sonra kaymak için çift rAF kullanılır (yeni satır altta kalmasın).
+function scrollConversationToBottom(force = false) {
+  if (!force && !stickToBottom) { updateScrollButton(); return; }
   requestAnimationFrame(() => {
-    try {
-      els.conversation.scrollTop = els.conversation.scrollHeight;
-    } catch (_e) {
-      /* yoksay */
-    }
-    window.scrollTo({ top: document.documentElement.scrollHeight });
-    els.conversation.lastElementChild?.scrollIntoView({ block: "end" });
+    requestAnimationFrame(() => {
+      try { _scrollToBottomNow(); } catch (_e) { /* yoksay */ }
+      updateScrollButton();
+    });
   });
 }
 
@@ -973,6 +999,7 @@ async function regenerateLast() {
 
   isSending = true;
   setSendingUi(true);
+  stickToBottom = true; // yeniden üretim: en alta in
   msgs.pop(); // eski asistan cevabını kaldır
   appendMessage("assistant", "Düşünüyorum...");
   const placeholder = msgs[msgs.length - 1];
@@ -981,6 +1008,7 @@ async function regenerateLast() {
   let firstToken = true;
   let rafPending = false;
   const offStream = window.codega.onChatStream((token) => {
+    if (_kickWatchdog) _kickWatchdog();
     if (firstToken) { clearTimeout(slowNotice); streamBuf = ""; firstToken = false; }
     streamBuf += token;
     placeholder.text = streamBuf;
@@ -1025,6 +1053,7 @@ async function handleSubmit() {
   renderAttachChip();
 
   setSendingUi(true);
+  stickToBottom = true; // yeni soru: en alta in
   appendMessage("user", displayText);
   checkUpdatesAfterFirstQuery();
   els.input.value = "";
@@ -1038,6 +1067,7 @@ async function handleSubmit() {
   let firstToken = true;
   let rafPending = false;
   const offStream = window.codega.onChatStream((token) => {
+    if (_kickWatchdog) _kickWatchdog();
     if (firstToken) { clearTimeout(slowNotice); streamBuf = ""; firstToken = false; }
     streamBuf += token;
     placeholder.text = streamBuf;
@@ -1093,22 +1123,45 @@ els.input.addEventListener("keydown", (event) => {
 });
 
 document.getElementById("new-chat").addEventListener("click", () => createChat());
+
+// Kaydırma: kullanıcı yukarı kayarsa "dibe yapış" kapanır ve buton görünür; dibe inince geri açılır.
+function _onScrollActivity() {
+  stickToBottom = _isNearBottom();
+  updateScrollButton();
+}
+if (els.conversation) els.conversation.addEventListener("scroll", _onScrollActivity, { passive: true });
+window.addEventListener("scroll", _onScrollActivity, { passive: true });
+window.addEventListener("resize", updateScrollButton);
+if (els.scrollBottomBtn) els.scrollBottomBtn.addEventListener("click", () => {
+  stickToBottom = true;
+  scrollConversationToBottom(true);
+});
 if (els.historySearch) els.historySearch.addEventListener("input", () => { historyQuery = els.historySearch.value; renderHistory(); });
 let _metricsTimer = null;
+let _kickWatchdog = null; // akışta her token geldiğinde watchdog'u sıfırlar
 
-function sendMessageWithWatchdog(text, options = {}, timeoutMs = 45000) {
+// Watchdog artık SABİT toplam süre değil, BOŞTA-KALMA sayacıdır: model token ürettikçe
+// (akış) sıfırlanır; yalnızca gerçekten takılırsa (idleMs boyunca hiç ilerleme yoksa)
+// güvenli şekilde durdurur. Böylece uzun (çok-soruluk) cevaplar yarıda kesilmez.
+function sendMessageWithWatchdog(text, options = {}, idleMs = 90000) {
   let timer = null;
-  const timeout = new Promise((_, reject) => {
+  let rejectFn = null;
+  const arm = () => {
+    if (timer) window.clearTimeout(timer);
     timer = window.setTimeout(async () => {
       try { await window.codega.abortChat(); } catch (_e) {}
-      reject(new Error("Yanıt beklenenden uzun sürdü; işlem güvenli şekilde durduruldu. Tekrar deneyebilirsin."));
-    }, timeoutMs);
-  });
+      if (rejectFn) rejectFn(new Error("Model uzun süre ilerleme bildirmedi (takılmış olabilir); işlem güvenli şekilde durduruldu. Tekrar deneyebilirsin."));
+    }, idleMs);
+  };
+  const timeout = new Promise((_, reject) => { rejectFn = reject; });
+  arm();
+  _kickWatchdog = arm;
   return Promise.race([
     window.codega.sendMessage(text, options),
     timeout,
   ]).finally(() => {
     if (timer) window.clearTimeout(timer);
+    if (_kickWatchdog === arm) _kickWatchdog = null;
   });
 }
 
