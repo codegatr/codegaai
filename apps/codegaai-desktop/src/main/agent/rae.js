@@ -102,11 +102,14 @@ function mergeCommentary(yorum, human) {
   return `${y}\n${h}`;
 }
 
-function assembleResponse(question, answer) {
+function assembleResponse(question, answer, taskRegistry = null) {
   const original = String(answer || "").trim();
   if (!original) return { changed: false, answer: original, confidence: 100 };
 
-  const final = finalAnswerText(original) || lastSection(original, ["Final Answer"]);
+  const registryFinal = taskRegistry && taskRegistry.isComplete && taskRegistry.isComplete()
+    ? taskRegistry.toFinalAnswerString()
+    : "";
+  const final = registryFinal || finalAnswerText(original) || lastSection(original, ["Final Answer"]);
   if (!final) return { changed: false, answer: original, confidence: 100 };
 
   const anlama = cleanReasoning(question, lastSection(original, ["Anlama"]));

@@ -2,6 +2,7 @@
 
 const { CognitiveContext } = require("./cognitive-context");
 const { blockedAnswer, runStage } = require("./stage-runner");
+const { TaskRegistry } = require("./task-registry");
 const tde = require("../../agent/tde");
 const rpre = require("../../agent/rpre");
 const ebse = require("../../agent/ebse");
@@ -21,6 +22,7 @@ function createContext(input, opts = {}) {
 function runIntake(context) {
   const taskReport = tde.decomposeTasks(context.input);
   context.taskReport = taskReport;
+  context.taskRegistry = taskReport.applicable ? new TaskRegistry(taskReport.tasks) : null;
   context.record({
     name: "tde:intake",
     ok: true,
@@ -28,6 +30,7 @@ function runIntake(context) {
     detail: {
       applicable: taskReport.applicable,
       count: taskReport.count,
+      registryCreated: !!context.taskRegistry,
       tasks: taskReport.tasks.map((task) => ({ id: task.id, label: task.label, domain: task.domain })),
     },
   });
@@ -132,7 +135,20 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
   });
 
   if (context.taskReport && context.taskReport.applicable) {
+    await runStage(context, "task-registry:register", async () => {
+      const summary = context.taskRegistry.hydrateFromAnswer(finalText);
+      if (summary.complete) finalText = context.taskRegistry.mergeIntoAnswer(finalText);
+      return {
+        ok: true,
+        confidence: summary.complete ? 100 : Math.max(0, Math.round((summary.answered / summary.expected) * 100)),
+        detail: summary,
+      };
+    });
+
     await runStage(context, "sacv:semantic-completeness", async () => {
+      if (context.taskRegistry && context.taskRegistry.isComplete()) {
+        finalText = context.taskRegistry.mergeIntoAnswer(finalText);
+      }
       let coverage = sacv.validateSemanticCompleteness(finalText, context.taskReport);
       if (!coverage.ok && typeof generate === "function") {
         signal("sacv_incomplete_tasks", coverage.errors[0] || "semantic completeness failed");
@@ -144,13 +160,25 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
           const explained = ree.explain(context.input, finalText);
           if (explained.answer && explained.answer.trim()) finalText = explained.answer.trim();
         }
+        if (context.taskRegistry) {
+          const summary = context.taskRegistry.hydrateFromAnswer(finalText);
+          if (summary.complete) finalText = context.taskRegistry.mergeIntoAnswer(finalText);
+        }
         coverage = sacv.validateSemanticCompleteness(finalText, context.taskReport);
       }
+      const registryComplete = !context.taskRegistry || context.taskRegistry.isComplete();
       return {
-        ok: coverage.ok,
-        confidence: coverage.confidence,
-        errors: coverage.errors,
-        detail: { expected: coverage.expected, completed: coverage.completed.length },
+        ok: coverage.ok && registryComplete,
+        confidence: registryComplete ? coverage.confidence : 0,
+        errors: [
+          ...coverage.errors,
+          ...(registryComplete ? [] : [`Task Registry incomplete: ${context.taskRegistry.missing().map((record) => record.task.label).join(", ")}`]),
+        ],
+        detail: {
+          expected: coverage.expected,
+          completed: coverage.completed.length,
+          registry: context.taskRegistry ? context.taskRegistry.summary() : null,
+        },
       };
     }, { blocking: true });
   }
@@ -183,7 +211,7 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
 
   if (!context.blocked) {
     await runStage(context, "rae:response-assembly", async () => {
-      const assembled = rae.assembleResponse(context.input, finalText);
+      const assembled = rae.assembleResponse(context.input, finalText, context.taskRegistry);
       if (assembled.answer && assembled.answer.trim()) finalText = assembled.answer.trim();
       return { ok: true, confidence: assembled.confidence, detail: { changed: !!assembled.changed } };
     });

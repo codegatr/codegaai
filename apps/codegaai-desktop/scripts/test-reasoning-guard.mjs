@@ -431,6 +431,32 @@ const kernelIntake = cognitiveKernel.runIntake(kernelContext);
 assert.equal(kernelIntake.taskReport.count, 2, "Cognitive Kernel stores detected tasks in task state");
 assert.equal(kernelIntake.messages.length, 1, "Cognitive Kernel emits task middleware context");
 assert.equal(kernelContext.stages[0].name, "tde:intake", "Cognitive Kernel records intake stage");
+assert.equal(kernelContext.taskRegistry.summary().expected, 2, "Cognitive Kernel creates a persistent task registry");
+
+const lostTaskContext = cognitiveKernel.createContext(`## Test 1
+Bir sayinin 4 katinin 18 fazlasi 74'tur. Bu sayi kactir?
+
+## Test 2
+45/135 sadelestirilmis hali nedir?
+
+## Test 3
+Bir sayi dusun. 9 ile carp. 36 ekle. 9'a bol. Baslangic sayisini cikar. Sonuc kactir?`);
+cognitiveKernel.runIntake(lostTaskContext);
+const recoveredTasks = await cognitiveKernel.runPostValidation(
+  lostTaskContext,
+  [
+    "Anlama: son işlem sonucunu bulmak gerekiyor.",
+    "İşlem: (9x + 36) / 9 - x = 4.",
+    "Doğrulama: geri yerine koyunca sonuç 4 kalır.",
+    "Final Answer: 4",
+  ].join("\n"),
+  { stoppedReason: "final_answer", needsVerification: false, deepReasoning: false }
+);
+assert.equal(recoveredTasks.ok, true, "Task Registry recovers deterministic task results even if draft kept only the last result");
+assert.match(recoveredTasks.answer, /Test 1: 14/, "Task Registry preserves first task result");
+assert.match(recoveredTasks.answer, /Test 2: 1\/3/, "Task Registry preserves second task result");
+assert.match(recoveredTasks.answer, /Test 3: 4/, "Task Registry preserves third task result");
+assert.equal(lostTaskContext.taskRegistry.summary().answered, 3, "Task Registry records all answered tasks");
 
 const leakedKernelContext = cognitiveKernel.createContext(
   "Bir ciftcinin 50 tavugu vardi. 17'si haric hepsi oldu. Kac tavugu kaldi?"
