@@ -110,7 +110,7 @@ class TaskRegistry {
   }
 
   hydrateFromAnswer(answer) {
-    const final = finalAnswerText(answer) || "";
+    const final = finalAnswerText(answer) || String(answer || "");
     const units = splitFinalUnits(final);
     const used = new Set();
     const sectionMap = buildSectionMap(final, this.records.map((r) => r.task));

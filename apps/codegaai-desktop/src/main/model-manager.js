@@ -15,6 +15,7 @@ const { ollamaChat, ollamaChatStream, ollamaReachable, ollamaListModels } = requ
 const { openaiChat, openaiChatStream } = require("./agent/openai-client");
 const { runReact } = require("./agent/agent-loop");
 const { TOOLS: AGENT_TOOLS } = require("./agent/tools");
+const logs = require("./agent/logs");
 const { buildSystemPrompt } = require("./agent/system-prompt");
 const { getSettings } = require("./agent/settings-store");
 const { recall, remember, extractDurableFacts } = require("./agent/memory");
@@ -1403,6 +1404,7 @@ class ModelManager {
     // Cognitive Kernel final authority: every non-smalltalk answer exits through the
     // same staged orchestration pipeline. If a blocking gate still fails after repair,
     // the unsafe draft is not delivered to the user.
+    const preGateText = finalText;
     let hardGateBlocked = false;
     if (agent.stoppedReason !== "smalltalk") {
       try {
@@ -1434,6 +1436,27 @@ class ModelManager {
           "Final Answer: Yanıt güvenli şekilde doğrulanamadı.",
         ].join("\n");
       }
+    }
+
+    // SACV WARNING MODE (debug): sacvDebug açıkken Hard Gate çok-görev/SACV nedeniyle bloklamaz;
+    // her görev için tanı (id, başlık, soru, birimler, beklenen, skor, karar, sebep) loglanır.
+    if (settings.sacvDebug && taskDecomposition.applicable) {
+      try {
+        const sample = (isMultiTask && multiTaskAssembled && multiTaskAssembled.trim()) ? multiTaskAssembled : preGateText;
+        const report = sacv.debugReport(sample, taskDecomposition);
+        logs.warn("SACV", `SACV_WARNING (debug) — ${report.tasks.length} görev | finalTextEmpty=${report.finalTextEmpty} | unitCount=${report.unitCount}`);
+        for (const t of report.tasks) {
+          logs.warn("SACV", `Task ${t.taskId} (${t.title}) | Q="${t.question}" | units=${JSON.stringify(t.answerUnits)} | expected=${JSON.stringify(t.expected)} | score=${t.score} | ${t.decision}${t.decision === "FAIL" ? " | reason=" + t.reason : ""}`);
+        }
+      } catch (e) {
+        try { logs.error("SACV", "debugReport hata: " + (e && e.message)); } catch (_e) {}
+      }
+      // Warning mode: bloklama — modelin ürettiği cevabı göster, akışı sürdür.
+      if (hardGateBlocked || !finalText.trim()) {
+        const restore = (isMultiTask && multiTaskAssembled && multiTaskAssembled.trim()) ? multiTaskAssembled.trim() : preGateText;
+        if (restore && restore.trim()) finalText = restore.trim();
+      }
+      hardGateBlocked = false;
     }
 
     // multi_task güvencesi: herhangi bir geç aşama etiketleri sildiyse, görev→cevap

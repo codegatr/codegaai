@@ -1001,6 +1001,15 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   assert.strictEqual(sum.complete, true, "Task Registry complete (incomplete OLMAMALI)");
   assert.strictEqual(sum.answered, 5, "5 görev kayda geçti");
 
+  // SACV debug raporu: "Final Answer:" olmasa bile görevleri görür (kök neden testi)
+  {
+    const noFinal = "Gorev 1: 20 koyun kaldi.\n\nGorev 2: x = 11.\n\nGorev 3: olasilik 2/9.";
+    const rep5 = TDE.decomposeTasks(input);
+    const dbg = SACV.debugReport(noFinal, rep5);
+    assert.strictEqual(dbg.finalTextEmpty, false, "Final Answer yoksa bile finalText boş değil (fallback)");
+    assert.ok(dbg.tasks.length === 5, "debug raporu tüm görevleri listeler");
+    assert.ok(dbg.tasks.every((t) => typeof t.score === "number" && t.decision), "her görevde skor+karar var");
+  }
   ok("REGRESYON: 5 görev algıla+cevapla, SACV PASS, registry complete, phantom yok");
 }
 

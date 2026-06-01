@@ -137,12 +137,64 @@ function taskCompleteByMeaning(answer, finalText, task, ctx) {
   return { ok: false, method: "no-match", expectedTokens: [], errors: [`${task.label} answer not matched.`] };
 }
 
+function scoreTask(task, sectionMap, hay) {
+  const expected = deterministicExpectedTokens(task);
+  const signals = [];
+  let score = 0;
+  if (expected.length) {
+    const present = expected.filter((t) => tokenPresent(hay, t));
+    score = Math.max(score, present.length / expected.length);
+    signals.push(`expected[${expected.join(",")}] present ${present.length}/${expected.length}`);
+  }
+  const section = sectionMap.get(String(task.id));
+  if (section != null) {
+    const body = section.replace(/^[\s\S]*?[:).\-–]\s*/, "").trim();
+    if (extractResultTokens(body).length > 0 || hasDecision(body) || body.length >= 2) {
+      score = Math.max(score, 0.9);
+      signals.push("label-section matched");
+    }
+  }
+  return { score, expected, signals, section };
+}
+
+/**
+ * Debug raporu (warning mode): SACV neden göremiyor? Her görev için tanı satırı.
+ * Döner: { tasks:[{taskId,title,question,answerUnits,expected,score,decision,reason}], ... }
+ */
+function debugReport(answer, taskReport) {
+  const finalText = finalAnswerText(answer) || String(answer || "");
+  const units = splitAnswerUnits(finalText);
+  const tasks = (taskReport && taskReport.tasks) || [];
+  const sectionMap = buildSectionMap(finalText, tasks);
+  const anyLabel = sectionMap.size > 0;
+  const hay = `${finalText}\n${answer}`;
+  const rows = tasks.map((task, i) => {
+    const res = taskCompleteByMeaning(answer, finalText, task, { sectionMap, anyLabel, units, index: i, taskCount: tasks.length });
+    const sc = scoreTask(task, sectionMap, hay);
+    const taskUnits = sc.section != null
+      ? [sc.section.replace(/\s+/g, " ").trim().slice(0, 120)]
+      : units;
+    return {
+      taskId: task.id,
+      title: task.label,
+      question: String(task.body || "").replace(/\s+/g, " ").trim().slice(0, 100),
+      answerUnits: taskUnits,
+      expected: sc.expected,
+      score: Number(sc.score.toFixed(2)),
+      decision: res.ok ? "PASS" : "FAIL",
+      reason: res.ok ? res.method : (res.errors[0] || "no match"),
+    };
+  });
+  return { tasks: rows, finalTextEmpty: !finalText.trim(), unitCount: units.length };
+}
+
 function validateSemanticCompleteness(answer, taskReport) {
   if (!taskReport || !taskReport.applicable) {
     return { ok: true, expected: 0, completed: [], missing: [], errors: [], confidence: 100 };
   }
 
-  const finalText = finalAnswerText(answer) || "";
+  // "Final Answer:" işareti yoksa TÜM cevaba düş (yoksa SACV içeriği göremez — kök neden).
+  const finalText = finalAnswerText(answer) || String(answer || "");
   const units = splitAnswerUnits(finalText);
   const sectionMap = buildSectionMap(finalText, taskReport.tasks);
   const anyLabel = sectionMap.size > 0;
@@ -210,6 +262,7 @@ function buildSemanticRepairMessages(question, answer, taskReport, validation) {
 module.exports = {
   buildSemanticRepairMessages,
   buildSectionMap,
+  debugReport,
   hasDecision,
   deterministicExpectedTokens,
   extractResultTokens,

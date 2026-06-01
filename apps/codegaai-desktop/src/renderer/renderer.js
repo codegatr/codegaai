@@ -1401,6 +1401,8 @@ const toggleDebugBtn = document.getElementById("toggle-debug");
 if (toggleDebugBtn) toggleDebugBtn.addEventListener("click", () => toggleSetting("debugLogging", toggleDebugBtn));
 const toggleDeepBtn = document.getElementById("toggle-deep");
 if (toggleDeepBtn) toggleDeepBtn.addEventListener("click", () => toggleSetting("deepReasoning", toggleDeepBtn));
+const toggleSacvDebugBtn = document.getElementById("toggle-sacv-debug");
+if (toggleSacvDebugBtn) toggleSacvDebugBtn.addEventListener("click", () => toggleSetting("sacvDebug", toggleSacvDebugBtn));
 
 async function refreshMcpStatus() {
   const box = document.getElementById("mcp-status");
@@ -1516,6 +1518,7 @@ els.settingsButton.addEventListener("click", async () => {
   if (toggleRagBtn && agentSettings) applyToggleLabel(toggleRagBtn, agentSettings.ragEnabled !== false);
   if (toggleDebugBtn && agentSettings) applyToggleLabel(toggleDebugBtn, !!agentSettings.debugLogging);
   if (toggleDeepBtn && agentSettings) applyToggleLabel(toggleDeepBtn, !!agentSettings.deepReasoning);
+  if (toggleSacvDebugBtn && agentSettings) applyToggleLabel(toggleSacvDebugBtn, !!agentSettings.sacvDebug);
   // Aktif Model: gerçek model durumundan (dinamik seçilir)
   window.codega.getStatus().then((st) => {
     const raw = st && st.model;

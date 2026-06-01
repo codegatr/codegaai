@@ -23,7 +23,8 @@ const DEFAULTS = {
   embedModel: "nomic-embed-text",
   distillLearning: false,
   debugLogging: false,
-  deepReasoning: false, // ağır çok-turlu LLM doğrulaması (yavaş; varsayılan kapalı) // her sohbet isteğini Log Merkezi'ne yaz (ayrıntılı) // öğrenilen ham notları modelle kısa özete indir (Ollama/model gerekir)
+  deepReasoning: false,
+  sacvDebug: false, // SACV warning-mode: bloklamaz, tanı loglar // ağır çok-turlu LLM doğrulaması (yavaş; varsayılan kapalı) // her sohbet isteğini Log Merkezi'ne yaz (ayrıntılı) // öğrenilen ham notları modelle kısa özete indir (Ollama/model gerekir)
   mcpServerUrl: "", // ajana bağlanacak MCP sunucu URL
   mcpAutoTools: false, // açıkken MCP sunucu araçları ajanın araç döngüsüne eklenir // Ollama embedding modeli
   selfReflection: false, // cevabı denetleyip düzelt (yavaş; opt-in)

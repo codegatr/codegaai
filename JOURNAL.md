@@ -4,6 +4,35 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 118 — SACV kök neden (finalAnswerText boş) + warning-mode debug (1 Haz 2026, Claude)
+
+Kullanıcı debug talebi + tahmini: splitAnswerUnits() boş dönüyor; SACV her şeyi "missing"
+sanıyor. DOĞRULANDI (kod kanıtı):
+  finalAnswerText(answer): cevapta "Final Answer:" yoksa "" döndürüyordu. Çok-görev birleştirmem
+  ("**Görev 1**\n…") bu işareti içermediğinden finalText="" -> splitAnswerUnits=[] -> sectionMap
+  boş -> deterministik-olmayan görevler (olasılık/oran) FAIL. Tüm benchmark'in aynı anda
+  patlamasının nedeni buydu.
+
+Düzeltme (kök neden):
+- sacv.js + task-registry.js: finalAnswerText(answer) || String(answer) — "Final Answer:" yoksa
+  TÜM cevaba düş; böylece içerik görünür. (Kanıt testi: önce FAIL, sonra 2/2 PASS.)
+
+İstenen debug altyapısı (warning mode):
+- sacv.debugReport(answer, taskReport): her görev için {taskId, title, question, answerUnits,
+  expected, score, decision PASS/FAIL, reason}. finalTextEmpty + unitCount.
+- settings.sacvDebug (vars. kapalı). Geliştirici sayfasında "SACV Debug (warning mode)" toggle.
+- model-manager Hard Gate: sacvDebug açıkken BLOKLAMAZ; her görev tanısını Log Merkezi'ne
+  (logs.warn "SACV_WARNING …") yazar, modelin cevabını gösterip akışı sürdürür. Kapatınca Hard
+  Gate normal bloklamaya döner.
+
+NOT: CODEX, multi_task Hard Gate guard'ımı (Faz 114) kaldırmış; Hard Gate yine çok-görevde
+çalışıyordu — kök neden düzeltmesi + warning mode bunu güvene aldı.
+
+Test 57/57 + reasoning-guard. Surum -> **1.1.0**.
+
+---
+
+
 ## ✅ Faz 117 — SACV / TDE / Task-Registry FINAL FIX (kullanıcı spec'i) (1 Haz 2026, Claude)
 
 Sorun: Hard Gate çalışıyor ama SACV, görev↔cevap eşlemesini güvenilir kuramadığı için GEÇERLİ
