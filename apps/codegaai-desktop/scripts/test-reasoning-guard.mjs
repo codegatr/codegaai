@@ -517,9 +517,32 @@ const phantomSingleProblem = finalSanitizer.validateFinalAnswer(
   null
 );
 assert.equal(phantomSingleProblem.ok, false, "Final sanitizer rejects phantom tasks and placeholders for single-problem prompts");
-assert.match(phantomSingleProblem.errors.join(" "), /phantom_task_detector/, "phantom_task_detector blocks Soru/Gorev 2");
-assert.match(phantomSingleProblem.errors.join(" "), /empty_placeholder_detector/, "empty_placeholder_detector blocks placeholders and info requests");
-assert.match(phantomSingleProblem.errors.join(" "), /unrelated_section_detector/, "unrelated_section_detector blocks unrelated example sections");
+assert.match(phantomSingleProblem.errors.join(" "), /Final Answer section is missing/, "Output Cleaner removes all phantom-only content and leaves no fake answer");
+assert.doesNotMatch(phantomSingleProblem.cleanedAnswer, /Soru 2|Lütfen|Örnek|Cevap: \.\.\./, "Output Cleaner strips phantom-only content");
+const percentageWithPhantom = [
+  "2500 × 0.80 = 2000 TL",
+  "2000 × 1.25 = 2500 TL",
+  "Final Answer: 2500 TL",
+  "",
+  "Soru 2",
+  "Lütfen bir görev belirtin.",
+  "",
+  "Örneğin:",
+  "Cevap: ...",
+].join("\n");
+const cleanedPercentage = finalSanitizer.cleanPhantomOutput(
+  percentageWithPhantom,
+  "Bir ürün 2500 TL. Önce %20 indirim, sonra %25 zam yapılıyor. Son fiyat kaç TL?"
+);
+assert.equal(cleanedPercentage.changed, true, "Output Cleaner removes phantom sections from single-problem answers");
+assert.doesNotMatch(cleanedPercentage.answer, /Soru 2|Lütfen|Örneğin|Cevap: \.\.\./, "Output Cleaner removes untraceable placeholder content");
+assert.match(cleanedPercentage.answer, /Final Answer: 2500 TL/, "Output Cleaner preserves the real answer");
+const cleanedValidation = finalSanitizer.validateFinalAnswer(
+  percentageWithPhantom,
+  "Bir ürün 2500 TL. Önce %20 indirim, sonra %25 zam yapılıyor. Son fiyat kaç TL?"
+);
+assert.equal(cleanedValidation.ok, true, "Final sanitizer approves once cleaned answer is available");
+assert.match(cleanedValidation.cleanedAnswer, /2500 × 0\.80 = 2000 TL/, "Final sanitizer returns cleaned answer for application before response");
 
 const leakedFinal = finalSanitizer.validateFinalAnswer(
   "Final Answer: Bir ciftcinin 50 tavugu vardi. 17'si haric hepsi oldu. Kac tavugu kaldi?",

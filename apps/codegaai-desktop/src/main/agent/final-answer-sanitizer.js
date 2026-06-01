@@ -116,8 +116,98 @@ function unrelatedSectionDetector(answer, question, taskReport = null) {
   return { ok: true, errors: [] };
 }
 
+function countProvidedTasks(question, taskReport = null) {
+  if (taskReport && taskReport.applicable) return taskReport.count || 0;
+  return isSingleProblemMode(question, taskReport) ? 1 : 2;
+}
+
+function countAnswerSections(answer) {
+  const text = String(answer || "");
+  const labels = [...text.matchAll(/(?:^|\n)\s*(?:\*\*)?\s*(?:soru|görev|gorev|task)\s+\d+\s*(?:\*\*)?\s*[:\n]/gi)];
+  if (labels.length) return labels.length;
+  return 1;
+}
+
+function sectionIsUntraceable(section, question, taskReport = null) {
+  const s = trFold(section);
+  if (/\b(?:soru|gorev|task)\s+([2-9]|\d{2,})\b/.test(s) && isSingleProblemMode(question, taskReport)) return true;
+  if (/lutfen\s+(?:bir\s+)?gorev\s+belirtin|lutfen\s+daha\s+fazla\s+bilgi|daha\s+fazla\s+ayrinti|bilgi\s+eksik|yeni\s+gorev\s+belirtin/.test(s)) return true;
+  if (/\bbaslatalim\b|\bornegin\b|\bornek\s+gorev\b|\bornek\s+cozum\b/.test(s) && !/\bornek|example/.test(trFold(question))) return true;
+  if (/\bcevap\s*:\s*(?:\.{3}|…|\(\s*\.{3})/.test(s)) return true;
+  return false;
+}
+
+function splitLabelSections(answer) {
+  const text = String(answer || "");
+  const re = /(?:^|\n)\s*(?:\*\*)?\s*(?:soru|görev|gorev|task)\s+\d+\s*(?:\*\*)?\s*[:\n]/gi;
+  const matches = [...text.matchAll(re)];
+  if (!matches.length) return [];
+  return matches.map((m, i) => {
+    const start = m.index + (m[0].startsWith("\n") ? 1 : 0);
+    const end = i + 1 < matches.length ? matches[i + 1].index : text.length;
+    return text.slice(start, end).trim();
+  }).filter(Boolean);
+}
+
+function cleanPhantomOutput(answer, question, taskReport = null) {
+  const original = String(answer || "").trim();
+  if (!original || !isSingleProblemMode(question, taskReport)) {
+    return { changed: false, answer: original, removed: [], providedTaskCount: countProvidedTasks(question, taskReport), answerSectionCount: countAnswerSections(answer) };
+  }
+
+  const removed = [];
+  let cleaned = original;
+  const sections = splitLabelSections(original);
+  if (sections.length > 1) {
+    const kept = [];
+    for (const section of sections) {
+      if (sectionIsUntraceable(section, question, taskReport) || kept.length >= 1) removed.push(section);
+      else kept.push(section);
+    }
+    if (kept.length) cleaned = kept.join("\n\n");
+  }
+
+  const lines = cleaned.split(/\r?\n/);
+  const keptLines = [];
+  let dropping = false;
+  for (const line of lines) {
+    const folded = trFold(line);
+    if (/^\s*(?:\*\*)?\s*(?:soru|gorev|task)\s+([2-9]|\d{2,})\b/.test(folded)) {
+      dropping = true;
+      removed.push(line);
+      continue;
+    }
+    if (dropping && /^\s*(?:\*\*)?\s*(?:soru|gorev|task)\s+1\b/.test(folded)) dropping = false;
+    if (dropping) {
+      removed.push(line);
+      continue;
+    }
+    if (sectionIsUntraceable(line, question, taskReport)) {
+      removed.push(line);
+      continue;
+    }
+    keptLines.push(line);
+  }
+  cleaned = keptLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+
+  if (!/Final Answer:/i.test(cleaned)) {
+    const final = finalAnswerText(original);
+    if (final && !sectionIsUntraceable(final, question, taskReport)) cleaned = `${cleaned}\n\nFinal Answer: ${final}`.trim();
+  }
+
+  return {
+    changed: cleaned !== original,
+    answer: cleaned,
+    removed,
+    providedTaskCount: countProvidedTasks(question, taskReport),
+    answerSectionCount: countAnswerSections(original),
+  };
+}
+
 function validateFinalAnswer(answer, question, taskReport = null) {
-  const finalText = finalAnswerText(answer);
+  const cleaned = cleanPhantomOutput(answer, question, taskReport);
+  const candidate = cleaned.changed ? cleaned.answer : answer;
+  const finalText = finalAnswerText(candidate);
   const tasks = taskReport && taskReport.applicable ? taskReport.tasks : [];
   const errors = [];
   if (!finalText) errors.push("Final Answer section is missing.");
@@ -126,11 +216,14 @@ function validateFinalAnswer(answer, question, taskReport = null) {
   const fakeTasks = fakeTaskSplitEvidence(answer, taskReport);
   if (fakeTasks) errors.push(`Output instructions were incorrectly answered as separate tasks: ${fakeTasks}`);
   for (const detector of [
-    phantomTaskDetector(answer, question, taskReport),
-    emptyPlaceholderDetector(answer, question, taskReport),
-    unrelatedSectionDetector(answer, question, taskReport),
+    phantomTaskDetector(candidate, question, taskReport),
+    emptyPlaceholderDetector(candidate, question, taskReport),
+    unrelatedSectionDetector(candidate, question, taskReport),
   ]) {
     errors.push(...detector.errors);
+  }
+  if (cleaned.answerSectionCount > cleaned.providedTaskCount && !cleaned.changed) {
+    errors.push(`output_cleaner: answer section count ${cleaned.answerSectionCount} exceeds provided task count ${cleaned.providedTaskCount}.`);
   }
 
   return {
@@ -138,6 +231,8 @@ function validateFinalAnswer(answer, question, taskReport = null) {
     finalText,
     errors,
     taskCounts: [],
+    cleanedAnswer: cleaned.changed ? cleaned.answer : "",
+    cleaned,
     confidence: errors.length ? 0 : 100,
   };
 }
@@ -182,5 +277,8 @@ module.exports = {
   phantomTaskDetector,
   emptyPlaceholderDetector,
   unrelatedSectionDetector,
+  cleanPhantomOutput,
+  countAnswerSections,
+  countProvidedTasks,
   trFold,
 };

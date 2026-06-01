@@ -1161,6 +1161,10 @@ class ModelManager {
     if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         let finalCheck = finalAnswerSanitizer.validateFinalAnswer(finalText, input, taskDecomposition);
+        if (finalCheck.cleanedAnswer) {
+          applyCorrection(finalCheck.cleanedAnswer, "output-cleaner");
+          finalCheck = finalAnswerSanitizer.validateFinalAnswer(finalText, input, taskDecomposition);
+        }
         if (!finalCheck.ok) {
           try { improveDrafts.recordSignal({ kind: "final_answer_sanitizer", subject: finalCheck.errors[0] }); } catch (_e) {}
           const repaired = await this.generate(
@@ -1170,6 +1174,10 @@ class ModelManager {
           );
           if (repaired && String(repaired).trim()) applyCorrection(String(repaired).trim(), "final-answer-sanitizer");
           finalCheck = finalAnswerSanitizer.validateFinalAnswer(finalText, input, taskDecomposition);
+          if (finalCheck.cleanedAnswer) {
+            applyCorrection(finalCheck.cleanedAnswer, "output-cleaner-after-repair");
+            finalCheck = finalAnswerSanitizer.validateFinalAnswer(finalText, input, taskDecomposition);
+          }
           if (!finalCheck.ok) {
             finalText = `${finalText}\n\nFinal Answer Kontrol Uyarısı: ${finalCheck.errors.join(" ")}`;
           }

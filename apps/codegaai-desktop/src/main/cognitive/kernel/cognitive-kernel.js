@@ -238,6 +238,10 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
 
   await runStage(context, "final-answer-sanitizer", async () => {
     let check = finalAnswerSanitizer.validateFinalAnswer(finalText, context.input, context.taskReport);
+    if (check.cleanedAnswer) {
+      applyCorrection(check.cleanedAnswer, "output-cleaner");
+      check = finalAnswerSanitizer.validateFinalAnswer(finalText, context.input, context.taskReport);
+    }
     if (!check.ok && typeof generate === "function") {
       signal("final_answer_sanitizer", check.errors[0]);
       const repaired = await generate(
@@ -245,6 +249,10 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
       );
       if (repaired && String(repaired).trim()) applyCorrection(String(repaired).trim(), "final-answer-sanitizer");
       check = finalAnswerSanitizer.validateFinalAnswer(finalText, context.input, context.taskReport);
+      if (check.cleanedAnswer) {
+        applyCorrection(check.cleanedAnswer, "output-cleaner-after-repair");
+        check = finalAnswerSanitizer.validateFinalAnswer(finalText, context.input, context.taskReport);
+      }
     }
     return {
       ok: check.ok,
