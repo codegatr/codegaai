@@ -61,8 +61,55 @@ function taskLocalFinalAnswer(answer) {
   return `${text}\n\nFinal Answer: ${last}`.trim();
 }
 
-async function verifyTaskLocalAnswer(task, draft, generateFn = null) {
+function extractGeneratedTaskAnswer(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return "";
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === "object" && typeof parsed.answer === "string") {
+      return parsed.answer.trim();
+    }
+  } catch (_e) {
+    // Plain-text model answers are accepted below.
+  }
+  return text;
+}
+
+async function regenerateTaskLocalAnswer(task, answer, errors, generateFn) {
+  if (typeof generateFn !== "function") return "";
+  const raw = await generateFn([
+    {
+      role: "system",
+      content: [
+        "You are CODEGA AI's task-local regeneration worker.",
+        "Regenerate ONLY the failed task. Do not solve or mention other tasks.",
+        "Preserve every original fact, number, constraint, and requested output.",
+        "Run RPRE, EBSE, MLVC, AVE, TCNIS, and the hard gate internally before answering.",
+        "Return a concise answer for this task only. End with exactly one 'Final Answer:' line.",
+      ].join("\n"),
+    },
+    {
+      role: "user",
+      content: [
+        `Task label: ${task.label || task.id || "task"}`,
+        `Task body:\n${task.body}`,
+        `Rejected draft:\n${answer}`,
+        `Verification errors:\n${(errors || []).join("; ") || "unknown"}`,
+        "Regenerate the corrected answer for this task only.",
+      ].join("\n\n"),
+    },
+  ]);
+  return extractGeneratedTaskAnswer(raw);
+}
+
+async function verifyTaskLocalAnswer(task, draft, generateFn = null, opts = {}) {
+  const allowRegeneration = opts.allowRegeneration !== false;
   let answer = taskLocalFinalAnswer(draft);
+  const blocked = (errors = []) => ({
+    ok: false,
+    answer: `Yanıt doğrulama kapısından geçmedi.\nBloke eden görev: ${task.label || task.id || "task"}. ${errors.join(" ")}\n\nFinal Answer: Yanıt güvenli şekilde doğrulanamadı.`,
+    errors,
+  });
   const apply = (candidate, source) => {
     const checked = cvl.validateCorrection(task.body, answer, candidate, { source });
     if (!checked.accepted) return false;
@@ -85,12 +132,16 @@ async function verifyTaskLocalAnswer(task, draft, generateFn = null) {
       passes: 1,
     });
     if (av.answer && av.answer.trim()) apply(av.answer.trim(), "task-ave");
-    if (av.ok === false) {
-      return {
-        ok: false,
-        answer: `Yanıt doğrulama kapısından geçmedi.\nBloke eden görev: ${task.label}.\n\nFinal Answer: Yanıt güvenli şekilde doğrulanamadı.`,
-        errors: av.errors || ["AVE failed"],
-      };
+    if (av.ok === false || av.approved === false) {
+      const errors = av.errors || ["AVE failed"];
+      if (allowRegeneration) {
+        const regenerated = await regenerateTaskLocalAnswer(task, answer, errors, generateFn);
+        if (regenerated) {
+          const retry = await verifyTaskLocalAnswer(task, regenerated, null, { allowRegeneration: false });
+          if (retry.ok) return { ...retry, regenerated: true };
+        }
+      }
+      return blocked(errors);
     }
   }
 
@@ -100,11 +151,14 @@ async function verifyTaskLocalAnswer(task, draft, generateFn = null) {
     sanity = ssv.validateSupremeSanity(task.body, answer, null, { factLock: factLock.extractFacts(task.body) });
   }
   if (!sanity.ok) {
-    return {
-      ok: false,
-      answer: `Yanıt doğrulama kapısından geçmedi.\nBloke eden görev: ${task.label}. ${sanity.errors.join(" ")}\n\nFinal Answer: Yanıt güvenli şekilde doğrulanamadı.`,
-      errors: sanity.errors,
-    };
+    if (allowRegeneration) {
+      const regenerated = await regenerateTaskLocalAnswer(task, answer, sanity.errors, generateFn);
+      if (regenerated) {
+        const retry = await verifyTaskLocalAnswer(task, regenerated, null, { allowRegeneration: false });
+        if (retry.ok) return { ...retry, regenerated: true };
+      }
+    }
+    return blocked(sanity.errors);
   }
 
   return { ok: true, answer, errors: [] };

@@ -147,6 +147,30 @@ suite("multi_task_task_local_verification", async () => {
     fakeApprove
   );
   assert.equal(blocked.ok, false, "multi-task local verification applies TCNIS hard gate per task");
+  const fakeRegenerate = async (msgs) => {
+    const content = msgs.map((m) => String(m.content || "")).join("\n");
+    if (content.includes("task-local regeneration worker")) {
+      return "Final Answer: 4";
+    }
+    return JSON.stringify({
+      ok: false,
+      reasoningScore: 20,
+      mathScore: 20,
+      logicScore: 20,
+      consistencyScore: 20,
+      completenessScore: 20,
+      errors: ["forced task-local AVE failure"],
+      answer: "",
+    });
+  };
+  const regenerated = await modelManager._verifyTaskLocalAnswer(
+    { id: "5", label: "Soru 5", body: "2 + 2 kactir?" },
+    "Final Answer: 5",
+    fakeRegenerate
+  );
+  assert.equal(regenerated.ok, true, "failed task is regenerated locally instead of dropping the batch");
+  assert.equal(regenerated.regenerated, true);
+  assert.match(regenerated.answer, /Final Answer:\s*4/);
   assert.match(blocked.answer, /Yanıt güvenli şekilde doğrulanamadı/);
 });
 
