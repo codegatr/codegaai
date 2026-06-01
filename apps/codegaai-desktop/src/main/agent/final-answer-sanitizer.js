@@ -1,13 +1,15 @@
 "use strict";
+
 /**
  * Final Answer Sanitizer
  * ----------------------
- * Enforces two hard rules:
- * 1. Question text may never appear inside Final Answer.
- * 2. Final Answer must contain only answer material, not copied prompts.
+ * Hard output gate before the response reaches the user.
  *
- * Task completeness is semantic and lives in SACV. This sanitizer deliberately
- * does not require labels like "Test 1" or exact wording.
+ * Rules:
+ * 1. Question text may never appear inside Final Answer.
+ * 2. Final Answer must contain answer material only.
+ * 3. Single-problem prompts may not contain phantom tasks, placeholders, or
+ *    unrelated example/request-for-info sections.
  */
 
 function trFold(text) {
@@ -24,7 +26,7 @@ function trFold(text) {
 }
 
 function finalAnswerText(answer) {
-  const matches = [...String(answer || "").matchAll(/Final Answer:\s*([\s\S]*?)(?=\n\s*(?:Anlama:|İşlem:|Islem:|Doğrulama:|Dogrulama:|Yorum:|Final Answer:)|$)/gi)];
+  const matches = [...String(answer || "").matchAll(/Final Answer:\s*([\s\S]*?)(?=\n\s*(?:Anlama:|Islem:|İşlem:|Dogrulama:|Doğrulama:|Yorum:|Final Answer:)|$)/gi)];
   if (!matches.length) return "";
   return matches[matches.length - 1][1].trim();
 }
@@ -48,19 +50,70 @@ function questionLeakEvidence(question, finalText, tasks = []) {
   }
   const leaked = candidates.find((candidate) => final.includes(candidate.slice(0, Math.min(candidate.length, 120))));
   if (leaked) return leaked.slice(0, 120);
-  if (/[?؟]/.test(finalText) && final.length > 35) return "question-mark-like final answer";
+  if (/[?？]/.test(finalText) && final.length > 35) return "question-mark-like final answer";
   return "";
 }
 
 function fakeTaskSplitEvidence(answer, taskReport) {
   if (!taskReport || !taskReport.instructionOnly || !(taskReport.outputRequirements || []).length) return "";
-  const text = String(answer || "");
-  const labels = [...text.matchAll(/(?:^|\n)\s*(?:\*\*)?\s*(?:görev|gorev|task|soru)\s+\d+\s*(?:\*\*)?\s*[:\n]/gi)];
+  const text = trFold(answer);
+  const labels = [...text.matchAll(/(?:^|\n)\s*(?:\*\*)?\s*(?:gorev|task|soru)\s+\d+\s*(?:\*\*)?\s*[:\n]/g)];
   if (labels.length >= 2) return `${labels.length} fake task labels`;
-  const final = finalAnswerText(answer);
-  const finalLabels = [...String(final || "").matchAll(/\b(?:görev|gorev|task|soru)\s+\d+\b/gi)];
+  const final = trFold(finalAnswerText(answer));
+  const finalLabels = [...final.matchAll(/\b(?:gorev|task|soru)\s+\d+\b/g)];
   if (finalLabels.length >= 2) return `${finalLabels.length} fake task labels in Final Answer`;
   return "";
+}
+
+function hasSecondQuestion(question, taskReport = null) {
+  if (taskReport && taskReport.applicable && taskReport.count >= 2) return true;
+  const q = trFold(question);
+  if (/\b(?:test|soru|gorev|task)\s*2\b/.test(q)) return true;
+  const questionMarks = (String(question || "").match(/[?？]/g) || []).length;
+  return questionMarks >= 2;
+}
+
+function isSingleProblemMode(question, taskReport = null) {
+  return !hasSecondQuestion(question, taskReport);
+}
+
+function phantomTaskDetector(answer, question, taskReport = null) {
+  if (!isSingleProblemMode(question, taskReport)) return { ok: true, errors: [] };
+  const text = trFold(answer);
+  const labels = [...text.matchAll(/(?:^|\n|\b)(?:\*\*)?\s*(?:gorev|task|soru)\s+(\d+)\s*(?:\*\*)?\s*[:\n]/g)]
+    .map((m) => Number(m[1]))
+    .filter(Number.isFinite);
+  const phantom = labels.filter((n) => n >= 2);
+  if (phantom.length) {
+    return { ok: false, errors: [`phantom_task_detector: single-problem output contains phantom task labels: ${phantom.join(", ")}`] };
+  }
+  if (/\b(?:soru|gorev|task)\s+2\b/.test(text)) {
+    return { ok: false, errors: ["phantom_task_detector: single-problem output contains Soru/Gorev/Task 2."] };
+  }
+  return { ok: true, errors: [] };
+}
+
+function emptyPlaceholderDetector(answer, question, taskReport = null) {
+  if (!isSingleProblemMode(question, taskReport)) return { ok: true, errors: [] };
+  const text = trFold(answer);
+  const errors = [];
+  if (/\bcevap\s*:\s*(?:\.{3}|…|\(\s*\.{3})/.test(text)) {
+    errors.push("empty_placeholder_detector: placeholder answer detected.");
+  }
+  if (/lutfen\s+daha\s+fazla\s+bilgi|daha\s+fazla\s+ayrinti|bilgi\s+eksik|final\s+adiminizi\s+belirtin/.test(text)) {
+    errors.push("empty_placeholder_detector: asks for more information despite a solvable single problem.");
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+function unrelatedSectionDetector(answer, question, taskReport = null) {
+  if (!isSingleProblemMode(question, taskReport)) return { ok: true, errors: [] };
+  const text = trFold(answer);
+  const q = trFold(question);
+  if (/\bornek\s+cozum\b|\bexample\s+solution\b/.test(text) && !/\bornek|example/.test(q)) {
+    return { ok: false, errors: ["unrelated_section_detector: unrelated example solution section detected."] };
+  }
+  return { ok: true, errors: [] };
 }
 
 function validateFinalAnswer(answer, question, taskReport = null) {
@@ -72,6 +125,13 @@ function validateFinalAnswer(answer, question, taskReport = null) {
   if (leak) errors.push(`Question text leaked into Final Answer: ${leak}`);
   const fakeTasks = fakeTaskSplitEvidence(answer, taskReport);
   if (fakeTasks) errors.push(`Output instructions were incorrectly answered as separate tasks: ${fakeTasks}`);
+  for (const detector of [
+    phantomTaskDetector(answer, question, taskReport),
+    emptyPlaceholderDetector(answer, question, taskReport),
+    unrelatedSectionDetector(answer, question, taskReport),
+  ]) {
+    errors.push(...detector.errors);
+  }
 
   return {
     ok: errors.length === 0,
@@ -92,9 +152,10 @@ function buildFinalAnswerRepairMessages(question, answer, taskReport, validation
         "Hard rules:",
         "1. Question text may never appear inside Final Answer.",
         "2. Final Answer contains completed answer results only.",
+        "3. For one-problem prompts, do not invent Soru/Gorev/Task 2, placeholder answers, example sections, or requests for more information.",
         "Do not repeat problem statements. Do not include question wording. Task labels are optional, not required.",
         taskReport && taskReport.instructionOnly
-          ? "This request is ONE problem with output requirements. Do NOT write Görev 1/Görev 2/etc. Apply the required steps to the same problem."
+          ? "This request is ONE problem with output requirements. Do NOT write Gorev 1/Gorev 2/etc. Apply the required steps to the same problem."
           : "",
         "Return a complete corrected response ending with Final Answer.",
       ].filter(Boolean).join("\n"),
@@ -118,5 +179,8 @@ module.exports = {
   validateFinalAnswer,
   buildFinalAnswerRepairMessages,
   questionLeakEvidence,
+  phantomTaskDetector,
+  emptyPlaceholderDetector,
+  unrelatedSectionDetector,
   trFold,
 };

@@ -501,6 +501,25 @@ const fakeInstructionTasks = finalSanitizer.validateFinalAnswer(
 );
 assert.equal(fakeInstructionTasks.ok, false, "Final sanitizer rejects fake task labels for one-problem output requirements");
 assert.match(fakeInstructionTasks.errors.join(" "), /separate tasks/, "Final sanitizer explains instruction-vs-task leakage");
+const phantomSingleProblem = finalSanitizer.validateFinalAnswer(
+  [
+    "Cevap: x + 2 = 5",
+    "",
+    "Soru 2",
+    "Lütfen daha fazla bilgi verirseniz yardımcı olabilirim.",
+    "",
+    "Örnek çözüm:",
+    "Cevap: ...",
+    "",
+    "Final Answer: Soru 2: bilgi eksik",
+  ].join("\n"),
+  "Baba + Oğul = 63\nBaba = 6 x Oğul",
+  null
+);
+assert.equal(phantomSingleProblem.ok, false, "Final sanitizer rejects phantom tasks and placeholders for single-problem prompts");
+assert.match(phantomSingleProblem.errors.join(" "), /phantom_task_detector/, "phantom_task_detector blocks Soru/Gorev 2");
+assert.match(phantomSingleProblem.errors.join(" "), /empty_placeholder_detector/, "empty_placeholder_detector blocks placeholders and info requests");
+assert.match(phantomSingleProblem.errors.join(" "), /unrelated_section_detector/, "unrelated_section_detector blocks unrelated example sections");
 
 const leakedFinal = finalSanitizer.validateFinalAnswer(
   "Final Answer: Bir ciftcinin 50 tavugu vardi. 17'si haric hepsi oldu. Kac tavugu kaldi?",
