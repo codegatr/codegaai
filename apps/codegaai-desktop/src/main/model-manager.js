@@ -36,6 +36,7 @@ const {
 const { shouldRunMLVC, solveDeterministic: solveDeterministicMathLogic, verifyMathLogic } = require("./agent/mlvc");
 const ebse = require("./agent/ebse");
 const rpre = require("./agent/rpre");
+const hril = require("./agent/hril");
 const { repairBenchmarkAnswer, solveKnownReasoningBenchmarks } = require("./agent/benchmark-reasoner");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
@@ -621,10 +622,11 @@ class ModelManager {
     }
     const mlvcInstant = solveDeterministicMathLogic(input);
     if (mlvcInstant) {
+      const interpreted = hril.interpret(input, mlvcInstant);
       return {
         provider: "instant",
         model: "codega-mlvc",
-        text: mlvcInstant,
+        text: interpreted.answer || mlvcInstant,
       };
     }
 
@@ -1015,6 +1017,17 @@ class ModelManager {
         if (repaired.repaired && repaired.answer && repaired.answer.trim()) finalText = repaired.answer.trim();
       } catch (_e) {
         // deterministic benchmark repair must not break chat
+      }
+    }
+
+    // HRIL (Human Reasoning & Interpretation Layer): matematiksel olarak doğru sonucu
+    // insanın hemen anlayacağı karşılığa çevirir (örn. 7/15 -> %46,67; 0.5 saat -> 30 dk).
+    if (agent.stoppedReason !== "smalltalk") {
+      try {
+        const interpreted = hril.interpret(input, finalText);
+        if (interpreted.answer && interpreted.answer.trim()) finalText = interpreted.answer.trim();
+      } catch (_e) {
+        // yorum katmanı cevabı bozmasın
       }
     }
 

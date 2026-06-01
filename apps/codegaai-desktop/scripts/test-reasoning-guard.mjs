@@ -13,6 +13,8 @@ const cognitiveMod = await import(pathToFileURL(path.join(mainDir, "agent", "cog
 const cognitive = cognitiveMod.default || cognitiveMod;
 const mlvcMod = await import(pathToFileURL(path.join(mainDir, "agent", "mlvc.js")).href);
 const mlvc = mlvcMod.default || mlvcMod;
+const hrilMod = await import(pathToFileURL(path.join(mainDir, "agent", "hril.js")).href);
+const hril = hrilMod.default || hrilMod;
 
 assert.ok(
   guard.classifyReasoningProblem("2x + 4 = 52 ise x kac?").includes("math"),
@@ -271,6 +273,32 @@ const concluded = await guard.enforceConclusion(
 );
 assert.equal(concluded.enforced, true, "MCE rewrites answers without a final conclusion");
 assert.match(concluded.answer, /Final Answer:/, "MCE output includes final answer section");
+
+const hrilProbability = hril.interpret(
+  "Bir torbada 3 kirmizi, 7 mavi top var. Geri koymadan 2 top cekiliyor. Ikisinin de mavi olma olasiligi nedir?",
+  "Final Answer: 7/15"
+);
+assert.equal(hrilProbability.changed, true, "HRIL adds probability interpretation");
+assert.match(hrilProbability.answer, /%46,67/, "HRIL converts fractions to percentages");
+assert.match(hrilProbability.answer, /7\/15/, "HRIL preserves the original fraction");
+
+const hrilFinance = hril.interpret(
+  "Bir urun 100 TL. Once %40 zamlaniyor, sonra %40 indirim yapiliyor. Son fiyat?",
+  "Final Answer: 84 TL"
+);
+assert.match(hrilFinance.answer, /16/, "HRIL explains money difference");
+assert.match(hrilFinance.answer, /%16/, "HRIL explains percentage change");
+
+assert.match(
+  hril.interpret("Kac yil sonra?", "Final Answer: 9.333333 yıl").answer,
+  /9 yıl 4 ay/,
+  "HRIL converts decimal years to years and months"
+);
+assert.match(
+  hril.interpret("Toplam kac saat surdu?", "Final Answer: 0.5 saat").answer,
+  /30 dakika/,
+  "HRIL converts decimal hours to minutes"
+);
 
 fs.rmSync(process.env.CODEGA_ERROR_MEMORY_PATH, { force: true });
 console.log("Reasoning guard tests passed");
