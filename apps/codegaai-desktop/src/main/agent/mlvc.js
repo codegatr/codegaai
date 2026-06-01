@@ -217,6 +217,51 @@ function detectDuration(question) {
   return { kind: "time", resultText: `${hours} saat ${mins} dakika`, explanation: `${minutes} dakika = ${hours} saat ${mins} dakika` };
 }
 
+function detectColorWithoutReplacement(question) {
+  const q = trFold(question);
+  if (!/geri\s+koymadan|without\s+replacement/.test(q)) return null;
+  const colors = [
+    { keys: ["kirmizi", "red"], count: 0, label: "kirmizi" },
+    { keys: ["mavi", "blue"], count: 0, label: "mavi" },
+    { keys: ["yesil", "green"], count: 0, label: "yesil" },
+    { keys: ["sari", "yellow"], count: 0, label: "sari" },
+    { keys: ["siyah", "black"], count: 0, label: "siyah" },
+    { keys: ["beyaz", "white"], count: 0, label: "beyaz" },
+  ];
+  for (const color of colors) {
+    for (const key of color.keys) {
+      const m = q.match(new RegExp(`(\\d+)\\s+${key}\\b`));
+      if (m) {
+        color.count = Number(m[1]);
+        break;
+      }
+    }
+  }
+  const present = colors.filter((color) => Number.isFinite(color.count) && color.count > 0);
+  if (present.length < 1) return null;
+  const target = present.find((color) => color.keys.some((key) => {
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(?:ikisinin\\s+de|ikisi\\s+de|both\\s+(?:are\\s+)?|both\\s+)${escaped}\\b`).test(q) ||
+      new RegExp(`${escaped}\\s+(?:olma\\s+olasiligi|probability)`).test(q);
+  }));
+  if (!target) return null;
+  const drawMatch = q.match(/(\d+)\s*(?:top|ball)s?\s*(?:cek|draw)/);
+  const drawCount = drawMatch ? Number(drawMatch[1]) : 2;
+  if (drawCount !== 2 || target.count < 2) return null;
+  const total = present.reduce((sum, color) => sum + color.count, 0);
+  if (total < 2) return null;
+  const num = target.count * (target.count - 1);
+  const den = total * (total - 1);
+  const div = gcd(num, den);
+  const fraction = `${num / div}/${den / div}`;
+  const percent = (num / den) * 100;
+  return {
+    kind: "probability",
+    resultText: fraction,
+    explanation: `(${target.count}/${total}) x (${target.count - 1}/${total - 1}) = ${fraction} ~= %${Number(percent.toFixed(2))}`,
+  };
+}
+
 function detectBlueWithoutReplacement(question) {
   const q = trFold(question);
   const red = q.match(/(\d+)\s+kirmizi/);
@@ -270,6 +315,7 @@ function detectSingleDeterministic(question) {
     detectWordLinearEquation(question),
     detectFractionSimplification(question),
     detectDuration(question),
+    detectColorWithoutReplacement(question),
     detectBlueWithoutReplacement(question),
     detectPassingPlace(question),
     detectExceptDied(question),

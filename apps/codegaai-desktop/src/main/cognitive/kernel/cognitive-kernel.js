@@ -12,6 +12,7 @@ const hril = require("../../agent/hril");
 const ree = require("../../agent/ree");
 const rae = require("../../agent/rae");
 const sacv = require("../../agent/sacv");
+const ssv = require("../../agent/ssv");
 const finalAnswerSanitizer = require("../../agent/final-answer-sanitizer");
 const { repairBenchmarkAnswer } = require("../../agent/benchmark-reasoner");
 const { enforceConclusion, verifyAnswer } = require("../../agent/reasoning-guard");
@@ -276,6 +277,26 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
       if (assembled.answer && assembled.answer.trim()) applyCorrection(assembled.answer.trim(), "rae");
       return { ok: true, confidence: assembled.confidence, detail: { changed: !!assembled.changed } };
     });
+  }
+
+  if (!context.blocked) {
+    await runStage(context, "ssv:supreme-sanity", async () => {
+      let sanity = ssv.validateSupremeSanity(context.input, finalText, context.taskReport, {
+        factLock: context.factLock,
+      });
+      if (sanity.correctedAnswer) {
+        applyCorrection(sanity.correctedAnswer, "ssv");
+        sanity = ssv.validateSupremeSanity(context.input, finalText, context.taskReport, {
+          factLock: context.factLock,
+        });
+      }
+      return {
+        ok: sanity.ok,
+        confidence: sanity.confidence,
+        errors: sanity.errors,
+        detail: { scores: sanity.scores, corrections: sanity.corrections },
+      };
+    }, { blocking: true });
   }
 
   context.answer = context.blocked ? blockedAnswer(context) : finalText;

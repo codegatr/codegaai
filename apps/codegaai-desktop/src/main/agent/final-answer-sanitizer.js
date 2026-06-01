@@ -67,7 +67,9 @@ function fakeTaskSplitEvidence(answer, taskReport) {
 
 function hasSecondQuestion(question, taskReport = null) {
   if (taskReport && taskReport.applicable && taskReport.count >= 2) return true;
+  if (taskReport && !taskReport.applicable) return false;
   const q = trFold(question);
+  if (!taskReport && !/\b(?:test|soru|gorev|task)\s*2\b/.test(q)) return false;
   if (/\b(?:test|soru|gorev|task)\s*2\b/.test(q)) return true;
   const questionMarks = (String(question || "").match(/[?？]/g) || []).length;
   return questionMarks >= 2;
@@ -189,6 +191,9 @@ function cleanPhantomOutput(answer, question, taskReport = null) {
     keptLines.push(line);
   }
   cleaned = keptLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  cleaned = cleaned
+    .replace(/^\s*(?:\*\*)?\s*(?:soru|g[Ã¶o]rev|task)\s+1\s*(?:\*\*)?\s*[:\-]?\s*/i, "")
+    .trim();
 
   if (!/Final Answer:/i.test(cleaned)) {
     const final = finalAnswerText(original);

@@ -109,8 +109,18 @@ function questionTasks(text) {
     .split(/(?<=[?？])\s+(?=[A-ZÇĞİÖŞÜ0-9])/)
     .map((part) => part.trim())
     .filter(Boolean);
-  if (questionParts.length <= 1) return [];
-  return questionParts.map((body, i) => ({
+  const mergedQuestionParts = [];
+  for (const part of questionParts) {
+    const wordCount = part.split(/\s+/).filter(Boolean).length;
+    const looksLikeTaskStart = /^(?:test|soru|task|gorev|gÃ¶rev)\s*\d+\b/i.test(part) || /^\d+[.)]\s+/.test(part);
+    if (mergedQuestionParts.length && wordCount < 3 && !looksLikeTaskStart) {
+      mergedQuestionParts[mergedQuestionParts.length - 1] = `${mergedQuestionParts[mergedQuestionParts.length - 1]} ${part}`.trim();
+    } else {
+      mergedQuestionParts.push(part);
+    }
+  }
+  if (mergedQuestionParts.length <= 1) return [];
+  return mergedQuestionParts.map((body, i) => ({
     id: String(i + 1),
     label: `Soru ${i + 1}`,
     title: `Soru ${i + 1}`,

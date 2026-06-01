@@ -33,6 +33,8 @@ const cvlMod = await import(pathToFileURL(path.join(mainDir, "agent", "cvl.js"))
 const cvl = cvlMod.default || cvlMod;
 const sacvMod = await import(pathToFileURL(path.join(mainDir, "agent", "sacv.js")).href);
 const sacv = sacvMod.default || sacvMod;
+const ssvMod = await import(pathToFileURL(path.join(mainDir, "agent", "ssv.js")).href);
+const ssv = ssvMod.default || ssvMod;
 const cognitiveKernelMod = await import(pathToFileURL(path.join(mainDir, "cognitive", "kernel", "cognitive-kernel.js")).href);
 const cognitiveKernel = cognitiveKernelMod.default || cognitiveKernelMod;
 
@@ -187,6 +189,14 @@ assert.match(mlvcSuite, /Test 5: 7\/15/, "MLVC answers probability test in a sui
 assert.match(mlvcSuite, /Test 6: 4/, "MLVC answers passing-place test in a suite");
 assert.match(mlvcSuite, /Test 7: 17/, "MLVC answers exception wording test in a suite");
 assert.match(mlvcSuite, /Test 8: 4/, "MLVC answers symbolic cancellation test in a suite");
+
+const redProbability = mlvc.deterministicCheck(
+  "5 red, 3 blue. Draw 2 balls without replacement. Probability both are red?",
+  "Final Answer: 1/2"
+);
+assert.equal(redProbability.ok, false, "MLVC rejects guessed probability from color count");
+assert.match(redProbability.correctedAnswer, /5\/14/, "MLVC calculates red without-replacement probability");
+assert.match(redProbability.correctedAnswer, /\(5\/8\) x \(4\/7\)/, "MLVC shows sequential non-replacement probability");
 
 const handshakeCheck = mlvc.deterministicCheck(
   "Bir odada 4 kişi var. Her kişi diğer herkesle tam bir kez tokalaşıyor. Toplam kaç tokalaşma olur?",
@@ -451,6 +461,11 @@ assert.equal(instructionVsTask.count, 1, "TDE exposes one MainTask for one probl
 assert.equal(instructionVsTask.instructionOnly, true, "TDE classifies numbered solution steps as output requirements");
 assert.equal(instructionVsTask.outputRequirements.length, 5, "TDE preserves all required output steps");
 assert.match(instructionVsTask.mainTask.problem_text, /Father \+ Son = 70/, "TDE stores the main problem text separately from output steps");
+assert.equal(
+  tde.decomposeTasks("Bir ürün 2500 TL. %20 indirim olursa son fiyat kaç TL?").applicable,
+  false,
+  "TDE does not split one Turkish percentage question at mojibake-like question marks"
+);
 assert.match(tde.formatTaskContext(instructionVsTask), /one problem with required solution steps/, "TDE emits output requirement middleware");
 const instructionFacts = factLock.extractFacts(`Father + Son = 70
 Father = 4 x Son
@@ -543,6 +558,12 @@ const cleanedValidation = finalSanitizer.validateFinalAnswer(
 );
 assert.equal(cleanedValidation.ok, true, "Final sanitizer approves once cleaned answer is available");
 assert.match(cleanedValidation.cleanedAnswer, /2500 × 0\.80 = 2000 TL/, "Final sanitizer returns cleaned answer for application before response");
+const soruOneTwoCleaned = finalSanitizer.cleanPhantomOutput(
+  ["Soru 1", "2500 x 0.80 = 2000 TL", "Final Answer: 2000 TL", "", "Soru 2", "Lütfen bir görev belirtin."].join("\n"),
+  "Bir ürün 2500 TL. %20 indirim olursa son fiyat kaç TL?"
+);
+assert.doesNotMatch(soruOneTwoCleaned.answer, /Soru 1|Soru 2|Lütfen/, "Output Cleaner removes both phantom extra task and unnecessary Soru 1 label");
+assert.match(soruOneTwoCleaned.answer, /Final Answer: 2000 TL/, "Output Cleaner keeps the real single answer");
 
 const leakedFinal = finalSanitizer.validateFinalAnswer(
   "Final Answer: Bir ciftcinin 50 tavugu vardi. 17'si haric hepsi oldu. Kac tavugu kaldi?",
@@ -582,6 +603,21 @@ const semanticMissingVerification = sacv.validateSemanticCompleteness(
   taskReport
 );
 assert.equal(semanticMissingVerification.ok, false, "SACV rejects answers without reasoning/verification traces");
+
+const ssvProbability = ssv.validateSupremeSanity(
+  "5 red, 3 blue. Draw 2 balls without replacement. Probability both are red?",
+  "Final Answer: 1/2"
+);
+assert.equal(ssvProbability.ok, true, "SSV can replace a failed probability answer with verified deterministic output");
+assert.match(ssvProbability.answer, /5\/14/, "SSV final output contains the verified probability");
+assert.match(ssvProbability.answer, /\(5\/8\) x \(4\/7\)/, "SSV final output preserves non-replacement trace");
+
+const ssvPhantom = ssv.validateSupremeSanity(
+  "Bir ürün 2500 TL. %20 indirim olursa son fiyat kaç TL?",
+  ["Soru 1", "2500 x 0.80 = 2000 TL", "Final Answer: 2000 TL", "", "Soru 2", "Lütfen bir görev belirtin."].join("\n")
+);
+assert.equal(ssvPhantom.ok, true, "SSV cleans phantom task sections before release");
+assert.doesNotMatch(ssvPhantom.answer, /Soru 1|Soru 2|Lütfen/, "SSV removes invented task labels and placeholders");
 
 const kernelContext = cognitiveKernel.createContext(`## Test 1
 3x + 12 = 57 ise x kactir?
