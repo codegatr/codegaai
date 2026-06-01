@@ -13,6 +13,10 @@ const cognitiveMod = await import(pathToFileURL(path.join(mainDir, "agent", "cog
 const cognitive = cognitiveMod.default || cognitiveMod;
 const mlvcMod = await import(pathToFileURL(path.join(mainDir, "agent", "mlvc.js")).href);
 const mlvc = mlvcMod.default || mlvcMod;
+const rpreMod = await import(pathToFileURL(path.join(mainDir, "agent", "rpre.js")).href);
+const rpre = rpreMod.default || rpreMod;
+const ebseMod = await import(pathToFileURL(path.join(mainDir, "agent", "ebse.js")).href);
+const ebse = ebseMod.default || ebseMod;
 const hrilMod = await import(pathToFileURL(path.join(mainDir, "agent", "hril.js")).href);
 const hril = hrilMod.default || hrilMod;
 const reeMod = await import(pathToFileURL(path.join(mainDir, "agent", "ree.js")).href);
@@ -433,6 +437,41 @@ assert.equal(partialCoverage.ok, false, "TDE rejects incomplete task coverage");
 assert.equal(partialCoverage.missing[0].label, "Test 2", "TDE reports the missing task");
 assert.equal(tde.validateTaskCoverage("Test 1: x = 15\nTest 2: 7/15", taskReport).ok, true, "TDE approves completed tasks");
 
+const instructionVsTask = tde.decomposeTasks(`Father + Son = 70
+Father = 4 x Son
+
+Mandatory steps:
+1. Build equation
+2. Solve
+3. Substitute back
+4. Show verification
+5. Give final answer`);
+assert.equal(instructionVsTask.applicable, false, "TDE does not split one problem with required steps into fake tasks");
+assert.equal(instructionVsTask.instructionOnly, true, "TDE classifies numbered solution steps as output requirements");
+assert.equal(instructionVsTask.outputRequirements.length, 5, "TDE preserves all required output steps");
+assert.match(tde.formatTaskContext(instructionVsTask), /one problem with required solution steps/, "TDE emits output requirement middleware");
+const instructionFacts = factLock.extractFacts(`Father + Son = 70
+Father = 4 x Son
+
+Mandatory steps:
+1. Build equation
+2. Solve
+3. Substitute back
+4. Show verification
+5. Give final answer`);
+assert.deepEqual(instructionFacts.numericFacts.map((item) => item.value), [70, 4], "Fact Lock ignores numbered output-step indices");
+assert.equal(instructionFacts.constraints[0].expectedParts, 5, "Fact Lock preserves the original 4x relation as 5 total parts");
+assert.match(
+  rpre.verify("Father + Son = 70\nFather = 4 x Son", "Final Answer: 17.5").correctedAnswer,
+  /56.*14|14.*56/s,
+  "RPRE corrects direct division on Father + Son ratio prompts"
+);
+assert.match(
+  ebse.verify("Father + Son = 70\nFather = 4 x Son", "Final Answer: Baba 56, oğul 14 yaşındadır.").status,
+  /APPROVED/,
+  "EBSE verifies Father + Son sum-multiple prompts by substitution"
+);
+
 const leakedFinal = finalSanitizer.validateFinalAnswer(
   "Final Answer: Bir ciftcinin 50 tavugu vardi. 17'si haric hepsi oldu. Kac tavugu kaldi?",
   "Bir ciftcinin 50 tavugu vardi. 17'si haric hepsi oldu. Kac tavugu kaldi?",
@@ -483,6 +522,21 @@ assert.equal(kernelIntake.messages.length, 2, "Cognitive Kernel emits fact-lock 
 assert.equal(kernelContext.stages[0].name, "fact-lock:intake", "Cognitive Kernel records fact-lock stage");
 assert.equal(kernelContext.stages[1].name, "tde:intake", "Cognitive Kernel records intake stage");
 assert.equal(kernelContext.taskRegistry.summary().expected, 2, "Cognitive Kernel creates a persistent task registry");
+
+const singleProblemStepsContext = cognitiveKernel.createContext(`Father + Son = 70
+Father = 4 x Son
+
+Mandatory steps:
+1. Build equation
+2. Solve
+3. Substitute back
+4. Show verification
+5. Give final answer`);
+const singleProblemStepsIntake = cognitiveKernel.runIntake(singleProblemStepsContext);
+assert.equal(singleProblemStepsIntake.taskReport.applicable, false, "Cognitive Kernel keeps one problem as one task despite numbered steps");
+assert.equal(singleProblemStepsContext.taskRegistry, null, "Cognitive Kernel does not create a fake multi-task registry for output steps");
+assert.equal(singleProblemStepsIntake.messages.length, 2, "Cognitive Kernel emits fact-lock plus output-requirement middleware");
+assert.match(singleProblemStepsIntake.messages[1].content, /Output Requirements Report/, "Cognitive Kernel preserves required solution steps as instructions");
 
 const lostTaskContext = cognitiveKernel.createContext(`## Test 1
 Bir sayinin 4 katinin 18 fazlasi 74'tur. Bu sayi kactir?

@@ -52,8 +52,10 @@ function detectColonRatio(question) {
 /** "k katı" + "toplam T" (yaş/toplam tipi): büyük=k pay, küçük=1 pay. */
 function detectMultiple(question) {
   const q = trFold(question);
-  const km = q.match(/(\d+(?:[.,]\d+)?)\s*kat/);
-  const tm = q.match(/toplam\D{0,20}(\d+(?:[.,]\d+)?)/);
+  const km = q.match(/(\d+(?:[.,]\d+)?)\s*kat/) ||
+    q.match(/=\s*(\d+(?:[.,]\d+)?)\s*(?:x|times|[*×])\s*(?:son|ogul|o[ğg]ul)/);
+  const tm = q.match(/toplam\D{0,20}(\d+(?:[.,]\d+)?)/) ||
+    q.match(/(?:father\s*\+\s*son|baba\s*\+\s*ogul|baba\s+ile\s+oglunun|baba\s+ile\s+ogulun)\D{0,24}(\d+(?:[.,]\d+)?)/);
   if (!km || !tm) return null;
   const k = Number(km[1].replace(",", "."));
   const total = Number(tm[1].replace(",", "."));

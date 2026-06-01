@@ -51,8 +51,9 @@ function runIntake(context) {
   if (factReport.applicable) {
     context.addMessage({ role: "system", content: factLock.formatFactLockContext(factReport) });
   }
-  if (taskReport.applicable) {
-    context.addMessage({ role: "system", content: tde.formatTaskContext(taskReport) });
+  const taskContext = tde.formatTaskContext(taskReport);
+  if (taskContext) {
+    context.addMessage({ role: "system", content: taskContext });
   }
   return { ok: true, taskReport, messages: context.messages };
 }

@@ -25,6 +25,26 @@ function numbersIn(text) {
     .filter((item) => Number.isFinite(item.value));
 }
 
+function isInstructionLine(line) {
+  const q = trFold(line)
+    .replace(/^\s*\d+[.)]\s*/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!q) return false;
+  const startsLikeInstruction = /^(build|create|write|show|verify|check|calculate|solve|substitute|explain|give|provide|return|list|use|apply|kur|olustur|yaz|goster|dogrula|kontrol|hesapla|coz|yerine koy|acikla|cevapla|ver|listele|kullan|uygula|final answer|son cevap|nihai cevap)\b/.test(q);
+  const requiredStep = /(equation|denklem|solve|coz|substitute|yerine koy|verification|dogrulama|kontrol|final answer|son cevap|nihai cevap|explanation|aciklama|reasoning|islem)/.test(q);
+  const standaloneQuestion = /\?\s*$/.test(q) || /\b(kac|nedir|hangisi|olasiligi|sonuc|how many|what is|which)\b/.test(q);
+  const hasFacts = /\d/.test(q) && /(=|x|kat|tl|%|kirmizi|mavi|saat|dakika|haric|except)/.test(q);
+  return /^\s*\d+[.)]\s*/.test(line) && (startsLikeInstruction || requiredStep) && !standaloneQuestion && !hasFacts;
+}
+
+function stripInstructionListMarkers(text) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .filter((line) => !isInstructionLine(line))
+    .join("\n");
+}
+
 function uniqueNumbers(items) {
   const seen = new Set();
   const out = [];
@@ -76,11 +96,12 @@ function detectColonRatio(question) {
 }
 
 function extractFacts(question) {
-  const numericFacts = uniqueNumbers(numbersIn(question));
+  const factText = stripInstructionListMarkers(question);
+  const numericFacts = uniqueNumbers(numbersIn(factText));
   const constraints = [];
-  const sumMultiple = detectSumMultiple(question);
+  const sumMultiple = detectSumMultiple(factText);
   if (sumMultiple) constraints.push(sumMultiple);
-  const colonRatio = detectColonRatio(question);
+  const colonRatio = detectColonRatio(factText);
   if (colonRatio) constraints.push(colonRatio);
   return {
     applicable: numericFacts.length > 0 || constraints.length > 0,

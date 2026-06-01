@@ -31,12 +31,39 @@ function classifyTask(body) {
   return "general";
 }
 
+function isInstructionItem(body) {
+  const q = trFold(body).replace(/\s+/g, " ").trim();
+  if (!q) return false;
+  const startsLikeInstruction = /^(build|create|write|show|verify|check|calculate|solve|substitute|explain|give|provide|return|list|use|apply|kur|olustur|yaz|goster|dogrula|kontrol|hesapla|coz|yerine koy|acikla|cevapla|ver|listele|kullan|uygula|final answer|son cevap|nihai cevap)\b/.test(q);
+  const requiredStep = /(equation|denklem|solve|coz|substitute|yerine koy|verification|dogrulama|kontrol|final answer|son cevap|nihai cevap|explanation|aciklama|reasoning|islem)/.test(q);
+  const standaloneQuestion = /\?\s*$/.test(q) || /\b(kac|nedir|hangisi|olasiligi|sonuc|how many|what is|which)\b/.test(q);
+  const hasFacts = /\d/.test(q) && /(=|x|kat|tl|%|kirmizi|mavi|saat|dakika|haric|except)/.test(q);
+  return (startsLikeInstruction || requiredStep) && !standaloneQuestion && !hasFacts;
+}
+
+function outputRequirementReport(text, tasks) {
+  if (!tasks || tasks.length <= 1) return { isInstructionList: false, requirements: [] };
+  const requirements = tasks.filter((task) => isInstructionItem(task.body));
+  if (requirements.length !== tasks.length) return { isInstructionList: false, requirements: [] };
+  const firstIndex = String(text || "").indexOf(tasks[0].title || "");
+  const preamble = firstIndex > 0 ? String(text || "").slice(0, firstIndex).trim() : "";
+  const preambleHasProblem = /\d/.test(preamble) && /(=|kat|x|toplam|father|son|baba|ogul|ya[sş]|tl|%)/i.test(trFold(preamble));
+  return {
+    isInstructionList: preambleHasProblem || requirements.length >= 3,
+    requirements: requirements.map((task, i) => ({
+      id: task.id || String(i + 1),
+      label: `Adım ${i + 1}`,
+      body: task.body,
+    })),
+  };
+}
+
 function headingTasks(text) {
   const re = /^[^\S\r\n]*(?:#{1,6}[^\S\r\n]*)?(?:(?:test|soru|task|gorev)[^\S\r\n]+)?(\d+|[A-Z])(?:[.)]|[^\S\r\n]*[-–—:])?.*$/gim;
   const matches = [...String(text || "").matchAll(re)]
     .filter((m) => /test|soru|task|gorev|^\s*\d+[.)]/i.test(m[0]));
   if (matches.length <= 1) return [];
-  return matches.map((m, i) => {
+  const tasks = matches.map((m, i) => {
     const start = m.index;
     const end = i + 1 < matches.length ? matches[i + 1].index : text.length;
     // Gövde = eşleşen satır + sonraki satırlar (sonraki başlığa kadar). Başlık satırındaki
@@ -53,6 +80,13 @@ function headingTasks(text) {
       domain: classifyTask(body || block),
     };
   }).filter((task) => task.body);
+  const instructions = outputRequirementReport(text, tasks);
+  if (instructions.isInstructionList) {
+    headingTasks.lastOutputRequirements = instructions.requirements;
+    return [];
+  }
+  headingTasks.lastOutputRequirements = [];
+  return tasks;
 }
 
 function questionTasks(text) {
@@ -87,7 +121,14 @@ function bulletTasks(text) {
     if (m) items.push(m[1].trim());
   }
   if (items.length <= 1) return [];
-  return items.map((body, i) => mkTask(i, body));
+  const tasks = items.map((body, i) => mkTask(i, body));
+  const instructions = outputRequirementReport(text, tasks.map((task, i) => ({ ...task, title: items[i] })));
+  if (instructions.isInstructionList) {
+    bulletTasks.lastOutputRequirements = instructions.requirements;
+    return [];
+  }
+  bulletTasks.lastOutputRequirements = [];
+  return tasks;
 }
 
 /** Satır bazlı liste: her satır görev sinyali taşımalı ("?" ile biter VEYA "Etiket:" deseni). */
@@ -103,20 +144,35 @@ function lineTasks(text) {
 
 function decomposeTasks(input) {
   const text = String(input || "");
+  headingTasks.lastOutputRequirements = [];
+  bulletTasks.lastOutputRequirements = [];
   let tasks = headingTasks(text);
+  let outputRequirements = headingTasks.lastOutputRequirements || [];
   if (tasks.length <= 1) tasks = bulletTasks(text);
+  if (!outputRequirements.length) outputRequirements = bulletTasks.lastOutputRequirements || [];
   if (tasks.length <= 1) tasks = questionTasks(text);
   if (tasks.length <= 1) tasks = lineTasks(text);
   return {
     applicable: tasks.length > 1,
     count: tasks.length,
     tasks,
+    outputRequirements,
+    instructionOnly: !!outputRequirements.length && tasks.length <= 1,
     confidence: 100,
   };
 }
 
 function formatTaskContext(report) {
-  if (!report || !report.applicable) return "";
+  if (!report) return "";
+  if (!report.applicable && report.outputRequirements && report.outputRequirements.length) {
+    return [
+      "## Output Requirements Report",
+      "Detected Type: one problem with required solution steps",
+      "Rule: do not split these steps into independent tasks; apply every step to the same original problem and preserve all facts.",
+      ...report.outputRequirements.map((req) => `- ${req.label}: ${req.body.replace(/\s+/g, " ").slice(0, 180)}`),
+    ].join("\n");
+  }
+  if (!report.applicable) return "";
   const lines = [
     "## Task Decomposition Report",
     `Detected Tasks: ${report.count}`,

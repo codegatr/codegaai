@@ -43,8 +43,11 @@ function answerHasNumber(answer, value, eps = 1e-6) {
 /** "toplamı T" + "k katı" kalıbı. Döner: { total, multiplier } | null */
 function detectSumMultiple(question) {
   const q = trFold(question);
-  const totalM = q.match(/toplam\D{0,20}(\d+(?:[.,]\d+)?)/) || q.match(/(\d+(?:[.,]\d+)?)\s*(?:e|a|dir|dur)?\s*esit/);
-  const multM = q.match(/(\d+(?:[.,]\d+)?)\s*kat/);
+  const totalM = q.match(/toplam\D{0,20}(\d+(?:[.,]\d+)?)/) ||
+    q.match(/(\d+(?:[.,]\d+)?)\s*(?:e|a|dir|dur)?\s*esit/) ||
+    q.match(/(?:father\s*\+\s*son|baba\s*\+\s*ogul|baba\s+ile\s+oglunun|baba\s+ile\s+ogulun)\D{0,24}(\d+(?:[.,]\d+)?)/);
+  const multM = q.match(/(\d+(?:[.,]\d+)?)\s*kat/) ||
+    q.match(/=\s*(\d+(?:[.,]\d+)?)\s*(?:x|times|[*×])\s*(?:son|ogul|o[ğg]ul)/);
   if (!totalM || !multM) return null;
   const total = Number(totalM[1].replace(",", "."));
   const multiplier = Number(multM[1].replace(",", "."));
