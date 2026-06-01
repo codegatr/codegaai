@@ -127,11 +127,41 @@ function verify(question, answer) {
   return { applicable: true, status, model: { ...det, ...m }, checks, correctedAnswer, confidence };
 }
 
+function solveMainTask(question, opts = {}) {
+  const det = detectMultiple(question);
+  if (!det) return "";
+  const model = buildPartsModel(det.parts, det.total);
+  const small = model.values[1];
+  const big = model.values[0];
+  if (!Number.isFinite(small) || !Number.isFinite(big)) return "";
+  const q = trFold(question);
+  const usesTurkish = /baba|ogul|oğul|yas|yaş/.test(q) || opts.turkish !== false;
+  if (!usesTurkish) {
+    return [
+      `Equation: Son = x, Father = ${det.parts[0]}x, ${det.parts[0]}x + x = ${det.total}.`,
+      `Solve: ${det.parts[0] + 1}x = ${det.total}, x = ${small}.`,
+      `Substitute back: Son = ${small}, Father = ${big}.`,
+      `Verification: ${big} + ${small} = ${det.total}; ${big} = ${det.parts[0]} x ${small}.`,
+      `Final Answer: Father ${big}, son ${small}.`,
+    ].join("\n");
+  }
+  return [
+    `Denklem: Oğul = x, Baba = ${det.parts[0]}x, ${det.parts[0]}x + x = ${det.total}.`,
+    `Hesap: ${det.parts[0] + 1}x = ${det.total}, x = ${small}.`,
+    `Geri koyma: Oğul = ${small}, Baba = ${big}.`,
+    "Kontrol:",
+    `${big} + ${small} = ${det.total}`,
+    `${big} = ${det.parts[0]} × ${small}`,
+    `Final Answer: Baba ${big}, oğul ${small} yaşındadır.`,
+  ].join("\n");
+}
+
 module.exports = {
   verify,
   isApplicable,
   detectColonRatio,
   detectMultiple,
   buildPartsModel,
+  solveMainTask,
   trFold,
 };

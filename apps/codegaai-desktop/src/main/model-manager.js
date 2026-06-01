@@ -624,6 +624,18 @@ class ModelManager {
     // (instant/benchmark/MLVC) ATLA. Aksi halde MLVC tüm metni tek soru sanıp "1000 | 2" gibi
     // tek/anonim cevapla kısa devre yapıp çok-görev dalını HİÇ çalıştırmıyordu (kök neden).
     const isMultiTaskInput = taskDecomposition.applicable && taskDecomposition.count >= 2;
+    const isInstructionOnlyMainTask = taskDecomposition.instructionOnly && taskDecomposition.mainTask;
+
+    if (!isMultiTaskInput && isInstructionOnlyMainTask) {
+      const mainTaskAnswer = rpre.solveMainTask(taskDecomposition.mainTask.problem_text || input);
+      if (mainTaskAnswer) {
+        return {
+          provider: "instant",
+          model: "codega-main-task-solver",
+          text: mainTaskAnswer,
+        };
+      }
+    }
 
     const instant = !isMultiTaskInput && instantAnswer(input);
     if (instant) {

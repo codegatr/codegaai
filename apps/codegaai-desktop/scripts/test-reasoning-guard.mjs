@@ -447,8 +447,10 @@ Mandatory steps:
 4. Show verification
 5. Give final answer`);
 assert.equal(instructionVsTask.applicable, false, "TDE does not split one problem with required steps into fake tasks");
+assert.equal(instructionVsTask.count, 1, "TDE exposes one MainTask for one problem with output steps");
 assert.equal(instructionVsTask.instructionOnly, true, "TDE classifies numbered solution steps as output requirements");
 assert.equal(instructionVsTask.outputRequirements.length, 5, "TDE preserves all required output steps");
+assert.match(instructionVsTask.mainTask.problem_text, /Father \+ Son = 70/, "TDE stores the main problem text separately from output steps");
 assert.match(tde.formatTaskContext(instructionVsTask), /one problem with required solution steps/, "TDE emits output requirement middleware");
 const instructionFacts = factLock.extractFacts(`Father + Son = 70
 Father = 4 x Son
@@ -470,6 +472,19 @@ assert.match(
   ebse.verify("Father + Son = 70\nFather = 4 x Son", "Final Answer: Baba 56, oğul 14 yaşındadır.").status,
   /APPROVED/,
   "EBSE verifies Father + Son sum-multiple prompts by substitution"
+);
+assert.match(
+  rpre.solveMainTask(`Baba + Oğul = 63
+Baba = 6 × Oğul
+
+1. Verilen bilgileri yaz
+2. Denklemi kur
+3. Hesapla
+4. Geri koy
+5. Doğrula
+6. Final cevap ver`),
+  /Final Answer: Baba 54, oğul 9 yaşındadır\./,
+  "MainTask solver returns one verified answer for one problem with numbered output requirements"
 );
 const fakeInstructionTasks = finalSanitizer.validateFinalAnswer(
   [
