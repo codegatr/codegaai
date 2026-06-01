@@ -21,6 +21,8 @@ const tdeMod = await import(pathToFileURL(path.join(mainDir, "agent", "tde.js"))
 const tde = tdeMod.default || tdeMod;
 const finalMod = await import(pathToFileURL(path.join(mainDir, "agent", "final-answer-sanitizer.js")).href);
 const finalSanitizer = finalMod.default || finalMod;
+const sacvMod = await import(pathToFileURL(path.join(mainDir, "agent", "sacv.js")).href);
+const sacv = sacvMod.default || sacvMod;
 const cognitiveKernelMod = await import(pathToFileURL(path.join(mainDir, "cognitive", "kernel", "cognitive-kernel.js")).href);
 const cognitiveKernel = cognitiveKernelMod.default || cognitiveKernelMod;
 
@@ -357,14 +359,31 @@ const exactFinal = finalSanitizer.validateFinalAnswer(
   "same question",
   taskReport
 );
-assert.equal(exactFinal.ok, true, "Final Answer accepts exactly one answer per detected task");
+assert.equal(exactFinal.ok, true, "Final Answer accepts answer results without semantic task counting");
 
 const duplicateFinal = finalSanitizer.validateFinalAnswer(
   "Final Answer: Test 1: x = 15 | Test 1: 15 | Test 2: 7/15",
   "same question",
   taskReport
 );
-assert.equal(duplicateFinal.ok, false, "Final Answer rejects duplicate task answers");
+assert.equal(duplicateFinal.ok, true, "Final Answer sanitizer does not enforce exact task labels");
+
+const semanticNoLabels = sacv.validateSemanticCompleteness(
+  [
+    "Anlama: iki ayrı hesap var.",
+    "İşlem: 3x + 12 = 57; x = 15. İkinci hesapta 7/15 bulunur.",
+    "Doğrulama: 3*15 + 12 = 57 ve olasılık bağımsız yeniden kontrol edildi.",
+    "Final Answer: x = 15 | 7/15",
+  ].join("\n"),
+  taskReport
+);
+assert.equal(semanticNoLabels.ok, true, "SACV accepts semantically complete answers without task labels");
+
+const semanticMissingVerification = sacv.validateSemanticCompleteness(
+  "Final Answer: x = 15 | 7/15",
+  taskReport
+);
+assert.equal(semanticMissingVerification.ok, false, "SACV rejects answers without reasoning/verification traces");
 
 const kernelContext = cognitiveKernel.createContext(`## Test 1
 3x + 12 = 57 ise x kactir?

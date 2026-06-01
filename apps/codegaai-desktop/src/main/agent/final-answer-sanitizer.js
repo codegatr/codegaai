@@ -4,7 +4,10 @@
  * ----------------------
  * Enforces two hard rules:
  * 1. Question text may never appear inside Final Answer.
- * 2. Every detected task must produce exactly one verified answer.
+ * 2. Final Answer must contain only answer material, not copied prompts.
+ *
+ * Task completeness is semantic and lives in SACV. This sanitizer deliberately
+ * does not require labels like "Test 1" or exact wording.
  */
 
 function trFold(text) {
@@ -49,34 +52,6 @@ function questionLeakEvidence(question, finalText, tasks = []) {
   return "";
 }
 
-function countPattern(text, pattern) {
-  const haystack = compact(text);
-  const escaped = compact(pattern).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  if (!escaped) return 0;
-  const re = new RegExp(`(^|\\b)${escaped}(\\b|\\s*:)`, "g");
-  return [...haystack.matchAll(re)].length;
-}
-
-function countTaskAnswerOccurrences(text, task) {
-  const labelCount = countPattern(text, task.label);
-  if (labelCount > 0) return labelCount;
-  const id = String(task.id || "").trim();
-  const alternatives = [`test ${id}`, `soru ${id}`, `gorev ${id}`, `${id}:`].filter(Boolean);
-  return Math.max(0, ...alternatives.map((pattern) => countPattern(text, pattern)));
-}
-
-function taskLabelPatterns(task) {
-  const id = String(task.id || "").trim();
-  const label = String(task.label || "").trim();
-  return [
-    label,
-    id ? `test ${id}` : "",
-    id ? `soru ${id}` : "",
-    id ? `gorev ${id}` : "",
-    id ? `${id}:` : "",
-  ];
-}
-
 function validateFinalAnswer(answer, question, taskReport = null) {
   const finalText = finalAnswerText(answer);
   const tasks = taskReport && taskReport.applicable ? taskReport.tasks : [];
@@ -85,28 +60,16 @@ function validateFinalAnswer(answer, question, taskReport = null) {
   const leak = questionLeakEvidence(question, finalText, tasks);
   if (leak) errors.push(`Question text leaked into Final Answer: ${leak}`);
 
-  const taskCounts = [];
-  if (tasks.length) {
-    for (const task of tasks) {
-      const count = countTaskAnswerOccurrences(finalText, task);
-      taskCounts.push({ task, count });
-      if (count !== 1) errors.push(`${task.label} must appear exactly once in Final Answer; found ${count}.`);
-    }
-  }
-
   return {
     ok: errors.length === 0,
     finalText,
     errors,
-    taskCounts,
+    taskCounts: [],
     confidence: errors.length ? 0 : 100,
   };
 }
 
 function buildFinalAnswerRepairMessages(question, answer, taskReport, validation) {
-  const taskLines = taskReport && taskReport.applicable
-    ? taskReport.tasks.map((task) => `- ${task.label}: answer with exactly one concise result`).join("\n")
-    : "- Provide exactly one concise final result.";
   return [
     {
       role: "system",
@@ -115,8 +78,8 @@ function buildFinalAnswerRepairMessages(question, answer, taskReport, validation
         "Rewrite ONLY the final answer section.",
         "Hard rules:",
         "1. Question text may never appear inside Final Answer.",
-        "2. Every detected task must produce exactly one verified answer.",
-        "Do not repeat problem statements. Do not include question wording. Use concise result labels.",
+        "2. Final Answer contains completed answer results only.",
+        "Do not repeat problem statements. Do not include question wording. Task labels are optional, not required.",
         "Return a complete corrected response ending with Final Answer.",
       ].join("\n"),
     },
@@ -124,7 +87,6 @@ function buildFinalAnswerRepairMessages(question, answer, taskReport, validation
       role: "user",
       content: [
         `Detected final answer errors:\n${(validation.errors || []).join("\n")}`,
-        `Required final answer shape:\n${taskLines}`,
         `Original question:\n${question}`,
         `Previous answer:\n${answer}`,
       ].join("\n\n"),
@@ -137,6 +99,5 @@ module.exports = {
   validateFinalAnswer,
   buildFinalAnswerRepairMessages,
   questionLeakEvidence,
-  countTaskAnswerOccurrences,
   trFold,
 };

@@ -7,6 +7,7 @@ const rpre = require("../../agent/rpre");
 const ebse = require("../../agent/ebse");
 const hril = require("../../agent/hril");
 const ree = require("../../agent/ree");
+const sacv = require("../../agent/sacv");
 const finalAnswerSanitizer = require("../../agent/final-answer-sanitizer");
 const { repairBenchmarkAnswer } = require("../../agent/benchmark-reasoner");
 const { enforceConclusion, verifyAnswer } = require("../../agent/reasoning-guard");
@@ -130,11 +131,11 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
   });
 
   if (context.taskReport && context.taskReport.applicable) {
-    await runStage(context, "tde:coverage", async () => {
-      let coverage = tde.validateTaskCoverage(finalText, context.taskReport);
+    await runStage(context, "sacv:semantic-completeness", async () => {
+      let coverage = sacv.validateSemanticCompleteness(finalText, context.taskReport);
       if (!coverage.ok && typeof generate === "function") {
-        signal("tde_missing_tasks", coverage.missing.map((task) => task.label).join(", "));
-        const repaired = await generate(tde.buildCoverageRepairMessages(context.input, finalText, context.taskReport, coverage));
+        signal("sacv_incomplete_tasks", coverage.errors[0] || "semantic completeness failed");
+        const repaired = await generate(sacv.buildSemanticRepairMessages(context.input, finalText, context.taskReport, coverage));
         if (repaired && String(repaired).trim()) {
           finalText = String(repaired).trim();
           const interpreted = hril.interpret(context.input, finalText);
@@ -142,12 +143,12 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
           const explained = ree.explain(context.input, finalText);
           if (explained.answer && explained.answer.trim()) finalText = explained.answer.trim();
         }
-        coverage = tde.validateTaskCoverage(finalText, context.taskReport);
+        coverage = sacv.validateSemanticCompleteness(finalText, context.taskReport);
       }
       return {
         ok: coverage.ok,
         confidence: coverage.confidence,
-        errors: coverage.ok ? [] : [`Missing tasks: ${coverage.missing.map((task) => task.label).join(", ")}`],
+        errors: coverage.errors,
         detail: { expected: coverage.expected, completed: coverage.completed.length },
       };
     }, { blocking: true });
