@@ -307,16 +307,29 @@ function registerIpc() {
         if (clean) send({ status: "checking", message: "Ollama kurulumu: " + clean.slice(0, 90) });
       });
       hasOllama = await installer.detectOllama();
+      // Harici (GUI) kurulum hemen bitmez: kullanıcı kurulum penceresini tamamlayana kadar
+      // OTOMATİK YOKLA (poll). Böylece "tekrar bas" demek yerine kendiliğinden ilerler.
+      if (!hasOllama) {
+        send({ status: "installing", message: "Açılan Ollama kurulum penceresini tamamla — otomatik algılayacağım…" });
+        const deadline = Date.now() + 6 * 60 * 1000; // 6 dk bekle
+        let waited = 0;
+        while (!hasOllama && Date.now() < deadline) {
+          await new Promise((res) => setTimeout(res, 3000));
+          waited += 3;
+          hasOllama = await installer.detectOllama();
+          if (!hasOllama) send({ status: "installing", message: `Ollama kurulumu bekleniyor… (${waited}sn) — kurulum penceresini tamamla` });
+        }
+      }
       if (!hasOllama) {
         return {
           ok: false,
           needsManual: !!r.needsManual,
           message: r.needsManual
-            ? "Kurulum penceresini tamamlayıp 'Önerilen Modeli Kur'a tekrar bas."
+            ? "Ollama kurulumu süre içinde algılanmadı. Kurulumu tamamladıysan 'Önerilen Modeli Kur'a tekrar bas."
             : (r.message || "Ollama kurulumu doğrulanamadı. Tamamlandıysa tekrar dene."),
         };
       }
-      send({ status: "checking", message: "Ollama kuruldu ✓" });
+      send({ status: "checking", message: "Ollama kuruldu ✓ — model indiriliyor…" });
     }
 
     // 2) Model indir (önerilen ya da verilen). UI zaten "Önerilen Modeli Kur"

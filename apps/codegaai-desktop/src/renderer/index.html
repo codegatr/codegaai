@@ -668,6 +668,21 @@
       </form>
     </dialog>
 
+    <dialog class="setup-dialog" id="setup-dialog">
+      <div class="setup-head">
+        <h2 id="setup-title">Kurulum</h2>
+        <button type="button" id="setup-close" class="setup-x" disabled>×</button>
+      </div>
+      <div class="setup-steps" id="setup-steps">
+        <div class="setup-step" data-step="ollama"><span class="setup-dot"></span> Ollama (yerel motor)</div>
+        <div class="setup-step" data-step="model"><span class="setup-dot"></span> Model indirme</div>
+        <div class="setup-step" data-step="ready"><span class="setup-dot"></span> Hazır</div>
+      </div>
+      <div class="setup-bar-wrap"><div class="setup-bar" id="setup-bar"></div></div>
+      <p class="setup-status" id="setup-status">Başlatılıyor…</p>
+      <p class="setup-hint">Ollama kurulu değilse açılan kurulum penceresini tamamla; bu ekran kurulumu otomatik algılayıp modeli indirir.</p>
+    </dialog>
+
     <script src="./renderer.js"></script>
   </body>
 </html>

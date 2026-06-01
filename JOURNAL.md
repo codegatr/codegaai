@@ -4,6 +4,31 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 112 — Kurulum ilerleme ekranı + Ollama kurulumunu bekleme (1 Haz 2026, Claude)
+
+Şikayet (yeni PC): "Önerilen Modeli Kur" -> harici Ollama kurulum penceresi açılıyor ama
+uygulama ilerlemiyor; kullanıcıya süreci gösteren ekran yok.
+
+Kök neden: model:setup, harici (GUI) Ollama kurulumunu başlatıp HEMEN tekrar detectOllama
+yapıyor; kullanıcı pencereyi bitirmediği için "tamamlayıp tekrar bas" deyip pes ediyordu.
+
+Düzeltme:
+- Backend (main model:setup): kurulumu başlattıktan sonra Ollama'yı 6 dk boyunca OTOMATİK
+  YOKLA (poll, 3sn aralık), her turda model:status ile "bekleniyor… (Nsn)" gönder. Algılanınca
+  modele otomatik geç. Süre dolarsa dürüst mesaj.
+- Renderer: yeni Kurulum İlerleme ekranı (#setup-dialog): 3 adım (Ollama / Model / Hazır),
+  ilerleme çubuğu (model indirme yüzdesi; bilinmiyorsa belirsiz animasyon), canlı durum metni.
+  model:status olayları ekrana yönlendirildi. "Önerilen Modeli Kur" ve Modeller sayfası
+  "İndir" artık runModelSetup ile bu ekranı açıyor; bitince done/fail + kapat aktif.
+
+Test 55/55. Surum -> **0.73.0**.
+
+NOT: Windows'ta kurulum /SILENT exe veya winget ile; yine de kullanıcı onayı/UAC çıkabilir.
+Poll, harici kurulum bitince otomatik devam eder.
+
+---
+
+
 ## ✅ Faz 111 — RPRE: Ratio & Proportion Reasoning Engine (1 Haz 2026, Claude)
 
 Kullanıcı spec'i: oranı toplama bölme hatasını önle; önce PAY MODELİ kur.

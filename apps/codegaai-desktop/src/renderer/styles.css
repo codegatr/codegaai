@@ -1442,3 +1442,26 @@ body[data-theme="oled"] { --bg: #000; }
 .scroll-bottom-btn:hover { border-color: var(--accent); transform: translateY(-2px); }
 .scroll-bottom-btn[hidden] { display: none; }
 @media (max-width: 720px) { .scroll-bottom-btn { right: 16px; bottom: 120px; } }
+
+/* Kurulum ilerleme ekranı */
+.setup-dialog { width: min(520px, 92vw); border: 1px solid var(--line); border-radius: 16px; background: #111317; color: var(--text); padding: 22px; }
+.setup-dialog::backdrop { background: rgba(0,0,0,0.6); }
+.setup-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.setup-head h2 { margin: 0; font-size: 18px; }
+.setup-x { background: transparent; border: 0; color: var(--muted); font-size: 22px; cursor: pointer; line-height: 1; }
+.setup-x:not([disabled]):hover { color: var(--text); }
+.setup-x[disabled] { opacity: 0.4; cursor: default; }
+.setup-steps { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.setup-step { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13.5px; }
+.setup-dot { width: 10px; height: 10px; border-radius: 999px; background: #3a3d44; flex: none; }
+.setup-step.active { color: var(--text); }
+.setup-step.active .setup-dot { background: var(--accent); box-shadow: 0 0 0 4px rgba(245,180,60,0.18); }
+.setup-step.done { color: var(--text); }
+.setup-step.done .setup-dot { background: #2ecc71; }
+.setup-step.failed .setup-dot { background: #ef4444; }
+.setup-bar-wrap { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.setup-bar { height: 100%; width: 0%; background: var(--accent); border-radius: inherit; transition: width 0.25s; }
+.setup-bar.indeterminate { width: 35%; animation: setupIndet 1.2s infinite ease-in-out; }
+@keyframes setupIndet { 0%{margin-left:-35%} 100%{margin-left:100%} }
+.setup-status { margin: 12px 0 4px; font-size: 13.5px; color: var(--text); }
+.setup-hint { margin: 0; font-size: 12px; color: var(--muted); }

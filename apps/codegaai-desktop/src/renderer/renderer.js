@@ -24,6 +24,11 @@ const els = {
   brainInput: document.getElementById("brain-input"),
   historySearch: document.getElementById("history-search"),
   modelPill: document.getElementById("model-pill"),
+  setupDialog: document.getElementById("setup-dialog"),
+  setupTitle: document.getElementById("setup-title"),
+  setupClose: document.getElementById("setup-close"),
+  setupBar: document.getElementById("setup-bar"),
+  setupStatus: document.getElementById("setup-status"),
   settings: document.getElementById("settings-dialog"),
   settingsButton: document.getElementById("settings-button"),
   prepareModel: document.getElementById("prepare-model"),
@@ -1302,9 +1307,8 @@ async function refreshModelsPage() {
         const dl = document.createElement("button");
         dl.type = "button"; dl.textContent = "İndir";
         dl.addEventListener("click", async () => {
-          dl.disabled = true; setTransientStatus(`${o.id} indiriliyor…`);
-          try { const st = await window.codega.setupModel({ modelId: o.id }); setTransientStatus(st && st.ok === false ? (st.message||"İndirilemedi") : `${o.label||o.id} hazır.`); refreshModelsPage(); }
-          catch (e) { setTransientStatus("Hata: " + (e.message||e)); }
+          dl.disabled = true;
+          try { await runModelSetup(o.id, o.label || o.id); }
           finally { dl.disabled = false; }
         });
         row.appendChild(dl);
@@ -1533,20 +1537,8 @@ els.settingsButton.addEventListener("click", async () => {
       btn.hidden = false;
       btn.onclick = async () => {
         btn.disabled = true;
-        setTransientStatus("Sistem algılanıyor, kurulum hazırlanıyor…");
-        try {
-          const status = await window.codega.setupModel({ modelId: sys.recommended.id });
-          if (status && status.ok === false) {
-            setTransientStatus(status.message || "Kurulum tamamlanmadı.");
-          } else {
-            setTransientStatus(`${sys.recommended.label} hazır.`);
-            if (typeof refreshModels === "function") refreshModels();
-          }
-        } catch (e) {
-          setTransientStatus("Kurulum hatası: " + (e.message || e));
-        } finally {
-          btn.disabled = false;
-        }
+        try { await runModelSetup(sys.recommended.id, sys.recommended.label); }
+        finally { btn.disabled = false; }
       };
     }
   }).catch(() => {});
@@ -2350,8 +2342,70 @@ els.updateNow.addEventListener("click", async () => {
   }
 });
 
+let setupActive = false;
+function _setStep(name, state) {
+  const el = document.querySelector(`#setup-steps .setup-step[data-step="${name}"]`);
+  if (el) el.className = "setup-step" + (state ? " " + state : "");
+}
+function openSetupProgress(title) {
+  if (!els.setupDialog) return;
+  setupActive = true;
+  if (els.setupTitle) els.setupTitle.textContent = title || "Kurulum";
+  if (els.setupStatus) els.setupStatus.textContent = "Başlatılıyor…";
+  if (els.setupBar) { els.setupBar.style.width = "0%"; els.setupBar.classList.add("indeterminate"); }
+  _setStep("ollama", "active"); _setStep("model", ""); _setStep("ready", "");
+  if (els.setupClose) els.setupClose.disabled = true;
+  if (!els.setupDialog.open) els.setupDialog.showModal();
+}
+function updateSetupFromStatus(status) {
+  if (!setupActive || !status) return;
+  const msg = String(status.message || status.raw || "").trim();
+  if (els.setupStatus && msg) els.setupStatus.textContent = msg;
+  const pct = (typeof status.percent === "number") ? status.percent : null;
+  const isModelPhase = pct != null || status.downloadedBytes != null || /model|indir/i.test(msg);
+  const ollamaDone = /kuruldu|hazır|✓/i.test(msg) || isModelPhase;
+  if (ollamaDone) _setStep("ollama", "done");
+  if (isModelPhase) {
+    _setStep("model", "active");
+    if (els.setupBar) {
+      if (pct != null) { els.setupBar.classList.remove("indeterminate"); els.setupBar.style.width = Math.round(pct) + "%"; }
+      else els.setupBar.classList.add("indeterminate");
+    }
+  }
+}
+function finishSetup(ok, message) {
+  if (!els.setupDialog) return;
+  if (els.setupStatus && message) els.setupStatus.textContent = message;
+  if (ok) {
+    _setStep("ollama", "done"); _setStep("model", "done"); _setStep("ready", "done");
+    if (els.setupBar) { els.setupBar.classList.remove("indeterminate"); els.setupBar.style.width = "100%"; }
+  } else {
+    const active = document.querySelector("#setup-steps .setup-step.active");
+    if (active) active.classList.add("failed");
+  }
+  if (els.setupClose) els.setupClose.disabled = false;
+  setupActive = false;
+}
+async function runModelSetup(modelId, label) {
+  openSetupProgress(label ? `Kurulum: ${label}` : "Önerilen Modeli Kur");
+  try {
+    const status = await window.codega.setupModel({ modelId });
+    if (status && status.ok === false) {
+      finishSetup(false, status.message || "Kurulum tamamlanmadı.");
+    } else {
+      finishSetup(true, `${label || "Model"} hazır ✓`);
+      if (typeof refreshModels === "function") refreshModels();
+      if (typeof refreshModelsPage === "function") refreshModelsPage();
+    }
+  } catch (e) {
+    finishSetup(false, "Kurulum hatası: " + (e.message || e));
+  }
+}
+if (els.setupClose) els.setupClose.addEventListener("click", () => { if (els.setupDialog && els.setupDialog.open) els.setupDialog.close(); });
+
 window.codega.onModelStatus((status) => {
   scheduleModelStatus(status);
+  updateSetupFromStatus(status);
 });
 window.codega.onUpdateStatus((payload) => {
   const state = payload?.state || "unknown";
