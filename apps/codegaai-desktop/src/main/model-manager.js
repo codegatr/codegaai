@@ -972,7 +972,12 @@ class ModelManager {
 
     // Öz değerlendirme (opt-in): cevabı denetle, gerekiyorsa düzelt
     let finalText = text;
-    if (settings.selfReflection && !inputNeedsCognitivePipeline && agent.stoppedReason !== "smalltalk") {
+    // multi_task: etiketli görev birleştirmesi (Görev N: cevap) korunmalı. Aşağıdaki
+    // dönüştürücü motorlar (HRIL/REE/sanitizer/kernel) "Final Answer" çıkarıp etiketleri
+    // silebiliyor ("2 | 12" gibi anonim çıktı). Bu modda onları atlar, sonda geri yükleriz.
+    const isMultiTask = agent.stoppedReason === "multi_task";
+    const multiTaskAssembled = isMultiTask ? agent.content : "";
+    if (settings.selfReflection && !inputNeedsCognitivePipeline && agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         const r = await reflect(input, text, (msgs) => this.generate(selectedModel, msgs));
         if (r.answer && r.answer.trim()) finalText = r.answer.trim();
@@ -1059,7 +1064,7 @@ class ModelManager {
       }
     }
 
-    if (agent.stoppedReason !== "smalltalk") {
+    if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         const repaired = repairBenchmarkAnswer(input, finalText);
         if (repaired.repaired && repaired.answer && repaired.answer.trim()) finalText = repaired.answer.trim();
@@ -1070,7 +1075,7 @@ class ModelManager {
 
     // HRIL (Human Reasoning & Interpretation Layer): matematiksel olarak doğru sonucu
     // insanın hemen anlayacağı karşılığa çevirir (örn. 7/15 -> %46,67; 0.5 saat -> 30 dk).
-    if (agent.stoppedReason !== "smalltalk") {
+    if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         const interpreted = hril.interpret(input, finalText);
         if (interpreted.answer && interpreted.answer.trim()) finalText = interpreted.answer.trim();
@@ -1081,7 +1086,7 @@ class ModelManager {
 
     // REE (Reasoning -> Explanation Engine): doğrulanmış/yorumlanmış sonucu kısa,
     // anlaşılır açıklama yapısına çevirir; sonucu değiştirmez.
-    if (agent.stoppedReason !== "smalltalk") {
+    if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         const explained = ree.explain(input, finalText);
         if (explained.answer && explained.answer.trim()) finalText = explained.answer.trim();
@@ -1121,7 +1126,7 @@ class ModelManager {
     // Final Answer hard gate:
     // 1) soru metni Final Answer içine giremez
     // 2) her tespit edilen görev Final Answer içinde tam bir kez cevaplanmalı
-    if (agent.stoppedReason !== "smalltalk") {
+    if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         let finalCheck = finalAnswerSanitizer.validateFinalAnswer(finalText, input, taskDecomposition);
         if (!finalCheck.ok) {
@@ -1158,7 +1163,7 @@ class ModelManager {
     // Cognitive Kernel final authority: every non-smalltalk answer exits through the
     // same staged orchestration pipeline. If a blocking gate still fails after repair,
     // the unsafe draft is not delivered to the user.
-    if (agent.stoppedReason !== "smalltalk") {
+    if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         const post = await cognitiveKernel.runPostValidation(cognitiveContextState, finalText, {
           stoppedReason: agent.stoppedReason,
@@ -1179,6 +1184,12 @@ class ModelManager {
       } catch (_e) {
         // Kernel failures must not crash the app; previous deterministic gates have already run.
       }
+    }
+
+    // multi_task güvencesi: herhangi bir geç aşama etiketleri sildiyse, görev→cevap
+    // eşlemeli birleştirmeyi geri yükle (asla anonim "değer | değer" gönderme).
+    if (isMultiTask && multiTaskAssembled && multiTaskAssembled.trim()) {
+      finalText = multiTaskAssembled.trim();
     }
 
     this.history.push({ role: "user", content: input });

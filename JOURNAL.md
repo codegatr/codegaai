@@ -4,6 +4,28 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 114 — Çok-görev: görev→cevap eşlemesini koru (etiket kaybı) (1 Haz 2026, Claude)
+
+Hata raporu: görevler doğru çözülüyor ama birleştirmede etiket kayboluyor; çıktı "2 | 12"
+(anonim + sırasız) — beklenen "Görev 1: 12 … Görev 2: 2".
+
+Kök neden: multi_task dalım etiketli birleştiriyor (Faz 113), AMA finalText sonrası çalışan
+dönüştürücüler (HRIL/REE/repairBenchmark/final-answer-sanitizer/cognitive-kernel
+runPostValidation) "Final Answer" çıkarıp etiketleri silip değer-birleştirme üretiyor.
+
+Düzeltme:
+- isMultiTask + multiTaskAssembled (agent.content) yakalanır.
+- 6 dönüştürücü blok multi_task'ta ATLANIR (selfReflection, repairBenchmark, hril, ree,
+  final-answer-sanitizer, cognitive-kernel post-validation). (RPRE/EBSE/MLVC zaten Faz 113'te
+  atlanıyordu.)
+- GÜVENCE: geçmişe yazmadan/​döndürmeden hemen önce, etiketli görev→cevap birleştirmesi geri
+  yüklenir. Asla anonim "değer | değer" göndermez; mapping korunur.
+
+Test 56/56 + reasoning-guard. Surum -> **0.83.0**.
+
+---
+
+
 ## ✅ Faz 113 — Çok-görev hatası: her görevi ayrı çöz + tüm task_results'tan birleştir (1 Haz 2026, Claude)
 
 CODEX 0.73->0.81: TDE (görev ayrıştırma), RAE (yanıt birleştirme), cognitive-kernel, SACV vb.
