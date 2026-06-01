@@ -11,6 +11,7 @@
 const factLock = require("./fact-lock");
 const finalAnswerSanitizer = require("./final-answer-sanitizer");
 const mlvc = require("./mlvc");
+const tcnis = require("./tcnis");
 
 const SSV_THRESHOLD = 95;
 
@@ -95,6 +96,8 @@ function validateSupremeSanity(question, answer, taskReport = null, opts = {}) {
 
   errors.push(...validateProbabilityTrace(question, current, deterministic));
   errors.push(...validateTaskSanity(question, current, taskReport));
+  const completion = tcnis.validateTCNIS(question, current);
+  errors.push(...completion.errors.map((error) => `SSV TCNIS failed: ${error}`));
 
   const secondFinalCheck = finalAnswerSanitizer.validateFinalAnswer(current, question, taskReport);
   if (secondFinalCheck.cleanedAnswer) {
@@ -120,6 +123,8 @@ function validateSupremeSanity(question, answer, taskReport = null, opts = {}) {
       reasoning: uniqueErrors.some((error) => /deterministic|probability/i.test(error)) ? 0 : 100,
       verification: uniqueErrors.some((error) => /check failed/i.test(error)) ? 0 : 100,
       consistency: uniqueErrors.some((error) => /Final Answer|task/i.test(error)) ? 0 : 100,
+      completion: uniqueErrors.some((error) => /TCNIS|completion|requested output/i.test(error)) ? 0 : 100,
+      numericIntegrity: uniqueErrors.some((error) => /numeric integrity/i.test(error)) ? 0 : 100,
       commonSense: uniqueErrors.length ? confidence : 100,
     },
   };

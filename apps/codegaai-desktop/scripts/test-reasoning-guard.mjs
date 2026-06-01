@@ -35,6 +35,8 @@ const sacvMod = await import(pathToFileURL(path.join(mainDir, "agent", "sacv.js"
 const sacv = sacvMod.default || sacvMod;
 const ssvMod = await import(pathToFileURL(path.join(mainDir, "agent", "ssv.js")).href);
 const ssv = ssvMod.default || ssvMod;
+const tcnisMod = await import(pathToFileURL(path.join(mainDir, "agent", "tcnis.js")).href);
+const tcnis = tcnisMod.default || tcnisMod;
 const cognitiveKernelMod = await import(pathToFileURL(path.join(mainDir, "cognitive", "kernel", "cognitive-kernel.js")).href);
 const cognitiveKernel = cognitiveKernelMod.default || cognitiveKernelMod;
 
@@ -618,6 +620,26 @@ const ssvPhantom = ssv.validateSupremeSanity(
 );
 assert.equal(ssvPhantom.ok, true, "SSV cleans phantom task sections before release");
 assert.doesNotMatch(ssvPhantom.answer, /Soru 1|Soru 2|Lütfen/, "SSV removes invented task labels and placeholders");
+
+const tcnisCorruption = tcnis.validateTCNIS(
+  "Başlangıç bütçesi 90,000 TL. %10 indirim sonrası kaç TL olur?",
+  "İşlem: 000 x 0.90 = 0 TL\n\nFinal Answer: 0 TL"
+);
+assert.equal(tcnisCorruption.ok, false, "TCNIS rejects corrupted numeric values such as 90,000 -> 000");
+assert.match(tcnisCorruption.errors.join(" "), /numeric integrity/, "TCNIS reports numeric integrity failure");
+
+const tcnisIntermediate = tcnis.validateTCNIS(
+  "Baba 98, oğul 14 yaşında. Kaç yıl sonra baba oğlunun 4 katı olur?",
+  "Baba = 98, Oğul = 14.\n\nFinal Answer: Baba 98, oğul 14 yaşındadır."
+);
+assert.equal(tcnisIntermediate.ok, false, "TCNIS rejects stopping at intermediate ages when years-later is requested");
+assert.match(tcnisIntermediate.errors.join(" "), /years-later/, "TCNIS reports missing years-later result");
+
+const ssvIncompleteYears = ssv.validateSupremeSanity(
+  "Baba 98, oğul 14 yaşında. Kaç yıl sonra baba oğlunun 4 katı olur?",
+  "Baba = 98, Oğul = 14.\n\nFinal Answer: Baba 98, oğul 14 yaşındadır."
+);
+assert.equal(ssvIncompleteYears.ok, false, "SSV blocks answers that TCNIS marks incomplete");
 
 const kernelContext = cognitiveKernel.createContext(`## Test 1
 3x + 12 = 57 ise x kactir?
