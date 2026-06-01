@@ -909,4 +909,26 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Zorunlu araştırma: niyet tespiti + sorgu çıkarımı");
 }
 
+
+// RPRE: oran -> pay modeli (toplamı doğrudan orana bölme hatasını yakalar)
+{
+  const rMod = await import(path.join(mainDir, "agent", "rpre.js"));
+  const RP = rMod.default || rMod;
+  // katı + toplam (84, 6x): yanlış 84/6=14 reddedilir -> 12 & 72
+  const ex1 = "Baba ile oglunun yaslari toplami 84. Baba oglunun 6 kati.";
+  assert.strictEqual(RP.verify(ex1, "Ogul 14, baba 70").status, "REJECTED", "84/6 hatasi reddedilir");
+  assert.ok(RP.verify(ex1, "Ogul 14, baba 70").correctedAnswer.includes("72"), "dogru 72 yeniden cozulur");
+  assert.strictEqual(RP.verify(ex1, "Ogul 12, baba 72").status, "APPROVED", "dogru cozum onaylanir");
+  // iki-nokta oran 3:2 toplam 100 -> 60,40
+  const ex2 = "A:B = 3:2 oraninda, toplam 100 paylastiriliyor.";
+  assert.strictEqual(RP.verify(ex2, "A=33, B=67").status, "REJECTED", "100/3 hatasi reddedilir");
+  assert.ok(RP.verify(ex2, "A=33").correctedAnswer.includes("60"), "dogru 60 yeniden cozulur");
+  assert.strictEqual(RP.verify(ex2, "A=60, B=40").status, "APPROVED", "dogru oran onaylanir");
+  // coklu oran 4:7:9 toplam 200 -> 40,70,90
+  assert.deepStrictEqual(RP.buildPartsModel([4, 7, 9], 200).values, [40, 70, 90], "4:7:9/200 = 40,70,90");
+  // saat 3:2 yanlis tetiklenmesin
+  assert.strictEqual(RP.isApplicable("Toplanti saat 3:2 degil 15:30da"), false, "saat oran sanilmaz");
+  ok("RPRE: oran->pay modeli; dogrudan bolme hatasi yakalanir ve yeniden cozulur");
+}
+
 console.log(`\n${passed} test geçti ✅`);

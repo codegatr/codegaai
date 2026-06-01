@@ -35,6 +35,7 @@ const {
 } = require("./agent/reasoning-guard");
 const { shouldRunMLVC, solveDeterministic: solveDeterministicMathLogic, verifyMathLogic } = require("./agent/mlvc");
 const ebse = require("./agent/ebse");
+const rpre = require("./agent/rpre");
 const { repairBenchmarkAnswer, solveKnownReasoningBenchmarks } = require("./agent/benchmark-reasoner");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
@@ -935,6 +936,19 @@ class ModelManager {
       } catch (_e) {
         // adversarial/self-critic hatasi cevabi bozmasin
       }
+    }
+
+    // RPRE (Ratio & Proportion Reasoning Engine): DETERMİNİSTİK pay modeli — EBSE'den ÖNCE.
+    // Oran/orantı/"katı" sorularında toplamı doğrudan orana bölme hatasını yakalar; yanlışsa
+    // pay modeliyle yeniden çözer. Model çağrısı YOK.
+    if (agent.stoppedReason !== "smalltalk") {
+      try {
+        const rp = rpre.verify(input, finalText);
+        if (rp.applicable && rp.status === "REJECTED" && rp.correctedAnswer) {
+          finalText = rp.correctedAnswer;
+          try { improveDrafts.recordSignal({ kind: "rpre_reject", subject: (rp.checks.find((c) => !c.ok) || {}).name || "ratio_parts" }); } catch (_e) {}
+        }
+      } catch (_e) { /* RPRE hatası cevabı bozmasın */ }
     }
 
     // EBSE (Equation Back-Substitution Engine): DETERMİNİSTİK geri-yerine-koyma.

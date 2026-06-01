@@ -4,6 +4,29 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 111 — RPRE: Ratio & Proportion Reasoning Engine (1 Haz 2026, Claude)
+
+Kullanıcı spec'i: oranı toplama bölme hatasını önle; önce PAY MODELİ kur.
+Reasoning -> Self Critic -> [RPRE] -> EBSE -> MLVC -> AVE -> MCE (RPRE, EBSE'den ÖNCE).
+
+Yine DETERMİNİSTİK (model çağrısı YOK -> hızlı, donmaz, her zaman açık).
+
+rpre.js:
+- detectColonRatio: "a:b[:c...]" + toplam (saat HH:MM yanlış tetiklenmez).
+- detectMultiple: "k katı" + toplam (büyük=k pay, küçük=1 pay).
+- buildPartsModel: toplam pay -> birim -> değerler. TEMEL KURAL: toplamı doğrudan orana
+  BÖLME; paya çevir. (84,6x -> 7 pay -> 84/7=12 -> 12 & 72; 3:2/100 -> 5 pay -> 60,40;
+  4:7:9/200 -> 40,70,90.)
+- verify: pay toplamı=toplam + oran korunuyor + cevap uyuyor mu; "toplam/oran" doğrudan
+  bölme hatasını ayrıca işaretler. Yanlışsa pay modeliyle yeniden çözer (correctedAnswer).
+- model-manager: EBSE'den ÖNCE; REJECTED ise finalText düzeltilir. EBSE sonra geri-yerine-
+  koyma ile doğrular (katı vakasında RPRE düzeltir, EBSE onaylar — çakışma yok).
+
+Test 55/55 + reasoning-guard. Surum -> **0.72.0**.
+
+---
+
+
 ## ✅ Faz 110 — Zorunlu internet araştırması (model "sen Google'a bak" demesin) (1 Haz 2026, Claude)
 
 Şikayet (ekran görüntüsü): "internetten araştır o zaman" denince ajan gerçek arama yapmayıp
