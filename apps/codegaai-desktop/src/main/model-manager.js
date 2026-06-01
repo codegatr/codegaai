@@ -14,6 +14,7 @@ const {
 const { ollamaChat, ollamaChatStream, ollamaReachable, ollamaListModels } = require("./agent/ollama-client");
 const { openaiChat, openaiChatStream } = require("./agent/openai-client");
 const { runReact } = require("./agent/agent-loop");
+const { TOOLS: AGENT_TOOLS } = require("./agent/tools");
 const { buildSystemPrompt } = require("./agent/system-prompt");
 const { getSettings } = require("./agent/settings-store");
 const { recall, remember, extractDurableFacts } = require("./agent/memory");
@@ -226,6 +227,42 @@ function hasModel(listOutput, model) {
     .toLowerCase()
     .split(/\r?\n/)
     .some((line) => line.split(/\s+/)[0] === wanted);
+}
+
+function _foldTr(text) {
+  return String(text || "").toLowerCase()
+    .replace(/ı/g, "i").replace(/ş/g, "s").replace(/ğ/g, "g")
+    .replace(/ü/g, "u").replace(/ö/g, "o").replace(/ç/g, "c");
+}
+
+/** Açık internet/araştırma niyeti mi? (zayıf yerel model aracı tetikleyemiyor; biz zorlarız) */
+function wantsWebResearch(input) {
+  const q = _foldTr(input);
+  if (/(internet|web|google|cevrimici|online|net)\S*\s*(ten|te|de|da|den|dan)?\s*(arastir|aratip|arat|ara|bak|tara|incele)/.test(q)) return true;
+  if (/(guncel|son dakika|haber|piyasa|kur|fiyat|bugun)\S*.*(arastir|ara\b|bul\b|bak\b)/.test(q)) return true;
+  // kısa ve emir kipi "araştır/araştırıp özetle"
+  if (/\barastir/.test(q) && q.split(/\s+/).length <= 9) return true;
+  return false;
+}
+
+/** Araştırma sorgusunu çıkar: komut sözcüklerini at; yetersizse geçmişten konuyu ekle. */
+function extractResearchQuery(input, history = []) {
+  let q = String(input || "")
+    .replace(/internetten|internette|internet|web'?[dt]e|web|google'?[dy]?[ae]?|google|cevrimici|online/gi, " ")
+    .replace(/arastirip|arastir(ip|in|sana)?|aratip|aratarak|arat|incele(yip)?|tara(yip)?|bak(ip)?\b/gi, " ")
+    .replace(/\bara\b|\bbul\b|\bver\b|o zaman|bana|bize|lutfen|ozet(le|ini|le bana)?|sonra/gi, " ")
+    .replace(/[?!.]/g, " ")
+    .replace(/\s+/g, " ").trim();
+  const meaningful = q.split(/\s+/).filter((w) => w.length > 1);
+  if (meaningful.length >= 3) return q;
+  // yetersiz konu: en son anlamlı kullanıcı mesajını ekle (bağlam)
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i] && history[i].role === "user") {
+      const h = String(history[i].content || "").replace(/\s+/g, " ").trim();
+      if (h && h.length > 4) return (q ? q + " " : "") + h.slice(0, 140);
+    }
+  }
+  return q || String(input || "").slice(0, 140);
 }
 
 function detectTask(input) {
@@ -729,7 +766,44 @@ class ModelManager {
 
     let agent;
     try {
-      if (isSmallTalk(input)) {
+      if (!cloudMode && wantsWebResearch(input)) {
+        // ZORUNLU ARAŞTIRMA: zayıf yerel model aracı tetikleyemiyor → biz çalıştırırız.
+        // Kullanıcıya "sen Google'a bak" DEMEK yerine gerçekten arar ve özetleriz.
+        const query = extractResearchQuery(input, this.history);
+        if (onToken) onToken(`🔎 İnternette araştırıyorum: "${query}"…\n\n`);
+        let research = "";
+        try {
+          research = await AGENT_TOOLS.research.fn(query, 3);
+        } catch (e) {
+          research = `⚠️ ${e && (e.message || e)}`;
+        }
+        if (/^⚠️|kaynak bulunamadı/i.test(research)) {
+          agent = {
+            content:
+              `İnternet araması yapamadım ya da kaynak bulunamadı (internet bağlantısı veya erişim engeli olabilir). ` +
+              `Aradığım konu: "${query}". Ollama/ağ erişimini kontrol edip tekrar deneyebilirsin.`,
+            iterations: 0, stoppedReason: "research_failed", toolCalls: [{ name: "research", result: research }],
+          };
+        } else {
+          const sumMsgs = [
+            {
+              role: "system",
+              content:
+                "Aşağıda internetten TOPLADIĞIN web kaynakları var. Bunları KENDİ SÖZCÜKLERİNLE, Türkçe, " +
+                "derli toplu özetle. Kullanıcıya 'sen ara/Google'a bak' ASLA deme — araştırmayı SEN yaptın. " +
+                "Önemli noktaları maddele, varsa çelişkileri belirt ve sonunda kaynak linklerini listele. " +
+                "Kaynaklarda yoksa uydurma; bilmiyorsan söyle.",
+            },
+            { role: "user", content: research },
+          ];
+          const summary = await this.generate(selectedModel, sumMsgs, attemptModels, onToken);
+          agent = {
+            content: String(summary || "").trim() || research,
+            iterations: 1, stoppedReason: "final_answer",
+            toolCalls: [{ name: "research", result: research }],
+          };
+        }
+      } else if (isSmallTalk(input)) {
         // Basit selam/sohbet: araçsız, kısa, doğrudan cevap (ajan saçmalamasın)
         const sttMsgs = [
           { role: "system", content: smallTalkPrompt(settings.humanTone) },
@@ -1041,6 +1115,8 @@ module.exports = {
   READY_STATES,
   instantAnswer,
   detectTask,
+  wantsWebResearch,
+  extractResearchQuery,
   candidateModelsForTask,
   chooseModelForTask,
   TASK_MODELS,

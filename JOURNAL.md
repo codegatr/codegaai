@@ -4,6 +4,31 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 110 — Zorunlu internet araştırması (model "sen Google'a bak" demesin) (1 Haz 2026, Claude)
+
+Şikayet (ekran görüntüsü): "internetten araştır o zaman" denince ajan gerçek arama yapmayıp
+"Google/Bing açın, sorunuzu aratın, kaynakları inceleyin" diye KULLANICIYA ödev veriyor.
+Kök neden: web_search/research araçları VAR ama zayıf yerel 3B model araç-çağrı sözdizimini
+güvenilir üretemiyor → araç hiç tetiklenmiyor.
+
+Çözüm (deterministik intent → zorunlu araç):
+- model-manager: wantsWebResearch(input) açık internet/araştırma niyetini yakalar
+  ("internetten/web'de/google'da ara/araştır", "güncel ... bul", kısa emir "araştır").
+- extractResearchQuery(input, history): komut sözcüklerini atar; konu yetersizse son
+  kullanıcı mesajıyla zenginleştirir.
+- Zorunlu dal (smalltalk'tan önce): AGENT_TOOLS.research.fn(query) GERÇEKTEN çalışır
+  (DuckDuckGo + sayfa okuma; ağ testinde Worldometer vb. döndü). Sonra modele yalnız
+  "kaynakları KENDİ sözcüklerinle özetle, 'sen ara' DEME, linkleri ver" sistem promptuyla
+  özetletilir; akışla yazılır. İlk anda "🔎 İnternette araştırıyorum: ..." ilerleme notu
+  (donma hissini de keser). Ağ/kaynak yoksa dürüstçe söyler (uydurmaz).
+
+Test 54/54 + reasoning-guard. Surum -> **0.71.0**.
+
+NOT: araç DuckDuckGo html uç1; kullanıcı tarafında ağ/Cloudflare erişimi gerekir.
+
+---
+
+
 ## ✅ Faz 109 — EBSE: Equation Back-Substitution Engine (1 Haz 2026, Claude)
 
 Kullanıcı spec'i: türetilen değerleri orijinal denklemlere geri koyup doğrulayan motor.

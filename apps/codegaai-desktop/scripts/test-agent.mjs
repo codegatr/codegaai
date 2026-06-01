@@ -893,4 +893,20 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("EBSE: geri-yerine-koyma yanlis cebir/yuzde reddeder ve dogruyu yeniden hesaplar");
 }
 
+
+// Zorunlu internet araştırması: niyet tespiti + sorgu çıkarımı (model "sen Google\'a bak" dememeli)
+{
+  const mm = await import(path.join(mainDir, "model-manager.js"));
+  const M = mm.default || mm;
+  assert.strictEqual(M.wantsWebResearch("İnternetten araştır o zaman, olası soruları bul."), true, "internetten arastir -> niyet var");
+  assert.strictEqual(M.wantsWebResearch("güncel dolar kurunu bul"), true, "guncel ... bul -> niyet var");
+  assert.strictEqual(M.wantsWebResearch("merhaba nasılsın"), false, "selam -> niyet yok");
+  assert.strictEqual(M.wantsWebResearch("bu kodu açıkla"), false, "kod -> web niyeti yok");
+  // Yetersiz konu geçmişten zenginleşir
+  const hist = [{ role: "user", content: "Bana üç adet mantık testi sorusu üret" }, { role: "assistant", content: "..." }];
+  const q = M.extractResearchQuery("İnternetten araştır o zaman, olası soruları bul.", hist);
+  assert.ok(/sorul|mantik|test/i.test(q), "vague konu geçmişle zenginleşir: " + q);
+  ok("Zorunlu araştırma: niyet tespiti + sorgu çıkarımı");
+}
+
 console.log(`\n${passed} test geçti ✅`);
