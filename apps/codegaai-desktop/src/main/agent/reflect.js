@@ -18,13 +18,14 @@ function tlow(s) {
 }
 
 const OK_PATTERN = /^\s*(ok|tamam|doğru|aynen|sorun\s*yok)\b/;
+const CONTROL_ONLY_PATTERN = /^\s*(sadece\s+)?(ok|tamam|doğru|aynen|sorun\s*yok)[.!?\s]*$/;
 const REPORT_LINE = /^\s*(uydu|eksiklik|sorun|durum|değerlendirme|verdict|revised|none\s*detected)\s*[:\-]/;
 const LEAK_MARKERS = /(düzeltilmi[şs]\s*cevap|uydu\s*[:\-]|eksiklik\s*[:\-]|sorun\s*[:\-]|durum\s*[:\-]|değerlendirme\s*[:\-]|none\s*detected|verdict|revised)/;
 const DUZ_MARKER = /d[üu]zeltilmi[şs]\s*cevap\s*[:\-]?\s*/;
 
 function looksOk(text) {
   const t = tlow(text).trim();
-  return OK_PATTERN.test(t) || t === "ok";
+  return OK_PATTERN.test(t) || CONTROL_ONLY_PATTERN.test(t);
 }
 
 function buildCritiqueMessages(question, draftAnswer) {
@@ -49,7 +50,7 @@ function sanitizeRevision(verdict, draft) {
   const orig = String(verdict || "").trim();
   if (!orig) return { revised: false, answer: draft };
   const low = tlow(orig);
-  if (OK_PATTERN.test(low) || low === "ok") return { revised: false, answer: draft };
+  if (OK_PATTERN.test(low) || CONTROL_ONLY_PATTERN.test(low)) return { revised: false, answer: draft };
 
   // "Düzeltilmiş cevap:" etiketinden sonrasını al (indeks orijinalle hizalı)
   let start = 0;

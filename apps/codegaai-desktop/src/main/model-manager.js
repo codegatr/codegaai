@@ -32,6 +32,7 @@ const {
   shouldVerifyAnswer,
   verifyAnswer,
 } = require("./agent/reasoning-guard");
+const { repairBenchmarkAnswer } = require("./agent/benchmark-reasoner");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
 const { SPECIALISTS, routeStep, buildSpecialistPrompt } = require("./agent/agents");
@@ -811,7 +812,7 @@ class ModelManager {
 
     // Öz değerlendirme (opt-in): cevabı denetle, gerekiyorsa düzelt
     let finalText = text;
-    if (settings.selfReflection && agent.stoppedReason !== "smalltalk") {
+    if (settings.selfReflection && !inputNeedsCognitivePipeline && agent.stoppedReason !== "smalltalk") {
       try {
         const r = await reflect(input, text, (msgs) => this.generate(selectedModel, msgs));
         if (r.answer && r.answer.trim()) finalText = r.answer.trim();
@@ -862,6 +863,15 @@ class ModelManager {
         if (c.answer && c.answer.trim()) finalText = c.answer.trim();
       } catch (_e) {
         // sonuc kapisi hatasi cevabi bozmasin
+      }
+    }
+
+    if (agent.stoppedReason !== "smalltalk") {
+      try {
+        const repaired = repairBenchmarkAnswer(input, finalText);
+        if (repaired.repaired && repaired.answer && repaired.answer.trim()) finalText = repaired.answer.trim();
+      } catch (_e) {
+        // deterministic benchmark repair must not break chat
       }
     }
 

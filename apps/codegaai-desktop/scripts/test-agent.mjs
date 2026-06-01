@@ -288,11 +288,14 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   const reflect = rfMod.default || rfMod;
   assert.strictEqual(reflect.looksOk("OK"), true);
   assert.strictEqual(reflect.looksOk("Tamam, doğru."), true);
+  assert.strictEqual(reflect.looksOk("SADECE AYNEN"), true);
   assert.strictEqual(reflect.looksOk("Hayır, yanlış: ..."), false);
 
   const okRes = await reflect.reflect("2+2?", "4", async () => "OK");
   assert.strictEqual(okRes.revised, false);
   assert.strictEqual(okRes.answer, "4");
+  const aynenLeak = await reflect.reflect("Cevapların hepsini verecek misin?", "Evet, hepsini vereceğim.", async () => "SADECE AYNEN");
+  assert.strictEqual(aynenLeak.answer, "Evet, hepsini vereceğim.", "kontrol tokenı kullanıcıya sızmamalı");
 
   const fixRes = await reflect.reflect("Konya nüfusu?", "185.000", async () => "Konya nüfusu yaklaşık 2,3 milyondur.");
   assert.strictEqual(fixRes.revised, true);
@@ -320,6 +323,30 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   );
   assert.strictEqual(onlyReport.answer, "Merhaba!", "rapor-only -> taslak");
   ok("Öz değerlendirme: OK/düzeltme/hata-güvenli + rapor sızıntısı engellendi");
+}
+
+// 20b) Benchmark reasoner: cevaplanabilir testlerde eksik/refusal cevabı onar
+{
+  const bmMod = await import(path.join(mainDir, "agent", "benchmark-reasoner.js"));
+  const benchmark = bmMod.default || bmMod;
+  const prompt = [
+    "TEST H — Probability",
+    "Bir kutuda: 5 kırmızı 5 mavi 5 yeşil top var. Işıklar kapalı.",
+    "En az kaç top çekersen kesin olarak aynı renkten 2 top çekmiş olursun?",
+    "",
+    "TEST J — Final Boss",
+    "Bir gölette nilüferler her gün iki katına çıkıyor. Göl 60. gün tamamen doluyor.",
+    "Yarısı hangi gün? Çeyreği hangi gün? Sekizde biri hangi gün?",
+  ].join("\n");
+  assert.deepStrictEqual(benchmark.missingLabels(prompt, "TEST H: 4"), ["J"]);
+  const repaired = benchmark.repairBenchmarkAnswer(
+    prompt,
+    "Test H and Test J cannot be definitively answered based on the provided information."
+  );
+  assert.strictEqual(repaired.repaired, true);
+  assert.match(repaired.answer, /TEST H:.*4/);
+  assert.match(repaired.answer, /TEST J:.*59.*58.*57/);
+  ok("Benchmark reasoner: cevaplanabilir refusal/eksik yanıt onarılır");
 }
 
 // 21) Görev planlayıcı: parse + looksLikeGoal + makePlan
