@@ -38,6 +38,7 @@ const ebse = require("./agent/ebse");
 const rpre = require("./agent/rpre");
 const hril = require("./agent/hril");
 const ree = require("./agent/ree");
+const tde = require("./agent/tde");
 const { repairBenchmarkAnswer, solveKnownReasoningBenchmarks } = require("./agent/benchmark-reasoner");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
@@ -596,6 +597,7 @@ class ModelManager {
     const inputNeedsConclusion = shouldEnforceConclusion(input);
     const inputNeedsMLVC = shouldRunMLVC(input);
     const deepReasoning = getSettings().deepReasoning === true; // ağır çok-turlu LLM doğrulaması (opt-in, varsayılan KAPALI)
+    const taskDecomposition = tde.decomposeTasks(input);
     const inputNeedsCognitivePipeline = deepReasoning && shouldRunCognitivePipeline(input) && !inputNeedsMLVC;
     // Akış yalnızca (opt-in) bilişsel hat çalışırken kapanır. Aksi halde cevap token token
     // akar — kullanıcı "düşünüyorum"da DONMAZ. Doğrulama/sonuç turları akışı engellemez.
@@ -758,6 +760,7 @@ class ModelManager {
           learnedContext,
         }),
       },
+      ...(taskDecomposition.applicable ? [{ role: "system", content: tde.formatTaskContext(taskDecomposition) }] : []),
       ...(cognitiveContext ? [{ role: "system", content: cognitiveContext }] : []),
       ...this.history,
       { role: "user", content: input },
@@ -1028,6 +1031,34 @@ class ModelManager {
         if (explained.answer && explained.answer.trim()) finalText = explained.answer.trim();
       } catch (_e) {
         // açıklama katmanı cevabı bozmasın
+      }
+    }
+
+    // TDE completion gate: multi-part prompts must visibly complete every detected task.
+    if (agent.stoppedReason !== "smalltalk" && taskDecomposition.applicable) {
+      try {
+        let coverage = tde.validateTaskCoverage(finalText, taskDecomposition);
+        if (!coverage.ok) {
+          try { improveDrafts.recordSignal({ kind: "tde_missing_tasks", subject: coverage.missing.map((t) => t.label).join(", ") }); } catch (_e) {}
+          const repaired = await this.generate(
+            selectedModel,
+            tde.buildCoverageRepairMessages(input, finalText, taskDecomposition, coverage),
+            attemptModels
+          );
+          if (repaired && String(repaired).trim()) {
+            finalText = String(repaired).trim();
+            const interpreted = hril.interpret(input, finalText);
+            if (interpreted.answer && interpreted.answer.trim()) finalText = interpreted.answer.trim();
+            const explained = ree.explain(input, finalText);
+            if (explained.answer && explained.answer.trim()) finalText = explained.answer.trim();
+          }
+          coverage = tde.validateTaskCoverage(finalText, taskDecomposition);
+          if (!coverage.ok) {
+            finalText = `${finalText}\n\nGörev Tamamlama Uyarısı: ${taskDecomposition.count} görevden ${coverage.completed.length} tanesi görünür biçimde tamamlandı; eksik kalanlar: ${coverage.missing.map((t) => t.label).join(", ")}.`;
+          }
+        }
+      } catch (_e) {
+        // TDE must not crash chat.
       }
     }
 

@@ -17,6 +17,8 @@ const hrilMod = await import(pathToFileURL(path.join(mainDir, "agent", "hril.js"
 const hril = hrilMod.default || hrilMod;
 const reeMod = await import(pathToFileURL(path.join(mainDir, "agent", "ree.js")).href);
 const ree = reeMod.default || reeMod;
+const tdeMod = await import(pathToFileURL(path.join(mainDir, "agent", "tde.js")).href);
+const tde = tdeMod.default || tdeMod;
 
 assert.ok(
   guard.classifyReasoningProblem("2x + 4 = 52 ise x kac?").includes("math"),
@@ -324,6 +326,19 @@ assert.equal(
   false,
   "REE skips non-reasoning smalltalk"
 );
+
+const taskReport = tde.decomposeTasks(`## Test 1 - Denklem
+3x + 12 = 57 ise x kactir?
+
+## Test 2 - Olasilik
+Bir torbada 3 kirmizi, 7 mavi top var. Geri koymadan 2 top cekiliyor. Ikisi mavi olma olasiligi?`);
+assert.equal(taskReport.applicable, true, "TDE detects numbered multi-task prompts");
+assert.equal(taskReport.count, 2, "TDE counts detected tasks");
+assert.match(tde.formatTaskContext(taskReport), /Detected Tasks: 2/, "TDE formats middleware context");
+const partialCoverage = tde.validateTaskCoverage("Test 1: x = 15", taskReport);
+assert.equal(partialCoverage.ok, false, "TDE rejects incomplete task coverage");
+assert.equal(partialCoverage.missing[0].label, "Test 2", "TDE reports the missing task");
+assert.equal(tde.validateTaskCoverage("Test 1: x = 15\nTest 2: 7/15", taskReport).ok, true, "TDE approves completed tasks");
 
 fs.rmSync(process.env.CODEGA_ERROR_MEMORY_PATH, { force: true });
 console.log("Reasoning guard tests passed");
