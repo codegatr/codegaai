@@ -7,6 +7,7 @@ const rpre = require("../../agent/rpre");
 const ebse = require("../../agent/ebse");
 const hril = require("../../agent/hril");
 const ree = require("../../agent/ree");
+const rae = require("../../agent/rae");
 const sacv = require("../../agent/sacv");
 const finalAnswerSanitizer = require("../../agent/final-answer-sanitizer");
 const { repairBenchmarkAnswer } = require("../../agent/benchmark-reasoner");
@@ -177,6 +178,14 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
       const concluded = await enforceConclusion(context.input, finalText, generate);
       if (concluded.answer && concluded.answer.trim()) finalText = concluded.answer.trim();
       return { ok: true, detail: { enforced: !!concluded.enforced } };
+    });
+  }
+
+  if (!context.blocked) {
+    await runStage(context, "rae:response-assembly", async () => {
+      const assembled = rae.assembleResponse(context.input, finalText);
+      if (assembled.answer && assembled.answer.trim()) finalText = assembled.answer.trim();
+      return { ok: true, confidence: assembled.confidence, detail: { changed: !!assembled.changed } };
     });
   }
 

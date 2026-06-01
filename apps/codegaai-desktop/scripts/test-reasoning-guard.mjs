@@ -17,6 +17,8 @@ const hrilMod = await import(pathToFileURL(path.join(mainDir, "agent", "hril.js"
 const hril = hrilMod.default || hrilMod;
 const reeMod = await import(pathToFileURL(path.join(mainDir, "agent", "ree.js")).href);
 const ree = reeMod.default || reeMod;
+const raeMod = await import(pathToFileURL(path.join(mainDir, "agent", "rae.js")).href);
+const rae = raeMod.default || raeMod;
 const tdeMod = await import(pathToFileURL(path.join(mainDir, "agent", "tde.js")).href);
 const tde = tdeMod.default || tdeMod;
 const finalMod = await import(pathToFileURL(path.join(mainDir, "agent", "final-answer-sanitizer.js")).href);
@@ -332,6 +334,41 @@ assert.equal(
   false,
   "REE skips non-reasoning smalltalk"
 );
+assert.doesNotMatch(
+  ree.explain(
+    "Bir urun 3000 TL. Once %10 indirim, sonra %20 zam, sonra %25 indirim oluyor. Final fiyat nedir? Ayrica 2 kisi kaldi ifadesi de var.",
+    "Final Answer: 2430 TL | 2"
+  ).answer,
+  /hariç kalanlar|haric kalanlar/i,
+  "REE does not inject exception-trap explanations into finance answers"
+);
+
+const assembled = rae.assembleResponse(
+  "Bir urun 3000 TL. Once %10 indirim, sonra %20 zam, sonra %25 indirim oluyor.",
+  [
+    "Anlama:",
+    "Soru fiyatın ardışık değişimlerden sonra ne olduğunu soruyor.",
+    "",
+    "İşlem:",
+    "MLVC percentage: 2430 TL. 3000 x 0.90 x 1.20 x 0.75 = 2430",
+    "",
+    "Doğrulama:",
+    "Kontrol: çarpanlar sırayla kullanıldı.",
+    "",
+    "Yorum:",
+    "Başlangıç 3000 TL, son fiyat 2430 TL. Fark 570 TL daha düşük; toplam değişim %19.",
+    "",
+    "Final Answer: 2430 TL",
+    "",
+    "İnsan Yorumu:",
+    "- Başlangıç 3000 TL, son fiyat 2430 TL. Fark 570 TL daha düşük; toplam değişim %19.",
+    "",
+    "Final Answer: 2430 TL",
+  ].join("\n")
+);
+assert.equal((assembled.answer.match(/Final Answer:/g) || []).length, 1, "RAE keeps exactly one Final Answer section");
+assert.doesNotMatch(assembled.answer, /İnsan Yorumu:/, "RAE folds duplicate human interpretation into Yorum");
+assert.doesNotMatch(assembled.answer, /MLVC percentage:/, "RAE removes raw engine labels");
 
 const taskReport = tde.decomposeTasks(`## Test 1 - Denklem
 3x + 12 = 57 ise x kactir?

@@ -156,7 +156,7 @@ function explain(question, answer) {
     "",
     `Final Answer: ${final}`,
   ];
-  if (trap) body.splice(5, 0, trap, "");
+  if (trap && (kind === "trap" || kind === "logic")) body.splice(5, 0, trap, "");
   return { changed: true, answer: body.join("\n").trim(), confidence: 100 };
 }
 
