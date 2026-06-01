@@ -19,6 +19,8 @@ const reeMod = await import(pathToFileURL(path.join(mainDir, "agent", "ree.js"))
 const ree = reeMod.default || reeMod;
 const tdeMod = await import(pathToFileURL(path.join(mainDir, "agent", "tde.js")).href);
 const tde = tdeMod.default || tdeMod;
+const finalMod = await import(pathToFileURL(path.join(mainDir, "agent", "final-answer-sanitizer.js")).href);
+const finalSanitizer = finalMod.default || finalMod;
 
 assert.ok(
   guard.classifyReasoningProblem("2x + 4 = 52 ise x kac?").includes("math"),
@@ -339,6 +341,28 @@ const partialCoverage = tde.validateTaskCoverage("Test 1: x = 15", taskReport);
 assert.equal(partialCoverage.ok, false, "TDE rejects incomplete task coverage");
 assert.equal(partialCoverage.missing[0].label, "Test 2", "TDE reports the missing task");
 assert.equal(tde.validateTaskCoverage("Test 1: x = 15\nTest 2: 7/15", taskReport).ok, true, "TDE approves completed tasks");
+
+const leakedFinal = finalSanitizer.validateFinalAnswer(
+  "Final Answer: Bir ciftcinin 50 tavugu vardi. 17'si haric hepsi oldu. Kac tavugu kaldi?",
+  "Bir ciftcinin 50 tavugu vardi. 17'si haric hepsi oldu. Kac tavugu kaldi?",
+  null
+);
+assert.equal(leakedFinal.ok, false, "Final Answer rejects leaked question text");
+assert.match(leakedFinal.errors.join(" "), /Question text leaked/, "Final Answer leak is explained");
+
+const exactFinal = finalSanitizer.validateFinalAnswer(
+  "Test 1: islem...\nTest 2: islem...\n\nFinal Answer: Test 1: x = 15 | Test 2: 7/15",
+  "same question",
+  taskReport
+);
+assert.equal(exactFinal.ok, true, "Final Answer accepts exactly one answer per detected task");
+
+const duplicateFinal = finalSanitizer.validateFinalAnswer(
+  "Final Answer: Test 1: x = 15 | Test 1: 15 | Test 2: 7/15",
+  "same question",
+  taskReport
+);
+assert.equal(duplicateFinal.ok, false, "Final Answer rejects duplicate task answers");
 
 fs.rmSync(process.env.CODEGA_ERROR_MEMORY_PATH, { force: true });
 console.log("Reasoning guard tests passed");

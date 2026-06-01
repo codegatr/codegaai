@@ -39,6 +39,7 @@ const rpre = require("./agent/rpre");
 const hril = require("./agent/hril");
 const ree = require("./agent/ree");
 const tde = require("./agent/tde");
+const finalAnswerSanitizer = require("./agent/final-answer-sanitizer");
 const { repairBenchmarkAnswer, solveKnownReasoningBenchmarks } = require("./agent/benchmark-reasoner");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
@@ -1059,6 +1060,30 @@ class ModelManager {
         }
       } catch (_e) {
         // TDE must not crash chat.
+      }
+    }
+
+    // Final Answer hard gate:
+    // 1) soru metni Final Answer içine giremez
+    // 2) her tespit edilen görev Final Answer içinde tam bir kez cevaplanmalı
+    if (agent.stoppedReason !== "smalltalk") {
+      try {
+        let finalCheck = finalAnswerSanitizer.validateFinalAnswer(finalText, input, taskDecomposition);
+        if (!finalCheck.ok) {
+          try { improveDrafts.recordSignal({ kind: "final_answer_sanitizer", subject: finalCheck.errors[0] }); } catch (_e) {}
+          const repaired = await this.generate(
+            selectedModel,
+            finalAnswerSanitizer.buildFinalAnswerRepairMessages(input, finalText, taskDecomposition, finalCheck),
+            attemptModels
+          );
+          if (repaired && String(repaired).trim()) finalText = String(repaired).trim();
+          finalCheck = finalAnswerSanitizer.validateFinalAnswer(finalText, input, taskDecomposition);
+          if (!finalCheck.ok) {
+            finalText = `${finalText}\n\nFinal Answer Kontrol Uyarısı: ${finalCheck.errors.join(" ")}`;
+          }
+        }
+      } catch (_e) {
+        // final sanitizer must not crash chat
       }
     }
 
