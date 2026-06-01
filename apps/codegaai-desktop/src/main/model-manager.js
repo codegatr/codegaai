@@ -43,12 +43,72 @@ const finalAnswerSanitizer = require("./agent/final-answer-sanitizer");
 const cognitiveKernel = require("./cognitive/kernel/cognitive-kernel");
 const factLock = require("./agent/fact-lock");
 const cvl = require("./agent/cvl");
+const ssv = require("./agent/ssv");
 const { repairBenchmarkAnswer, solveKnownReasoningBenchmarks } = require("./agent/benchmark-reasoner");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
 const { SPECIALISTS, routeStep, buildSpecialistPrompt } = require("./agent/agents");
 const improveDrafts = require("./agent/improve-drafts");
 const experts = require("./agent/experts");
+
+function taskLocalFinalAnswer(answer) {
+  const text = String(answer || "").trim();
+  const final = finalAnswerSanitizer.finalAnswerText(text);
+  if (final) return text;
+  const m = text.match(/(?:^|\n)\s*Cevap\s*:\s*([\s\S]+)$/i);
+  if (m && m[1].trim()) return `${text}\n\nFinal Answer: ${m[1].trim()}`;
+  const last = text.split(/\r?\n/).filter(Boolean).slice(-1)[0] || text;
+  return `${text}\n\nFinal Answer: ${last}`.trim();
+}
+
+async function verifyTaskLocalAnswer(task, draft, generateFn = null) {
+  let answer = taskLocalFinalAnswer(draft);
+  const apply = (candidate, source) => {
+    const checked = cvl.validateCorrection(task.body, answer, candidate, { source });
+    if (!checked.accepted) return false;
+    answer = taskLocalFinalAnswer(checked.answer);
+    return true;
+  };
+
+  const rp = rpre.verify(task.body, answer);
+  if (rp.applicable && rp.status === "REJECTED" && rp.correctedAnswer) apply(rp.correctedAnswer, "task-rpre");
+
+  const eb = ebse.verify(task.body, answer);
+  if (eb.applicable && eb.status === "REJECTED" && eb.correctedAnswer) apply(eb.correctedAnswer, "task-ebse");
+
+  const ml = await verifyMathLogic(task.body, answer, null, { passes: 1, force: shouldRunMLVC(task.body) });
+  if (ml.answer && ml.answer.trim()) apply(ml.answer.trim(), "task-mlvc");
+
+  if (typeof generateFn === "function") {
+    const av = await verifyAnswer(task.body, answer, generateFn, {
+      categories: classifyReasoningProblem(task.body),
+      passes: 1,
+    });
+    if (av.answer && av.answer.trim()) apply(av.answer.trim(), "task-ave");
+    if (av.ok === false) {
+      return {
+        ok: false,
+        answer: `Yanıt doğrulama kapısından geçmedi.\nBloke eden görev: ${task.label}.\n\nFinal Answer: Yanıt güvenli şekilde doğrulanamadı.`,
+        errors: av.errors || ["AVE failed"],
+      };
+    }
+  }
+
+  let sanity = ssv.validateSupremeSanity(task.body, answer, null, { factLock: factLock.extractFacts(task.body) });
+  if (sanity.correctedAnswer) {
+    apply(sanity.correctedAnswer, "task-ssv");
+    sanity = ssv.validateSupremeSanity(task.body, answer, null, { factLock: factLock.extractFacts(task.body) });
+  }
+  if (!sanity.ok) {
+    return {
+      ok: false,
+      answer: `Yanıt doğrulama kapısından geçmedi.\nBloke eden görev: ${task.label}. ${sanity.errors.join(" ")}\n\nFinal Answer: Yanıt güvenli şekilde doğrulanamadı.`,
+      errors: sanity.errors,
+    };
+  }
+
+  return { ok: true, answer, errors: [] };
+}
 
 // Basit sohbet/selamlaşma tespiti — bunlarda araç/ReAct makinesi devreye girmesin
 function _normTr(s) {
@@ -873,6 +933,21 @@ class ModelManager {
           } catch (_e) { /* doğrulama görevi düşürmesin */ }
           if (!aTxt) aTxt = "(bu görev için yanıt üretilemedi)";
           // Sonucu diziye PUSH et — önceki sonuçların üzerine YAZMA
+          try {
+            const verified = await verifyTaskLocalAnswer(
+              t,
+              aTxt,
+              (msgs) => this.generate(selectedModel, msgs, attemptModels)
+            );
+            aTxt = verified.answer || aTxt;
+            if (!verified.ok) {
+              try { improveDrafts.recordSignal({ kind: "multi_task_local_gate", subject: `${t.label}: ${(verified.errors || [])[0] || "failed"}` }); } catch (_e) {}
+            }
+          } catch (e) {
+            const message = e && e.message ? e.message : "task-local verification failed";
+            aTxt = `Yanıt doğrulama kapısından geçmedi.\nBloke eden görev: ${t.label}. ${message}\n\nFinal Answer: Yanıt güvenli şekilde doğrulanamadı.`;
+            try { improveDrafts.recordSignal({ kind: "multi_task_local_gate_error", subject: `${t.label}: ${message}` }); } catch (_e) {}
+          }
           taskResults.push({ label: t.label, answer: aTxt });
         }
         // Final yanıt TÜM task_results dizisinden kurulur (yalnız son/aktif görev değil)
@@ -1361,4 +1436,5 @@ module.exports = {
   missingModelReply,
   parsePullProgress,
   isSmallTalk,
+  _verifyTaskLocalAnswer: verifyTaskLocalAnswer,
 };

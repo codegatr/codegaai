@@ -19,6 +19,8 @@ const ebseMod = await import(pathToFileURL(path.join(mainDir, "agent", "ebse.js"
 const ebse = ebseMod.default || ebseMod;
 const factLockMod = await import(pathToFileURL(path.join(mainDir, "agent", "fact-lock.js")).href);
 const factLock = factLockMod.default || factLockMod;
+const modelManagerMod = await import(pathToFileURL(path.join(mainDir, "model-manager.js")).href);
+const modelManager = modelManagerMod.default || modelManagerMod;
 
 const suites = [];
 
@@ -112,6 +114,40 @@ suite("number_integrity", async () => {
   );
   assert.equal(result.ok, false);
   assert.match(result.errors.join(" "), /numeric integrity/);
+});
+
+suite("multi_task_task_local_verification", async () => {
+  const fakeApprove = async (_msgs) => JSON.stringify({
+    ok: true,
+    reasoningScore: 99,
+    mathScore: 99,
+    logicScore: 99,
+    consistencyScore: 99,
+    completenessScore: 99,
+    errors: [],
+    answer: "",
+  });
+  const probabilityTask = {
+    id: "3",
+    label: "Soru 3",
+    body: "5 red, 3 blue. Draw 2 balls without replacement. Probability both are red?",
+  };
+  const verified = await modelManager._verifyTaskLocalAnswer(probabilityTask, "Final Answer: 1/2", fakeApprove);
+  assert.equal(verified.ok, true);
+  assert.match(verified.answer, /5\/14/, "multi-task local verification applies MLVC per task");
+
+  const incompleteTask = {
+    id: "4",
+    label: "Soru 4",
+    body: "Baba 98, oğul 14 yaşında. Kaç yıl sonra baba oğlunun 4 katı olur?",
+  };
+  const blocked = await modelManager._verifyTaskLocalAnswer(
+    incompleteTask,
+    "Baba = 98, Oğul = 14.\n\nFinal Answer: Baba 98, oğul 14 yaşındadır.",
+    fakeApprove
+  );
+  assert.equal(blocked.ok, false, "multi-task local verification applies TCNIS hard gate per task");
+  assert.match(blocked.answer, /Yanıt güvenli şekilde doğrulanamadı/);
 });
 
 let passed = 0;
