@@ -33,6 +33,7 @@ const {
   verifyAnswer,
 } = require("./agent/reasoning-guard");
 const { shouldRunMLVC, solveDeterministic: solveDeterministicMathLogic, verifyMathLogic } = require("./agent/mlvc");
+const ebse = require("./agent/ebse");
 const { repairBenchmarkAnswer, solveKnownReasoningBenchmarks } = require("./agent/benchmark-reasoner");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
@@ -860,6 +861,19 @@ class ModelManager {
       } catch (_e) {
         // adversarial/self-critic hatasi cevabi bozmasin
       }
+    }
+
+    // EBSE (Equation Back-Substitution Engine): DETERMİNİSTİK geri-yerine-koyma.
+    // Self Critic -> [EBSE] -> MLVC -> AVE -> MCE. Model çağrısı YOK (hızlı, her zaman açık).
+    // Türetilen değerleri orijinal denklemlere koyar; geçmezse cevabı reddedip YENİDEN hesaplar.
+    if (agent.stoppedReason !== "smalltalk") {
+      try {
+        const eb = ebse.verify(input, finalText);
+        if (eb.applicable && eb.status === "REJECTED" && eb.correctedAnswer) {
+          finalText = eb.correctedAnswer;
+          try { improveDrafts.recordSignal({ kind: "ebse_reject", subject: (eb.checks.find((c) => !c.ok) || {}).name || "back_substitution" }); } catch (_e) {}
+        }
+      } catch (_e) { /* EBSE hatası cevabı bozmasın */ }
     }
 
     let mlvcApproved = false;

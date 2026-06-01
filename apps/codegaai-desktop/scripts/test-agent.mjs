@@ -867,4 +867,30 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("MLVC: karışık çok-test paketi kısa devre yapmaz; cevap kırpılmaz; tek soru anında");
 }
 
+
+// EBSE: geri-yerine-koyma (deterministik) — yanlış cebir/yüzde reddedilir ve yeniden hesaplanır
+{
+  const eMod = await import(path.join(mainDir, "agent", "ebse.js"));
+  const EB = eMod.default || eMod;
+  const ageQ = "Bir baba ile oglunun yaslari toplami 72dir. Baba oglunun 5 katidir. Kac yil sonra baba oglunun 3 kati olur?";
+  const wrong = EB.verify(ageQ, "Ogul 6, baba 60. Cevap 6 yil.");
+  assert.strictEqual(wrong.status, "REJECTED", "yanlis yas cozumu reddedilir");
+  assert.ok(wrong.correctedAnswer.includes("12"), "dogru sonuc 12 yil yeniden hesaplanir");
+  const right = EB.verify(ageQ, "Ogul 12, baba 60, 12 yil sonra.");
+  assert.strictEqual(right.status, "APPROVED", "dogru yas cozumu onaylanir");
+  // Toplam + kat geri yerine koy: 60+12=72, 60=5*12
+  const sol = EB.solveSumMultiple(72, 5, 3);
+  assert.strictEqual(sol.smaller, 12, "kucuk=12"); assert.strictEqual(sol.bigger, 60, "buyuk=60"); assert.strictEqual(sol.years, 12, "yil=12");
+  // Yuzde zinciri
+  const pq = "Urun %20 zam, %10 indirim, %25 zam. Baslangic 100 TL ise?";
+  assert.strictEqual(EB.verify(pq, "200 TL").status, "REJECTED", "yanlis yuzde reddedilir");
+  assert.ok(EB.verify(pq, "200 TL").correctedAnswer.includes("135"), "dogru yuzde 135 yeniden hesaplanir");
+  assert.strictEqual(EB.verify(pq, "135 TL").status, "APPROVED", "dogru yuzde onaylanir");
+  // Tek dogrusal denklem
+  assert.strictEqual(EB.detectLinearEquation("3x + 12 = 57").x, 15, "3x+12=57 => x=15");
+  // Uygulanamaz girdi: dokunma
+  assert.strictEqual(EB.verify("Bana siir yaz", "iste siir").applicable, false, "denklem yoksa uygulanamaz");
+  ok("EBSE: geri-yerine-koyma yanlis cebir/yuzde reddeder ve dogruyu yeniden hesaplar");
+}
+
 console.log(`\n${passed} test geçti ✅`);

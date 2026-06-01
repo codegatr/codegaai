@@ -4,6 +4,32 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 109 — EBSE: Equation Back-Substitution Engine (1 Haz 2026, Claude)
+
+Kullanıcı spec'i: türetilen değerleri orijinal denklemlere geri koyup doğrulayan motor.
+Reasoning -> Self Critic -> [EBSE] -> MLVC -> AVE -> MCE.
+
+Tasarım kararı: DETERMİNİSTİK (model çağrısı YOK) -> hızlı, "donma" yapmaz, her zaman açık
+(deepReasoning'e bağlı değil). Faz 108 felsefesine birebir uyar.
+
+ebse.js kapsam (dürüst sınır — genel sembolik cebir değil; iyi tanımlı kalıplar):
+- Toplam + kat sistemi (A+B=T, A=k·B) + "kaç X sonra m katı" uzantısı. Spec'in baba/oğul
+  FAILURE örneği: model oğul=6 derse 6+60=66≠72 -> REJECTED -> doğru çözüm (oğul=12, baba=60,
+  12 yıl) sıfırdan yeniden hesaplanır (patch değil, recalculate).
+- Tek doğrusal denklem (ax+b=c) geri-yerine-koyma (3·15+12=57 PASS).
+- Yüzde zinciri (tabandan yeniden hesapla; 100×1.2×0.9×1.25=135). Taban çıkarımı düzeltildi
+  ("%20"deki 20'yi taban sanmıyor; TL çapası önceliklendirildi).
+- Kesir/olasılık sadeleştirme (30/90 -> 1/3; yanlışı işaretler, otomatik düzeltmez).
+- APPROVED/REJECTED + güven (deterministik: geçerse 100).
+
+model-manager: MLVC'den ÖNCE deterministik EBSE; REJECTED+correctedAnswer ise finalText
+yeniden hesaplanmış doğru cevapla değiştirilir. improveDrafts'a ebse_reject sinyali.
+
+Test 53/53 + reasoning-guard. Surum -> **0.70.0**.
+
+---
+
+
 ## ✅ Faz 108 — "Takılıyor/aptal" düzeltmesi: akış + ağır doğrulama opt-in (1 Haz 2026, Claude)
 
 Kullanıcı: "Biraz uzun düşünüyorum"da donuyor, ajan aptallaştı mı?
