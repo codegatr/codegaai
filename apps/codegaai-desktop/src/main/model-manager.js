@@ -1203,7 +1203,8 @@ class ModelManager {
     // Cognitive Kernel final authority: every non-smalltalk answer exits through the
     // same staged orchestration pipeline. If a blocking gate still fails after repair,
     // the unsafe draft is not delivered to the user.
-    if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
+    let hardGateBlocked = false;
+    if (agent.stoppedReason !== "smalltalk") {
       try {
         const post = await cognitiveKernel.runPostValidation(cognitiveContextState, finalText, {
           stoppedReason: agent.stoppedReason,
@@ -1219,16 +1220,25 @@ class ModelManager {
         });
         if (post.answer && String(post.answer).trim()) finalText = String(post.answer).trim();
         if (!post.ok) {
+          hardGateBlocked = true;
           try { improveDrafts.recordSignal({ kind: "cognitive_kernel_block", subject: cognitiveContextState.blockReason }); } catch (_e) {}
         }
-      } catch (_e) {
-        // Kernel failures must not crash the app; previous deterministic gates have already run.
+      } catch (error) {
+        hardGateBlocked = true;
+        const message = error && error.message ? error.message : "verification hard gate failed";
+        try { improveDrafts.recordSignal({ kind: "cognitive_kernel_error", subject: message }); } catch (_e) {}
+        finalText = [
+          "Yanıt doğrulama kapısından geçmedi, bu yüzden hatalı olabilecek cevabı göstermiyorum.",
+          `Bloke eden aşama: final-hard-gate. ${message}`,
+          "",
+          "Final Answer: Yanıt güvenli şekilde doğrulanamadı.",
+        ].join("\n");
       }
     }
 
     // multi_task güvencesi: herhangi bir geç aşama etiketleri sildiyse, görev→cevap
     // eşlemeli birleştirmeyi geri yükle (asla anonim "değer | değer" gönderme).
-    if (isMultiTask && multiTaskAssembled && multiTaskAssembled.trim()) {
+    if (!hardGateBlocked && isMultiTask && multiTaskAssembled && multiTaskAssembled.trim() && !finalText.trim()) {
       finalText = multiTaskAssembled.trim();
     }
 

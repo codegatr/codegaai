@@ -1,0 +1,134 @@
+import assert from "node:assert/strict";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import path from "node:path";
+
+const root = fileURLToPath(new URL("..", import.meta.url));
+const mainDir = path.join(root, "src", "main");
+
+const cognitiveKernelMod = await import(pathToFileURL(path.join(mainDir, "cognitive", "kernel", "cognitive-kernel.js")).href);
+const cognitiveKernel = cognitiveKernelMod.default || cognitiveKernelMod;
+const mlvcMod = await import(pathToFileURL(path.join(mainDir, "agent", "mlvc.js")).href);
+const mlvc = mlvcMod.default || mlvcMod;
+const tcnisMod = await import(pathToFileURL(path.join(mainDir, "agent", "tcnis.js")).href);
+const tcnis = tcnisMod.default || tcnisMod;
+const ssvMod = await import(pathToFileURL(path.join(mainDir, "agent", "ssv.js")).href);
+const ssv = ssvMod.default || ssvMod;
+const rpreMod = await import(pathToFileURL(path.join(mainDir, "agent", "rpre.js")).href);
+const rpre = rpreMod.default || rpreMod;
+const ebseMod = await import(pathToFileURL(path.join(mainDir, "agent", "ebse.js")).href);
+const ebse = ebseMod.default || ebseMod;
+const factLockMod = await import(pathToFileURL(path.join(mainDir, "agent", "fact-lock.js")).href);
+const factLock = factLockMod.default || factLockMod;
+
+const suites = [];
+
+function suite(name, fn) {
+  suites.push({ name, fn });
+}
+
+async function hardGate(question, draft) {
+  const ctx = cognitiveKernel.createContext(question);
+  cognitiveKernel.runIntake(ctx);
+  return cognitiveKernel.runPostValidation(ctx, draft, {
+    stoppedReason: "final_answer",
+    needsVerification: true,
+    needsMLVC: true,
+    deepReasoning: false,
+  });
+}
+
+suite("semantic_integrity", async () => {
+  const report = factLock.extractFacts("27 survived.");
+  const bad = factLock.validateFactPreservation("Final Answer: 63 survived.", report);
+  assert.equal(bad.ok, true, "semantic-only fact lock should not overclaim when no structural constraint exists");
+  const blocked = await hardGate("Bir çiftçinin 30 koyunu vardı. 12'si hariç hepsi öldü. Kaç koyunu kaldı?", "Final Answer: 18");
+  assert.equal(blocked.ok, true, "deterministic trap can be corrected before release");
+  assert.match(blocked.answer, /12/, "exception wording is restored to survivor count");
+});
+
+suite("ratio_reasoning", async () => {
+  const bad = rpre.verify("Baba + Oğul = 84. Baba = 6 x Oğul.", "Final Answer: 14");
+  assert.equal(bad.status, "REJECTED");
+  assert.match(bad.correctedAnswer, /72.*12|12.*72/s);
+});
+
+suite("equation_solver", async () => {
+  const blocked = await hardGate("7x + 13 = 90 ise x kaçtır?", "Final Answer: x = 5");
+  assert.equal(blocked.ok, true, "equation failure should be corrected deterministically");
+  assert.match(blocked.answer, /11/, "7x + 13 = 90 gives x = 11");
+  assert.equal(ebse.verify("7x + 13 = 90 ise x kaçtır?", "Final Answer: x = 5").status, "REJECTED");
+});
+
+suite("probability", async () => {
+  const check = mlvc.deterministicCheck(
+    "5 red, 3 blue. Draw 2 balls without replacement. Probability both are red?",
+    "Final Answer: 1/2"
+  );
+  assert.equal(check.ok, false);
+  assert.match(check.correctedAnswer, /5\/14/);
+});
+
+suite("percentage", async () => {
+  const check = mlvc.deterministicCheck(
+    "Bir ürün 100 TL. Önce %40 zamlanıyor, sonra zamlı fiyat üzerinden %40 indiriliyor. Son fiyat kaç TL?",
+    "Final Answer: 100 TL"
+  );
+  assert.equal(check.ok, false);
+  assert.match(check.correctedAnswer, /84/);
+});
+
+suite("time_calculation", async () => {
+  const answer = mlvc.solveDeterministic("Bir iş 7 Mayıs 09:20'de başladı. 9 Mayıs 14:55'te bitti. Toplam kaç saat kaç dakika sürdü?");
+  assert.match(answer, /53 saat 35 dakika/);
+});
+
+suite("attention_traps", async () => {
+  const check = mlvc.deterministicCheck(
+    "Bir yarışta üçüncü sıradaki kişiyi geçiyorsun. Kaçıncı sıraya yükselirsin?",
+    "Final Answer: ikinci"
+  );
+  assert.equal(check.ok, false);
+  assert.match(check.correctedAnswer, /3/);
+});
+
+suite("task_completion", async () => {
+  const result = tcnis.validateTCNIS(
+    "Baba 98, oğul 14 yaşında. Kaç yıl sonra baba oğlunun 4 katı olur?",
+    "Baba = 98, Oğul = 14.\n\nFinal Answer: Baba 98, oğul 14 yaşındadır."
+  );
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join(" "), /years-later/);
+  const sanity = ssv.validateSupremeSanity(
+    "Baba 98, oğul 14 yaşında. Kaç yıl sonra baba oğlunun 4 katı olur?",
+    "Baba = 98, Oğul = 14.\n\nFinal Answer: Baba 98, oğul 14 yaşındadır."
+  );
+  assert.equal(sanity.ok, false);
+});
+
+suite("number_integrity", async () => {
+  const result = tcnis.validateTCNIS(
+    "Başlangıç bütçesi 90,000 TL. %10 indirim sonrası kaç TL olur?",
+    "İşlem: 000 x 0.90 = 0 TL\n\nFinal Answer: 0 TL"
+  );
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join(" "), /numeric integrity/);
+});
+
+let passed = 0;
+const failures = [];
+for (const item of suites) {
+  try {
+    await item.fn();
+    passed += 1;
+    console.log(`✓ ${item.name}`);
+  } catch (error) {
+    failures.push({ name: item.name, error });
+    console.error(`✗ ${item.name}: ${error && error.message ? error.message : error}`);
+  }
+}
+
+const score = Math.round((passed / suites.length) * 100);
+console.log(`Verification hard gate score: ${score}% (${passed}/${suites.length})`);
+if (score < 95 || failures.length) {
+  throw new Error(`Verification hard gate failed: ${score}%`);
+}
