@@ -37,6 +37,7 @@ const { shouldRunMLVC, solveDeterministic: solveDeterministicMathLogic, verifyMa
 const ebse = require("./agent/ebse");
 const rpre = require("./agent/rpre");
 const hril = require("./agent/hril");
+const ree = require("./agent/ree");
 const { repairBenchmarkAnswer, solveKnownReasoningBenchmarks } = require("./agent/benchmark-reasoner");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
@@ -623,10 +624,11 @@ class ModelManager {
     const mlvcInstant = solveDeterministicMathLogic(input);
     if (mlvcInstant) {
       const interpreted = hril.interpret(input, mlvcInstant);
+      const explained = ree.explain(input, interpreted.answer || mlvcInstant);
       return {
         provider: "instant",
         model: "codega-mlvc",
-        text: interpreted.answer || mlvcInstant,
+        text: explained.answer || interpreted.answer || mlvcInstant,
       };
     }
 
@@ -998,19 +1000,6 @@ class ModelManager {
       }
     }
 
-    if (deepReasoning && inputNeedsConclusion && agent.stoppedReason !== "smalltalk") {
-      try {
-        const c = await enforceConclusion(
-          input,
-          finalText,
-          (msgs) => this.generate(selectedModel, msgs, attemptModels)
-        );
-        if (c.answer && c.answer.trim()) finalText = c.answer.trim();
-      } catch (_e) {
-        // sonuc kapisi hatasi cevabi bozmasin
-      }
-    }
-
     if (agent.stoppedReason !== "smalltalk") {
       try {
         const repaired = repairBenchmarkAnswer(input, finalText);
@@ -1028,6 +1017,30 @@ class ModelManager {
         if (interpreted.answer && interpreted.answer.trim()) finalText = interpreted.answer.trim();
       } catch (_e) {
         // yorum katmanı cevabı bozmasın
+      }
+    }
+
+    // REE (Reasoning -> Explanation Engine): doğrulanmış/yorumlanmış sonucu kısa,
+    // anlaşılır açıklama yapısına çevirir; sonucu değiştirmez.
+    if (agent.stoppedReason !== "smalltalk") {
+      try {
+        const explained = ree.explain(input, finalText);
+        if (explained.answer && explained.answer.trim()) finalText = explained.answer.trim();
+      } catch (_e) {
+        // açıklama katmanı cevabı bozmasın
+      }
+    }
+
+    if (deepReasoning && inputNeedsConclusion && agent.stoppedReason !== "smalltalk") {
+      try {
+        const c = await enforceConclusion(
+          input,
+          finalText,
+          (msgs) => this.generate(selectedModel, msgs, attemptModels)
+        );
+        if (c.answer && c.answer.trim()) finalText = c.answer.trim();
+      } catch (_e) {
+        // sonuc kapisi hatasi cevabi bozmasin
       }
     }
 

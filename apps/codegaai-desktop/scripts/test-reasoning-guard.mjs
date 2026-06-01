@@ -15,6 +15,8 @@ const mlvcMod = await import(pathToFileURL(path.join(mainDir, "agent", "mlvc.js"
 const mlvc = mlvcMod.default || mlvcMod;
 const hrilMod = await import(pathToFileURL(path.join(mainDir, "agent", "hril.js")).href);
 const hril = hrilMod.default || hrilMod;
+const reeMod = await import(pathToFileURL(path.join(mainDir, "agent", "ree.js")).href);
+const ree = reeMod.default || reeMod;
 
 assert.ok(
   guard.classifyReasoningProblem("2x + 4 = 52 ise x kac?").includes("math"),
@@ -298,6 +300,29 @@ assert.match(
   hril.interpret("Toplam kac saat surdu?", "Final Answer: 0.5 saat").answer,
   /30 dakika/,
   "HRIL converts decimal hours to minutes"
+);
+
+const reeTrap = ree.explain(
+  "Bir ciftcinin 50 tavugu vardi. 17'si haric hepsi oldu. Kac tavugu kaldi?",
+  "Final Answer: 17"
+);
+assert.equal(reeTrap.changed, true, "REE explains logic traps");
+assert.match(reeTrap.answer, /Anlama:/, "REE includes understanding section");
+assert.match(reeTrap.answer, /Tuzak:/, "REE explains the trap");
+assert.match(reeTrap.answer, /Doğrulama:/, "REE includes verification section");
+assert.match(reeTrap.answer, /Final Answer: 17/, "REE preserves final answer");
+
+const reeProbability = ree.explain(
+  "Bir torbada 3 kirmizi, 7 mavi top var. Geri koymadan 2 top cekiliyor. Ikisinin de mavi olma olasiligi nedir?",
+  hrilProbability.answer
+);
+assert.match(reeProbability.answer, /İşlem:/, "REE includes process section");
+assert.match(reeProbability.answer, /%46,67/, "REE keeps HRIL interpretation");
+
+assert.equal(
+  ree.explain("merhaba", "Merhaba. Nasil yardimci olayim?").changed,
+  false,
+  "REE skips non-reasoning smalltalk"
 );
 
 fs.rmSync(process.env.CODEGA_ERROR_MEMORY_PATH, { force: true });
