@@ -32,6 +32,24 @@ function classifyTask(body) {
   return "general";
 }
 
+function isIgnorableTaskBody(body) {
+  const q = trFold(body).replace(/\s+/g, " ").trim();
+  if (!q) return true;
+  if (/^(not|note|aciklama|açiklama|ornek|example|internal|heading|baslik|başlik)\b/.test(q)) return true;
+  if (/^(sistem takildi|takildi|devam et|baglanti geldi|guncelleme|release|github)\b/.test(q) && !/[?=]|\d/.test(q)) return true;
+  return false;
+}
+
+function isActualTaskBody(body, title = "") {
+  const q = trFold(body).replace(/\s+/g, " ").trim();
+  const h = trFold(title);
+  if (isIgnorableTaskBody(body)) return false;
+  if (/[?؟？]\s*$/.test(body) || /\b(kac|nedir|hangisi|olasilik|cevap|answer|solve|coz|hesapla|bul)\b/.test(q)) return true;
+  if (/\d/.test(q) && /(=|%|:|x|kat|tl|kirmizi|mavi|koyun|sheep|baba|father|son|ogul|profit|ratio)/.test(q)) return true;
+  if (/\b(test|soru|task|gorev)\b/.test(h) && /\d/.test(q)) return true;
+  return false;
+}
+
 function isInstructionItem(body) {
   const q = trFold(body).replace(/\s+/g, " ").trim();
   if (!q) return false;
@@ -76,7 +94,7 @@ function headingTasks(text) {
   const matches = [...String(text || "").matchAll(re)]
     .filter((m) => /test|soru|task|gorev|^\s*\d+[.)]/i.test(m[0]));
   if (matches.length <= 1) return [];
-  const tasks = matches.map((m, i) => {
+  const parsedTasks = matches.map((m, i) => {
     const start = m.index;
     const end = i + 1 < matches.length ? matches[i + 1].index : text.length;
     const block = text.slice(start, end).trim();
@@ -91,7 +109,7 @@ function headingTasks(text) {
       domain: classifyTask(body || block),
     };
   }).filter((task) => task.body);
-  const instructions = outputRequirementReport(text, tasks);
+  const instructions = outputRequirementReport(text, parsedTasks);
   if (instructions.isInstructionList) {
     headingTasks.lastOutputRequirements = instructions.requirements;
     headingTasks.lastMainTask = instructions.mainTask;
@@ -99,6 +117,7 @@ function headingTasks(text) {
   }
   headingTasks.lastOutputRequirements = [];
   headingTasks.lastMainTask = null;
+  const tasks = parsedTasks.filter((task) => isActualTaskBody(task.body, task.title));
   return tasks;
 }
 
@@ -143,8 +162,8 @@ function bulletTasks(text) {
     if (m) items.push(m[1].trim());
   }
   if (items.length <= 1) return [];
-  const tasks = items.map((body, i) => mkTask(i, body));
-  const instructions = outputRequirementReport(text, tasks.map((task, i) => ({ ...task, title: items[i] })));
+  const parsedTasks = items.map((body, i) => mkTask(i, body));
+  const instructions = outputRequirementReport(text, parsedTasks.map((task, i) => ({ ...task, title: items[i] })));
   if (instructions.isInstructionList) {
     bulletTasks.lastOutputRequirements = instructions.requirements;
     bulletTasks.lastMainTask = instructions.mainTask;
@@ -152,6 +171,7 @@ function bulletTasks(text) {
   }
   bulletTasks.lastOutputRequirements = [];
   bulletTasks.lastMainTask = null;
+  const tasks = parsedTasks.filter((task) => isActualTaskBody(task.body, task.title));
   return tasks;
 }
 

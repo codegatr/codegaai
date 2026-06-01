@@ -604,7 +604,8 @@ const semanticMissingVerification = sacv.validateSemanticCompleteness(
   "Final Answer: x = 15 | 7/15",
   taskReport
 );
-assert.equal(semanticMissingVerification.ok, false, "SACV rejects answers without reasoning/verification traces");
+assert.equal(semanticMissingVerification.ok, true, "SACV validates semantic completeness without exact reasoning/verification labels");
+assert.ok(semanticMissingVerification.warnings.length >= 1, "SACV keeps missing trace labels as warnings");
 
 const ssvProbability = ssv.validateSupremeSanity(
   "5 red, 3 blue. Draw 2 balls without replacement. Probability both are red?",

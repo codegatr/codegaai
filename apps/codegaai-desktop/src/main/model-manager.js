@@ -44,6 +44,8 @@ const cognitiveKernel = require("./cognitive/kernel/cognitive-kernel");
 const factLock = require("./agent/fact-lock");
 const cvl = require("./agent/cvl");
 const ssv = require("./agent/ssv");
+const sacv = require("./agent/sacv");
+const tcnis = require("./agent/tcnis");
 const { repairBenchmarkAnswer, solveKnownReasoningBenchmarks } = require("./agent/benchmark-reasoner");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
@@ -143,6 +145,34 @@ async function verifyTaskLocalAnswer(task, draft, generateFn = null, opts = {}) 
       }
       return blocked(errors);
     }
+  }
+
+  const numericIntegrity = tcnis.validateTCNIS(task.body, answer);
+  if (!numericIntegrity.ok) {
+    if (allowRegeneration) {
+      const regenerated = await regenerateTaskLocalAnswer(task, answer, numericIntegrity.errors, generateFn);
+      if (regenerated) {
+        const retry = await verifyTaskLocalAnswer(task, regenerated, null, { allowRegeneration: false });
+        if (retry.ok) return { ...retry, regenerated: true };
+      }
+    }
+    return blocked(numericIntegrity.errors);
+  }
+
+  const semantic = sacv.validateSemanticCompleteness(answer, {
+    applicable: true,
+    count: 1,
+    tasks: [{ ...task, label: task.label || task.id || "Task 1" }],
+  });
+  if (!semantic.ok) {
+    if (allowRegeneration) {
+      const regenerated = await regenerateTaskLocalAnswer(task, answer, semantic.errors, generateFn);
+      if (regenerated) {
+        const retry = await verifyTaskLocalAnswer(task, regenerated, null, { allowRegeneration: false });
+        if (retry.ok) return { ...retry, regenerated: true };
+      }
+    }
+    return blocked(semantic.errors);
   }
 
   let sanity = ssv.validateSupremeSanity(task.body, answer, null, { factLock: factLock.extractFacts(task.body) });

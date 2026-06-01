@@ -65,8 +65,13 @@ function detectNumericCorruption(question, answer) {
       const normalized = item.digits.replace(/^0+(?=\d)/, "");
       return normalized === suffix.replace(/^0+(?=\d)/, "") && normalized !== full;
     });
-    if (suffixOnly && !hasFull) {
-      errors.push(`TCNIS numeric integrity failed: original number ${fact.raw} appears corrupted as ${suffix}.`);
+    const substringOnly = produced.find((item) => {
+      const normalized = item.digits.replace(/^0+(?=\d)/, "");
+      return normalized.length >= 2 && normalized.length < full.length && full.includes(normalized);
+    });
+    if ((suffixOnly || substringOnly) && !hasFull) {
+      const corrupted = substringOnly ? substringOnly.raw : suffix;
+      errors.push(`TCNIS numeric integrity failed: original number ${fact.raw} appears corrupted as ${corrupted}.`);
     }
   }
   return errors;

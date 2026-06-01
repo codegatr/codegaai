@@ -214,7 +214,7 @@ function parseVerificationResult(text, fallbackAnswer) {
   const parsed = extractJson(text);
   if (!parsed || typeof parsed !== "object") {
     return {
-      ok: true,
+      ok: false,
       answer: String(fallbackAnswer || "").trim(),
       reasoningConfidence: 0,
       mathVerificationConfidence: 0,

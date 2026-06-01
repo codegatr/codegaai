@@ -96,7 +96,8 @@ function classifyMLVCDomains(question) {
   if (/%|yuzde|zam|indir/.test(q)) domains.push("percentage");
   if (/\b\d+\s*(saat|dakika|gun|hafta|ay|yil)|\b\d{1,2}:\d{2}\b/.test(q)) domains.push("time");
   if (/\b(x|y|z)\b|denklem|esitlik|coz|katinin\s+\d+\s+fazlasi/.test(q)) domains.push("algebra");
-  if (/kesin|olasilik|probability|ihtimal|top cek|replacement|geri koymadan/.test(q)) domains.push("probability");
+  if (/father|son|baba|ogul|years?\s+later|kac\s+yil\s+sonra|future\s+ratio/.test(q)) domains.push("algebra");
+  if (/kesin|olasilik|probability|ihtimal|top cek|draws?|balls?|red|blue|kirmizi|mavi|replacement|geri koymadan/.test(q)) domains.push("probability");
   if (/tokalas|kac cift|combination|kombinasyon|permutasyon/.test(q)) domains.push("combinatorics");
   if (/mantik|bulmaca|kapi|door|haric|except|yarisi|ceyregi|sekizde biri|sira/.test(q)) domains.push("logic");
   if (/\d+\s*[\+\-*\/=]\s*\d+/.test(q)) domains.push("arithmetic");
@@ -220,7 +221,9 @@ function detectDuration(question) {
 function detectColorWithoutReplacement(question) {
   const q = trFold(question);
   const hasExplicitNoReplacement = /geri\s+koymadan|without\s+replacement/.test(q);
-  const hasDrawTwo = /(?:2|iki)\s*(?:top|ball)s?\s*(?:cek|draw)/.test(q) || /(?:2|iki)\s*(?:adet\s*)?(?:top|ball)/.test(q);
+  const hasDrawTwo = /(?:2|iki)\s*(?:top|ball)s?\s*(?:cek|draw)/.test(q) ||
+    /(?:2|iki)\s*(?:adet\s*)?(?:top|ball)/.test(q) ||
+    /(?:2|two)\s*draws?/.test(q);
   if (!hasExplicitNoReplacement && !hasDrawTwo) return null;
   const colors = [
     { keys: ["kirmizi", "red"], count: 0, label: "kirmizi" },
@@ -247,7 +250,9 @@ function detectColorWithoutReplacement(question) {
       new RegExp(`${escaped}\\s+(?:olma\\s+olasiligi|probability)`).test(q);
   }));
   if (!target) return null;
-  const drawMatch = q.match(/(\d+)\s*(?:top|ball)s?\s*(?:cek|draw)/) || q.match(/(\d+)\s*(?:adet\s*)?(?:top|ball)/);
+  const drawMatch = q.match(/(\d+)\s*(?:top|ball)s?\s*(?:cek|draw)/) ||
+    q.match(/(\d+)\s*(?:adet\s*)?(?:top|ball)/) ||
+    q.match(/(\d+)\s*draws?/);
   const drawCount = drawMatch ? Number(drawMatch[1]) : 2;
   if (drawCount !== 2 || target.count < 2) return null;
   const total = present.reduce((sum, color) => sum + color.count, 0);
@@ -288,7 +293,8 @@ function detectPassingPlace(question) {
 
 function detectExceptDied(question) {
   const q = trFold(question);
-  const m = q.match(/(\d+)['\u2019]?si\s+(?:haric|disinda)\s+hepsi\s+oldu/);
+  const m = q.match(/(\d+)['\u2019]?si\s+(?:haric|disinda)\s+hepsi\s+oldu/) ||
+    q.match(/all\s+except\s+(\d+)\s+(?:die|died|dead)/);
   if (!m) return null;
   const result = Number(m[1]);
   return { kind: "logic", result, explanation: `"${result}'si haric hepsi oldu" kalan sayinin ${result} oldugu anlamina gelir.` };
@@ -297,11 +303,16 @@ function detectExceptDied(question) {
 function detectAgeRatioFuture(question) {
   const q = trFold(question);
   if (!/(baba|father)/.test(q) || !/(ogul|son)/.test(q)) return null;
-  const totalMatch = q.match(/toplam\s+yas(?:lari)?\s+(\d+)/) || q.match(/toplam(?:i)?\s+(\d+)/);
+  const totalMatch = q.match(/toplam\s+yas(?:lari)?\s+(\d+)/) ||
+    q.match(/toplam(?:i)?\s+(\d+)/) ||
+    q.match(/(?:father\s*\+\s*son|baba\s*\+\s*ogul)\s*=\s*(\d+)/);
   const currentRatioMatch = q.match(/baba[^.\n]{0,80}og(?:ul|lunun)[^.\n]{0,40}(\d+)\s*kat/) ||
-    q.match(/father[^.\n]{0,80}son[^.\n]{0,40}(\d+)\s*times/);
+    q.match(/father[^.\n]{0,80}son[^.\n]{0,40}(\d+)\s*times/) ||
+    q.match(/father\s*=\s*(\d+)\s*(?:x|\u00d7|\*)\s*son/) ||
+    q.match(/baba\s*=\s*(\d+)\s*(?:x|\u00d7|\*)\s*ogul/);
   const futureRatioMatch = q.match(/kac\s+yil\s+sonra[^.\n]{0,120}(\d+)\s*kat/) ||
-    q.match(/(\d+)\s*kat[^\n.]{0,80}olur/);
+    q.match(/(\d+)\s*kat[^\n.]{0,80}olur/) ||
+    q.match(/future\s+ratio\s*=\s*(\d+)/);
   if (!totalMatch || !currentRatioMatch || !futureRatioMatch || !/kac\s+yil\s+sonra|years?\s+later/.test(q)) return null;
   const total = Number(totalMatch[1]);
   const currentRatio = Number(currentRatioMatch[1]);

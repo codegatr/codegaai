@@ -19,8 +19,13 @@ function trFold(text) {
 }
 function round(n, d = 6) { return Number(Number(n).toFixed(d)); }
 function approxEqual(a, b, eps = 1e-6) { return Math.abs(a - b) <= eps; }
+function parseNumber(raw) {
+  const s = String(raw || "").trim();
+  if (/^-?\d{1,3}(?:[.,]\d{3})+$/.test(s)) return Number(s.replace(/[.,]/g, ""));
+  return Number(s.replace(",", "."));
+}
 function numbersIn(text) {
-  return (String(text || "").match(/-?\d+(?:[.,]\d+)?/g) || []).map((x) => Number(x.replace(",", ".")));
+  return (String(text || "").match(/-?\d+(?:[.,]\d+)?/g) || []).map(parseNumber);
 }
 function answerHasNumber(answer, value, eps = 1e-6) {
   return numbersIn(answer).some((n) => approxEqual(n, value, eps));
@@ -31,7 +36,7 @@ function detectColonRatio(question) {
   const q = trFold(question);
   const rm = q.match(/(\d+(?:\s*:\s*\d+)+)/);
   if (!rm) return null;
-  const parts = rm[1].split(":").map((x) => Number(x.trim())).filter((n) => Number.isFinite(n) && n > 0);
+  const parts = rm[1].split(":").map((x) => parseNumber(x.trim())).filter((n) => Number.isFinite(n) && n > 0);
   if (parts.length < 2) return null;
   // Saat gibi görünüyorsa (tek ikili ve "saat/:00" bağlamı) atla
   if (parts.length === 2 && /\bsaat\b|\d+:\d{2}\b/.test(q) && !/oran|ratio|paylas|dagit|toplam/.test(q)) return null;
@@ -39,7 +44,7 @@ function detectColonRatio(question) {
   let total = null;
   const tm = q.match(/toplam\D{0,15}(\d+(?:[.,]\d+)?)/)
     || q.match(/(\d+(?:[.,]\d+)?)\s*(?:tl|adet|kisi|lira|gram|kg|metre)?\s*(?:yi|i|u)?\s*(?:paylas|dagit|bol|pay\b)/);
-  if (tm) total = Number(tm[1].replace(",", "."));
+  if (tm) total = parseNumber(tm[1]);
   if (total == null) {
     const ratioSet = new Set(parts);
     const rest = numbersIn(q).filter((n) => !ratioSet.has(n));
@@ -57,8 +62,8 @@ function detectMultiple(question) {
   const tm = q.match(/toplam\D{0,20}(\d+(?:[.,]\d+)?)/) ||
     q.match(/(?:father\s*\+\s*son|baba\s*\+\s*ogul|baba\s+ile\s+oglunun|baba\s+ile\s+ogulun)\D{0,24}(\d+(?:[.,]\d+)?)/);
   if (!km || !tm) return null;
-  const k = Number(km[1].replace(",", "."));
-  const total = Number(tm[1].replace(",", "."));
+  const k = parseNumber(km[1]);
+  const total = parseNumber(tm[1]);
   if (!(k > 0) || !(total > 0)) return null;
   return { kind: "multiple", parts: [k, 1], total };
 }

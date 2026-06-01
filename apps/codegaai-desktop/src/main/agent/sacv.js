@@ -19,7 +19,7 @@ function splitAnswerUnits(text) {
   return final
     .split(/\s*(?:\||\n+|;)\s*/g)
     .map((part) => part.trim())
-    .filter((part) => part.length >= 2);
+    .filter((part) => part.length >= 1);
 }
 
 function extractResultTokens(text) {
@@ -102,8 +102,9 @@ function validateSemanticCompleteness(answer, taskReport) {
   const missing = [];
   const errors = [];
 
-  if (!hasReasoningTrace(answer)) errors.push("Reasoning trace is missing.");
-  if (!hasVerificationTrace(answer)) errors.push("Verification trace is missing.");
+  const traceWarnings = [];
+  if (!hasReasoningTrace(answer)) traceWarnings.push("Reasoning trace is missing.");
+  if (!hasVerificationTrace(answer)) traceWarnings.push("Verification trace is missing.");
 
   for (let i = 0; i < taskReport.tasks.length; i += 1) {
     const task = taskReport.tasks[i];
@@ -115,6 +116,10 @@ function validateSemanticCompleteness(answer, taskReport) {
     }
   }
 
+  // SACV validates semantic completeness, not exact formatting. Missing trace
+  // labels should not reject an otherwise complete deterministic answer.
+  if (missing.length || completed.length === 0) errors.push(...traceWarnings);
+
   const ok = errors.length === 0 && missing.length === 0;
   return {
     ok,
@@ -122,6 +127,7 @@ function validateSemanticCompleteness(answer, taskReport) {
     completed,
     missing,
     errors,
+    warnings: traceWarnings,
     confidence: ok ? 100 : Math.max(0, Math.round((completed.length / taskReport.count) * 100)),
   };
 }
