@@ -37,16 +37,20 @@ function headingTasks(text) {
     .filter((m) => /test|soru|task|gorev|^\s*\d+[.)]/i.test(m[0]));
   if (matches.length <= 1) return [];
   return matches.map((m, i) => {
-    const lineEnd = text.indexOf("\n", m.index);
-    const start = lineEnd >= 0 ? lineEnd + 1 : m.index + m[0].length;
+    const start = m.index;
     const end = i + 1 < matches.length ? matches[i + 1].index : text.length;
-    const body = text.slice(start, end).trim();
+    // Gövde = eşleşen satır + sonraki satırlar (sonraki başlığa kadar). Başlık satırındaki
+    // içerik (tek satırlık "1. soru?") DAHİL; yalnız baştaki numara/işaret eki atılır.
+    const block = text.slice(start, end).trim();
+    const body = block
+      .replace(/^[^\S\r\n]*(?:#{1,6}[^\S\r\n]*)?(?:(?:test|soru|task|gorev)[^\S\r\n]+)?(?:\d+|[A-Z])(?:[.)]|[^\S\r\n]*[-–—:])?[^\S\r\n]*/i, "")
+      .trim();
     return {
       id: String(m[1]),
       label: /test/i.test(m[0]) ? `Test ${m[1]}` : /soru/i.test(m[0]) ? `Soru ${m[1]}` : `Görev ${m[1]}`,
       title: m[0].trim(),
-      body,
-      domain: classifyTask(body),
+      body: body || block,
+      domain: classifyTask(body || block),
     };
   }).filter((task) => task.body);
 }

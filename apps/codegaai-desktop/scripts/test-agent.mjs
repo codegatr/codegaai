@@ -931,4 +931,22 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("RPRE: oran->pay modeli; dogrudan bolme hatasi yakalanir ve yeniden cozulur");
 }
 
+
+// Çok-görev: 5 görev algılanır + tamamlanma kapısı (eksikse reddeder)
+{
+  const tMod = await import(path.join(mainDir, "agent", "tde.js"));
+  const TDE = tMod.default || tMod;
+  const five = ["1. 12 + 8 kac?", "2. 100 TL %20 zam?", "3. Baskent neresi?", "4. 3:2 ile 100 paylas", "5. baba oglun 5 kati toplam 72"].join("\n");
+  const rep = TDE.decomposeTasks(five);
+  assert.strictEqual(rep.count, 5, "5 gorev algilanir");
+  assert.strictEqual(rep.applicable, true, "coklu gorev applicable");
+  // Tum etiketleri iceren birlesik cevap -> tamam
+  const full = rep.tasks.map((t) => `**${t.label}**\nCevap: x`).join("\n\n");
+  assert.strictEqual(TDE.validateTaskCoverage(full, rep).ok, true, "tum gorevler kapsanir -> ok");
+  // Bir gorev eksik -> reddeder
+  const partial = rep.tasks.slice(0, 3).map((t) => `**${t.label}**\nCevap: x`).join("\n\n");
+  assert.strictEqual(TDE.validateTaskCoverage(partial, rep).ok, false, "eksik gorev -> reddedilir");
+  ok("Çok-görev: 5 görev algılanır; eksik kapsama reddedilir");
+}
+
 console.log(`\n${passed} test geçti ✅`);

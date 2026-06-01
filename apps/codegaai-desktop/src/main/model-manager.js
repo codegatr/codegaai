@@ -822,6 +822,49 @@ class ModelManager {
             toolCalls: [{ name: "research", result: research }],
           };
         }
+      } else if (!cloudMode && taskDecomposition.applicable && taskDecomposition.count >= 2) {
+        // ÇOK-GÖREV: zayıf yerel model 5 görevi tek seferde çözemiyordu (1 cevap dönüyordu).
+        // Her görevi BAĞIMSIZ çöz, task_results[]'e doldur, finali TÜM diziden kur.
+        const detectedTasks = taskDecomposition.tasks;
+        const taskResults = [];
+        for (let i = 0; i < detectedTasks.length; i++) {
+          const t = detectedTasks[i];
+          if (onToken) onToken(`\n\n### ${t.label}\n`);
+          const tMsgs = [
+            {
+              role: "system",
+              content:
+                "Sana TEK bir görev verilecek. SADECE bu görevi çöz. Adım adım, kısa ve net düşün; " +
+                "sonunda mutlaka 'Cevap: …' satırı yaz. Başka görevlere değinme, soruyu tekrar etme.",
+            },
+            { role: "user", content: t.body },
+          ];
+          let aTxt = "";
+          try {
+            aTxt = String(await this.generate(selectedModel, tMsgs, attemptModels, onToken) || "").trim();
+          } catch (_e) { aTxt = ""; }
+          // Görev başına ucuz deterministik düzeltme (oran/denklem/matematik)
+          try {
+            const rp = rpre.verify(t.body, aTxt);
+            if (rp.applicable && rp.status === "REJECTED" && rp.correctedAnswer) aTxt = rp.correctedAnswer;
+            const eb = ebse.verify(t.body, aTxt);
+            if (eb.applicable && eb.status === "REJECTED" && eb.correctedAnswer) aTxt = eb.correctedAnswer;
+          } catch (_e) { /* doğrulama görevi düşürmesin */ }
+          if (!aTxt) aTxt = "(bu görev için yanıt üretilemedi)";
+          // Sonucu diziye PUSH et — önceki sonuçların üzerine YAZMA
+          taskResults.push({ label: t.label, answer: aTxt });
+        }
+        // Final yanıt TÜM task_results dizisinden kurulur (yalnız son/aktif görev değil)
+        const assembled = taskResults.map((r) => `**${r.label}**\n${r.answer}`).join("\n\n");
+        const complete = taskResults.length === detectedTasks.length;
+        agent = {
+          content: complete
+            ? assembled
+            : `${assembled}\n\n⚠️ ${detectedTasks.length} görev algılandı ama ${taskResults.length} tanesi yanıtlandı.`,
+          iterations: detectedTasks.length,
+          stoppedReason: "multi_task",
+          toolCalls: [],
+        };
       } else if (isSmallTalk(input)) {
         // Basit selam/sohbet: araçsız, kısa, doğrudan cevap (ajan saçmalamasın)
         const sttMsgs = [
@@ -959,7 +1002,9 @@ class ModelManager {
     // RPRE (Ratio & Proportion Reasoning Engine): DETERMİNİSTİK pay modeli — EBSE'den ÖNCE.
     // Oran/orantı/"katı" sorularında toplamı doğrudan orana bölme hatasını yakalar; yanlışsa
     // pay modeliyle yeniden çözer. Model çağrısı YOK.
-    if (agent.stoppedReason !== "smalltalk") {
+    // (multi_task: her görev zaten ayrı doğrulandı; tüm-metne uygulanırsa görevler arası
+    //  sayıları karıştırıp cevabı bozabilir → atla.)
+    if (agent.stoppedReason !== "smalltalk" && agent.stoppedReason !== "multi_task") {
       try {
         const rp = rpre.verify(input, finalText);
         if (rp.applicable && rp.status === "REJECTED" && rp.correctedAnswer) {
@@ -972,7 +1017,7 @@ class ModelManager {
     // EBSE (Equation Back-Substitution Engine): DETERMİNİSTİK geri-yerine-koyma.
     // Self Critic -> [EBSE] -> MLVC -> AVE -> MCE. Model çağrısı YOK (hızlı, her zaman açık).
     // Türetilen değerleri orijinal denklemlere koyar; geçmezse cevabı reddedip YENİDEN hesaplar.
-    if (agent.stoppedReason !== "smalltalk") {
+    if (agent.stoppedReason !== "smalltalk" && agent.stoppedReason !== "multi_task") {
       try {
         const eb = ebse.verify(input, finalText);
         if (eb.applicable && eb.status === "REJECTED" && eb.correctedAnswer) {
@@ -983,7 +1028,7 @@ class ModelManager {
     }
 
     let mlvcApproved = false;
-    if (inputNeedsVerification && agent.stoppedReason !== "smalltalk") {
+    if (inputNeedsVerification && agent.stoppedReason !== "smalltalk" && agent.stoppedReason !== "multi_task") {
       try {
         if (inputNeedsMLVC) {
           // deep KAPALI: yalnız deterministik kontrol (model çağrısı yok) → hızlı, donmaz.

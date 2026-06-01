@@ -4,6 +4,30 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 113 — Çok-görev hatası: her görevi ayrı çöz + tüm task_results'tan birleştir (1 Haz 2026, Claude)
+
+CODEX 0.73->0.81: TDE (görev ayrıştırma), RAE (yanıt birleştirme), cognitive-kernel, SACV vb.
+ekledi. Mimari: model tek seferde TÜM görevleri yanıtlasın + kapsama kontrolü. AMA zayıf 3B
+tek seferde 1 cevap üretiyor; "onarım" da kurtaramıyordu → 5 görev, 1 cevap.
+
+Kullanıcı spec'i: görevleri diziye al, HER görevi BAĞIMSIZ çöz, task_results[]'e PUSH et,
+finali TÜM diziden kur, sayı uyuşmazsa reddet. Sadece current_task döndürme.
+
+Düzeltme:
+1. model-manager: yeni "multi_task" dalı (cloud değil + taskDecomposition.applicable + count>=2):
+   her görev için AYRI generate (akışlı, "### Görev N" başlığıyla); görev başına ucuz
+   deterministik düzeltme (RPRE/EBSE); sonuç task_results[]'e PUSH (üzerine yazmaz); final
+   = tüm diziden birleştirilir; count uyuşmazsa uyarı. (N model çağrısı ama doğru.)
+   Tüm-metne uygulanan RPRE/EBSE/MLVC, multi_task'ta ATLANIR (görevler arası sayı karışmasın).
+2. tde.headingTasks gövde çıkarımı düzeltildi: "1. soru?" gibi TEK SATIRLIK numaralı
+   sorularda gövde başlık satırında; eskiden satırdan SONRASINI alıp boş bırakıyor, görev
+   düşürüyordu (5 yerine 4). Artık başlık satırının içeriği gövdeye dahil (5/5 algılanır).
+
+Test 56/56 + reasoning-guard. Surum -> **0.82.0**.
+
+---
+
+
 ## ✅ Faz 112 — Kurulum ilerleme ekranı + Ollama kurulumunu bekleme (1 Haz 2026, Claude)
 
 Şikayet (yeni PC): "Önerilen Modeli Kur" -> harici Ollama kurulum penceresi açılıyor ama
