@@ -554,8 +554,11 @@ class ModelManager {
     const inputNeedsVerification = shouldVerifyAnswer(input);
     const inputNeedsConclusion = shouldEnforceConclusion(input);
     const inputNeedsMLVC = shouldRunMLVC(input);
-    const inputNeedsCognitivePipeline = shouldRunCognitivePipeline(input) && !inputNeedsMLVC;
-    const onToken = (inputNeedsVerification || inputNeedsConclusion || inputNeedsCognitivePipeline) ? null : (opts.onToken || null);
+    const deepReasoning = getSettings().deepReasoning === true; // ağır çok-turlu LLM doğrulaması (opt-in, varsayılan KAPALI)
+    const inputNeedsCognitivePipeline = deepReasoning && shouldRunCognitivePipeline(input) && !inputNeedsMLVC;
+    // Akış yalnızca (opt-in) bilişsel hat çalışırken kapanır. Aksi halde cevap token token
+    // akar — kullanıcı "düşünüyorum"da DONMAZ. Doğrulama/sonuç turları akışı engellemez.
+    const onToken = inputNeedsCognitivePipeline ? null : (opts.onToken || null);
     // Yeniden üretim: önceki turu (user+assistant) geçmişten çıkar ki bağlam tekrarlanmasın
     if (opts.regenerate) {
       if (this.history.length && this.history[this.history.length - 1].role === "assistant") this.history.pop();
@@ -863,10 +866,12 @@ class ModelManager {
     if (inputNeedsVerification && agent.stoppedReason !== "smalltalk") {
       try {
         if (inputNeedsMLVC) {
+          // deep KAPALI: yalnız deterministik kontrol (model çağrısı yok) → hızlı, donmaz.
+          // deep AÇIK: ek olarak LLM doğrulama turu.
           const mlvc = await verifyMathLogic(
             input,
             finalText,
-            (msgs) => this.generate(selectedModel, msgs, attemptModels),
+            deepReasoning ? (msgs) => this.generate(selectedModel, msgs, attemptModels) : null,
             { passes: 1 }
           );
           if (mlvc.answer && mlvc.answer.trim()) finalText = mlvc.answer.trim();
@@ -875,7 +880,7 @@ class ModelManager {
             try { improveDrafts.recordSignal({ kind: "mlvc", subject: mlvc.errors[0] }); } catch (_e) {}
           }
         }
-        if (!mlvcApproved) {
+        if (deepReasoning && !mlvcApproved) {
           const v = await verifyAnswer(
             input,
             finalText,
@@ -889,7 +894,7 @@ class ModelManager {
       }
     }
 
-    if (inputNeedsConclusion && agent.stoppedReason !== "smalltalk") {
+    if (deepReasoning && inputNeedsConclusion && agent.stoppedReason !== "smalltalk") {
       try {
         const c = await enforceConclusion(
           input,

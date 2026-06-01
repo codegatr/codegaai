@@ -4,6 +4,34 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 108 — "Takılıyor/aptal" düzeltmesi: akış + ağır doğrulama opt-in (1 Haz 2026, Claude)
+
+Kullanıcı: "Biraz uzun düşünüyorum"da donuyor, ajan aptallaştı mı?
+
+Kök neden (CODEX'in muhakeme katmanı):
+1. model-manager satır 557: doğrulama/sonuç/bilişsel gereken TÜM girdilerde onToken=null
+   yapılmış → AKIŞ KAPALI → tek token görünmüyor, ekran "düşünüyorum"da donuyor.
+2. Cevaptan sonra art arda BLOKLAYICI LLM turları: runReact + reflect + verifyMathLogic +
+   verifyAnswer + enforceConclusion → 6GB 3B'de dakikalarca.
+
+Düzeltme:
+- Akış geri açıldı: yalnız (opt-in) bilişsel hat çalışırken kapanır; doğrulama/sonuç turları
+  artık akışı engellemez. Cevap token token akar, donmaz.
+- Yeni ayar deepReasoning (varsayılan KAPALI). Kapalıyken: MLVC yalnız DETERMİNİSTİK kontrol
+  (model çağrısı yok), verifyAnswer + enforceConclusion + cognitive preflight + adversarial
+  review ATLANIR → hızlı. Açıkken: CODEX'in tam çok-turlu doğrulaması.
+- Geliştirici sayfasına "Derin doğrulama (yavaş)" toggle eklendi.
+
+Sonuç: varsayılan = hızlı akışlı cevap + ucuz deterministik matematik güvenliği. Faz 106'nın
+çok-test düzeltmesi korunur (sorular düşmez). Test 52/52 + reasoning-guard yeşil.
+Surum -> **0.69.0**.
+
+NOT: 3B hâlâ zorlu soruda yanılabilir; ama artık DONMAZ ve akışla yanıt verir. Derin doğrulama
+isteyen ayardan açar (yavaş).
+
+---
+
+
 ## ✅ Faz 107 — Zaman aşımı (watchdog) + otomatik kaydırma + "sona git" butonu (1 Haz 2026, Claude)
 
 İki kullanıcı şikayeti: (1) cevap üretirken "beklenenden uzun sürdü" ile yarıda kesiliyor,
