@@ -618,7 +618,12 @@ class ModelManager {
       if (this.history.length && this.history[this.history.length - 1].role === "assistant") this.history.pop();
       if (this.history.length && this.history[this.history.length - 1].role === "user") this.history.pop();
     }
-    const instant = instantAnswer(input);
+    // ÇOK-GÖREV ÖNCELİĞİ: girdi birden çok görev içeriyorsa, anlık tek-cevap kısa-devreleri
+    // (instant/benchmark/MLVC) ATLA. Aksi halde MLVC tüm metni tek soru sanıp "1000 | 2" gibi
+    // tek/anonim cevapla kısa devre yapıp çok-görev dalını HİÇ çalıştırmıyordu (kök neden).
+    const isMultiTaskInput = taskDecomposition.applicable && taskDecomposition.count >= 2;
+
+    const instant = !isMultiTaskInput && instantAnswer(input);
     if (instant) {
       return {
         provider: "instant",
@@ -626,7 +631,7 @@ class ModelManager {
         text: instant,
       };
     }
-    const benchmarkInstant = solveKnownReasoningBenchmarks(input);
+    const benchmarkInstant = !isMultiTaskInput && solveKnownReasoningBenchmarks(input);
     if (benchmarkInstant) {
       return {
         provider: "instant",
@@ -634,7 +639,7 @@ class ModelManager {
         text: benchmarkInstant,
       };
     }
-    const mlvcInstant = solveDeterministicMathLogic(input);
+    const mlvcInstant = !isMultiTaskInput && solveDeterministicMathLogic(input);
     if (mlvcInstant) {
       const interpreted = hril.interpret(input, mlvcInstant);
       const explained = ree.explain(input, interpreted.answer || mlvcInstant);

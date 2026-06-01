@@ -4,6 +4,34 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 116 — Çok-görev kaybının NİHAİ kök nedeni: anlık kısa-devre çok-görev dalını öne geçiyordu (1 Haz 2026, Claude)
+
+Kullanıcı paylaşım PDF'i (federation/share) GERÇEK kanıtı gösterdi:
+- "Görev 1/2/3" ve "1. 2. 3. 4." formatlı çok-görev istemleri TEK/anonim cevap dönüyordu:
+  "TEST E: …", "Final Answer: 1000 TL | 2" (Görev 1 koyun ve Görev 4 yaş tamamen düşmüş).
+
+NİHAİ kök neden: _ask içinde anlık tek-cevap KISA-DEVRELERİ — instantAnswer(621),
+solveKnownReasoningBenchmarks(629), solveDeterministicMathLogic/MLVC(637) — çok-görev
+dalından (825) ÖNCE çalışıyor. MLVC, numaralı/çok-görev metni TEK soru sanıp 2 deseni yakalayıp
+"1000 | 2" döndürerek RETURN ediyor → multi_task dalı HİÇ çalışmıyordu. Faz 113-115'teki tüm
+çok-görev düzeltmeleri bu girdiler için ATIL kalmıştı çünkü kısa-devre önce dönüyordu.
+
+Düzeltme:
+- isMultiTaskInput = taskDecomposition.applicable && count>=2.
+- Üç anlık kısa-devre de `!isMultiTaskInput && …` ile gated. Çok-görevde hiçbiri kısa devre
+  yapmaz; akış multi_task dalına ulaşır (her görev ayrı çözülür, task_results[]'ten birleşir).
+
+Test 56/56 + reasoning-guard. Surum -> **0.85.0**.
+
+İKİNCİL (PDF'de görülen, henüz ayrı ele alınacak — model kalitesi/prompt sızıntısı):
+- 3B bazı yanıtlarda İNGİLİZCE'ye kayıyor ("How can I assist you?").
+- "Final Answer:" öneki smalltalk'a da sızıyor.
+- Belirsiz soruda istenmeden Konya bilgisi halüsinasyonu.
+Bunlar çok-görev yapısal hatasından ayrı; model+prompt katmanı.
+
+---
+
+
 ## ✅ Faz 115 — Çok-görev kaybının GERÇEK kök nedeni: TDE algılama boşluğu (1 Haz 2026, Claude)
 
 Hata sürüyordu: çok görevden 1 cevap (genelde "yarış"). Kullanıcı haklı — mimari değil,
