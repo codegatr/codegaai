@@ -11,6 +11,8 @@ const mod = await import(pathToFileURL(path.join(mainDir, "agent", "reasoning-gu
 const guard = mod.default || mod;
 const cognitiveMod = await import(pathToFileURL(path.join(mainDir, "agent", "cognitive-pipeline.js")).href);
 const cognitive = cognitiveMod.default || cognitiveMod;
+const mlvcMod = await import(pathToFileURL(path.join(mainDir, "agent", "mlvc.js")).href);
+const mlvc = mlvcMod.default || mlvcMod;
 
 assert.ok(
   guard.classifyReasoningProblem("2x + 4 = 52 ise x kac?").includes("math"),
@@ -22,6 +24,7 @@ assert.ok(
 );
 assert.ok(guard.shouldVerifyAnswer("Bu hata neden oluyor, analiz et"), "analysis/debug answers are verified by AVE");
 assert.equal(guard.APPROVAL_THRESHOLD, 95, "AVE approval threshold is 95");
+assert.equal(mlvc.MLVC_THRESHOLD, 98, "MLVC approval threshold is 98");
 assert.ok(guard.shouldEnforceConclusion("Hangisini seçmeliyim?"), "substantive answers require MCE");
 assert.ok(guard.shouldUnderstandQuestion("3 hapı 30 dakika arayla içeceğim, ne kadar sürer?"), "substantive answers pass through QUE first");
 assert.equal(guard.shouldEnforceConclusion("merhaba"), false, "smalltalk does not require MCE");
@@ -95,6 +98,48 @@ const adversarial = await cognitive.runAdversarialReview(
   })
 );
 assert.match(adversarial.answer, /9 survived/, "ARL/self-critic can replace vulnerable answers");
+
+const percentageCheck = mlvc.deterministicCheck(
+  "Başlangıç fiyatı 100 TL. Önce %40 zamlanıyor, sonra zamlı fiyat üzerinden %40 indiriliyor. Son fiyat kaç TL?",
+  "Final Answer: 100 TL"
+);
+assert.equal(percentageCheck.ok, false, "MLVC rejects wrong percentage conclusion");
+assert.match(percentageCheck.correctedAnswer, /84/, "MLVC independently recalculates percentage chains");
+
+const handshakeCheck = mlvc.deterministicCheck(
+  "Bir odada 4 kişi var. Her kişi diğer herkesle tam bir kez tokalaşıyor. Toplam kaç tokalaşma olur?",
+  "Final Answer: 12"
+);
+assert.equal(handshakeCheck.ok, false, "MLVC rejects double-counted handshakes");
+assert.match(handshakeCheck.correctedAnswer, /6/, "MLVC uses C(n,2) for handshake problems");
+
+const mlvcLowConfidence = mlvc.parseMLVCResult(
+  JSON.stringify({
+    ok: true,
+    mathConfidence: 98,
+    logicConfidence: 97,
+    verificationConfidence: 99,
+    answer: "x = 15",
+  }),
+  "x = 13"
+);
+assert.equal(mlvcLowConfidence.ok, false, "MLVC rejects any confidence under 98");
+
+const mlvcFixed = await mlvc.verifyMathLogic(
+  "3x + 12 = 57 ise x kaçtır?",
+  "x = 13",
+  async () => JSON.stringify({
+    ok: true,
+    mathConfidence: 99,
+    logicConfidence: 99,
+    verificationConfidence: 99,
+    errors: [],
+    correctedReasoning: "3x = 45, x = 15.",
+    answer: "Final Answer: x = 15.",
+  }),
+  { passes: 1 }
+);
+assert.match(mlvcFixed.answer, /15/, "MLVC can correct algebra before AVE");
 
 const lowConfidence = guard.parseVerificationResult(
   JSON.stringify({

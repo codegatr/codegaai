@@ -32,6 +32,7 @@ const {
   shouldVerifyAnswer,
   verifyAnswer,
 } = require("./agent/reasoning-guard");
+const { shouldRunMLVC, verifyMathLogic } = require("./agent/mlvc");
 const { repairBenchmarkAnswer, solveKnownReasoningBenchmarks } = require("./agent/benchmark-reasoner");
 const { makePlan, looksLikeGoal } = require("./agent/planner");
 const { runOrchestrated } = require("./agent/orchestrator");
@@ -553,6 +554,7 @@ class ModelManager {
     const inputNeedsVerification = shouldVerifyAnswer(input);
     const inputNeedsConclusion = shouldEnforceConclusion(input);
     const inputNeedsCognitivePipeline = shouldRunCognitivePipeline(input);
+    const inputNeedsMLVC = shouldRunMLVC(input);
     const onToken = (inputNeedsVerification || inputNeedsConclusion || inputNeedsCognitivePipeline) ? null : (opts.onToken || null);
     // Yeniden üretim: önceki turu (user+assistant) geçmişten çıkar ki bağlam tekrarlanmasın
     if (opts.regenerate) {
@@ -849,6 +851,18 @@ class ModelManager {
 
     if (inputNeedsVerification && agent.stoppedReason !== "smalltalk") {
       try {
+        if (inputNeedsMLVC) {
+          const mlvc = await verifyMathLogic(
+            input,
+            finalText,
+            (msgs) => this.generate(selectedModel, msgs, attemptModels),
+            { passes: 2 }
+          );
+          if (mlvc.answer && mlvc.answer.trim()) finalText = mlvc.answer.trim();
+          if (!mlvc.approved && mlvc.errors && mlvc.errors.length) {
+            try { improveDrafts.recordSignal({ kind: "mlvc", subject: mlvc.errors[0] }); } catch (_e) {}
+          }
+        }
         const v = await verifyAnswer(
           input,
           finalText,
