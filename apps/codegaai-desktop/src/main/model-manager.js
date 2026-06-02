@@ -108,6 +108,17 @@ async function regenerateTaskLocalAnswer(task, answer, errors, generateFn) {
 
 async function verifyTaskLocalAnswer(task, draft, generateFn = null, opts = {}) {
   const allowRegeneration = opts.allowRegeneration !== false;
+  const progress = opts.progress || null;
+  const regenState = opts.regenerationState || { attempts: 0, max: MAX_REGENERATION_ATTEMPTS };
+  const canRegenerate = () => allowRegeneration && typeof generateFn === "function" && regenState.attempts < (regenState.max || MAX_REGENERATION_ATTEMPTS);
+  const runRegeneration = async (errors, reason) => {
+    if (!canRegenerate()) return "";
+    regenState.attempts += 1;
+    const errText = (errors || []).join("; ") || reason || "verification failed";
+    progress?.emit?.("regenerating", { attempt: regenState.attempts, reason: errText });
+    try { logs.warn("verification", `stage=regenerating attempt=${regenState.attempts}/${regenState.max || MAX_REGENERATION_ATTEMPTS} task=${task.label || task.id || "task"} reason=${errText.slice(0, 160)}`); } catch (_e) {}
+    return regenerateTaskLocalAnswer(task, answer, errors, generateFn);
+  };
   let answer = taskLocalFinalAnswer(draft);
   const blocked = (errors = []) => ({
     ok: false,
@@ -122,15 +133,19 @@ async function verifyTaskLocalAnswer(task, draft, generateFn = null, opts = {}) 
   };
 
   const rp = rpre.verify(task.body, answer);
+  progress?.emit?.("verifying", { attempt: regenState.attempts, reason: "rpre" });
   if (rp.applicable && rp.status === "REJECTED" && rp.correctedAnswer) apply(rp.correctedAnswer, "task-rpre");
 
   const eb = ebse.verify(task.body, answer);
+  progress?.emit?.("verifying", { attempt: regenState.attempts, reason: "ebse" });
   if (eb.applicable && eb.status === "REJECTED" && eb.correctedAnswer) apply(eb.correctedAnswer, "task-ebse");
 
+  progress?.emit?.("verifying", { attempt: regenState.attempts, reason: "mlvc" });
   const ml = await verifyMathLogic(task.body, answer, null, { passes: 1, force: shouldRunMLVC(task.body) });
   if (ml.answer && ml.answer.trim()) apply(ml.answer.trim(), "task-mlvc");
 
   if (typeof generateFn === "function") {
+    progress?.emit?.("verifying", { attempt: regenState.attempts, reason: "ave" });
     const av = await verifyAnswer(task.body, answer, generateFn, {
       categories: classifyReasoningProblem(task.body),
       passes: 1,
@@ -138,10 +153,10 @@ async function verifyTaskLocalAnswer(task, draft, generateFn = null, opts = {}) 
     if (av.answer && av.answer.trim()) apply(av.answer.trim(), "task-ave");
     if (av.ok === false || av.approved === false) {
       const errors = av.errors || ["AVE failed"];
-      if (allowRegeneration) {
-        const regenerated = await regenerateTaskLocalAnswer(task, answer, errors, generateFn);
+      if (canRegenerate()) {
+        const regenerated = await runRegeneration(errors, "AVE failed");
         if (regenerated) {
-          const retry = await verifyTaskLocalAnswer(task, regenerated, null, { allowRegeneration: false });
+          const retry = await verifyTaskLocalAnswer(task, regenerated, null, { allowRegeneration: false, progress, regenerationState: regenState });
           if (retry.ok) return { ...retry, regenerated: true };
         }
       }
@@ -149,44 +164,47 @@ async function verifyTaskLocalAnswer(task, draft, generateFn = null, opts = {}) 
     }
   }
 
+  progress?.emit?.("verifying", { attempt: regenState.attempts, reason: "tcnis" });
   const numericIntegrity = tcnis.validateTCNIS(task.body, answer);
   if (!numericIntegrity.ok) {
-    if (allowRegeneration) {
-      const regenerated = await regenerateTaskLocalAnswer(task, answer, numericIntegrity.errors, generateFn);
+    if (canRegenerate()) {
+      const regenerated = await runRegeneration(numericIntegrity.errors, "TCNIS failed");
       if (regenerated) {
-        const retry = await verifyTaskLocalAnswer(task, regenerated, null, { allowRegeneration: false });
+        const retry = await verifyTaskLocalAnswer(task, regenerated, null, { allowRegeneration: false, progress, regenerationState: regenState });
         if (retry.ok) return { ...retry, regenerated: true };
       }
     }
     return blocked(numericIntegrity.errors);
   }
 
+  progress?.emit?.("verifying", { attempt: regenState.attempts, reason: "sacv" });
   const semantic = sacv.validateSemanticCompleteness(answer, {
     applicable: true,
     count: 1,
     tasks: [{ ...task, label: task.label || task.id || "Task 1" }],
   });
   if (!semantic.ok) {
-    if (allowRegeneration) {
-      const regenerated = await regenerateTaskLocalAnswer(task, answer, semantic.errors, generateFn);
+    if (canRegenerate()) {
+      const regenerated = await runRegeneration(semantic.errors, "SACV failed");
       if (regenerated) {
-        const retry = await verifyTaskLocalAnswer(task, regenerated, null, { allowRegeneration: false });
+        const retry = await verifyTaskLocalAnswer(task, regenerated, null, { allowRegeneration: false, progress, regenerationState: regenState });
         if (retry.ok) return { ...retry, regenerated: true };
       }
     }
     return blocked(semantic.errors);
   }
 
+  progress?.emit?.("verifying", { attempt: regenState.attempts, reason: "ssv" });
   let sanity = ssv.validateSupremeSanity(task.body, answer, null, { factLock: factLock.extractFacts(task.body) });
   if (sanity.correctedAnswer) {
     apply(sanity.correctedAnswer, "task-ssv");
     sanity = ssv.validateSupremeSanity(task.body, answer, null, { factLock: factLock.extractFacts(task.body) });
   }
   if (!sanity.ok) {
-    if (allowRegeneration) {
-      const regenerated = await regenerateTaskLocalAnswer(task, answer, sanity.errors, generateFn);
+    if (canRegenerate()) {
+      const regenerated = await runRegeneration(sanity.errors, "SSV failed");
       if (regenerated) {
-        const retry = await verifyTaskLocalAnswer(task, regenerated, null, { allowRegeneration: false });
+        const retry = await verifyTaskLocalAnswer(task, regenerated, null, { allowRegeneration: false, progress, regenerationState: regenState });
         if (retry.ok) return { ...retry, regenerated: true };
       }
     }
@@ -264,6 +282,37 @@ const READY_STATES = {
   MISSING: "missing",
   ERROR: "error",
 };
+
+const MAX_REGENERATION_ATTEMPTS = 3;
+const PROGRESS_HEARTBEAT_MS = 5000;
+const HEARTBEAT_TOKEN = "\u200b";
+
+function makeVerificationProgress(onToken, scope = "answer") {
+  const startedAt = Date.now();
+  let stage = "reasoning";
+  let attempt = 0;
+  const emit = (nextStage = stage, meta = {}) => {
+    stage = nextStage || stage;
+    attempt = meta.attempt == null ? attempt : meta.attempt;
+    try { if (typeof onToken === "function") onToken(HEARTBEAT_TOKEN); } catch (_e) {}
+    try {
+      const reason = meta.reason ? ` reason=${String(meta.reason).slice(0, 120)}` : "";
+      logs.info("verification", `stage=${stage} attempt=${attempt} scope=${scope} elapsed=${Date.now() - startedAt}ms${reason}`);
+    } catch (_e) {}
+  };
+  const timer = typeof onToken === "function"
+    ? setInterval(() => emit(stage, { attempt }), PROGRESS_HEARTBEAT_MS)
+    : null;
+  if (timer && timer.unref) timer.unref();
+  emit(stage, { attempt });
+  return {
+    emit,
+    stop() {
+      if (timer) clearInterval(timer);
+      try { logs.info("verification", `stage=done attempt=${attempt} scope=${scope} elapsed=${Date.now() - startedAt}ms`); } catch (_e) {}
+    },
+  };
+}
 
 const TASK_MODELS = {
   code: ["qwen2.5-coder:7b", "qwen2.5-coder:3b", "qwen2.5-coder:7b-instruct", "qwen2.5-coder:3b-instruct", "qwen3:8b", DEFAULT_MODEL],
@@ -1032,8 +1081,11 @@ class ModelManager {
         // Her görevi BAĞIMSIZ çöz, task_results[]'e doldur, finali TÜM diziden kur.
         const detectedTasks = taskDecomposition.tasks;
         const taskResults = [];
+        const progress = makeVerificationProgress(onToken, "multi_task");
+        try {
         for (let i = 0; i < detectedTasks.length; i++) {
           const t = detectedTasks[i];
+          progress.emit("reasoning", { attempt: 0, reason: t.label || `task-${i + 1}` });
           const taskFactLock = factLock.extractFacts(t.body);
           const tMsgs = [
             {
@@ -1066,7 +1118,8 @@ class ModelManager {
             const verified = await verifyTaskLocalAnswer(
               t,
               aTxt,
-              (msgs) => this.generate(selectedModel, msgs, attemptModels)
+              (msgs) => this.generate(selectedModel, msgs, attemptModels),
+              { progress, regenerationState: { attempts: 0, max: MAX_REGENERATION_ATTEMPTS } }
             );
             aTxt = verified.answer || aTxt;
             if (!verified.ok) {
@@ -1080,6 +1133,9 @@ class ModelManager {
           taskResults.push({ label: t.label, answer: aTxt });
         }
         // Final yanıt TÜM task_results dizisinden kurulur (yalnız son/aktif görev değil)
+        } finally {
+          progress.stop();
+        }
         const assembled = taskResults.map((r) => `**${r.label}**\n${r.answer}`).join("\n\n");
         const complete = taskResults.length === detectedTasks.length;
         agent = {
@@ -1197,6 +1253,9 @@ class ModelManager {
 
     // Öz değerlendirme (opt-in): cevabı denetle, gerekiyorsa düzelt
     let finalText = text;
+    const finalProgress = agent.stoppedReason !== "smalltalk" && agent.stoppedReason !== "multi_task"
+      ? makeVerificationProgress(onToken, "final_answer")
+      : null;
     const applyCorrection = (candidate, source) => {
       const check = cvl.validateCorrection(input, finalText, candidate, { source });
       if (!check.accepted) {
@@ -1213,6 +1272,7 @@ class ModelManager {
     const multiTaskAssembled = isMultiTask ? agent.content : "";
     if (settings.selfReflection && !inputNeedsCognitivePipeline && agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
+        finalProgress?.emit?.("verifying", { reason: "self-reflection" });
         const r = await reflect(input, text, (msgs) => this.generate(selectedModel, msgs));
         if (r.answer && r.answer.trim()) applyCorrection(r.answer.trim(), "reflect");
       } catch (_e) {
@@ -1223,6 +1283,7 @@ class ModelManager {
     // Çok-turlu hafıza: kullanıcı + final cevabı sakla (araç gözlemleri hariç)
     if (inputNeedsCognitivePipeline && agent.stoppedReason !== "smalltalk") {
       try {
+        finalProgress?.emit?.("verifying", { reason: "adversarial-review" });
         const review = await runAdversarialReview(
           input,
           finalText,
@@ -1245,6 +1306,7 @@ class ModelManager {
     //  sayıları karıştırıp cevabı bozabilir → atla.)
     if (agent.stoppedReason !== "smalltalk" && agent.stoppedReason !== "multi_task") {
       try {
+        finalProgress?.emit?.("verifying", { reason: "rpre" });
         const rp = rpre.verify(input, finalText);
         if (rp.applicable && rp.status === "REJECTED" && rp.correctedAnswer) {
           if (applyCorrection(rp.correctedAnswer, "rpre")) {
@@ -1259,6 +1321,7 @@ class ModelManager {
     // Türetilen değerleri orijinal denklemlere koyar; geçmezse cevabı reddedip YENİDEN hesaplar.
     if (agent.stoppedReason !== "smalltalk" && agent.stoppedReason !== "multi_task") {
       try {
+        finalProgress?.emit?.("verifying", { reason: "ebse" });
         const eb = ebse.verify(input, finalText);
         if (eb.applicable && eb.status === "REJECTED" && eb.correctedAnswer) {
           if (applyCorrection(eb.correctedAnswer, "ebse")) {
@@ -1272,6 +1335,7 @@ class ModelManager {
     if (inputNeedsVerification && agent.stoppedReason !== "smalltalk" && agent.stoppedReason !== "multi_task") {
       try {
         if (inputNeedsMLVC) {
+          finalProgress?.emit?.("verifying", { reason: "mlvc" });
           // deep KAPALI: yalnız deterministik kontrol (model çağrısı yok) → hızlı, donmaz.
           // deep AÇIK: ek olarak LLM doğrulama turu.
           const mlvc = await verifyMathLogic(
@@ -1287,6 +1351,7 @@ class ModelManager {
           }
         }
         if (deepReasoning && !mlvcApproved) {
+          finalProgress?.emit?.("verifying", { reason: "ave" });
           const v = await verifyAnswer(
             input,
             finalText,
@@ -1302,6 +1367,7 @@ class ModelManager {
 
     if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
+        finalProgress?.emit?.("verifying", { reason: "benchmark-repair" });
         const repaired = repairBenchmarkAnswer(input, finalText);
         if (repaired.repaired && repaired.answer && repaired.answer.trim()) applyCorrection(repaired.answer.trim(), "benchmark-repair");
       } catch (_e) {
@@ -1313,6 +1379,7 @@ class ModelManager {
     // insanın hemen anlayacağı karşılığa çevirir (örn. 7/15 -> %46,67; 0.5 saat -> 30 dk).
     if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
+        finalProgress?.emit?.("finalizing", { reason: "hril" });
         const interpreted = hril.interpret(input, finalText);
         if (interpreted.answer && interpreted.answer.trim()) applyCorrection(interpreted.answer.trim(), "hril");
       } catch (_e) {
@@ -1324,6 +1391,7 @@ class ModelManager {
     // anlaşılır açıklama yapısına çevirir; sonucu değiştirmez.
     if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
+        finalProgress?.emit?.("finalizing", { reason: "ree" });
         const explained = ree.explain(input, finalText);
         if (explained.answer && explained.answer.trim()) applyCorrection(explained.answer.trim(), "ree");
       } catch (_e) {
@@ -1334,6 +1402,7 @@ class ModelManager {
     // TDE completion gate: multi-part prompts must visibly complete every detected task.
     if (agent.stoppedReason !== "smalltalk" && taskDecomposition.applicable) {
       try {
+        finalProgress?.emit?.("verifying", { reason: "tde-coverage" });
         let coverage = tde.validateTaskCoverage(finalText, taskDecomposition);
         if (!coverage.ok) {
           try { improveDrafts.recordSignal({ kind: "tde_missing_tasks", subject: coverage.missing.map((t) => t.label).join(", ") }); } catch (_e) {}
@@ -1364,6 +1433,7 @@ class ModelManager {
     // 2) her tespit edilen görev Final Answer içinde tam bir kez cevaplanmalı
     if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
+        finalProgress?.emit?.("verifying", { reason: "final-answer-sanitizer" });
         let finalCheck = finalAnswerSanitizer.validateFinalAnswer(finalText, input, taskDecomposition);
         if (finalCheck.cleanedAnswer) {
           applyCorrection(finalCheck.cleanedAnswer, "output-cleaner");
@@ -1393,6 +1463,7 @@ class ModelManager {
 
     if (deepReasoning && inputNeedsConclusion && agent.stoppedReason !== "smalltalk") {
       try {
+        finalProgress?.emit?.("finalizing", { reason: "mce" });
         const c = await enforceConclusion(
           input,
           finalText,
@@ -1411,6 +1482,7 @@ class ModelManager {
     let hardGateBlocked = false;
     if (agent.stoppedReason !== "smalltalk") {
       try {
+        finalProgress?.emit?.("verifying", { reason: "hard-gate" });
         const post = await cognitiveKernel.runPostValidation(cognitiveContextState, finalText, {
           stoppedReason: agent.stoppedReason,
           needsVerification: inputNeedsVerification,
@@ -1484,6 +1556,9 @@ class ModelManager {
         if (cleaned && cleaned.changed && String(cleaned.answer || "").trim()) finalText = String(cleaned.answer).trim();
       } catch (_e) { /* temizleme cevabı bozmasın */ }
     }
+
+    finalProgress?.emit?.("finalizing", { reason: "history-and-stats" });
+    finalProgress?.stop?.();
 
     this.history.push({ role: "user", content: input });
     this.history.push({ role: "assistant", content: finalText });
@@ -1607,4 +1682,7 @@ module.exports = {
   _verifyTaskLocalAnswer: verifyTaskLocalAnswer,
   _deterministicTaskAnswer: deterministicTaskAnswer,
   _collapseRunawayTaskAnswer: collapseRunawayTaskAnswer,
+  _makeVerificationProgress: makeVerificationProgress,
+  _MAX_REGENERATION_ATTEMPTS: MAX_REGENERATION_ATTEMPTS,
+  _HEARTBEAT_TOKEN: HEARTBEAT_TOKEN,
 };

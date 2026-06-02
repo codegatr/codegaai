@@ -183,6 +183,27 @@ suite("multi_task_task_local_verification", async () => {
   assert.match(runaway, /Task-local guard/, "runaway repeated task drafts are collapsed before verification");
 });
 
+suite("watchdog_regeneration_loop_guard", async () => {
+  assert.equal(modelManager._MAX_REGENERATION_ATTEMPTS, 3);
+  const tokens = [];
+  const progress = modelManager._makeVerificationProgress((token) => tokens.push(token), "test");
+  progress.emit("verifying", { attempt: 1, reason: "unit-test" });
+  progress.stop();
+  assert.ok(tokens.length >= 2, "progress heartbeat emits activity tokens");
+  assert.equal(tokens.every((token) => token === modelManager._HEARTBEAT_TOKEN), true, "heartbeat uses invisible token");
+
+  const started = Date.now();
+  const simple = [
+    modelManager._deterministicTaskAnswer("120 sheep. All except 35 died. How many remain?"),
+    modelManager._deterministicTaskAnswer("9x + 18 = 99. x kactir?"),
+    modelManager._deterministicTaskAnswer("1000 TL product first increases by %20, then decreases by %20. Final price?"),
+  ];
+  assert.match(simple[0], /Final Answer:\s*35/);
+  assert.match(simple[1], /Final Answer:\s*9\b/);
+  assert.match(simple[2], /Final Answer:\s*960 TL/);
+  assert.ok(Date.now() - started < 10000, "simple benchmark completes under 10 seconds");
+});
+
 let passed = 0;
 const failures = [];
 for (const item of suites) {
