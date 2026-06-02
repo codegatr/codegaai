@@ -57,10 +57,10 @@ function questionLeakEvidence(question, finalText, tasks = []) {
 function fakeTaskSplitEvidence(answer, taskReport) {
   if (!taskReport || !taskReport.instructionOnly || !(taskReport.outputRequirements || []).length) return "";
   const text = trFold(answer);
-  const labels = [...text.matchAll(/(?:^|\n)\s*(?:\*\*)?\s*(?:gorev|task|soru)\s+\d+\s*(?:\*\*)?\s*[:\n]/g)];
+  const labels = [...text.matchAll(/(?:^|\n)\s*(?:\*\*)?\s*(?:test|gorev|task|soru)\s+\d+\s*(?:\*\*)?\s*[:\n]/g)];
   if (labels.length >= 2) return `${labels.length} fake task labels`;
   const final = trFold(finalAnswerText(answer));
-  const finalLabels = [...final.matchAll(/\b(?:gorev|task|soru)\s+\d+\b/g)];
+  const finalLabels = [...final.matchAll(/\b(?:test|gorev|task|soru)\s+\d+\b/g)];
   if (finalLabels.length >= 2) return `${finalLabels.length} fake task labels in Final Answer`;
   return "";
 }
@@ -82,14 +82,14 @@ function isSingleProblemMode(question, taskReport = null) {
 function phantomTaskDetector(answer, question, taskReport = null) {
   if (!isSingleProblemMode(question, taskReport)) return { ok: true, errors: [] };
   const text = trFold(answer);
-  const labels = [...text.matchAll(/(?:^|\n|\b)(?:\*\*)?\s*(?:gorev|task|soru)\s+(\d+)\s*(?:\*\*)?\s*[:\n]/g)]
+  const labels = [...text.matchAll(/(?:^|\n|\b)(?:\*\*)?\s*(?:test|gorev|task|soru)\s+(\d+)\s*(?:\*\*)?\s*[:\n]/g)]
     .map((m) => Number(m[1]))
     .filter(Number.isFinite);
   const phantom = labels.filter((n) => n >= 2);
   if (phantom.length) {
     return { ok: false, errors: [`phantom_task_detector: single-problem output contains phantom task labels: ${phantom.join(", ")}`] };
   }
-  if (/\b(?:soru|gorev|task)\s+2\b/.test(text)) {
+  if (/\b(?:test|soru|gorev|task)\s+2\b/.test(text)) {
     return { ok: false, errors: ["phantom_task_detector: single-problem output contains Soru/Gorev/Task 2."] };
   }
   return { ok: true, errors: [] };
@@ -125,14 +125,14 @@ function countProvidedTasks(question, taskReport = null) {
 
 function countAnswerSections(answer) {
   const text = String(answer || "");
-  const labels = [...text.matchAll(/(?:^|\n)\s*(?:\*\*)?\s*(?:soru|görev|gorev|task)\s+\d+\s*(?:\*\*)?\s*[:\n]/gi)];
+  const labels = [...text.matchAll(/(?:^|\n)\s*(?:\*\*)?\s*(?:test|soru|görev|gorev|task)\s+\d+\s*(?:\*\*)?\s*[:\n]/gi)];
   if (labels.length) return labels.length;
   return 1;
 }
 
 function sectionIsUntraceable(section, question, taskReport = null) {
   const s = trFold(section);
-  if (/\b(?:soru|gorev|task)\s+([2-9]|\d{2,})\b/.test(s) && isSingleProblemMode(question, taskReport)) return true;
+  if (/\b(?:test|soru|gorev|task)\s+([2-9]|\d{2,})\b/.test(s) && isSingleProblemMode(question, taskReport)) return true;
   if (/lutfen\s+(?:bir\s+)?gorev\s+belirtin|lutfen\s+daha\s+fazla\s+bilgi|daha\s+fazla\s+ayrinti|bilgi\s+eksik|yeni\s+gorev\s+belirtin/.test(s)) return true;
   if (/\bbaslatalim\b|\bornegin\b|\bornek\s+gorev\b|\bornek\s+cozum\b/.test(s) && !/\bornek|example/.test(trFold(question))) return true;
   if (/\bcevap\s*:\s*(?:\.{3}|…|\(\s*\.{3})/.test(s)) return true;
@@ -141,7 +141,7 @@ function sectionIsUntraceable(section, question, taskReport = null) {
 
 function splitLabelSections(answer) {
   const text = String(answer || "");
-  const re = /(?:^|\n)\s*(?:\*\*)?\s*(?:soru|görev|gorev|task)\s+\d+\s*(?:\*\*)?\s*[:\n]/gi;
+  const re = /(?:^|\n)\s*(?:\*\*)?\s*(?:test|soru|görev|gorev|task)\s+\d+\s*(?:\*\*)?\s*[:\n]/gi;
   const matches = [...text.matchAll(re)];
   if (!matches.length) return [];
   return matches.map((m, i) => {
@@ -174,12 +174,12 @@ function cleanPhantomOutput(answer, question, taskReport = null) {
   let dropping = false;
   for (const line of lines) {
     const folded = trFold(line);
-    if (/^\s*(?:\*\*)?\s*(?:soru|gorev|task)\s+([2-9]|\d{2,})\b/.test(folded)) {
+    if (/^\s*(?:\*\*)?\s*(?:test|soru|gorev|task)\s+([2-9]|\d{2,})\b/.test(folded)) {
       dropping = true;
       removed.push(line);
       continue;
     }
-    if (dropping && /^\s*(?:\*\*)?\s*(?:soru|gorev|task)\s+1\b/.test(folded)) dropping = false;
+    if (dropping && /^\s*(?:\*\*)?\s*(?:test|soru|gorev|task)\s+1\b/.test(folded)) dropping = false;
     if (dropping) {
       removed.push(line);
       continue;

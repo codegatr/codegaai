@@ -1090,4 +1090,30 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("ARL tuzaklar: 100 kapı=10, 3 kedi=çember, birinci=imkansız öncül, ikinci=ikinci");
 }
 
+
+// === ANTI-HALÜSİNASYON: canonical bozulmaz + boş görev emit edilmez ===
+{
+  const bMod = await import(path.join(mainDir, "agent", "benchmark-reasoner.js"));
+  const fMod = await import(path.join(mainDir, "agent", "final-answer-sanitizer.js"));
+  const BR = bMod.default || bMod;
+  const FS = fMod.default || fMod;
+
+  // 1) 100 kapı: doğru 10 + asal halüsinasyonu -> canonical'a onarılır (asal reddi)
+  const doorsQ = "100 kapı var her turda katları değiştiriliyor kaç kapı açık kalır?";
+  assert.strictEqual(BR.repairBenchmarkAnswer(doorsQ, "10 tam kare açık ama asal kapılar da katkı sağlar, 37.").repaired, true, "100 kapı asal halüsinasyonu onarılır");
+  assert.ok(/10 kapı/.test(BR.repairBenchmarkAnswer(doorsQ, "asal katkı 37").answer), "onarım 10 kapı verir");
+  assert.strictEqual(BR.repairBenchmarkAnswer(doorsQ, "Tam kareler: 10 kapı açık.").repaired, false, "temiz 10 onarılmaz");
+  // 2) 3 kedi: imkansız -> çember onarımı
+  assert.strictEqual(BR.repairBenchmarkAnswer("3 kedi önünde 2 arkasında 2 nasıl?", "Bu imkansız, olamaz.").repaired, true, "3 kedi imkansız -> çember onarımı");
+  // 3) birinciyi geçmek: birinci olursun -> imkansız öncül onarımı
+  assert.strictEqual(BR.repairBenchmarkAnswer("Yarışta birinci sıradaki kişiyi geçersen kaçıncı?", "Birinci sıraya geçersin.").repaired, true, "birinci olursun -> onarılır");
+  // 4) ikinciyi geçmek -> ikinci (canonical)
+  assert.ok(/ikinci/i.test(BR.solveKnownReasoningBenchmarks("Yarışta ikinci sıradaki kişiyi geçersen kaçıncı?")), "ikinci geç -> ikinci");
+  // 5) boş/duplicate Test placeholder emit edilmez (tek-problem)
+  const cleaned = FS.cleanPhantomOutput("Test 1: 10 kapı açık.\nTest 2:\nTest 3:\nFinal Answer: 10", "100 kapı problemi kaç kapı açık?", { applicable: false, count: 0 });
+  assert.strictEqual(cleaned.changed, true, "boş Test 2/3 temizlenir");
+  assert.ok(!/test\s*2|test\s*3/i.test(cleaned.answer), "temiz cevapta boş Test 2/3 yok");
+  ok("ANTI-HALÜSİNASYON: 100 kapı=10 (asal reddi), 3 kedi=çember, birinci=imkansız, ikinci=ikinci, boş görev yok");
+}
+
 console.log(`\n${passed} test geçti ✅`);

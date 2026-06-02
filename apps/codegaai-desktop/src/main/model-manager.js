@@ -1465,6 +1465,15 @@ class ModelManager {
       finalText = multiTaskAssembled.trim();
     }
 
+    // Boş/phantom görev placeholder temizliği (tek-problem modu): "Test 2/Görev 3" gibi
+    // dayanaksız bölümleri ve boş "Cevap: ..." placeholder'larını final cevaptan çıkar.
+    if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
+      try {
+        const cleaned = finalAnswerSanitizer.cleanPhantomOutput(finalText, input, taskDecomposition);
+        if (cleaned && cleaned.changed && String(cleaned.answer || "").trim()) finalText = String(cleaned.answer).trim();
+      } catch (_e) { /* temizleme cevabı bozmasın */ }
+    }
+
     this.history.push({ role: "user", content: input });
     this.history.push({ role: "assistant", content: finalText });
     if (this.history.length > MAX_HISTORY_MESSAGES) {

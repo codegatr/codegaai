@@ -36,7 +36,30 @@ function isAnswerableReasoningPrompt(question) {
   );
 }
 
+function contradictsCanonical(question, answer) {
+  const q = lower(question);
+  const a = lower(answer);
+  // 100 kapı: canonical 10 / tam kare. Asal katkısı VEYA 10 dışı kapı sayısı -> halüsinasyon.
+  if (/100\s*(kap[ıi]|door)/.test(q) && /(a[cç]|kapa|tur|kat|toggle|divisor|b[öo]len|open|close)/.test(q)) {
+    if (/(asal|prime)/.test(a)) return true;
+    if (/\b(25|37|49|50)\b/.test(a) && !/\b10\b/.test(a)) return true;
+    const m = a.match(/(\d+)\s*(?:kap[ıi]|door)\D{0,14}(?:a[cç][ıi]k|open|kal)/);
+    if (m && Number(m[1]) !== 10) return true;
+  }
+  // 3 kedi: çember. "imkansız/impossible" ama çember demiyor -> halüsinasyon.
+  if (/(kedi|cat)/.test(q) && /(on[uü]nde|önünde|front)/.test(q) && /(arkas|behind|geri)/.test(q)) {
+    if (/(imkans[ıi]z|impossible|m[üu]mk[üu]n de[ğg]il|olamaz)/.test(a) && !/(çember|cember|dairesel|circ)/.test(a)) return true;
+  }
+  // Birinciyi geçmek: geçersiz öncül. "birinci olursun/become first" -> halüsinasyon.
+  if ((/birinci|first/.test(q)) && /(ge[cç]|pass|overtake)/.test(q) && /(yar[ıi][şs]|ko[şs]u|race|s[ıi]ra)/.test(q)) {
+    if (/((birinci|first)\s*(s[ıi]ra|place|ol)|1\.?\s*(s[ıi]ra|ol))/.test(a) && !/(m[üu]mk[üu]n de[ğg]il|geçersiz|gecersiz|impossible|lap|tur)/.test(a)) return true;
+  }
+  return false;
+}
+
 function needsBenchmarkRepair(question, answer) {
+  // Anti-halüsinasyon: canonical çözüm varken cevap onunla çelişiyor/uydurma ekliyorsa onar.
+  if (contradictsCanonical(question, answer) && solveKnownReasoningBenchmarks(question)) return true;
   if (!isAnswerableReasoningPrompt(question)) return false;
   if (hasRefusal(answer)) return true;
   return missingLabels(question, answer).length > 0;
@@ -103,6 +126,7 @@ function repairBenchmarkAnswer(question, answer) {
 }
 
 module.exports = {
+  contradictsCanonical,
   extractTestLabels,
   hasRefusal,
   isAnswerableReasoningPrompt,

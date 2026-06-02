@@ -4,6 +4,29 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 122 — ARL/MLVC anti-halüsinasyon yaması (1 Haz 2026, Claude)
+
+Matematik iyi; kalan zayıflık ARL + final anti-halüsinasyon. Yeni mimari yok.
+
+P1 — Doğru muhakeme bozuluyordu: 100 kapı'da model doğru "10 tam kare" deyip sonra "asal kapılar
+da katkı sağlar" diye halüsinasyon ekliyordu. benchmark-reasoner.contradictsCanonical: canonical
+çözüm varken cevap onunla çelişiyor/uydurma ekliyorsa (asal katkısı, 10 dışı kapı sayısı) →
+needsBenchmarkRepair true → temiz canonical ile DEĞİŞTİR.
+P2 — 3 kedi: "imkansız" ama çember demiyorsa → çember canonical'ıyla onar.
+P3 — birinciyi geçmek: "birinci olursun" → geçersiz öncül canonical'ıyla onar.
+P4 — boş/duplicate görev placeholder: final-answer-sanitizer phantom desenlerine "test" eklendi
+(eskiden yalnız soru/görev/task); cleanPhantomOutput model-manager'a BAĞLANDI (tek-problem
+modunda "Test 2/Görev 3" gibi dayanaksız + boş bölümleri final cevaptan çıkarır). multi_task'ta
+çalışmaz (etiketler gerçek).
+
+Regresyon (61/61): 100 kapı=10 (asal reddi), 3 kedi=çember, birinci=imkansız öncül, ikinci=ikinci,
+boş Test placeholder yok.
+
+Test 61/61 + reasoning-guard. Surum -> **1.5.0**.
+
+---
+
+
 ## ✅ Faz 121 — ARL mantık tuzağı genişletme (1 Haz 2026, Claude)
 
 Aritmetik + görev ayrıştırma stabil; kalan hatalar mantık tuzakları. Eklenenler:
