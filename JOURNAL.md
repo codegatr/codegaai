@@ -4,6 +4,29 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 119 — Hedefli düzeltme sprinti: TDE phantom / MLVC para / ARL tuzaklar (1 Haz 2026, Claude)
+
+Yeni katman YOK; mevcut zayıf noktalar düzeltildi.
+
+1) TDE yanlış görev tespiti: açıklayıcı sıralı ADIMLAR ("N. turda/değer/kişi/öğrenci/adım/...")
+   artık görev sayılmaz (yalnız anahtar kelimeli başlık veya bağımsız numaralı soru). 100 kapı
+   problemi TEK görev kalır (phantom Görev 2/3 yok). Bağımsız 5 soru korunur. (fromKeyword bayrağı
+   + ORDINAL_STEP denylist.)
+2) MLVC para aritmetiği (ebse.js): detectMoneyBalance + parseTrMoney (Türkçe binlik: 250.000=250000,
+   kuruş-güvenli) + formatTrMoney. Başlangıç - harcamalar bağımsız yeniden hesaplanır; cevap
+   uymuyorsa REJECT + düzelt. 250.000-37.500-82.500-30.000=100.000 (yanlış 140.000 reddedilir).
+3) ARL mantık tuzakları (benchmark-reasoner + reasoning-guard QUE): dairesel diziliş ("her kedinin
+   önünde/arkasında K" -> çemberde mümkün, 3 kedi), birinciyi geçmek -> geçersiz/imkansız öncül
+   (turlama yoksa), ikinciyi geçmek -> ikinci, "N hariç öldü" -> N kaldı. Genel imkansızlık deme
+   (çember/alternatif diziliş kısıtları sağlıyorsa).
+4) Regresyon testleri eklendi (58/58): 100 kapı=1 görev, para=100.000, 3 kedi=çember, birinciyi
+   geçmek=geçersiz öncül.
+
+Test 58/58 + reasoning-guard. Surum -> **1.2.0**.
+
+---
+
+
 ## ✅ Faz 118 — SACV kök neden (finalAnswerText boş) + warning-mode debug (1 Haz 2026, Claude)
 
 Kullanıcı debug talebi + tahmini: splitAnswerUnits() boş dönüyor; SACV her şeyi "missing"

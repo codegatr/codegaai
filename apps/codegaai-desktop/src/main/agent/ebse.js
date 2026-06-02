@@ -139,6 +139,48 @@ function detectFraction(question) {
  *   checks: [{name, expected, ok, detail}], correctedAnswer, confidence
  * }
  */
+function parseTrMoney(raw) {
+  let s = String(raw || "").replace(/\s|tl|₺|lira/gi, "").trim();
+  if (!s) return null;
+  if (s.includes(",")) { // virgül ondalık (kuruş), nokta binlik
+    s = s.replace(/\./g, "").replace(",", ".");
+    const v = parseFloat(s);
+    return Number.isFinite(v) ? Math.round(v * 100) : null;
+  }
+  // yalnız nokta: binlik ayırıcı (3'lü gruplar) -> Türkçe locale (250.000 = 250000)
+  s = s.replace(/\.(?=\d{3}(?:\D|$))/g, "");
+  const v = parseFloat(s);
+  return Number.isFinite(v) ? Math.round(v * 100) : null; // kuruş
+}
+
+function formatTrMoney(kurus) {
+  const tl = Math.round(kurus) / 100;
+  const intPart = Math.trunc(tl);
+  const frac = Math.abs(Math.round((tl - intPart) * 100));
+  let s;
+  try { s = intPart.toLocaleString("tr-TR"); } catch (_e) { s = String(intPart); }
+  if (!/\d\.\d/.test(s) && Math.abs(intPart) >= 1000) {
+    // locale binlik vermezse elle ekle
+    s = String(intPart).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  }
+  return frac ? `${s},${String(frac).padStart(2, "0")} TL` : `${s} TL`;
+}
+
+/** Para/bakiye: başlangıç tutarından harcamalar düşülür (kaldı/kalan). Kuruş-güvenli. */
+function detectMoneyBalance(question) {
+  const q = trFold(question);
+  if (!/(tl|lira|para|hesab|bakiye)/.test(q)) return null;
+  const spendCtx = /(harca|gider|ode|odeme|cikar|eksil|borc|ver|masraf|fatura|ceza)/.test(q);
+  const remainAsk = /(kaldi|kalan|kalir|geriye|ne kadar|kac (tl|para|lira))/.test(q);
+  if (!(spendCtx || remainAsk)) return null;
+  const raw = String(question).match(/-?\d[\d.,]*\s*(?:tl|lira|₺)/gi) || [];
+  const amounts = raw.map(parseTrMoney).filter((n) => Number.isFinite(n));
+  if (amounts.length < 2) return null;
+  const initial = amounts[0];
+  const spent = amounts.slice(1).reduce((a, b) => a + b, 0);
+  return { amounts, initial, spent, expectedKurus: initial - spent };
+}
+
 function verify(question, answer) {
   const checks = [];
   const ans = String(answer || "");
@@ -207,6 +249,27 @@ function verify(question, answer) {
     // kesirde otomatik düzeltme riskli (soru bağlamına bağlı) — yalnız uyarı, correctedAnswer üretme
   }
 
+  // 5) Para / bakiye aritmetiği: bağımsız yeniden hesap (Türkçe binlik ayraç korunur)
+  const mb = detectMoneyBalance(question);
+  if (mb) {
+    applicable = true;
+    const expectedTL = mb.expectedKurus / 100;
+    const ansAmounts = (String(ans).match(/-?\d[\d.,]*\s*(?:tl|lira|₺)/gi) || []).map(parseTrMoney).filter((n) => Number.isFinite(n));
+    const statedKurus = ansAmounts.length ? ansAmounts[ansAmounts.length - 1] : null;
+    const ok = statedKurus != null && Math.abs(statedKurus - mb.expectedKurus) < 50; // <0,50 TL tolerans
+    checks.push({
+      name: "Para bakiyesi",
+      expected: formatTrMoney(mb.expectedKurus),
+      ok,
+      detail: `${formatTrMoney(mb.initial)} - ${mb.amounts.slice(1).map(formatTrMoney).join(" - ")} = ${formatTrMoney(mb.expectedKurus)}` + (statedKurus != null ? ` | cevap ${formatTrMoney(statedKurus)}` : " | cevapta tutar yok"),
+    });
+    if (!ok && !correctedAnswer) {
+      correctedAnswer = `İşlem (yeniden hesaplandı): ${formatTrMoney(mb.initial)} - ${mb.amounts.slice(1).map(formatTrMoney).join(" - ")} = ${formatTrMoney(mb.expectedKurus)}.\n` +
+        `Doğrulama: ${formatTrMoney(mb.amounts.slice(1).reduce((a, b) => a + b, 0))} harcandı; ${formatTrMoney(mb.initial)} - bu = ${formatTrMoney(mb.expectedKurus)}.\n\n` +
+        `Final Answer: ${formatTrMoney(mb.expectedKurus)}`;
+    }
+  }
+
   if (!applicable) return { applicable: false, status: "UNKNOWN", checks: [], correctedAnswer: "", confidence: 0 };
 
   const failed = checks.filter((c) => !c.ok);
@@ -220,6 +283,9 @@ function verify(question, answer) {
 
 module.exports = {
   verify,
+  detectMoneyBalance,
+  parseTrMoney,
+  formatTrMoney,
   detectSumMultiple,
   detectFutureMultiple,
   solveSumMultiple,

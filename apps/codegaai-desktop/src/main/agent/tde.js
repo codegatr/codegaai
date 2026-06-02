@@ -117,6 +117,7 @@ function headingTasks(text) {
       title: m[0].trim(),
       body: body || block,
       domain: classifyTask(body || block),
+      fromKeyword: !!x.keyword,
     };
   }).filter((task) => task.body);
   const instructions = outputRequirementReport(text, parsedTasks);
@@ -130,7 +131,11 @@ function headingTasks(text) {
   // Açık başlık (Test/Soru/Görev N veya N.) zaten güçlü sinyal; dile bağlı katı filtre yerine
   // yalnız "yok sayılabilir not"ları (başlık/açıklama/sistem mesajı) ele. Böylece İngilizce/
   // farklı ifadeli gerçek görevler düşmez.
-  const tasks = parsedTasks.filter((task) => !isIgnorableTaskBody(task.body));
+  // Ayrıca: açıklayıcı sıralı ADIMLAR ("N. turda/değer/kişi/öğrenci/adım/...") görev DEĞİLDİR —
+  // tek bir problemin alt-adımlarıdır. 100 kapı problemi böylece TEK görev kalır.
+  const ORDINAL_STEP = /^(turda|tur|deger|kisi|kisiyi|ogrenci|adim|asama|sira|sirada|kati|kez|defa|tekrar|kapi|kapiyi|terim|eleman|satir|basamak|gun|hafta|ay|yil|kutu|sayi|sayiyi|dongu|iterasyon|round|step|aday|nesne|obje|hane|grup)\b/;
+  const isExplanatoryStep = (task) => !task.fromKeyword && ORDINAL_STEP.test(trFold(task.body));
+  const tasks = parsedTasks.filter((task) => !isIgnorableTaskBody(task.body) && !isExplanatoryStep(task));
   return tasks;
 }
 

@@ -49,6 +49,7 @@ function questionUnderstandingInstruction() {
     "Before solving, first understand exactly what the user asks.",
     "Internally extract: what is asked, what is not asked, given facts, constraints, required output type, and possible wording traps.",
     "Scan for attention traps such as 'all except 9', interval wording, every nth item, hidden assumptions, and contradicted facts.",
+    "Logic traps: 'pass the first-place runner' is normally an impossible/invalid premise (no one ahead) unless lapping is stated; 'pass second' => you become second; 'all except N died' => N survived; 'each has K in front and K behind' can be satisfied by a CIRCULAR arrangement — do not answer generic impossibility unless no circular/alternative arrangement satisfies all constraints.",
     "Do not introduce facts not present in the question.",
     "Only reason after the question is understood and the required output is identified.",
     "A correct calculation for a misunderstood question is still wrong.",

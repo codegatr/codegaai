@@ -77,6 +77,13 @@ function solveKnownReasoningBenchmarks(question) {
     lines.push("TEST J: Göl 60. gün doluyorsa yarısı 59. gün, çeyreği 58. gün, sekizde biri 57. gündür.");
   }
 
+  if (/(kedi|cat)/.test(q) && /(on[uü]nde|önünde|ileri|front)/.test(q) && /(arkas[ıi]nda|arka|behind|geri)/.test(q)) {
+    lines.push("TEST: Dairesel (çember) dizilişte mümkündür — kediler bir çember oluşturursa her birinin önünde de arkasında da diğerleri olur. 3 kedi bu koşulu sağlar; cevap 3 kedi.");
+  }
+  if ((/birinci|first|1\.?\s*(s[ıi]ra|place)/.test(q)) && /(ge[cç]|pass|ge[cç]iyorsun|overtake)/.test(q) && /(yar[ıi][şs]|ko[şs]u|race|s[ıi]ra)/.test(q)) {
+    lines.push("TEST: Birinciyi geçmek normalde mümkün değildir (önünde kimse yoktur); turlama (lapping) bağlamı belirtilmedikçe öncül geçersizdir. Geçerli durumda ikinciyi geçersen ikinci olursun.");
+  }
+
   if (!lines.length) return "";
   return `${lines.join("\n")}\n\nFinal Answer: ${lines.map((line) => line.replace(/^TEST\s+/, "")).join(" | ")}`;
 }

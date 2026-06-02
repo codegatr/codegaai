@@ -1013,4 +1013,36 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("REGRESYON: 5 görev algıla+cevapla, SACV PASS, registry complete, phantom yok");
 }
 
+
+// === SPRINT regresyon: TDE / MLVC para / ARL tuzakları ===
+{
+  const tMod = await import(path.join(mainDir, "agent", "tde.js"));
+  const eMod = await import(path.join(mainDir, "agent", "ebse.js"));
+  const bMod = await import(path.join(mainDir, "agent", "benchmark-reasoner.js"));
+  const TDE = tMod.default || tMod;
+  const EBSE = eMod.default || eMod;
+  const BR = bMod.default || bMod;
+
+  // 1) TDE: 100 kapı problemi TEK görev (turda adımları görev değil)
+  const doors = "100 kapi kapali. 1. turda her kapiyi ac. 2. turda 2nin katlarini degistir. 3. turda 3un katlarini degistir. Sonunda kac kapi acik?";
+  assert.strictEqual(TDE.decomposeTasks(doors).applicable, false, "100 kapi TEK gorev (phantom Gorev 2/3 yok)");
+  // bağımsız 5 soru hâlâ 5
+  assert.strictEqual(TDE.decomposeTasks("1. 80 sheep all except 20 die.\n2. 7x+13=90.\n3. 5 red 5 blue draw 2.\n4. father son 98.\n5. 90000 ratio 2:3:4.").count, 5, "5 bagimsiz soru korunur");
+
+  // 2) MLVC para: 250.000 - 37.500 - 82.500 - 30.000 = 100.000
+  const moneyQ = "Hesabinda 250.000 TL var. 37.500 TL, 82.500 TL ve 30.000 TL harcadi. Kac TL kaldi?";
+  const wrong = EBSE.verify(moneyQ, "Sonuc 140.000 TL.");
+  assert.strictEqual(wrong.status, "REJECTED", "yanlis 140.000 reddedilir");
+  assert.ok(/100\.000 TL/.test(wrong.correctedAnswer), "100.000 TL'ye duzeltilir");
+  assert.strictEqual(EBSE.verify(moneyQ, "100.000 TL kaldi.").status, "APPROVED", "dogru 100.000 onaylanir");
+  assert.strictEqual(EBSE.parseTrMoney("250.000 TL"), 25000000, "Turkce 250.000 = 250000 (kurus)");
+
+  // 3) ARL: 3 kedi dairesel
+  assert.ok(/çember|dairesel/i.test(BR.solveKnownReasoningBenchmarks("3 kedi var, her kedinin önünde 2 arkasında 2 kedi var, nasil mumkun?")), "3 kedi -> dairesel diziliş");
+  // 4) ranking: birinciyi geçmek geçersiz öncül
+  assert.ok(/mümkün değil|geçersiz/i.test(BR.solveKnownReasoningBenchmarks("Bir yarista birinci siradaki kisiyi gecersen kacinci olursun?")), "birinciyi geçmek -> geçersiz/imkansiz öncül");
+
+  ok("SPRINT: 100 kapı=1 görev, para=100.000, 3 kedi=çember, birinciyi geçmek=geçersiz öncül");
+}
+
 console.log(`\n${passed} test geçti ✅`);
