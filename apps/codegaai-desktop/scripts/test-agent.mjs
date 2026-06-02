@@ -544,13 +544,17 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   const siMod = await import(path.join(mainDir, "agent", "system-info.js"));
   const si = siMod.default || siMod;
   const opts = [
+    { id: "qwen3:1.7b", label: "Qwen3 1.7B" },
+    { id: "qwen3:4b", label: "Qwen3 4B" },
     { id: "qwen2.5:1.5b", label: "Qwen 2.5 1.5B" },
     { id: "qwen2.5:3b", label: "Qwen 2.5 3B" },
     { id: "qwen3:8b", label: "Qwen3 8B" },
+    { id: "qwen3:14b", label: "Qwen3 14B" },
   ];
-  assert.strictEqual(si.recommendModel(4, opts).id, "qwen2.5:1.5b", "düşük RAM -> küçük model");
-  assert.strictEqual(si.recommendModel(8, opts).id, "qwen2.5:3b", "orta RAM -> 3B");
+  assert.strictEqual(si.recommendModel(4, opts).id, "qwen3:1.7b", "düşük RAM -> küçük model");
+  assert.strictEqual(si.recommendModel(8, opts).id, "qwen3:4b", "orta RAM -> 4B");
   assert.strictEqual(si.recommendModel(16, opts).id, "qwen3:8b", "yüksek RAM -> 8B (güncel)");
+  assert.strictEqual(si.recommendModel(32, opts).id, "qwen3:14b", "çok yüksek RAM -> 14B");
   ok("Sistem analizi: donanıma göre güncel model önerisi");
 }
 

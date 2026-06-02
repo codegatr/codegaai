@@ -1,7 +1,31 @@
 const APP_NAME = "CODEGA AI";
 const FEDERATION_BASE_URL = "https://ai.codega.com.tr/api/federation";
-const DEFAULT_MODEL = "qwen2.5:3b";
+const DEFAULT_MODEL = "qwen3:4b";
 const MODEL_OPTIONS = [
+  {
+    id: "qwen3:1.7b",
+    label: "Qwen3 1.7B",
+    description: "Yeni nesil cok hafif Qwen",
+    task: "chat",
+  },
+  {
+    id: "qwen3:14b",
+    label: "Qwen3 14B",
+    description: "Yuksek RAM icin daha guclu Qwen3",
+    task: "writing",
+  },
+  {
+    id: "qwen2.5-coder:3b",
+    label: "Qwen 2.5 Coder 3B",
+    description: "Kod yazma icin guncel kucuk model",
+    task: "code",
+  },
+  {
+    id: "qwen2.5-coder:7b",
+    label: "Qwen 2.5 Coder 7B",
+    description: "Kod icin guncel guclu secenek",
+    task: "code",
+  },
   {
     id: "qwen2.5:1.5b",
     label: "Qwen 2.5 1.5B",

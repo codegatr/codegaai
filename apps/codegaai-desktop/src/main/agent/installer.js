@@ -18,10 +18,16 @@ const fs = require("fs");
 
 // Yaklaşık model indirme boyutları (GB) — kullanıcıya bilgi için
 const MODEL_SIZE_GB = {
+  "qwen3:1.7b": 1.4,
+  "qwen3:4b": 2.5,
+  "qwen3:8b": 5.2,
+  "qwen3:14b": 9.3,
+  "qwen2.5-coder:3b": 1.9,
+  "qwen2.5-coder:7b": 4.7,
   "qwen2.5:1.5b": 1.0,
   "qwen2.5:3b": 1.9,
-  "qwen3:4b": 2.6,
-  "qwen3:8b": 5.2,
+  "qwen2.5-coder:3b-instruct": 1.9,
+  "qwen2.5-coder:7b-instruct": 4.7,
   "llama3.2:3b": 2.0,
   "mistral:7b": 4.1,
   "gemma3:4b": 3.3,

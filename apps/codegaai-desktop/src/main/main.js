@@ -1,7 +1,7 @@
 const path = require("node:path");
 const fs = require("node:fs");
 const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
-const { APP_NAME, FEDERATION_BASE_URL, MODEL_OPTIONS } = require("../shared/constants");
+const { APP_NAME, FEDERATION_BASE_URL, MODEL_OPTIONS, DEFAULT_MODEL } = require("../shared/constants");
 const { ModelManager } = require("./model-manager");
 const { UpdateService } = require("./update-service");
 const settingsStore = require("./agent/settings-store");
@@ -94,7 +94,7 @@ async function learnOnce(manualTopic) {
     try {
       const notesText = notes.map((n) => `[${n.source}] ${n.text}`).join("\n");
       const st = modelManager.getStatus ? modelManager.getStatus() : {};
-      const model = (st && st.model) || "qwen2.5:3b";
+      const model = (st && st.model) || DEFAULT_MODEL;
       const summary = await modelManager.generate(model, learning.buildDistillMessages(topic, notesText));
       const clean = String(summary || "").trim();
       if (clean) learningStore.addNotes([{ source: "özet", topic, text: clean.slice(0, 700), url: "", at: Date.now() }]);
@@ -406,7 +406,7 @@ function registerIpc() {
     const input = (payload && payload.input) || "";
     if (!input.trim()) return { ok: false, message: "Boş istek." };
     const st = modelManager.getStatus ? modelManager.getStatus() : {};
-    const model = (st && st.model) || "qwen2.5:3b";
+    const model = (st && st.model) || DEFAULT_MODEL;
     try {
       // Yan etkisiz: geçmişe yazmaz, istatistiğe saymaz (doğrudan generate)
       const text = await modelManager.generate(model, [{ role: "user", content: input }]);

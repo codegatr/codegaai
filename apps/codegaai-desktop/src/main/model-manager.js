@@ -266,10 +266,10 @@ const READY_STATES = {
 };
 
 const TASK_MODELS = {
-  code: ["qwen2.5-coder:3b-instruct", "qwen2.5-coder:7b-instruct", "qwen3:8b", DEFAULT_MODEL],
-  image: ["qwen2.5:3b", "gemma3:4b", "qwen3:8b", DEFAULT_MODEL],
-  writing: ["qwen3:4b", "qwen2.5:3b", "qwen3:8b", "mistral:7b", DEFAULT_MODEL],
-  chat: [DEFAULT_MODEL, "qwen2.5:1.5b", "llama3.2:3b"],
+  code: ["qwen2.5-coder:7b", "qwen2.5-coder:3b", "qwen2.5-coder:7b-instruct", "qwen2.5-coder:3b-instruct", "qwen3:8b", DEFAULT_MODEL],
+  image: ["qwen3:4b", "gemma3:4b", "qwen3:8b", "qwen2.5:3b", DEFAULT_MODEL],
+  writing: ["qwen3:8b", "qwen3:4b", "qwen3:14b", "mistral:7b", "qwen2.5:3b", DEFAULT_MODEL],
+  chat: [DEFAULT_MODEL, "qwen3:1.7b", "qwen3:8b", "qwen2.5:3b", "qwen2.5:1.5b", "llama3.2:3b"],
 };
 
 function instantAnswer(input) {
@@ -486,6 +486,8 @@ function candidateModelsForTask(task, installed) {
   return unique([
     ...preferred,
     DEFAULT_MODEL,
+    "qwen3:1.7b",
+    "qwen2.5:3b",
     "qwen2.5:1.5b",
     "llama3.2:3b",
     ...modelCandidates(),

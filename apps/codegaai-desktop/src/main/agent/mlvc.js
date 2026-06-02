@@ -68,9 +68,37 @@ function approxEqual(a, b, eps = 0.0001) {
   return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= eps;
 }
 
+function parseNumber(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return NaN;
+  const sign = raw.startsWith("-") ? -1 : 1;
+  const s = raw.replace(/^[+-]/, "");
+
+  // Turkish currency/localized quantities commonly use "." or "," as thousands
+  // separators: 1.000, 90.000, 500.000, 1,000.
+  if (/^\d{1,3}([.,]\d{3})+$/.test(s)) {
+    return sign * Number(s.replace(/[.,]/g, ""));
+  }
+
+  // Mixed separators: the last separator is decimal, previous separators are thousands.
+  if (/^\d{1,3}([.,]\d{3})+[.,]\d{1,2}$/.test(s)) {
+    const decimalSep = s.lastIndexOf(",") > s.lastIndexOf(".") ? "," : ".";
+    const parts = s.split(decimalSep);
+    return sign * Number(parts[0].replace(/[.,]/g, "") + "." + parts[1]);
+  }
+
+  return sign * Number(s.replace(",", "."));
+}
+
+function formatTurkishInteger(value) {
+  if (!Number.isFinite(value)) return "";
+  if (!Number.isInteger(value)) return String(Number(value.toFixed(6)));
+  return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
 function answerContainsNumber(answer, expected) {
   const nums = String(answer || "").match(/-?\d+(?:[.,]\d+)?/g) || [];
-  return nums.some((n) => approxEqual(Number(n.replace(",", ".")), expected));
+  return nums.some((n) => approxEqual(parseNumber(n), expected));
 }
 
 function formatCheckAnswer(check) {
@@ -93,7 +121,7 @@ function splitNumberedTests(question) {
 function classifyMLVCDomains(question) {
   const q = trFold(question);
   const domains = [];
-  if (/%|yuzde|zam|indir/.test(q)) domains.push("percentage");
+  if (/%|yuzde|zam|indir|increase|decrease|discount/.test(q)) domains.push("percentage");
   if (/\b\d+\s*(saat|dakika|gun|hafta|ay|yil)|\b\d{1,2}:\d{2}\b/.test(q)) domains.push("time");
   if (/\b(x|y|z)\b|denklem|esitlik|coz|katinin\s+\d+\s+fazlasi/.test(q)) domains.push("algebra");
   if (/father|son|baba|ogul|years?\s+later|kac\s+yil\s+sonra|future\s+ratio/.test(q)) domains.push("algebra");
@@ -112,22 +140,44 @@ function detectPercentageChain(question) {
   const q = trFold(question);
   const baseMatch = q.match(/(?:baslangic|ilk|urun|fiyat)\D{0,40}(\d+(?:[.,]\d+)?)\s*tl|(\d+(?:[.,]\d+)?)\s*tl/);
   if (!baseMatch) return null;
-  const base = Number((baseMatch[1] || baseMatch[2]).replace(",", "."));
+  const base = parseNumber(baseMatch[1] || baseMatch[2]);
   if (!Number.isFinite(base)) return null;
   const ops = [];
-  const re = /%?\s*(\d+(?:[.,]\d+)?)\s*%?\s*(zam|art|yuksel|indir|dus|azal)/g;
+  const re = /%?\s*(\d+(?:[.,]\d+)?)\s*%?\s*(zam|art|yuksel|increase|increases|increased|indir|dus|azal|decrease|decreases|decreased|discount)/g;
   let m;
   while ((m = re.exec(q))) {
-    const pct = Number(m[1].replace(",", ".")) / 100;
-    ops.push(/zam|art|yuksel/.test(m[2]) ? (1 + pct) : (1 - pct));
+    const pct = parseNumber(m[1]) / 100;
+    ops.push(/zam|art|yuksel|increase/.test(m[2]) ? (1 + pct) : (1 - pct));
+  }
+  const reverseRe = /(zam|art|yuksel|increase|increases|increased|indir|dus|azal|decrease|decreases|decreased|discount)\s+(?:by|with|ile|oraninda|oranda)?\s*%?\s*(\d+(?:[.,]\d+)?)\s*%?/g;
+  while ((m = reverseRe.exec(q))) {
+    const pct = parseNumber(m[2]) / 100;
+    ops.push(/zam|art|yuksel|increase/.test(m[1]) ? (1 + pct) : (1 - pct));
   }
   if (!ops.length) return null;
   const result = ops.reduce((v, factor) => v * factor, base);
+  const resultText = Number.isInteger(result) ? `${formatTurkishInteger(result)} TL` : `${Number(result.toFixed(6))} TL`;
   return {
     kind: "percentage",
     result,
-    resultText: `${Number(result.toFixed(6))} TL`,
-    explanation: `${base} x ${ops.map((f) => f.toFixed(2)).join(" x ")} = ${Number(result.toFixed(6))}`,
+    resultText,
+    explanation: `${formatTurkishInteger(base)} x ${ops.map((f) => f.toFixed(2)).join(" x ")} = ${resultText.replace(/\s*TL$/, "")}`,
+  };
+}
+
+function detectMoneySubtractionChain(question) {
+  const q = trFold(question);
+  if (/\b[a-z]\b|=/.test(q) || !/(tl|para|butce|bütçe|budget|kar|profit|gelir|gider)/i.test(String(question || ""))) return null;
+  const numbers = String(question || "").match(/-?\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|-?\d+(?:[.,]\d+)?/g) || [];
+  if (numbers.length < 2 || !/-|cikar|çıkar|dus|düş|subtract|minus/.test(q)) return null;
+  const values = numbers.map(parseNumber);
+  if (values.some((n) => !Number.isFinite(n))) return null;
+  const result = values.slice(1).reduce((total, value) => total - value, values[0]);
+  return {
+    kind: "arithmetic",
+    result,
+    resultText: `${formatTurkishInteger(result)} TL`,
+    explanation: `${values.map(formatTurkishInteger).join(" - ")} = ${formatTurkishInteger(result)}`,
   };
 }
 
@@ -170,9 +220,9 @@ function detectAlgebraEquation(question) {
   const q = trFold(question).replace(/\s+/g, "");
   const m = q.match(/([+-]?\d*)x([+-]\d+)=([+-]?\d+)/);
   if (!m) return null;
-  const a = m[1] === "" || m[1] === "+" ? 1 : m[1] === "-" ? -1 : Number(m[1]);
-  const b = Number(m[2]);
-  const c = Number(m[3]);
+  const a = m[1] === "" || m[1] === "+" ? 1 : m[1] === "-" ? -1 : parseNumber(m[1]);
+  const b = parseNumber(m[2]);
+  const c = parseNumber(m[3]);
   if (!Number.isFinite(a) || !Number.isFinite(b) || !Number.isFinite(c) || a === 0) return null;
   const result = (c - b) / a;
   return { kind: "algebra", result, explanation: `${a}x ${b >= 0 ? "+" : ""}${b} = ${c}; x = ${result}` };
@@ -293,8 +343,8 @@ function detectPassingPlace(question) {
 
 function detectExceptDied(question) {
   const q = trFold(question);
-  const m = q.match(/(\d+)['\u2019]?si\s+(?:haric|disinda)\s+hepsi\s+oldu/) ||
-    q.match(/all\s+except\s+(\d+)\s+(?:die|died|dead)/);
+  const m = q.match(/(\d+)\s*(?:['\u2019]?\s*si|tanesi|adet)?\s+(?:haric|disinda)\s+hepsi\s+oldu/) ||
+    q.match(/all\s+(?:except|but)\s+(\d+)\s+(?:die|died|dead)/);
   if (!m) return null;
   const result = Number(m[1]);
   return { kind: "logic", result, explanation: `"${result}'si haric hepsi oldu" kalan sayinin ${result} oldugu anlamina gelir.` };
@@ -347,6 +397,7 @@ function detectSymbolicMultiplier(question) {
 function detectSingleDeterministic(question) {
   return [
     detectPercentageChain(question),
+    detectMoneySubtractionChain(question),
     detectHandshake(question),
     detectSameColorGuarantee(question),
     detectLilyDoubling(question),
