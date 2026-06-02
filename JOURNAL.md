@@ -4,6 +4,34 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 124 — Görev sınır bozulması (29x) + multi_task boş cevap düzeltmesi (2 Haz 2026, Claude)
+
+Ekran: WATCHDOG TEST çok-görev istemi BOŞ döndü; loglar 67sn doğrulama (rpre/ebse/mlvc/tcnis/sacv)
+sonra done. Ayrıca "29x + 18 = 99" sınır bozulması raporlandı ("Test 2"deki 2, gövde "9x"e yapışmış).
+
+Kök neden 1 (boş cevap): multi_task geri-yükleme guard'ı `!hardGateBlocked` ile koşulluydu; Hard
+Gate çok-görev cevabını bloklayıp finalText'i boşaltınca geri-yükleme çalışmıyordu → boş bubble.
+Düzeltme: koşul `isMultiTask && assembled && !finalText.trim()` (hardGateBlocked'tan bağımsız) →
+multi_task ASLA boş dönmez.
+
+Kök neden 2 (sınır bozulması): TDE gövde çıkarımı TEMİZ (doğrulandı). Bozulma model/regen
+restatement'ında "id+token" birleşmesi (2+9x=29x). Düzeltme:
+- hashTaskBody: per-task gövde hash'i; üretim sonrası değişmişse TASK_BOUNDARY_CORRUPTION (error).
+- repairTaskBoundaryLeak: gövdede OLMAYAN "id+token" (29x) birleşmesini yakalar, token'a düzeltir
+  (29x->9x), TASK_BOUNDARY_CORRUPTION (warn) loglar. Gövdede zaten varsa yanlış pozitif yok.
+- Per-task döngüde push'tan önce bağlandı.
+
+Regresyon (63/63): Test 2 gövdesi yalnız 9x+18=99 (komşu sızmaz); 29x->9x onarımı; temiz değişmez.
+
+Test 63/63 + reasoning-guard. Surum -> **1.9.0**.
+
+NOT: per-task doğrulama hâlâ yavaş (67sn/3 görev, MAX_REGENERATION_ATTEMPTS=3 + heartbeat \u200b).
+Watchdog heartbeat'le canlı tutuluyor ama UX yavaş; ileride per-task regen sayısı/timeout
+düşürülebilir.
+
+---
+
+
 ## ✅ Faz 123 — Final Answer tutarlılık + placeholder temizlik yaması (1 Haz 2026, Claude)
 
 Sorun: sistem bildiği doğru sonucu FİNALDE bozuyor (muhakeme "tam 10" der, Final Answer "100").

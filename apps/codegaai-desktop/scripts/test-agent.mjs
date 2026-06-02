@@ -1135,4 +1135,26 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Final Answer Consistency: türetilen sayı = final sayı (100 kapı -> 10, asla 100)");
 }
 
+
+// === GÖREV SINIR BÜTÜNLÜĞÜ (task boundary) ===
+{
+  const tMod = await import(path.join(mainDir, "agent", "tde.js"));
+  const mmMod = await import(path.join(mainDir, "model-manager.js"));
+  const TDE = tMod.default || tMod;
+  const MM = mmMod.default || mmMod;
+  // TDE gövde izolasyonu: Test 2 gövdesi yalnız "9x + 18 = 99"
+  const inp = "Test 1: Bir ciftcinin 120 koyunu vardi. 35i haric oldu. Kac kaldi?\nTest 2: 9x + 18 = 99. x kactir?\nTest 3: Bir urun 1000 TL.";
+  const rep = TDE.decomposeTasks(inp);
+  const t2 = rep.tasks.find((t) => t.id === "2");
+  assert.ok(t2 && /9x \+ 18 = 99/.test(t2.body), "Test 2 gövdesi 9x+18=99 içerir");
+  assert.ok(t2 && !/29x/.test(t2.body), "Test 2 gövdesinde 29x YOK (izolasyon)");
+  assert.ok(!/120 koyun/.test(t2.body) && !/1000 TL/.test(t2.body), "Test 2 gövdesine komşu görev sızmaz");
+  // Sınır sızıntısı onarımı: cevapta 29x -> 9x
+  const fix = MM.repairTaskBoundaryLeak({ id: "2", body: "9x + 18 = 99" }, "Denklem 29x + 18 = 99 cozulur, x=9.");
+  assert.strictEqual(fix.changed, true, "29x sinir sizintisi yakalanir");
+  assert.ok(!/29x/.test(fix.answer) && /9x/.test(fix.answer), "29x -> 9x duzeltilir");
+  assert.strictEqual(MM.repairTaskBoundaryLeak({ id: "2", body: "9x + 18 = 99" }, "9x = 81, x=9.").changed, false, "temiz cevap degismez");
+  ok("Görev sınır bütünlüğü: gövde izolasyonu + 29x->9x onarımı, asla merged ifade");
+}
+
 console.log(`\n${passed} test geçti ✅`);

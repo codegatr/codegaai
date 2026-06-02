@@ -241,6 +241,35 @@ function collapseRunawayTaskAnswer(answer) {
   return `${kept.join("\n").trim()}\n\n[Task-local guard: tekrar eden/uzayan taslak kesildi; yanıt yeniden doğrulanacak.]`;
 }
 
+function hashTaskBody(body) {
+  const s = String(body || "");
+  let h = 5381;
+  for (let i = 0; i < s.length; i += 1) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+
+/**
+ * Görev sınır bozulması onarımı: komşu görevin etiket sayısı (örn. "Test 2" -> 2) aktif görevin
+ * gövde token'ına yapışıp "9x" yerine "29x" üretebilir. Gövdede OLMAYAN "id+token" birleşmesini
+ * yakalayıp düzeltir. Döner: { changed, answer, leaks: [...] }.
+ */
+function repairTaskBoundaryLeak(task, answer) {
+  const id = String(task && task.id != null ? task.id : "").trim();
+  let out = String(answer || "");
+  const leaks = [];
+  if (!/^\d+$/.test(id)) return { changed: false, answer: out, leaks };
+  const body = String(task.body || "");
+  const tokens = body.match(/\d+(?:[.,]\d+)?x?|\b[a-zçğıöşü]?\d+\b/gi) || [];
+  for (const tok of tokens) {
+    const merged = id + tok; // "2" + "9x" = "29x"
+    if (merged !== tok && !body.includes(merged) && out.includes(merged)) {
+      out = out.split(merged).join(tok); // "29x" -> "9x"
+      leaks.push(`${merged}→${tok}`);
+    }
+  }
+  return { changed: leaks.length > 0, answer: out, leaks };
+}
+
 function deterministicTaskAnswer(taskBody) {
   const body = String(taskBody || "");
   const math = solveDeterministicMathLogic(body);
@@ -1085,6 +1114,8 @@ class ModelManager {
         try {
         for (let i = 0; i < detectedTasks.length; i++) {
           const t = detectedTasks[i];
+          // Sınır bütünlüğü: gövdeyi hash'le; üretim öncesi/sonrası gövde DEĞİŞMEMELİ.
+          const bodyHash = hashTaskBody(t.body);
           progress.emit("reasoning", { attempt: 0, reason: t.label || `task-${i + 1}` });
           const taskFactLock = factLock.extractFacts(t.body);
           const tMsgs = [
@@ -1129,6 +1160,15 @@ class ModelManager {
             const message = e && e.message ? e.message : "task-local verification failed";
             aTxt = `Yanıt doğrulama kapısından geçmedi.\nBloke eden görev: ${t.label}. ${message}\n\nFinal Answer: Yanıt güvenli şekilde doğrulanamadı.`;
             try { improveDrafts.recordSignal({ kind: "multi_task_local_gate_error", subject: `${t.label}: ${message}` }); } catch (_e) {}
+          }
+          // SINIR BÜTÜNLÜĞÜ: gövde değişmemeli + cevapta "id+token" birleşmesi (29x) olmamalı.
+          if (hashTaskBody(t.body) !== bodyHash) {
+            try { logs.error("TASK_BOUNDARY_CORRUPTION", `${t.label}: task body mutated during reasoning`); } catch (_e) {}
+          }
+          const leakFix = repairTaskBoundaryLeak(t, aTxt);
+          if (leakFix.changed) {
+            aTxt = leakFix.answer;
+            try { logs.warn("TASK_BOUNDARY_CORRUPTION", `${t.label}: neighbor token leak fixed (${leakFix.leaks.join(", ")})`); } catch (_e) {}
           }
           taskResults.push({ label: t.label, answer: aTxt });
         }
@@ -1534,9 +1574,9 @@ class ModelManager {
       hardGateBlocked = false;
     }
 
-    // multi_task güvencesi: herhangi bir geç aşama etiketleri sildiyse, görev→cevap
-    // eşlemeli birleştirmeyi geri yükle (asla anonim "değer | değer" gönderme).
-    if (!hardGateBlocked && isMultiTask && multiTaskAssembled && multiTaskAssembled.trim() && !finalText.trim()) {
+    // multi_task güvencesi: herhangi bir geç aşama (Hard Gate dahil) cevabı boşalttıysa,
+    // görev→cevap eşlemeli birleştirmeyi geri yükle. ASLA boş bubble döndürme.
+    if (isMultiTask && multiTaskAssembled && multiTaskAssembled.trim() && !finalText.trim()) {
       finalText = multiTaskAssembled.trim();
     }
 
@@ -1671,6 +1711,8 @@ module.exports = {
   READY_STATES,
   instantAnswer,
   detectTask,
+  repairTaskBoundaryLeak,
+  hashTaskBody,
   wantsWebResearch,
   extractResearchQuery,
   candidateModelsForTask,
