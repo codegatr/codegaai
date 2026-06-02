@@ -4,6 +4,34 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 120 — TDE FINAL STABILIZATION: yalnız açık başlık görev olur (1 Haz 2026, Claude)
+
+Kalıcı sorun: TEK problem (100 kapı: "Round 1/2/3…") çok göreve bölünüyordu. Kullanıcı kuralı:
+GÖREV YALNIZ açık başlıktan oluşur. Round/Step/enumeration/bullet/altbölüm ASLA görev olmaz.
+
+Değişiklik (tde.js):
+- headingTasks regex → yalnız anahtar kelime: (test|soru|task|görev|question|problem) + N.
+  Bare numara ("1." "2.") yakalama TAMAMEN kaldırıldı. Tek-harf zaten yok.
+- decomposeTasks → yalnız headingTasks (bullet/question/line fallback'leri çağrılmıyor).
+- HARD ASSERTION: count(tasks) > countExplicitHeaders ise TDE_OVER_SEGMENTATION uyarısı + kırp.
+  overSegmented + explicitHeaders alanları döndürülür.
+- KORUNDU: tek problem + numaralı ÇIKTI ADIMLARI ("1. Denklemi kur, 2. Çöz…") → numberedCandidates
+  yalnız outputRequirementReport (talimat tespiti) için parse edilir; TEK mainTask olur, görev
+  olarak BÖLÜNMEZ (instructionOnly, count 1).
+
+Regresyon (kullanıcı vakaları): A) 100 kapı/round → tek görev (applicable false). B) Test 1/2/3 →
+3. C) Step 1/2/3 → bölmez. Soru/Görev/Question/Problem başlıkları → böler. Bare "1.2.3", madde
+"* a * b" → bölmez. Hard assertion testi.
+
+DİKKAT (davranış değişikliği): önceki "1. 2. 3." bare-numaralı bölme KALDIRILDI (kullanıcı kuralı).
+Çok-görev için artık açık başlık gerekir (Görev 1:/Soru 1:/Test 1:). Mevcut testler buna göre
+güncellendi. multi_task dalı açık başlıkla tetiklenmeye devam ediyor.
+
+Test 59/59 + reasoning-guard. Surum -> **1.3.0**.
+
+---
+
+
 ## ✅ Faz 119 — Hedefli düzeltme sprinti: TDE phantom / MLVC para / ARL tuzaklar (1 Haz 2026, Claude)
 
 Yeni katman YOK; mevcut zayıf noktalar düzeltildi.

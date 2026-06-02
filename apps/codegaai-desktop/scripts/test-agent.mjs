@@ -936,7 +936,7 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
 {
   const tMod = await import(path.join(mainDir, "agent", "tde.js"));
   const TDE = tMod.default || tMod;
-  const five = ["1. 12 + 8 kac?", "2. 100 TL %20 zam?", "3. Baskent neresi?", "4. 3:2 ile 100 paylas", "5. baba oglun 5 kati toplam 72"].join("\n");
+  const five = ["Soru 1: 12 + 8 kac?", "Soru 2: 100 TL %20 zam?", "Soru 3: Baskent neresi?", "Soru 4: 3:2 ile 100 paylas?", "Soru 5: baba oglun 5 kati toplam 72?"].join("\n");
   const rep = TDE.decomposeTasks(five);
   assert.strictEqual(rep.count, 5, "5 gorev algilanir");
   assert.strictEqual(rep.applicable, true, "coklu gorev applicable");
@@ -946,10 +946,12 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   // Bir gorev eksik -> reddeder
   const partial = rep.tasks.slice(0, 3).map((t) => `**${t.label}**\nCevap: x`).join("\n\n");
   assert.strictEqual(TDE.validateTaskCoverage(partial, rep).ok, false, "eksik gorev -> reddedilir");
-  // Madde / tire / etiketli satır formatları da algılanmalı (tek-üretim fallback'i engelle)
-  assert.strictEqual(TDE.decomposeTasks("* Koyun: kac kaldi?\n* Yaris: kacinci olursun?\n* Hap: kac saat?").count, 3, "madde imli 3 gorev");
-  assert.strictEqual(TDE.decomposeTasks("- Soru bir nedir?\n- Soru iki nedir?").count, 2, "tire imli 2 gorev");
-  assert.strictEqual(TDE.decomposeTasks("Koyun: kac kaldi\nYaris: kacinci\nHap: kac saat").count, 3, "etiketli satir 3 gorev");
+  // SIKI KURAL: yalnız açık başlık (Test/Soru/Görev/Question/Problem N) böler.
+  assert.strictEqual(TDE.decomposeTasks("Görev 1: a?\nGörev 2: b?\nGörev 3: c?").count, 3, "açık başlık (Görev) 3 görev");
+  assert.strictEqual(TDE.decomposeTasks("Question 1: a?\nQuestion 2: b?").count, 2, "açık başlık (Question) 2 görev");
+  // Bare numara / madde / satır ARTIK bölmez (aşırı bölünme yok)
+  assert.strictEqual(TDE.decomposeTasks("* Koyun?\n* Yaris?\n* Hap?").applicable, false, "madde bölmez");
+  assert.strictEqual(TDE.decomposeTasks("1. Koyun?\n2. Yaris?\n3. Hap?").applicable, false, "bare numara bölmez");
   assert.strictEqual(TDE.decomposeTasks("Bu tek konulu uzun bir paragraf. Bolunmemeli cunku tek gorev.").applicable, false, "duz metin bolunmez");
   ok("Çok-görev: 5 görev algılanır; eksik kapsama reddedilir");
 }
@@ -965,11 +967,11 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   const { TaskRegistry } = rMod.default || rMod;
 
   const input = [
-    "1. 80 sheep. All except 20 die.",
-    "2. 7x + 13 = 90.",
-    "3. 5 red, 5 blue, draw 2 without replacement, both red.",
-    "4. Father + Son = 98, Father = 6×Son, future ratio 4.",
-    "5. 90,000 profit, ratio 2:3:4.",
+    "Soru 1: 80 sheep. All except 20 die.",
+    "Soru 2: 7x + 13 = 90.",
+    "Soru 3: 5 red, 5 blue, draw 2 without replacement, both red.",
+    "Soru 4: Father + Son = 98, Father = 6×Son, future ratio 4.",
+    "Soru 5: 90,000 profit, ratio 2:3:4.",
   ].join("\n");
 
   const rep = TDE.decomposeTasks(input);
@@ -984,11 +986,11 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   // Cevaplar SIRASIZ + etiketli (biçimden bağımsız geçmeli)
   const finalText = [
     "Final Answer:",
-    "Gorev 3: iki kirmizi olasiligi 2/9",
-    "Gorev 1: 20 koyun kaldi",
-    "Gorev 5: 20,000 / 30,000 / 40,000",
-    "Gorev 2: x = 11",
-    "Gorev 4: 9.333333 yil sonra",
+    "Soru 3: iki kirmizi olasiligi 2/9",
+    "Soru 1: 20 koyun kaldi",
+    "Soru 5: 20,000 / 30,000 / 40,000",
+    "Soru 2: x = 11",
+    "Soru 4: 9.333333 yil sonra",
   ].join("\n");
 
   const v = SACV.validateSemanticCompleteness(finalText, rep);
@@ -1003,7 +1005,7 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
 
   // SACV debug raporu: "Final Answer:" olmasa bile görevleri görür (kök neden testi)
   {
-    const noFinal = "Gorev 1: 20 koyun kaldi.\n\nGorev 2: x = 11.\n\nGorev 3: olasilik 2/9.";
+    const noFinal = "Soru 1: 20 koyun kaldi.\n\nSoru 2: x = 11.\n\nSoru 3: olasilik 2/9.";
     const rep5 = TDE.decomposeTasks(input);
     const dbg = SACV.debugReport(noFinal, rep5);
     assert.strictEqual(dbg.finalTextEmpty, false, "Final Answer yoksa bile finalText boş değil (fallback)");
@@ -1027,7 +1029,7 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   const doors = "100 kapi kapali. 1. turda her kapiyi ac. 2. turda 2nin katlarini degistir. 3. turda 3un katlarini degistir. Sonunda kac kapi acik?";
   assert.strictEqual(TDE.decomposeTasks(doors).applicable, false, "100 kapi TEK gorev (phantom Gorev 2/3 yok)");
   // bağımsız 5 soru hâlâ 5
-  assert.strictEqual(TDE.decomposeTasks("1. 80 sheep all except 20 die.\n2. 7x+13=90.\n3. 5 red 5 blue draw 2.\n4. father son 98.\n5. 90000 ratio 2:3:4.").count, 5, "5 bagimsiz soru korunur");
+  assert.strictEqual(TDE.decomposeTasks("Soru 1: 80 sheep all except 20 die.\nSoru 2: 7x+13=90.\nSoru 3: 5 red 5 blue draw 2.\nSoru 4: father son 98.\nSoru 5: 90000 ratio 2:3:4.").count, 5, "5 açık başlıklı soru korunur");
 
   // 2) MLVC para: 250.000 - 37.500 - 82.500 - 30.000 = 100.000
   const moneyQ = "Hesabinda 250.000 TL var. 37.500 TL, 82.500 TL ve 30.000 TL harcadi. Kac TL kaldi?";
@@ -1043,6 +1045,31 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   assert.ok(/mümkün değil|geçersiz/i.test(BR.solveKnownReasoningBenchmarks("Bir yarista birinci siradaki kisiyi gecersen kacinci olursun?")), "birinciyi geçmek -> geçersiz/imkansiz öncül");
 
   ok("SPRINT: 100 kapı=1 görev, para=100.000, 3 kedi=çember, birinciyi geçmek=geçersiz öncül");
+}
+
+
+// === TDE FINAL STABILIZATION: yalnız açık başlık böler + hard assertion ===
+{
+  const tMod = await import(path.join(mainDir, "agent", "tde.js"));
+  const TDE = tMod.default || tMod;
+  // Test Case A: 100 kapı / round -> tek görev (applicable false)
+  const A = "100 kapi kapali. Round 1: hepsini ac. Round 2: ciftleri degistir. Round 3: ucleri degistir. Round 100: son. Kac kapi acik kalir?";
+  assert.strictEqual(TDE.decomposeTasks(A).applicable, false, "A: 100 kapı TEK görev");
+  const A2 = "100 kapi.\n1. round ac\n2. round degistir\n3. round degistir\nKac acik?";
+  assert.strictEqual(TDE.decomposeTasks(A2).applicable, false, "A2: 1./2./3. round bölmez");
+  // Test Case B: Test 1/2/3 -> 3
+  assert.strictEqual(TDE.decomposeTasks("Test 1: a?\nTest 2: b?\nTest 3: c?").count, 3, "B: Test 1/2/3 = 3");
+  // Test Case C: Step 1/2/3 -> bölmez
+  assert.strictEqual(TDE.decomposeTasks("Step 1: hazirla\nStep 2: hesapla\nStep 3: dogrula").applicable, false, "C: Step 1/2/3 bölmez");
+  // İzin verilen tüm başlık türleri
+  assert.strictEqual(TDE.decomposeTasks("Soru 1: a?\nSoru 2: b?").count, 2, "Soru başlığı");
+  assert.strictEqual(TDE.decomposeTasks("Görev 1: a?\nGörev 2: b?").count, 2, "Görev başlığı");
+  assert.strictEqual(TDE.decomposeTasks("Question 1: a?\nProblem 2: b?").count, 2, "Question/Problem başlığı");
+  // HARD ASSERTION: görev sayısı açık başlık sayısını aşmaz
+  const r = TDE.decomposeTasks("1. round\n2. round\n3. round\n4. round");
+  assert.ok(r.count <= r.explicitHeaders, "HARD: count <= explicitHeaders (over-segmentation yok)");
+  assert.strictEqual(r.explicitHeaders, 0, "round'larda açık başlık 0");
+  ok("TDE FINAL: yalnız açık başlık böler; round/step/bare/bullet bölmez; hard assertion");
 }
 
 console.log(`\n${passed} test geçti ✅`);

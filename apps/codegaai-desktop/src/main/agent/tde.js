@@ -94,10 +94,12 @@ function headingTasks(text) {
   // numaralı liste "N." / "N)" (N = 1-2 hane). Phantom engelleme:
   //  - Tek harf ("Test T") REDDEDİLİR ([A-Z] yakalama kaldırıldı).
   //  - Binlik sayı ("90.000" -> "90.") başlık SAYILMAZ: işaretten sonra rakam gelmemeli (?!\d).
-  const re = /^[^\S\r\n]*(?:#{1,6}[^\S\r\n]*)?(?:(test|soru|task|g[oö]rev)[^\S\r\n]+(\d{1,2})(?!\d)|(\d{1,2})[.)](?!\d))(?:[^\S\r\n]*[-:])?.*$/gim;
+  // SIKI KURAL: görev YALNIZ açık başlıktan oluşur — Test/Soru/Görev/Task/Question/Problem + N.
+  // Bare numara ("1." "2."), round/step/enumeration/bullet ASLA görev yaratmaz (aşırı bölünme yok).
+  const re = /^[^\S\r\n]*(?:#{1,6}[^\S\r\n]*)?(test|soru|task|g[oö]rev|question|problem)[^\S\r\n]+(\d{1,3})\b(?:[^\S\r\n]*[-:.)])?.*$/gim;
   const raw = [...String(text || "").matchAll(re)]
-    .map((m) => ({ m, id: m[2] || m[3], keyword: (m[1] || "").toLowerCase() }))
-    .filter((x) => x.id); // id yoksa (tek harf vb.) reddet
+    .map((m) => ({ m, id: m[2], keyword: (m[1] || "").toLowerCase() }))
+    .filter((x) => x.id);
   if (raw.length <= 1) return [];
   const parsedTasks = raw.map((x, i) => {
     const m = x.m;
@@ -105,12 +107,14 @@ function headingTasks(text) {
     const end = i + 1 < raw.length ? raw[i + 1].m.index : text.length;
     const block = text.slice(start, end).trim();
     const body = block
-      .replace(/^[^\S\r\n]*(?:#{1,6}[^\S\r\n]*)?(?:(?:test|soru|task|g[oö]rev)[^\S\r\n]+)?\d{1,2}(?:[.)]|[^\S\r\n]*[-:])?[^\S\r\n]*/i, "")
+      .replace(/^[^\S\r\n]*(?:#{1,6}[^\S\r\n]*)?(?:test|soru|task|g[oö]rev|question|problem)[^\S\r\n]+\d{1,3}\b(?:[^\S\r\n]*[-:.)])?[^\S\r\n]*/i, "")
       .trim();
     const label = x.keyword === "test" ? `Test ${x.id}`
       : x.keyword === "soru" ? `Soru ${x.id}`
         : x.keyword === "task" ? `Test ${x.id}`
-          : `Gorev ${x.id}`;
+          : x.keyword === "question" ? `Soru ${x.id}`
+            : x.keyword === "problem" ? `Problem ${x.id}`
+              : `Gorev ${x.id}`;
     return {
       id: String(x.id),
       label,
@@ -202,22 +206,48 @@ function lineTasks(text) {
   return taskLines.map((body, i) => mkTask(i, body));
 }
 
+function countExplicitHeaders(text) {
+  return [...String(text || "").matchAll(/^[^\S\r\n]*(?:#{1,6}[^\S\r\n]*)?(?:test|soru|task|g[oö]rev|question|problem)[^\S\r\n]+\d{1,3}\b/gim)].length;
+}
+
+/** Bare-numaralı satırlar — YALNIZ talimat-adımı (output requirement) tespiti için. Görev DEĞİL. */
+function numberedCandidates(text) {
+  const all = [...String(text || "").matchAll(/^[^\S\r\n]*(\d{1,3})[.)]\s+(.+\S)\s*$/gim)];
+  return all.map((m) => ({ id: String(m[1]), label: `Adim ${m[1]}`, title: m[0].trim(), body: m[2].trim() }));
+}
+
 function decomposeTasks(input) {
   const text = String(input || "");
   headingTasks.lastOutputRequirements = [];
   headingTasks.lastMainTask = null;
-  bulletTasks.lastOutputRequirements = [];
-  bulletTasks.lastMainTask = null;
+  // SIKI KURAL: görevler YALNIZ açık başlıklardan (Test/Soru/Görev/Question/Problem N).
+  // Round/Step/enumeration/bullet/altbölüm görev DEĞİLDİR → aşırı bölünme (over-segmentation) yok.
   let tasks = headingTasks(text);
   let outputRequirements = headingTasks.lastOutputRequirements || [];
   let mainTask = headingTasks.lastMainTask || null;
-  if (tasks.length <= 1) tasks = bulletTasks(text);
-  if (!outputRequirements.length) {
-    outputRequirements = bulletTasks.lastOutputRequirements || [];
-    mainTask = bulletTasks.lastMainTask || null;
+
+  // Tek problem + numaralı ÇIKTI ADIMLARI ("1. Denklemi kur, 2. Çöz, ...") → TEK mainTask.
+  // (Bare numaralı adımlar görev olarak BÖLÜNMEZ; talimat gereksinimi olarak saklanır.)
+  if (!tasks.length && !outputRequirements.length) {
+    const numbered = numberedCandidates(text);
+    if (numbered.length >= 2) {
+      const instr = outputRequirementReport(text, numbered);
+      if (instr.isInstructionList) {
+        outputRequirements = instr.requirements;
+        mainTask = instr.mainTask;
+      }
+    }
   }
-  if (tasks.length <= 1) tasks = questionTasks(text);
-  if (tasks.length <= 1) tasks = lineTasks(text);
+
+  // HARD ASSERTION: üretilen GÖREV sayısı, açık başlık sayısını AŞAMAZ.
+  const explicitHeaders = countExplicitHeaders(text);
+  let overSegmented = false;
+  if (tasks.length > explicitHeaders) {
+    overSegmented = true;
+    try { console.warn(`TDE_OVER_SEGMENTATION: ${tasks.length} görev > ${explicitHeaders} açık başlık — kırpılıyor.`); } catch (_e) {}
+    tasks = explicitHeaders > 0 ? tasks.slice(0, explicitHeaders) : [];
+  }
+
   const instructionOnly = !!outputRequirements.length && tasks.length <= 1;
   return {
     applicable: tasks.length > 1,
@@ -226,6 +256,8 @@ function decomposeTasks(input) {
     outputRequirements,
     instructionOnly,
     mainTask,
+    overSegmented,
+    explicitHeaders,
     confidence: 100,
   };
 }
