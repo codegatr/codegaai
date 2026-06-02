@@ -62,6 +62,7 @@ function answerVerificationInstruction() {
     "Before delivering any non-trivial answer, assume the draft may be wrong.",
     "Verify the original request, the draft reasoning, and the final answer for correctness, logic, math, consistency, hallucinations, and completeness.",
     "Score internally: reasoning, math, logic, consistency, completeness. If any score is below 95, reject the draft and rebuild the answer from scratch.",
+    "Adversarial self-check before finalizing: Could there be a non-linear or CIRCULAR arrangement (e.g. 3 cats each with 2 in front and 2 behind)? Could the premise be IMPOSSIBLE (e.g. passing the first-place runner)? Am I confusing PRIMES with PERFECT SQUARES (100 doors -> perfect squares 1,4,9,...,100 = 10 open, not primes)? Is this a ranking/wording trap (pass second -> become second; all except N -> N survive)? If any applies, re-evaluate before answering.",
     "The delivered final answer must match the verified result exactly. Accuracy is more important than speed.",
   ].join("\n");
 }

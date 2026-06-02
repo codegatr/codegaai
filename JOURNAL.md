@@ -4,6 +4,30 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 121 — ARL mantık tuzağı genişletme (1 Haz 2026, Claude)
+
+Aritmetik + görev ayrıştırma stabil; kalan hatalar mantık tuzakları. Eklenenler:
+
+benchmark-reasoner.js (deterministik tuzak cevapları):
+- 100 kapı: tam kareler (1,4,9,...,100) tek bölenli → 10 açık. Asal sayı muhakemesi REDDEDİLİR.
+- ikinciyi geçmek → ikinci sıra. (Birinciyi geçmek = geçersiz/imkansız öncül; 3 kedi = çember;
+  Faz 119'da eklenmişti.)
+
+reasoning-guard.js (AVE adversarial öz-kontrol): finalden önce sor: doğrusal-olmayan/ÇEMBER diziliş?
+imkansız öncül? asal/tam kare karışıklığı (100 kapı→10)? sıralama/ifade tuzağı (ikinci→ikinci,
+N hariç→N kaldı)? Varsa yeniden değerlendir.
+
+Regresyon (60/60): 100 kapı=10, 3 kedi=çember, birinci=imkansız öncül, ikinci=ikinci.
+
+Test 60/60 + reasoning-guard. Surum -> **1.4.0**.
+
+NOT (dürüstlük): bu tuzaklar deterministik kalıba kilitli; bambaşka ifade edilen yeni bulmacada
+yine zayıf 3B modele kalır. Kullanıcı da bunu belirtti: asıl eksik mantık-tuzağı veri seti / ARL
+eğitimi. Sonraki adım: web-doğrulama ajanı veya daha geniş tuzak veri seti.
+
+---
+
+
 ## ✅ Faz 120 — TDE FINAL STABILIZATION: yalnız açık başlık görev olur (1 Haz 2026, Claude)
 
 Kalıcı sorun: TEK problem (100 kapı: "Round 1/2/3…") çok göreve bölünüyordu. Kullanıcı kuralı:

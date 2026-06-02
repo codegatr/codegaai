@@ -1072,4 +1072,22 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("TDE FINAL: yalnız açık başlık böler; round/step/bare/bullet bölmez; hard assertion");
 }
 
+
+// === ARL mantık tuzakları regresyonu ===
+{
+  const bMod = await import(path.join(mainDir, "agent", "benchmark-reasoner.js"));
+  const BR = bMod.default || bMod;
+  // 100 kapı -> 10 (tam kareler), asal DEĞİL
+  const doors = BR.solveKnownReasoningBenchmarks("100 kapı var hepsi kapalı, her turda katları değiştiriliyor, sonunda kaç kapı açık kalır?");
+  assert.ok(/10 kapı/.test(doors), "100 kapı -> 10 açık");
+  assert.ok(/tam kare/i.test(doors) && !/asal/.test(doors.replace(/asal sayı muhakemesi yanlış/i, "")), "tam kare muhakemesi (asal reddi)");
+  // 3 kedi -> çember
+  assert.ok(/çember|dairesel/i.test(BR.solveKnownReasoningBenchmarks("3 kedi var her birinin önünde 2 arkasında 2 kedi nasıl mümkün?")), "3 kedi -> çember");
+  // birinciyi geçmek -> geçersiz/imkansız öncül
+  assert.ok(/mümkün değil|geçersiz/i.test(BR.solveKnownReasoningBenchmarks("Yarışta birinci sıradaki kişiyi geçersen kaçıncı olursun?")), "birinci geç -> imkansız öncül");
+  // ikinciyi geçmek -> ikinci
+  assert.ok(/ikinci/i.test(BR.solveKnownReasoningBenchmarks("Yarışta ikinci sıradaki kişiyi geçersen kaçıncı olursun?")), "ikinci geç -> ikinci");
+  ok("ARL tuzaklar: 100 kapı=10, 3 kedi=çember, birinci=imkansız öncül, ikinci=ikinci");
+}
+
 console.log(`\n${passed} test geçti ✅`);

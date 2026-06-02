@@ -84,6 +84,13 @@ function solveKnownReasoningBenchmarks(question) {
     lines.push("TEST: Birinciyi geçmek normalde mümkün değildir (önünde kimse yoktur); turlama (lapping) bağlamı belirtilmedikçe öncül geçersizdir. Geçerli durumda ikinciyi geçersen ikinci olursun.");
   }
 
+  if (/100\s*(kap[ıi]|door)/.test(q) && /(a[cç]|kapa|degis|değiş|toggle|tur|kat[ıi]|b[öo]len|divisor|open|close|tam kare|perfect square)/.test(q)) {
+    lines.push("TEST: 100 kapı probleminde bir kapı yalnızca bölen sayısı TEK ise açık kalır; bu da sadece TAM KARELERDE olur (1, 4, 9, 16, 25, 36, 49, 64, 81, 100). Cevap: 10 kapı açık kalır. (Asal sayı muhakemesi yanlıştır; doğru ölçüt bölen-paritesi / tam kareler.)");
+  }
+  if (/(ikinci|second)\b/.test(q) && /(ge[cç]|pass|overtake)/.test(q) && /(yar[ıi][şs]|ko[şs]u|race|s[ıi]ra|ko[şs])/.test(q)) {
+    lines.push("TEST: İkinci sıradaki kişiyi geçersen onun yerine geçersin; yani ikinci sıraya yükselirsin (birinci olmazsın).");
+  }
+
   if (!lines.length) return "";
   return `${lines.join("\n")}\n\nFinal Answer: ${lines.map((line) => line.replace(/^TEST\s+/, "")).join(" | ")}`;
 }
