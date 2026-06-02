@@ -1116,4 +1116,19 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("ANTI-HALÜSİNASYON: 100 kapı=10 (asal reddi), 3 kedi=çember, birinci=imkansız, ikinci=ikinci, boş görev yok");
 }
 
+
+// === FINAL ANSWER CONSISTENCY GUARD ===
+{
+  const rgMod = await import(path.join(mainDir, "agent", "reasoning-guard.js"));
+  const RG = rgMod.default || rgMod;
+  // muhakeme "tam olarak 10" ama final 100 -> 10'a sabitlenir
+  const g = RG.finalAnswerConsistencyGuard("1-100 arası tam olarak 10 tam kare vardır.\nFinal Answer: 100 kapı açık.");
+  assert.strictEqual(g.changed, true, "türetilen 10 ile final 100 tutarsız -> düzeltilir");
+  assert.strictEqual(g.derived, 10, "türetilen değer 10");
+  assert.ok(/Final Answer:\s*10\b/.test(g.answer), "final 10'a sabitlenir, asla 100");
+  // tutarlı -> değişmez
+  assert.strictEqual(RG.finalAnswerConsistencyGuard("tam 10 tam kare.\nFinal Answer: 10 kapı.").changed, false, "tutarlı final değişmez");
+  ok("Final Answer Consistency: türetilen sayı = final sayı (100 kapı -> 10, asla 100)");
+}
+
 console.log(`\n${passed} test geçti ✅`);

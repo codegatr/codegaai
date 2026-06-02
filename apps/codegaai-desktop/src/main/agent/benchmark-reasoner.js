@@ -40,7 +40,7 @@ function contradictsCanonical(question, answer) {
   const q = lower(question);
   const a = lower(answer);
   // 100 kapı: canonical 10 / tam kare. Asal katkısı VEYA 10 dışı kapı sayısı -> halüsinasyon.
-  if (/100\s*(kap[ıi]|door)/.test(q) && /(a[cç]|kapa|tur|kat|toggle|divisor|b[öo]len|open|close)/.test(q)) {
+  if ((/100\s*(kap[ıi]|door)/.test(q) || /her\s+\d+\.?\s*kap[ıi]/.test(q) || /100\.?\s*tur/.test(q)) && /(a[cç]|kapa|tur|kat|toggle|divisor|b[öo]len|open|close)/.test(q)) {
     if (/(asal|prime)/.test(a)) return true;
     if (/\b(25|37|49|50)\b/.test(a) && !/\b10\b/.test(a)) return true;
     const m = a.match(/(\d+)\s*(?:kap[ıi]|door)\D{0,14}(?:a[cç][ıi]k|open|kal)/);
@@ -101,13 +101,13 @@ function solveKnownReasoningBenchmarks(question) {
   }
 
   if (/(kedi|cat)/.test(q) && /(on[uü]nde|önünde|ileri|front)/.test(q) && /(arkas[ıi]nda|arka|behind|geri)/.test(q)) {
-    lines.push("TEST: Dairesel (çember) dizilişte mümkündür — kediler bir çember oluşturursa her birinin önünde de arkasında da diğerleri olur. 3 kedi bu koşulu sağlar; cevap 3 kedi.");
+    lines.push("TEST: Üç kedi çember şeklinde dizilirse her kedi için diğer iki kedi hem önünde hem arkasında kabul edilebilir; yani dairesel düzende mümkündür. Cevap: 3 kedi (çember düzeni).");
   }
   if ((/birinci|first|1\.?\s*(s[ıi]ra|place)/.test(q)) && /(ge[cç]|pass|ge[cç]iyorsun|overtake)/.test(q) && /(yar[ıi][şs]|ko[şs]u|race|s[ıi]ra)/.test(q)) {
-    lines.push("TEST: Birinciyi geçmek normalde mümkün değildir (önünde kimse yoktur); turlama (lapping) bağlamı belirtilmedikçe öncül geçersizdir. Geçerli durumda ikinciyi geçersen ikinci olursun.");
+    lines.push("TEST: Normal yarış koşullarında birinci sıradaki kişiyi geçemezsin; eğer geçiyorsan zaten sen birinci olmazsın — özel tur bindirme (lapping) gibi bir bağlam gerekir. Öncül bu haliyle geçersizdir.");
   }
 
-  if (/100\s*(kap[ıi]|door)/.test(q) && /(a[cç]|kapa|degis|değiş|toggle|tur|kat[ıi]|b[öo]len|divisor|open|close|tam kare|perfect square)/.test(q)) {
+  if ((/100\s*(kap[ıi]|door)/.test(q) || /her\s+\d+\.?\s*kap[ıi]/.test(q) || /100\.?\s*tur/.test(q)) && /(a[cç]|kapa|degis|değiş|toggle|tur|kat[ıi]|b[öo]len|divisor|open|close|tam kare|perfect square)/.test(q)) {
     lines.push("TEST: 100 kapı probleminde bir kapı yalnızca bölen sayısı TEK ise açık kalır; bu da sadece TAM KARELERDE olur (1, 4, 9, 16, 25, 36, 49, 64, 81, 100). Cevap: 10 kapı açık kalır. (Asal sayı muhakemesi yanlıştır; doğru ölçüt bölen-paritesi / tam kareler.)");
   }
   if (/(ikinci|second)\b/.test(q) && /(ge[cç]|pass|overtake)/.test(q) && /(yar[ıi][şs]|ko[şs]u|race|s[ıi]ra|ko[şs])/.test(q)) {

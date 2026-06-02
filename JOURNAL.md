@@ -4,6 +4,32 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 123 — Final Answer tutarlılık + placeholder temizlik yaması (1 Haz 2026, Claude)
+
+Sorun: sistem bildiği doğru sonucu FİNALDE bozuyor (muhakeme "tam 10" der, Final Answer "100").
+Yeni katman yok.
+
+1) Final Answer Consistency Guard (reasoning-guard.finalAnswerConsistencyGuard, DETERMİNİSTİK):
+   muhakemede güçlü türetme ("tam/exactly/kesinlikle N", "N tam kare", "vardır/toplam N") varsa
+   "Final Answer:" satırındaki sayı buna EŞİT olmalı; değilse final sayısı türetilen değere
+   sabitlenir (100 kapı: muhakeme 10 -> Final Answer 100 ise 10'a düzeltir). model-manager'a
+   bağlandı (tek-problem, multi_task hariç).
+2) 100 kapı canonical trigger genişletildi: "100 kapı", "her 2./3. kapı", "100. tur". → 10 açık.
+3) Birinciyi geçmek metni kullanıcı ifadesiyle güncellendi (özel tur bindirme bağlamı şart;
+   öncül geçersiz).
+4) Placeholder temizliği (Faz 122'de bağlanmıştı) + tutarlılık guard sırası: consistency -> phantom
+   cleanup -> history. Boş/duplicate "Test 2/Görev 3" emit edilmez.
+5) 3 kedi metni kullanıcı ifadesiyle güncellendi (çember düzeninde her kedi için diğer ikisi hem
+   önde hem arkada).
+
+Kabul testleri (62/62): 100 kapı=10, birinci=imkansız öncül, 3 kedi=çember, boş placeholder yok,
+final sayı = türetilen sayı.
+
+Test 62/62 + reasoning-guard. Surum -> **1.6.0**.
+
+---
+
+
 ## ✅ Faz 122 — ARL/MLVC anti-halüsinasyon yaması (1 Haz 2026, Claude)
 
 Matematik iyi; kalan zayıflık ARL + final anti-halüsinasyon. Yeni mimari yok.

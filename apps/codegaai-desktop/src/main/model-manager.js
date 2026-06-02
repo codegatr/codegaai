@@ -33,6 +33,7 @@ const {
   shouldEnforceConclusion,
   shouldVerifyAnswer,
   verifyAnswer,
+  finalAnswerConsistencyGuard,
 } = require("./agent/reasoning-guard");
 const { shouldRunMLVC, solveDeterministic: solveDeterministicMathLogic, verifyMathLogic } = require("./agent/mlvc");
 const ebse = require("./agent/ebse");
@@ -1463,6 +1464,14 @@ class ModelManager {
     // eşlemeli birleştirmeyi geri yükle (asla anonim "değer | değer" gönderme).
     if (!hardGateBlocked && isMultiTask && multiTaskAssembled && multiTaskAssembled.trim() && !finalText.trim()) {
       finalText = multiTaskAssembled.trim();
+    }
+
+    // Final Answer tutarlılık: muhakeme bir sayı türettiyse final o sayıya eşit olmalı.
+    if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
+      try {
+        const consistent = finalAnswerConsistencyGuard(finalText);
+        if (consistent && consistent.changed && String(consistent.answer || "").trim()) finalText = String(consistent.answer).trim();
+      } catch (_e) { /* tutarlılık guard cevabı bozmasın */ }
     }
 
     // Boş/phantom görev placeholder temizliği (tek-problem modu): "Test 2/Görev 3" gibi

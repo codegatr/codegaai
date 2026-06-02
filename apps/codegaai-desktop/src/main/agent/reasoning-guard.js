@@ -351,8 +351,43 @@ async function enforceConclusion(question, draftAnswer, generateFn, opts = {}) {
   }
 }
 
+/**
+ * Final Answer Consistency Guard (deterministik, model çağrısı YOK).
+ * Muhakeme güçlü bir sayısal sonuç türetmişse ("tam/exactly/kesinlikle N", "N tam kare",
+ * "vardır N"), "Final Answer:" satırındaki sayı buna EŞİT olmalı. Değilse final sayısını
+ * türetilen değere sabitler. (Örn: muhakeme "tam 10" der ama Final Answer "100" -> 10'a düzeltir.)
+ */
+function finalAnswerConsistencyGuard(text) {
+  const raw = String(text || "");
+  const faMatch = raw.match(/(Final Answer|Final Cevap|Son Cevap|Sonu[çc])\s*:\s*([^\n]*)/i);
+  if (!faMatch) return { changed: false, answer: raw };
+  const faValuePart = faMatch[2];
+  const faNumMatch = faValuePart.match(/-?\d+(?:[.,]\d+)?/);
+  if (!faNumMatch) return { changed: false, answer: raw };
+  const faNum = Number(faNumMatch[0].replace(/\./g, "").replace(",", "."));
+
+  const reasoning = raw.slice(0, faMatch.index);
+  const derivePatterns = [
+    /(?:exactly|tam olarak|kesinlikle|tam)\s+(\d+(?:[.,]\d+)?)/gi,
+    /(\d+(?:[.,]\d+)?)\s+(?:tam kare|perfect square|adet tam kare)/gi,
+    /(?:there are|vard[ıi]r|toplam(?:da)?)\s+(?:exactly\s+)?(\d+(?:[.,]\d+)?)/gi,
+  ];
+  let derived = null;
+  for (const re of derivePatterns) {
+    let m;
+    // eslint-disable-next-line no-cond-assign
+    while ((m = re.exec(reasoning))) derived = Number(m[1].replace(/\./g, "").replace(",", "."));
+  }
+  if (derived == null || derived === faNum) return { changed: false, answer: raw };
+
+  const fixedValuePart = faValuePart.replace(/-?\d+(?:[.,]\d+)?/, String(derived));
+  const fixedLine = faMatch[0].replace(faValuePart, fixedValuePart);
+  return { changed: true, answer: raw.replace(faMatch[0], fixedLine), derived, was: faNum };
+}
+
 module.exports = {
   APPROVAL_THRESHOLD,
+  finalAnswerConsistencyGuard,
   classifyReasoningProblem,
   questionUnderstandingInstruction,
   shouldUnderstandQuestion,
