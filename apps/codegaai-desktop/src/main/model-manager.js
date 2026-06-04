@@ -879,6 +879,9 @@ class ModelManager {
     // Akış yalnızca (opt-in) bilişsel hat çalışırken kapanır. Aksi halde cevap token token
     // akar — kullanıcı "düşünüyorum"da DONMAZ. Doğrulama/sonuç turları akışı engellemez.
     const onToken = inputNeedsCognitivePipeline ? null : (opts.onToken || null);
+    // keepAlive: GÖRÜNMEZ heartbeat HER ZAMAN renderer'a gider (içerik gizliyken bile) ki
+    // uzun doğrulama/çok-görev turlarında watchdog (90sn idle) cevabı yarıda KESMESİN.
+    const keepAlive = opts.onToken || null;
     // Yeniden üretim: önceki turu (user+assistant) geçmişten çıkar ki bağlam tekrarlanmasın
     if (opts.regenerate) {
       if (this.history.length && this.history[this.history.length - 1].role === "assistant") this.history.pop();
@@ -1110,7 +1113,7 @@ class ModelManager {
         // Her görevi BAĞIMSIZ çöz, task_results[]'e doldur, finali TÜM diziden kur.
         const detectedTasks = taskDecomposition.tasks;
         const taskResults = [];
-        const progress = makeVerificationProgress(onToken, "multi_task");
+        const progress = makeVerificationProgress(keepAlive, "multi_task");
         try {
         for (let i = 0; i < detectedTasks.length; i++) {
           const t = detectedTasks[i];
@@ -1150,7 +1153,7 @@ class ModelManager {
               t,
               aTxt,
               (msgs) => this.generate(selectedModel, msgs, attemptModels),
-              { progress, regenerationState: { attempts: 0, max: MAX_REGENERATION_ATTEMPTS } }
+              { progress, regenerationState: { attempts: 0, max: 1 } }
             );
             aTxt = verified.answer || aTxt;
             if (!verified.ok) {
@@ -1294,7 +1297,7 @@ class ModelManager {
     // Öz değerlendirme (opt-in): cevabı denetle, gerekiyorsa düzelt
     let finalText = text;
     const finalProgress = agent.stoppedReason !== "smalltalk" && agent.stoppedReason !== "multi_task"
-      ? makeVerificationProgress(onToken, "final_answer")
+      ? makeVerificationProgress(keepAlive, "final_answer")
       : null;
     const applyCorrection = (candidate, source) => {
       const check = cvl.validateCorrection(input, finalText, candidate, { source });

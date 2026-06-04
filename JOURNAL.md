@@ -4,6 +4,34 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 126 — multi_task watchdog kesmesi + 97sn yavaşlık düzeltmesi (4 Haz 2026, Claude)
+
+Ekran: v2.0.0'da WATCHDOG TEST hâlâ "ilerleme bildirmedi" ile boş/iptal; log'da doğrulama 97.5sn.
+
+Kök neden 1 (watchdog iptali): _ask satır 881 `onToken = inputNeedsCognitivePipeline ? null : ...`.
+Çok-görev bilişsel hattı tetikleyince onToken NULL oluyordu → makeVerificationProgress heartbeat
+interval'i kurulmuyordu → 97sn boyunca renderer'a hiç sinyal gitmiyor → watchdog (90sn idle) iptal.
+Düzeltme: `keepAlive = opts.onToken` (içerik akışından AYRI, GÖRÜNMEZ heartbeat HER ZAMAN renderer'a).
+makeVerificationProgress(keepAlive, ...) iki çağrıda da (multi_task + final_answer). Artık watchdog
+uzun turlarda KESMEZ.
+
+Kök neden 2 (97sn yavaşlık): Test 3 "1.000 TL" EBSE yüzde zincirinde Number("1.000")=1 olarak
+okunuyordu (binlik nokta ondalık sanıldı) → taban 1 → 0.96 saçma → deterministik düzeltme tutmadı
+→ AVE (model) yakaladı → REGEN (yavaş). Düzeltme: ebse.parseTrNum (Türkçe binlik/ondalık) +
+detectPercentChain tabanı bununla okur; TL regex çoklu-grup ("1.000"). Artık 1.000×1.2×0.8=960
+deterministik → AVE regen gerekmez. Ayrıca multi_task per-task regen 3→1 (hız emniyeti).
+
+Regresyon (65/65): EBSE 1.000 TL -> 960; 957 reddi, 960 onayı.
+
+Test 65/65 + reasoning-guard. Surum -> **2.1.0**.
+
+NOT: CODEX 19 otomatik "gözlem" PR'ı açmış (ebse_reject, sacv_incomplete_tasks, cognitive_kernel_block,
+mlvc, final_answer_sanitizer, "Ollama bağlantısı sık kopuyor"). Bunlar otomatik öneri; gözden geçirilip
+faydalılar seçilmeli (özellikle Ollama kopması gerçek bir gözlem). Henüz merge edilmedi.
+
+---
+
+
 ## ✅ Faz 125 — Cookbook: donanım-farkında model seçici (Modeller sayfası) (2 Haz 2026, Claude)
 
 Odysseus karşılaştırmasından gelen #1 eksik: donanıma göre en güçlü modeli öner/kur. Asıl darboğaz

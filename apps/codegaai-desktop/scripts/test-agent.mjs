@@ -1182,4 +1182,21 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Cookbook: fit skoru (gpu/sıkışık/cpu/no) + donanıma göre genel-model önerisi");
 }
 
+
+// === EBSE Türkçe binlik + yüzde zinciri (1.000 TL zam/indirim) ===
+{
+  const eMod = await import(path.join(mainDir, "agent", "ebse.js"));
+  const EBSE = eMod.default || eMod;
+  // 1.000 TL +%20 -%20 = 960 (binlik nokta ondalık SANILMAMALI)
+  const q = "Bir ürün 1.000 TL. Önce %20 zamlanıyor. Sonra %20 indiriliyor. Son fiyat kaç TL olur?";
+  const v = EBSE.verify(q, "957 TL");
+  assert.strictEqual(v.status, "REJECTED", "957 reddedilir");
+  assert.ok(/960/.test(v.correctedAnswer), "1.000 TL -> 960 (binlik nokta doğru)");
+  const pc = (v.checks || []).find((c) => c.name === "Yüzde zinciri");
+  assert.ok(pc && pc.expected === 960, "yüzde zinciri tabanı 1000 (1 değil)");
+  // doğru cevap onaylanır
+  assert.strictEqual(EBSE.verify(q, "Son fiyat 960 TL.").status, "APPROVED", "960 onaylanır");
+  ok("EBSE: Türkçe binlik (1.000) + zam/indirim zinciri = 960 deterministik");
+}
+
 console.log(`\n${passed} test geçti ✅`);

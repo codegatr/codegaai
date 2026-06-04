@@ -96,16 +96,25 @@ function detectLinearEquation(question) {
 }
 
 // -------------------------------------------------------------------- yüzde zinciri
+/** Türkçe sayı: "1.000"=1000 (binlik nokta), "12,5"=12.5 (ondalık virgül), "1.234,5"=1234.5 */
+function parseTrNum(raw) {
+  let s = String(raw == null ? "" : raw).trim();
+  if (!s) return NaN;
+  if (s.includes(",")) return Number(s.replace(/\./g, "").replace(",", ".")); // virgül ondalık, nokta binlik
+  if (/^\d{1,3}(\.\d{3})+$/.test(s)) return Number(s.replace(/\./g, "")); // 1.000 / 1.234.567 -> binlik
+  return Number(s); // 12.5 gerçek ondalık ya da düz tamsayı
+}
+
 function detectPercentChain(question) {
   const q = trFold(question);
   // Taban: önce "… TL" (en güvenilir), yoksa "başlangıç/fiyat" çapası. "%20"deki 20'yi
-  // taban sanmamak için yüzde işaretli sayıları taban olarak ALMA.
+  // taban sanmamak için yüzde işaretli sayıları taban olarak ALMA. Türkçe binlik (1.000) korunur.
   let base = null;
-  const tlM = q.match(/(\d+(?:[.,]\d+)?)\s*tl/);
-  if (tlM) base = Number(tlM[1].replace(",", "."));
+  const tlM = q.match(/(\d[\d.,]*\d|\d)\s*tl/);
+  if (tlM) base = parseTrNum(tlM[1]);
   else {
-    const anchorM = q.match(/(?:baslangic|ilk\s*fiyat|fiyati|fiyat)\D{0,8}(\d+(?:[.,]\d+)?)/);
-    if (anchorM) base = Number(anchorM[1].replace(",", "."));
+    const anchorM = q.match(/(?:baslangic|ilk\s*fiyat|fiyati|fiyat)\D{0,8}(\d[\d.,]*\d|\d)/);
+    if (anchorM) base = parseTrNum(anchorM[1]);
   }
   if (!Number.isFinite(base)) return null;
   const ops = [];
