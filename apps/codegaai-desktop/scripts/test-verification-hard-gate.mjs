@@ -281,7 +281,8 @@ suite("watchdog_regeneration_loop_guard", async () => {
   progress.emit("verifying", { attempt: 1, reason: "unit-test" });
   progress.stop();
   assert.ok(tokens.length >= 2, "progress heartbeat emits activity tokens");
-  assert.equal(tokens.every((token) => token === modelManager._HEARTBEAT_TOKEN), true, "heartbeat uses invisible token");
+  assert.ok(tokens.includes(modelManager._HEARTBEAT_TOKEN), "progress still emits invisible watchdog heartbeat tokens");
+  assert.ok(tokens.some((token) => /Çalışma özeti:/.test(token)), "progress also emits visible status text");
 
   const started = Date.now();
   const simple = [

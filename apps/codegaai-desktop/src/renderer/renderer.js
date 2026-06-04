@@ -178,6 +178,7 @@ function cleanupStuckPlaceholders(chats) {
   const dead = [
     "Düşünüyorum...",
     "Biraz uzun düşünüyorum. Cevap gelmezse kısa süre içinde güvenli şekilde durduracağım.",
+    "Çalışma özeti: cevap beklenenden uzun sürüyor; modeli ve doğrulama adımlarını izliyorum.",
   ];
   for (const chat of chats) {
     for (const m of chat.messages || []) {
@@ -187,6 +188,14 @@ function cleanupStuckPlaceholders(chats) {
     }
   }
   return chats;
+}
+
+function isInvisibleProgressToken(token) {
+  return String(token || "").replace(/\u200b/g, "").trim() === "";
+}
+
+function longThinkingNotice() {
+  return "Çalışma özeti: cevap beklenenden uzun sürüyor; modeli ve doğrulama adımlarını izliyorum.";
 }
 
 function loadChats() {
@@ -1017,6 +1026,7 @@ async function regenerateLast() {
   let rafPending = false;
   const offStream = window.codega.onChatStream((token) => {
     if (_kickWatchdog) _kickWatchdog();
+    if (isInvisibleProgressToken(token)) return;
     if (firstToken) { clearTimeout(slowNotice); streamBuf = ""; firstToken = false; }
     streamBuf += token;
     placeholder.text = streamBuf;
@@ -1026,7 +1036,7 @@ async function regenerateLast() {
     }
   });
   const slowNotice = setTimeout(() => {
-    placeholder.text = "Biraz uzun düşünüyorum. Cevap gelmezse kısa süre içinde güvenli şekilde durduracağım.";
+    if (firstToken) placeholder.text = longThinkingNotice();
     renderConversation();
   }, 8000);
   try {
@@ -1076,6 +1086,7 @@ async function handleSubmit() {
   let rafPending = false;
   const offStream = window.codega.onChatStream((token) => {
     if (_kickWatchdog) _kickWatchdog();
+    if (isInvisibleProgressToken(token)) return;
     if (firstToken) { clearTimeout(slowNotice); streamBuf = ""; firstToken = false; }
     streamBuf += token;
     placeholder.text = streamBuf;
@@ -1089,7 +1100,7 @@ async function handleSubmit() {
     }
   });
   const slowNotice = setTimeout(() => {
-    placeholder.text = "Biraz uzun düşünüyorum. Cevap gelmezse kısa süre içinde güvenli şekilde durduracağım.";
+    if (firstToken) placeholder.text = longThinkingNotice();
     renderConversation();
     scrollConversationToBottom();
   }, 8000);

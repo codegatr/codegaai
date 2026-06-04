@@ -345,21 +345,40 @@ const MAX_REGENERATION_ATTEMPTS = 3;
 const PROGRESS_HEARTBEAT_MS = 5000;
 const HEARTBEAT_TOKEN = "\u200b";
 
+function progressLabel(stage, scope, meta = {}) {
+  const scopeLabel = scope === "multi_task" ? "çoklu görev" : "cevap";
+  const reason = meta.reason ? String(meta.reason).replace(/[_-]+/g, " ").slice(0, 80) : "";
+  if (stage === "reasoning") return reason ? `${scopeLabel}: ${reason} üzerinde çalışıyorum.` : `${scopeLabel}: problemi parçalara ayırıyorum.`;
+  if (stage === "verifying") return reason ? `${scopeLabel}: ${reason} kontrolünü yapıyorum.` : `${scopeLabel}: sonucu doğruluyorum.`;
+  if (stage === "finalizing") return reason ? `${scopeLabel}: ${reason} ile son cevabı toparlıyorum.` : `${scopeLabel}: son cevabı toparlıyorum.`;
+  return `${scopeLabel}: işlem sürüyor.`;
+}
+
 function makeVerificationProgress(onToken, scope = "answer") {
   const startedAt = Date.now();
   let stage = "reasoning";
   let attempt = 0;
+  let lastVisible = "";
+  const sendVisible = (meta = {}) => {
+    if (typeof onToken !== "function") return;
+    const elapsed = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+    const line = `Çalışma özeti: ${progressLabel(stage, scope, meta)} (${elapsed} sn)\n`;
+    if (line === lastVisible) return;
+    lastVisible = line;
+    try { onToken(line); } catch (_e) {}
+  };
   const emit = (nextStage = stage, meta = {}) => {
     stage = nextStage || stage;
     attempt = meta.attempt == null ? attempt : meta.attempt;
     try { if (typeof onToken === "function") onToken(HEARTBEAT_TOKEN); } catch (_e) {}
+    sendVisible(meta);
     try {
       const reason = meta.reason ? ` reason=${String(meta.reason).slice(0, 120)}` : "";
       logs.info("verification", `stage=${stage} attempt=${attempt} scope=${scope} elapsed=${Date.now() - startedAt}ms${reason}`);
     } catch (_e) {}
   };
   const timer = typeof onToken === "function"
-    ? setInterval(() => emit(stage, { attempt }), PROGRESS_HEARTBEAT_MS)
+    ? setInterval(() => emit(stage, { attempt, reason: "hala çalışıyor" }), PROGRESS_HEARTBEAT_MS)
     : null;
   if (timer && timer.unref) timer.unref();
   emit(stage, { attempt });
