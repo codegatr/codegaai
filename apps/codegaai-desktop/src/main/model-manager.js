@@ -1128,6 +1128,8 @@ class ModelManager {
           // Sınır bütünlüğü: gövdeyi hash'le; üretim öncesi/sonrası gövde DEĞİŞMEMELİ.
           const bodyHash = hashTaskBody(t.body);
           progress.emit("reasoning", { attempt: 0, reason: t.label || `task-${i + 1}` });
+          // GÖRÜNÜR ilerleme: kullanıcı boş/donmuş ekran görmesin (final cevap bunları değiştirir).
+          if (keepAlive) { try { keepAlive(`🧠 ${t.label || `Görev ${i + 1}`} çözülüyor… (${i + 1}/${detectedTasks.length})\n`); } catch (_e) {} }
           const taskFactLock = factLock.extractFacts(t.body);
           const tMsgs = [
             {
@@ -1157,11 +1159,15 @@ class ModelManager {
           if (!aTxt) aTxt = "(bu görev için yanıt üretilemedi)";
           // Sonucu diziye PUSH et — önceki sonuçların üzerine YAZMA
           try {
+            // Hız: deepReasoning KAPALIYSA model-tabanlı AVE/regen ATLANIR; yalnız deterministik
+            // doğrulayıcılar (RPRE/EBSE/MLVC/TCNIS/SACV) çalışır → 4 görev saniyelerde biter.
+            // deepReasoning AÇIKSA tam (model destekli) doğrulama + 1 regen.
+            const verifyGen = deepReasoning ? ((msgs) => this.generate(selectedModel, msgs, attemptModels)) : null;
             const verified = await verifyTaskLocalAnswer(
               t,
               aTxt,
-              (msgs) => this.generate(selectedModel, msgs, attemptModels),
-              { progress, regenerationState: { attempts: 0, max: 1 } }
+              verifyGen,
+              { progress, regenerationState: { attempts: 0, max: deepReasoning ? 1 : 0 } }
             );
             aTxt = verified.answer || aTxt;
             if (!verified.ok) {

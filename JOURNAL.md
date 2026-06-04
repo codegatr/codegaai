@@ -4,6 +4,30 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 129 — multi_task takılması: görünür ilerleme + hızlı (deterministik) doğrulama (4 Haz 2026, Claude)
+
+Ekran: 4-görevli REASONING TRAP TEST boş/takılı. keepAlive (Faz 126) watchdog iptalini durdurdu ama
+8B (6GB'de gpu-tight, yavaş) × 4 görev × model-tabanlı AVE doğrulaması dakikalarca sürüyordu;
+ekranda HİÇBİR ilerleme görünmediği için "takıldı".
+
+Düzeltme (model-manager multi_task dalı):
+- HIZ: deepReasoning KAPALIYSA (varsayılan) verifyTaskLocalAnswer'a model fonksiyonu verilmez →
+  yavaş AVE + regen ATLANIR; yalnız deterministik doğrulayıcılar (RPRE/EBSE/MLVC/TCNIS/SACV +
+  benchmark canonical) çalışır → 4 görev dakikalar yerine saniyeler. deepReasoning AÇIKSA tam
+  (model destekli) doğrulama + 1 regen korunur.
+- GÖRÜNÜRLÜK: her görevden önce keepAlive ile görünür ilerleme akıtılır ("🧠 Test N çözülüyor…
+  (N/M)"); final assembled cevap bunları DEĞİŞTİRİR (renderer placeholder.text = answer.text otorite).
+  Artık boş/donmuş ekran yok.
+
+Test 65/65. Surum -> **2.3.0**.
+
+NOT: deterministik motorlar Test1(birinci geç=imkansız), Test2(3 kedi=çember), Test3(35 hariç=35)
+canonical'larını model çağrısı OLMADAN çözer; yalnız Test4 gibi kalıpsız görevler 1 model çağrısı.
+Hız için 6GB'de qwen3:4b varsayılan önerilir (8B gpu-tight=yavaş).
+
+---
+
+
 ## ✅ Faz 128 — Varsayılan model gerçekten kullanılsın + mesaj saatleri (4 Haz 2026, Claude)
 
 Ekran: Health Dashboard "Aktif Model: qwen3:4b" ama composer "Varsayılan: Qwen3 8B" (tutarsız);
