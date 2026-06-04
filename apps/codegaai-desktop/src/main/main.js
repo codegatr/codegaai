@@ -507,7 +507,9 @@ function registerIpc() {
     try {
       const { ollamaListModels } = require("./agent/ollama-client");
       const installed = await ollamaListModels();
-      installedIds = (installed || []).map((m) => (m && (m.name || m.model || m.id) ? String(m.name || m.model || m.id) : "")).filter(Boolean);
+      installedIds = (installed || [])
+        .map((m) => (typeof m === "string" ? m : (m && (m.name || m.model || m.id)) || ""))
+        .filter(Boolean);
     } catch (_e) {}
     const norm = (id) => String(id || "").toLowerCase();
     const isInstalled = (id) => installedIds.some((x) => norm(x) === norm(id) || norm(x) === `${norm(id)}:latest`);

@@ -4,6 +4,22 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 127 — Cookbook: kurulu model hâlâ "Kur" gösteriyordu (4 Haz 2026, Claude)
+
+Ekran: Cookbook çalışıyor (donanım 6GB VRAM/16GB RAM, öneri Qwen3 8B) ama "Kur ve Varsayılan Yap"
+sonrası kurulu modeller hâlâ "Kur" gösteriyordu.
+
+Kök neden: cookbook:scan'de installed eşlemesi `m.name || m.model || m.id` ile NESNE varsayıyordu;
+oysa ollamaListModels() STRING dizisi döndürüyor ("qwen3:8b"). Tüm map sonuçları undefined ->
+installedIds boş -> hiçbir model "kurulu" sayılmıyor -> hep "Kur".
+Düzeltme: `typeof m === "string" ? m : (m.name||m.model||m.id)`. Artık ":latest" varyantı dahil
+doğru eşleşiyor; kurulu modelde "Kur" yerine "Varsayılan Yap" / "● Varsayılan" çıkar.
+
+Surum -> **2.1.1**.
+
+---
+
+
 ## ✅ Faz 126 — multi_task watchdog kesmesi + 97sn yavaşlık düzeltmesi (4 Haz 2026, Claude)
 
 Ekran: v2.0.0'da WATCHDOG TEST hâlâ "ilerleme bildirmedi" ile boş/iptal; log'da doğrulama 97.5sn.
