@@ -194,8 +194,57 @@ function isInvisibleProgressToken(token) {
   return String(token || "").replace(/\u200b/g, "").trim() === "";
 }
 
+function isProgressStatusToken(token) {
+  return /^Çalışma özeti:/i.test(String(token || "").trim());
+}
+
 function longThinkingNotice() {
   return "Çalışma özeti: cevap beklenenden uzun sürüyor; modeli ve doğrulama adımlarını izliyorum.";
+}
+
+function oneMinuteStatusNotice(lastStatus) {
+  const current = String(lastStatus || longThinkingNotice()).replace(/\s+$/g, "");
+  return [
+    current,
+    "",
+    "Durum kontrolü: 1 dakikayı geçti. Hala çalışıyorum; istersen kırmızı durdur düğmesiyle kesebilirsin. Devam edersem sonucu tamamlamaya çalışacağım.",
+  ].join("\n");
+}
+
+function createStreamView(placeholder) {
+  return {
+    answer: "",
+    progress: "",
+    firstContent: true,
+    apply(token) {
+      if (isInvisibleProgressToken(token)) return "ignored";
+      const text = String(token || "");
+      if (isProgressStatusToken(text)) {
+        this.progress = text.trim();
+        if (!this.answer.trim()) placeholder.text = this.progress;
+        return "progress";
+      }
+      if (this.firstContent) {
+        this.answer = "";
+        this.firstContent = false;
+      }
+      this.answer += text;
+      placeholder.text = this.answer;
+      return "answer";
+    },
+    showSlowNotice() {
+      if (!this.answer.trim()) {
+        this.progress = this.progress || longThinkingNotice();
+        placeholder.text = this.progress;
+      }
+    },
+    showOneMinuteNotice() {
+      if (!this.answer.trim()) {
+        this.progress = oneMinuteStatusNotice(this.progress);
+        placeholder.text = this.progress;
+      }
+    },
+  };
 }
 
 function loadChats() {
@@ -1021,24 +1070,27 @@ async function regenerateLast() {
   appendMessage("assistant", "Düşünüyorum...");
   const placeholder = msgs[msgs.length - 1];
 
-  let streamBuf = "";
-  let firstToken = true;
+  const streamView = createStreamView(placeholder);
   let rafPending = false;
   const offStream = window.codega.onChatStream((token) => {
     if (_kickWatchdog) _kickWatchdog();
-    if (isInvisibleProgressToken(token)) return;
-    if (firstToken) { clearTimeout(slowNotice); streamBuf = ""; firstToken = false; }
-    streamBuf += token;
-    placeholder.text = streamBuf;
+    const kind = streamView.apply(token);
+    if (kind === "ignored") return;
+    if (kind === "answer") clearTimeout(slowNotice);
     if (!rafPending) {
       rafPending = true;
       requestAnimationFrame(() => { rafPending = false; renderConversation(); scrollConversationToBottom(); });
     }
   });
   const slowNotice = setTimeout(() => {
-    if (firstToken) placeholder.text = longThinkingNotice();
+    streamView.showSlowNotice();
     renderConversation();
   }, 8000);
+  const statusNotice = setTimeout(() => {
+    streamView.showOneMinuteNotice();
+    renderConversation();
+    scrollConversationToBottom();
+  }, 60000);
   try {
     const answer = await sendMessageWithWatchdog(userText, { regenerate: true, context: (currentChat().context || "") });
     placeholder.text = answer.text;
@@ -1046,6 +1098,7 @@ async function regenerateLast() {
     placeholder.text = `Bir aksama oldu: ${error.message || error}`;
   } finally {
     clearTimeout(slowNotice);
+    clearTimeout(statusNotice);
     offStream();
     isSending = false;
     setSendingUi(false);
@@ -1081,15 +1134,13 @@ async function handleSubmit() {
   const chat = currentChat();
   const placeholder = chat.messages[chat.messages.length - 1];
   // Streaming: token geldikçe placeholder'ı canlı güncelle (akış kapalıysa hiç gelmez)
-  let streamBuf = "";
-  let firstToken = true;
+  const streamView = createStreamView(placeholder);
   let rafPending = false;
   const offStream = window.codega.onChatStream((token) => {
     if (_kickWatchdog) _kickWatchdog();
-    if (isInvisibleProgressToken(token)) return;
-    if (firstToken) { clearTimeout(slowNotice); streamBuf = ""; firstToken = false; }
-    streamBuf += token;
-    placeholder.text = streamBuf;
+    const kind = streamView.apply(token);
+    if (kind === "ignored") return;
+    if (kind === "answer") clearTimeout(slowNotice);
     if (!rafPending) {
       rafPending = true;
       requestAnimationFrame(() => {
@@ -1100,10 +1151,15 @@ async function handleSubmit() {
     }
   });
   const slowNotice = setTimeout(() => {
-    if (firstToken) placeholder.text = longThinkingNotice();
+    streamView.showSlowNotice();
     renderConversation();
     scrollConversationToBottom();
   }, 8000);
+  const statusNotice = setTimeout(() => {
+    streamView.showOneMinuteNotice();
+    renderConversation();
+    scrollConversationToBottom();
+  }, 60000);
   try {
     const answer = await sendMessageWithWatchdog(sendText, { context: (currentChat().context || "") });
     placeholder.text = answer.text; // final cevap otorite (akış bozulsa bile tam metin)
@@ -1112,6 +1168,7 @@ async function handleSubmit() {
     placeholder.text = `Bir aksama oldu: ${error.message || error}`;
   } finally {
     clearTimeout(slowNotice);
+    clearTimeout(statusNotice);
     offStream();
     isSending = false;
     setSendingUi(false);
