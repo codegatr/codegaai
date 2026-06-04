@@ -70,7 +70,7 @@
       "identity": null
     },
     "dmg": {
-      "title": "CODEGA AI ${version}"
+      "title": "CODEGA AI ${version} ${arch}"
     },
     "nsis": {
       "oneClick": false,
