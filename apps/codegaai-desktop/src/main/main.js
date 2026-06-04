@@ -429,6 +429,8 @@ function registerIpc() {
       credentials: [
         { key: "GitHub token", present: !!String(s.githubToken || "").trim(), hint: mask(s.githubToken), note: "Yalnızca bu cihazda (userData) saklanır; kaynağa/ağa yazılmaz." },
         { key: "OpenAI-uyumlu API anahtarı", present: !!String(s.openaiApiKey || "").trim(), hint: mask(s.openaiApiKey), note: "Yalnızca bu cihazda saklanır; yalnızca senin sağlayıcına gider." },
+        { key: "Claude API anahtarı", present: !!String(s.claudeApiKey || "").trim(), hint: mask(s.claudeApiKey), note: "Yalnızca bu cihazda saklanır; yalnızca Anthropic API'ye gider." },
+        { key: "Gemini API anahtarı", present: !!String(s.geminiApiKey || "").trim(), hint: mask(s.geminiApiKey), note: "Yalnızca bu cihazda saklanır; yalnızca Google Gemini API'ye gider." },
       ],
       permissions: [
         { key: "Kod Çalıştırma", enabled: true, note: "Yalnızca sen 'Çalıştır' deyince; ajan kendiliğinden çalıştırmaz. İzolasyon yok (kendi yetkilerinle)." },
@@ -584,13 +586,9 @@ function registerIpc() {
   });
 
   ipcMain.handle("provider:test", async (_event, payload) => {
-    const { openaiTest } = require("./agent/openai-client");
+    const { cloudTest, configFromSettings } = require("./agent/cloud-provider");
     const s = settingsStore.getSettings();
-    return openaiTest({
-      baseUrl: (payload && payload.baseUrl) || s.openaiBaseUrl,
-      apiKey: (payload && payload.apiKey) || s.openaiApiKey,
-      model: (payload && payload.model) || s.openaiModel,
-    });
+    return cloudTest(configFromSettings(s, payload || {}));
   });
 }
 

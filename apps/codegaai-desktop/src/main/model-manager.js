@@ -12,7 +12,7 @@ const {
   OLLAMA_PULL_TIMEOUT_MS,
 } = require("../shared/constants");
 const { ollamaChat, ollamaChatStream, ollamaReachable, ollamaListModels } = require("./agent/ollama-client");
-const { openaiChat, openaiChatStream } = require("./agent/openai-client");
+const { configFromSettings, cloudChat, cloudChatStream, profile: cloudProfile } = require("./agent/cloud-provider");
 const { runReact } = require("./agent/agent-loop");
 const { TOOLS: AGENT_TOOLS } = require("./agent/tools");
 const logs = require("./agent/logs");
@@ -992,8 +992,16 @@ class ModelManager {
     }
 
     const settings = getSettings();
-    const cloudMode =
-      settings.provider === "openai" && String(settings.openaiApiKey || "").trim().length > 0;
+    const cloudConfig = configFromSettings(settings);
+    const requestedCloud = cloudProfile(settings.provider);
+    const cloudMode = Boolean(requestedCloud && String(cloudConfig.apiKey || "").trim());
+    if (requestedCloud && !cloudMode) {
+      return {
+        provider: "instant",
+        model: "codega-provider-setup",
+        text: `${cloudConfig.label} seçili ancak API anahtarı yapılandırılmamış. Ayarlar > Yapay Zeka bölümünden API anahtarını girip bağlantıyı test et.`,
+      };
+    }
 
     const task = detectTask(input);
     let attemptModels;
@@ -1001,10 +1009,10 @@ class ModelManager {
 
     if (cloudMode) {
       // Bulut: Ollama'ya gerek yok; kullanıcının seçtiği modeli kullan.
-      selectedModel = settings.openaiModel || "gpt-4o-mini";
+      selectedModel = cloudConfig.model;
       attemptModels = [selectedModel];
       this.state = {
-        provider: "openai",
+        provider: settings.provider,
         status: READY_STATES.READY,
         model: selectedModel,
         task,
@@ -1749,19 +1757,18 @@ class ModelManager {
    */
   async generate(model, messages, fallbackModels = [], onToken = null) {
     const sig = this._abort ? this._abort.signal : undefined;
-    // Bulut sağlayıcı (OpenAI-uyumlu) seçiliyse oraya yönlen — yerel Ollama gerekmez.
+    // Bulut sağlayıcı seçiliyse oraya yönlen — yerel Ollama gerekmez.
     const s = getSettings();
-    if (s.provider === "openai" && String(s.openaiApiKey || "").trim()) {
+    const cloud = configFromSettings(s);
+    if (cloudProfile(s.provider) && String(cloud.apiKey || "").trim()) {
       try {
         const o = {
-          baseUrl: s.openaiBaseUrl,
-          apiKey: s.openaiApiKey,
-          model: s.openaiModel || "gpt-4o-mini",
+          ...cloud,
           signal: sig,
         };
         const content = onToken
-          ? await openaiChatStream(messages, { ...o, onToken })
-          : await openaiChat(messages, o);
+          ? await cloudChatStream(messages, { ...o, onToken })
+          : await cloudChat(messages, o);
         if (content && content.trim()) return content;
       } catch (_e) {
         return ""; // bulut hatası -> üst katman boş-yanıt mesajı verir

@@ -1791,6 +1791,11 @@ function runSettingsSearch(q) {
 
 function updateOverview() {
   const set = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.textContent = val; };
+  const health = (name, ready, active, configuredText = "hazır") => {
+    set(`ov-health-${name}`, active ? "aktif" : ready ? configuredText : "yapılandırılmadı");
+    const dot = document.getElementById(`ov-health-${name}-dot`);
+    if (dot) dot.className = `dot ${active || ready ? "ok" : "plan"}`;
+  };
   const ollama = document.getElementById("ollama-row-status");
   const ollamaText = ollama ? ollama.textContent || "" : "";
   const ollamaReady = /çalışıyor/i.test(ollamaText);
@@ -1804,6 +1809,21 @@ function updateOverview() {
     const model = agentSettings.model || agentSettings.defaultModel;
     set("ov-model", model);
     set("ov-health-model", model);
+  }
+  if (agentSettings) {
+    const providerHealth = (name, apiKey) => {
+      const configured = !!String(apiKey || "").trim();
+      const selected = agentSettings.provider === name;
+      set(`ov-health-${name}`, selected ? (configured ? "aktif" : "API anahtarı gerekli") : (configured ? "hazır" : "yapılandırılmadı"));
+      const dot = document.getElementById(`ov-health-${name}-dot`);
+      if (dot) dot.className = `dot ${selected && !configured ? "warn" : configured ? "ok" : "plan"}`;
+    };
+    providerHealth("openai", agentSettings.openaiApiKey);
+    providerHealth("claude", agentSettings.claudeApiKey);
+    providerHealth("gemini", agentSettings.geminiApiKey);
+    health("mcp", !!String(agentSettings.mcpServerUrl || "").trim(), !!agentSettings.mcpAutoTools, agentSettings.mcpAutoTools ? "ajana bağlı" : "sunucu kayıtlı");
+    health("federation", !!agentSettings.federation, !!agentSettings.federation, "açık");
+    if (!agentSettings.federation) set("ov-health-federation", "kapalı");
   }
 }
 
@@ -1917,27 +1937,53 @@ async function refreshImproveDrafts() {
 const improveRefresh = document.getElementById("improve-refresh");
 if (improveRefresh) improveRefresh.addEventListener("click", refreshImproveDrafts);
 
+const PROVIDER_FIELDS = {
+  openai: { base: "openaiBaseUrl", key: "openaiApiKey", model: "openaiModel", baseUrl: "https://api.openai.com/v1", modelName: "gpt-4o-mini" },
+  claude: { base: "claudeBaseUrl", key: "claudeApiKey", model: "claudeModel", baseUrl: "https://api.anthropic.com/v1", modelName: "claude-sonnet-4-20250514" },
+  gemini: { base: "geminiBaseUrl", key: "geminiApiKey", model: "geminiModel", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", modelName: "gemini-2.5-flash" },
+};
+
+function selectedProviderFields() {
+  return PROVIDER_FIELDS[(els.providerSelect && els.providerSelect.value) || ""] || null;
+}
+
+function fillProviderFields() {
+  const fields = selectedProviderFields();
+  if (!fields || !agentSettings) return;
+  if (els.openaiBase) els.openaiBase.value = agentSettings[fields.base] || fields.baseUrl;
+  if (els.openaiKey) els.openaiKey.value = agentSettings[fields.key] || "";
+  if (els.openaiModel) els.openaiModel.value = agentSettings[fields.model] || fields.modelName;
+}
+
 function updateProviderVisibility() {
   if (!els.providerCloudFields || !els.providerSelect) return;
-  els.providerCloudFields.style.display = els.providerSelect.value === "openai" ? "" : "none";
+  els.providerCloudFields.style.display = selectedProviderFields() ? "" : "none";
+  fillProviderFields();
 }
 if (els.providerSelect) els.providerSelect.addEventListener("change", async () => {
   agentSettings = await window.codega.setSettings({ provider: els.providerSelect.value });
   updateProviderVisibility();
-  setTransientStatus(els.providerSelect.value === "openai" ? "Bulut sağlayıcı seçildi." : "Yerel sağlayıcı seçildi.");
+  updateOverview();
+  setTransientStatus(selectedProviderFields() ? "Bulut sağlayıcı seçildi." : "Yerel sağlayıcı seçildi.");
 });
-function bindProviderField(el, key) {
+function bindProviderField(el, fieldName) {
   if (!el) return;
-  el.addEventListener("change", async () => { agentSettings = await window.codega.setSettings({ [key]: el.value.trim() }); });
+  el.addEventListener("change", async () => {
+    const fields = selectedProviderFields();
+    if (!fields) return;
+    agentSettings = await window.codega.setSettings({ [fields[fieldName]]: el.value.trim() });
+    updateOverview();
+  });
 }
-bindProviderField(els.openaiBase, "openaiBaseUrl");
-bindProviderField(els.openaiKey, "openaiApiKey");
-bindProviderField(els.openaiModel, "openaiModel");
+bindProviderField(els.openaiBase, "base");
+bindProviderField(els.openaiKey, "key");
+bindProviderField(els.openaiModel, "model");
 if (els.providerTest) els.providerTest.addEventListener("click", async () => {
   els.providerTest.disabled = true;
   setTransientStatus("Bağlantı test ediliyor…");
   try {
     const r = await window.codega.testProvider({
+      provider: els.providerSelect ? els.providerSelect.value : "openai",
       baseUrl: els.openaiBase ? els.openaiBase.value.trim() : "",
       apiKey: els.openaiKey ? els.openaiKey.value.trim() : "",
       model: els.openaiModel ? els.openaiModel.value.trim() : "",
@@ -2256,10 +2302,8 @@ async function refreshAgentSettings() {
     if (learnSources) learnSources.value = agentSettings.learningSources || "";
     if (els.learnRepo) els.learnRepo.value = agentSettings.learningSyncRepo || "";
     if (els.providerSelect) els.providerSelect.value = agentSettings.provider || "ollama";
-    if (els.openaiBase) els.openaiBase.value = agentSettings.openaiBaseUrl || "";
-    if (els.openaiKey) els.openaiKey.value = agentSettings.openaiApiKey || "";
-    if (els.openaiModel) els.openaiModel.value = agentSettings.openaiModel || "";
     updateProviderVisibility();
+    updateOverview();
     applyAppearance(agentSettings);
     applyToggleLabel(els.toggleFederation, !!agentSettings.federation);
     applyToggleLabel(els.toggleIdle, !!agentSettings.idleLearning);

@@ -34,10 +34,16 @@ const DEFAULTS = {
   autoProposePR: false, // ajan kendi gözlemlerinden OTONOM PR açsın (ayrı dal; ASLA merge/main)
   expertMode: "genel", // sohbet uzman modu (genel/php/python/javascript/devops/finans/hukuk)
   streaming: true, // cevabı token token canlı göster (kapatılabilir)
-  provider: "ollama", // "ollama" (yerel) | "openai" (OpenAI-uyumlu bulut)
+  provider: "ollama", // "ollama" | "openai" | "claude" | "gemini"
   openaiBaseUrl: "https://api.openai.com/v1",
   openaiApiKey: "", // YALNIZCA yerelde saklanır; kullanıcının kendi sağlayıcısına gider
   openaiModel: "gpt-4o-mini",
+  claudeBaseUrl: "https://api.anthropic.com/v1",
+  claudeApiKey: "",
+  claudeModel: "claude-sonnet-4-20250514",
+  geminiBaseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+  geminiApiKey: "",
+  geminiModel: "gemini-2.5-flash",
   continuousLearning: false, // açıkken kaynaklardan sürekli öğren
   learningTopics: "", // virgülle ayrılmış konular (boşsa öğrenilen/kişisel hafızadan türetilir)
   learningSources: "wikipedia,web,github,stackoverflow,arxiv,hackernews,mdn",
