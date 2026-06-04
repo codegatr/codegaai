@@ -214,6 +214,18 @@ async function verifyTaskLocalAnswer(task, draft, generateFn = null, opts = {}) 
   return { ok: true, answer, errors: [] };
 }
 
+async function finalizeTaskLocalAnswer(task, draft, generateFn = null, opts = {}) {
+  if (opts.trustedDeterministic && String(draft || "").trim()) {
+    return {
+      ok: true,
+      answer: taskLocalFinalAnswer(draft),
+      errors: [],
+      trustedDeterministic: true,
+    };
+  }
+  return verifyTaskLocalAnswer(task, draft, generateFn, opts);
+}
+
 function collapseRunawayTaskAnswer(answer) {
   const text = String(answer || "").trim();
   if (!text) return "";
@@ -281,6 +293,21 @@ function deterministicTaskAnswer(taskBody) {
   const ratio = rpre.solveMainTask(body);
   if (ratio && ratio.trim()) return ratio.trim();
   return "";
+}
+
+function trustedDeterministicMultiTaskAnswer(taskDecomposition) {
+  if (!taskDecomposition || !taskDecomposition.applicable || taskDecomposition.count < 2) return "";
+  const results = [];
+  for (const task of taskDecomposition.tasks || []) {
+    const draft = deterministicTaskAnswer(task.body);
+    if (!String(draft || "").trim()) return "";
+    results.push({
+      label: task.label || `Görev ${results.length + 1}`,
+      answer: taskLocalFinalAnswer(draft),
+    });
+  }
+  if (results.length !== taskDecomposition.count) return "";
+  return results.map((r) => `**${r.label}**\n${r.answer}`).join("\n\n");
 }
 
 // Basit sohbet/selamlaşma tespiti — bunlarda araç/ReAct makinesi devreye girmesin
@@ -895,6 +922,17 @@ class ModelManager {
     const isMultiTaskInput = taskDecomposition.applicable && taskDecomposition.count >= 2;
     const isInstructionOnlyMainTask = taskDecomposition.instructionOnly && taskDecomposition.mainTask;
 
+    if (isMultiTaskInput) {
+      const trustedMultiTask = trustedDeterministicMultiTaskAnswer(taskDecomposition);
+      if (trustedMultiTask) {
+        return {
+          provider: "instant",
+          model: "codega-deterministic-multitask",
+          text: trustedMultiTask,
+        };
+      }
+    }
+
     if (!isMultiTaskInput && isInstructionOnlyMainTask) {
       const mainTaskAnswer = rpre.solveMainTask(taskDecomposition.mainTask.problem_text || input);
       if (mainTaskAnswer) {
@@ -1144,6 +1182,7 @@ class ModelManager {
             { role: "user", content: t.body },
           ];
           let aTxt = deterministicTaskAnswer(t.body);
+          const trustedDeterministic = Boolean(aTxt);
           if (!aTxt) {
             try {
               // Multi-task answers are verified before display; do not stream raw per-task drafts.
@@ -1151,25 +1190,33 @@ class ModelManager {
             } catch (_e) { aTxt = ""; }
           }
           aTxt = collapseRunawayTaskAnswer(aTxt);
-          // Görev başına ucuz deterministik düzeltme (oran/denklem/matematik)
-          try {
-            const rp = rpre.verify(t.body, aTxt);
-            if (rp.applicable && rp.status === "REJECTED" && rp.correctedAnswer) aTxt = rp.correctedAnswer;
-            const eb = ebse.verify(t.body, aTxt);
-            if (eb.applicable && eb.status === "REJECTED" && eb.correctedAnswer) aTxt = eb.correctedAnswer;
-          } catch (_e) { /* doğrulama görevi düşürmesin */ }
+          if (!trustedDeterministic) {
+            // Görev başına ucuz deterministik düzeltme (oran/denklem/matematik)
+            try {
+              const rp = rpre.verify(t.body, aTxt);
+              if (rp.applicable && rp.status === "REJECTED" && rp.correctedAnswer) aTxt = rp.correctedAnswer;
+              const eb = ebse.verify(t.body, aTxt);
+              if (eb.applicable && eb.status === "REJECTED" && eb.correctedAnswer) aTxt = eb.correctedAnswer;
+            } catch (_e) { /* doğrulama görevi düşürmesin */ }
+          }
           if (!aTxt) aTxt = "(bu görev için yanıt üretilemedi)";
           // Sonucu diziye PUSH et — önceki sonuçların üzerine YAZMA
           try {
             // Hız: deepReasoning KAPALIYSA model-tabanlı AVE/regen ATLANIR; yalnız deterministik
             // doğrulayıcılar (RPRE/EBSE/MLVC/TCNIS/SACV) çalışır → 4 görev saniyelerde biter.
             // deepReasoning AÇIKSA tam (model destekli) doğrulama + 1 regen.
-            const verifyGen = deepReasoning ? ((msgs) => this.generate(selectedModel, msgs, attemptModels)) : null;
-            const verified = await verifyTaskLocalAnswer(
+            const verifyGen = deepReasoning && !trustedDeterministic
+              ? ((msgs) => this.generate(selectedModel, msgs, attemptModels))
+              : null;
+            const verified = await finalizeTaskLocalAnswer(
               t,
               aTxt,
               verifyGen,
-              { progress, regenerationState: { attempts: 0, max: deepReasoning ? 1 : 0 } }
+              {
+                progress,
+                trustedDeterministic,
+                regenerationState: { attempts: 0, max: deepReasoning && !trustedDeterministic ? 1 : 0 },
+              }
             );
             aTxt = verified.answer || aTxt;
             if (!verified.ok) {
@@ -1741,7 +1788,9 @@ module.exports = {
   parsePullProgress,
   isSmallTalk,
   _verifyTaskLocalAnswer: verifyTaskLocalAnswer,
+  _finalizeTaskLocalAnswer: finalizeTaskLocalAnswer,
   _deterministicTaskAnswer: deterministicTaskAnswer,
+  _trustedDeterministicMultiTaskAnswer: trustedDeterministicMultiTaskAnswer,
   _collapseRunawayTaskAnswer: collapseRunawayTaskAnswer,
   _makeVerificationProgress: makeVerificationProgress,
   _MAX_REGENERATION_ATTEMPTS: MAX_REGENERATION_ATTEMPTS,
