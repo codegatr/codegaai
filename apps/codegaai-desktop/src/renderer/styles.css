@@ -1477,3 +1477,7 @@ body[data-theme="oled"] { --bg: #000; }
 .fit-tight { background: rgba(245,158,11,0.15); color: #f59e0b; border-color: rgba(245,158,11,0.4); }
 .fit-cpu { background: rgba(148,163,184,0.15); color: #94a3b8; border-color: rgba(148,163,184,0.4); }
 .fit-no { background: rgba(239,68,68,0.12); color: #ef4444; border-color: rgba(239,68,68,0.35); }
+
+/* Mesaj zaman damgası */
+.msg-time { margin-top: 6px; font-size: 0.72em; opacity: 0.45; }
+.message.user .msg-time { text-align: right; }

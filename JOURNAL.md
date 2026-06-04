@@ -4,6 +4,29 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 128 — Varsayılan model gerçekten kullanılsın + mesaj saatleri (4 Haz 2026, Claude)
+
+Ekran: Health Dashboard "Aktif Model: qwen3:4b" ama composer "Varsayılan: Qwen3 8B" (tutarsız);
+cevap çok yavaş; mesaj altına saat istendi.
+
+Kök neden (tutarsızlık + Cookbook etkisizliği): _ask model seçimi candidateModelsForTask/
+chooseModelForTask ile YALNIZ göreve göre seçiyordu; settings.defaultModel HİÇ okunmuyordu.
+Yani Cookbook "Varsayılan Yap" ayarı kaydediyor ama model-manager kullanmıyordu → hep 4b.
+Düzeltme:
+- model-manager: kullanıcı varsayılanı (settings.defaultModel) KURULUYSA aday listesinin EN ÖNÜNE
+  alınır (":latest" varyantı dahil). Artık Cookbook seçimi gerçekten çalışır.
+- renderer: dashboard "Aktif Model" ayarlı varsayılanı önceler (getStatus yarışını bitirir).
+- renderer + css: her mesaj baloncuğunun altına saat/tarih (createdAt -> tr-TR HH:mm gg.aa).
+
+Test 65/65. Surum -> **2.2.0**.
+
+NOT (yavaşlık): kullanıcı 6GB karta qwen3:8b (gpu-tight) seçti; artık gerçekten 8B çalıştığı için
+kısmi CPU offload -> yavaş. Hız için qwen3:4b (gpu, rahat) varsayılan yapılabilir; güç için 8B.
+Cookbook bu tercihi tek tuşla değiştirir. (Konu kullanıcıya iletildi.)
+
+---
+
+
 ## ✅ Faz 127 — Cookbook: kurulu model hâlâ "Kur" gösteriyordu (4 Haz 2026, Claude)
 
 Ekran: Cookbook çalışıyor (donanım 6GB VRAM/16GB RAM, öneri Qwen3 8B) ama "Kur ve Varsayılan Yap"

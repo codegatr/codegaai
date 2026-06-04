@@ -964,6 +964,14 @@ class ModelManager {
 
       const installed = await this.installedModels();
       attemptModels = candidateModelsForTask(task, installed);
+      // Kullanıcının seçtiği varsayılan model KURULUYSA en öne al — Cookbook "Varsayılan Yap"
+      // seçimi gerçekten etki etsin (aksi halde yalnız göreve göre seçiliyordu).
+      const userDefault = settings.defaultModel || settings.model || "";
+      if (userDefault) {
+        const nrm = (x) => String(x || "").toLowerCase();
+        const isInst = installed.some((x) => nrm(x) === nrm(userDefault) || nrm(x) === `${nrm(userDefault)}:latest`);
+        if (isInst) attemptModels = [userDefault, ...attemptModels.filter((m) => nrm(m) !== nrm(userDefault))];
+      }
       selectedModel = attemptModels[0] || chooseModelForTask(task, installed);
       if (!attemptModels.length) {
         const started = this.prepareModelInBackground(selectedModel);

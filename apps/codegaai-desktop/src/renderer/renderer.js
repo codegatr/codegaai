@@ -316,9 +316,12 @@ function renderConversation() {
     const message = chat.messages[idx];
     const node = document.createElement("article");
     node.className = `message ${message.role}`;
+    const ts = message.createdAt ? new Date(message.createdAt) : null;
+    const tsText = ts ? ts.toLocaleString("tr-TR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }) : "";
     node.innerHTML = `
       <div class="role">${message.role === "user" ? "SEN" : "CODEGA AI"}</div>
       <div>${escapeHtml(message.text).replace(/\n/g, "<br>")}</div>
+      ${tsText ? `<div class="msg-time">${tsText}</div>` : ""}
     `;
     // Asistan cevaplarına geri bildirim (👍/👎) — son cevap hâlâ yazılıyorsa ekleme
     const isLivePlaceholder = isSending && idx === chat.messages.length - 1;
@@ -1602,12 +1605,13 @@ els.settingsButton.addEventListener("click", async () => {
   if (toggleDebugBtn && agentSettings) applyToggleLabel(toggleDebugBtn, !!agentSettings.debugLogging);
   if (toggleDeepBtn && agentSettings) applyToggleLabel(toggleDeepBtn, !!agentSettings.deepReasoning);
   if (toggleSacvDebugBtn && agentSettings) applyToggleLabel(toggleSacvDebugBtn, !!agentSettings.sacvDebug);
-  // Aktif Model: gerçek model durumundan (dinamik seçilir)
+  // Aktif Model: kullanıcının seçtiği varsayılan (yoksa canlı durum)
   window.codega.getStatus().then((st) => {
     const raw = st && st.model;
-    const m = raw && (raw.model || (typeof raw === "string" ? raw : null));
+    const live = raw && (raw.model || (typeof raw === "string" ? raw : null));
+    const configured = agentSettings && (agentSettings.defaultModel || agentSettings.model);
     const el = document.getElementById("ov-health-model");
-    if (el) el.textContent = m ? String(m) : "—";
+    if (el) el.textContent = String(configured || live || "—");
   }).catch(() => {});
   if (typeof refreshLearnList === "function") refreshLearnList();
   window.codega.feedbackStats().then((f) => {
