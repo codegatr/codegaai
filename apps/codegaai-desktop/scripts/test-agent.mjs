@@ -1218,4 +1218,21 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("TDE: çıktı şablonu (Zorunlu çıktı/Final Answer) görev tekrarı yaratmaz");
 }
 
+
+// === deterministicTaskAnswer: 4 tuzak görev de MODELSİZ + doğru ===
+{
+  const mmMod = await import(path.join(mainDir, "model-manager.js"));
+  const MM = mmMod.default || mmMod;
+  const det = MM._deterministicTaskAnswer;
+  // Test 3: "35 hariç hepsi öldü" -> 35 (genel hariç tuzağı)
+  const t3 = det("Bir ciftcinin 120 koyunu vardi. 35i haric hepsi oldu. Kac koyunu kaldi?");
+  assert.ok(t3 && /35/.test(t3) && /kal/i.test(t3), "Test3 -> 35 kalır (modelsiz)");
+  // Test 1: canonical 'imkansız öncül' matematik çözücüden ÖNCE (sıra düzeltmesi)
+  const t1 = det("Bir yarista birinci siradaki kisiyi geciyorsun. Kacinci siraya yukselirsin?");
+  assert.ok(t1 && /(geç[a-zçğşöü]*mez|geçersiz|mümkün değil|imkans)/i.test(t1), "Test1 -> imkansız öncül (math değil)");
+  // Test 4: 1 erkek kardeş
+  assert.ok(/1 erkek karde/i.test(det("Bir doktorun 4 kiz kardesi var, her birinin 1 erkek kardesi var. Toplam kac erkek kardes?")), "Test4 -> 1 erkek kardeş");
+  ok("deterministicTaskAnswer: hariç=35, birinci=imkansız, kardeş=1 (hepsi modelsiz)");
+}
+
 console.log(`\n${passed} test geçti ✅`);

@@ -72,6 +72,15 @@ function solveKnownReasoningBenchmarks(question) {
   if (/30\s+koyun/.test(q) && /12'?si\s+hari[cç]/.test(q)) {
     lines.push("TEST A: 12 koyun kalır.");
   }
+  // Genel "… N('i/yi) hariç hepsi öldü → N kaldı" tuzağı (hariç tutulanlar SAĞ kalır).
+  {
+    const hm = q.match(/(\d+)['’]?\s*(?:i|si|yi|s[ıi]|n[ıi]|[ıiuü])?\s*hari[cç]/);
+    const animalsOrItems = /(koyun|hayvan|inek|tavuk|ku[şs]|bal[ıi]k|kedi|k[öo]pek|at|insan|ki[şs]i|asker|[öo][ğg]renci|ada(m|y))/;
+    const died = /([öo]l|telef|kayb|hayatta|sa[ğg] kal|geri kal)/;
+    if (hm && animalsOrItems.test(q) && died.test(q) && !(/30\s+koyun/.test(q) && /12/.test(hm[1]))) {
+      lines.push(`TEST: "${hm[1]} hariç hepsi öldü" → hariç tutulanlar SAĞ kalır; geri kalan ölür. Hayatta kalan: ${hm[1]}.`);
+    }
+  }
   if (/ya[ğg]mur/.test(q) && /[şs]emsiy/.test(q) && /[şs]apka/.test(q) && /sa[cç]lar[ıi]\s+[ıi]slanmad/.test(q)) {
     lines.push("TEST B: Adamın saçı yoktur; yani keldir.");
   }

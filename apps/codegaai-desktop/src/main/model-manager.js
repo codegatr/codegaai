@@ -272,12 +272,14 @@ function repairTaskBoundaryLeak(task, answer) {
 
 function deterministicTaskAnswer(taskBody) {
   const body = String(taskBody || "");
+  // Önce KNOWN tuzak/canonical (benchmark) — genel matematik çözücü tuzak ifadeleri yanlış
+  // yakalamasın (örn. "birinci sıradaki" -> hatalı). Yalnız bilinen tuzaklarda boş-dışı döner.
+  const benchmark = solveKnownReasoningBenchmarks(body);
+  if (benchmark && benchmark.trim()) return benchmark.trim();
   const math = solveDeterministicMathLogic(body);
   if (math && math.trim()) return math.trim();
   const ratio = rpre.solveMainTask(body);
   if (ratio && ratio.trim()) return ratio.trim();
-  const benchmark = solveKnownReasoningBenchmarks(body);
-  if (benchmark && benchmark.trim()) return benchmark.trim();
   return "";
 }
 

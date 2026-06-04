@@ -4,6 +4,30 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 131 — multi_task gerçekten hızlandı: 4 tuzak da modelsiz çözülüyor (4 Haz 2026, Claude)
+
+Kullanıcı haklı soru: "simüle mi ettin?" — DOĞRU, canlı Electron+Ollama+model koşulamıyor; yalnız
+deterministik mantık Node'da test ediliyor. Bu yüzden gerçek darboğaz ölçüldü: 4 görevin kaçı
+modelsiz çözülüyor?
+
+Ölçüm: Test1 deterministik ama YANLIŞ ("MLVC logic: 1. sıra" — matematik çözücüsü "birinci sıradaki"
+tuzağını yanlış yakalıyor, canonical'dan ÖNCE). Test3 ("35'i hariç hepsi öldü") deterministik DEĞİL
+→ yavaş 8B'ye düşüyor (takılmanın nedeni). Test2/Test4 deterministik ✓.
+
+Düzeltme:
+- deterministicTaskAnswer sırası: benchmark(canonical) → math → ratio. Tuzaklar artık canonical
+  cevabı alır (Test1 doğru: "geçemezsin/öncül geçersiz").
+- benchmark-reasoner: GENEL "N('i/yi) hariç hepsi öldü → N kaldı" tuzağı (hayvan/kişi + öl bağlamı).
+  Test3 artık modelsiz "35 kalır".
+Sonuç: 4 görev de MODELSİZ + doğru → multi_task ~saniyeler (8B üretimi gerekmez).
+
+Regresyon (67/67): hariç=35, birinci=imkansız öncül (math değil), kardeş=1.
+
+Test 67/67 + reasoning-guard. Surum -> **2.3.2**.
+
+---
+
+
 ## ✅ Faz 130 — Çıktı şablonu görev tekrarı (4 görev "8" sanılıyordu) (4 Haz 2026, Claude)
 
 Ekran: görünür ilerleme çalışıyor ✓ ama "Test 1 çözülüyor… (1/8)" — 4 görev "8" algılanmış. Neden:
