@@ -4,6 +4,23 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 130 — Çıktı şablonu görev tekrarı (4 görev "8" sanılıyordu) (4 Haz 2026, Claude)
+
+Ekran: görünür ilerleme çalışıyor ✓ ama "Test 1 çözülüyor… (1/8)" — 4 görev "8" algılanmış. Neden:
+istemin altındaki "Zorunlu çıktı: Test 1:/Test 2:/Test 3:/Test 4:/Final Answer:" şablonu, gerçek
+görevlerle AYNI id'leri tekrar ediyor; boş gövdeler block'a düşüp sayılıyordu → 8 görev (2 kat iş).
+
+Düzeltme (tde.headingTasks): aynı id birden çok geçerse EN ZENGİN gövdeli olan tutulur, şablon/
+placeholder kopyaları elenir; id'ye göre sıralanır. Artık 4 görev. (Hard assertion explicitHeaders'ı
+aşmadığı için sorun yok.) Normal çok-görev (Test 1/2/3) korunur.
+
+Regresyon (66/66): çıktı şablonu tekrarı -> 4 görev (8 değil), id 1-4, Test 3 gerçek gövde.
+
+Test 66/66 + reasoning-guard. Surum -> **2.3.1**.
+
+---
+
+
 ## ✅ Faz 129 — multi_task takılması: görünür ilerleme + hızlı (deterministik) doğrulama (4 Haz 2026, Claude)
 
 Ekran: 4-görevli REASONING TRAP TEST boş/takılı. keepAlive (Faz 126) watchdog iptalini durdurdu ama

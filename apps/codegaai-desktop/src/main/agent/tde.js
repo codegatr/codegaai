@@ -140,7 +140,15 @@ function headingTasks(text) {
   const ORDINAL_STEP = /^(turda|tur|deger|kisi|kisiyi|ogrenci|adim|asama|sira|sirada|kati|kez|defa|tekrar|kapi|kapiyi|terim|eleman|satir|basamak|gun|hafta|ay|yil|kutu|sayi|sayiyi|dongu|iterasyon|round|step|aday|nesne|obje|hane|grup)\b/;
   const isExplanatoryStep = (task) => !task.fromKeyword && ORDINAL_STEP.test(trFold(task.body));
   const tasks = parsedTasks.filter((task) => !isIgnorableTaskBody(task.body) && !isExplanatoryStep(task));
-  return tasks;
+  // Aynı görev id'si BİRDEN ÇOK geçerse (örn. "Zorunlu çıktı: Test 1:/Test 2:…" şablonu gerçek
+  // görevleri TEKRAR eder), EN ZENGİN gövdeli olanı tut; şablon/placeholder kopyalarını ele.
+  const byId = new Map();
+  for (const task of tasks) {
+    const prev = byId.get(task.id);
+    if (!prev || String(task.body || "").length > String(prev.body || "").length) byId.set(task.id, task);
+  }
+  const deduped = [...byId.values()].sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
+  return deduped;
 }
 
 function questionTasks(text) {

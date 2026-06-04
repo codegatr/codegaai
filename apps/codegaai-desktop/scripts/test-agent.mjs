@@ -1199,4 +1199,23 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("EBSE: Türkçe binlik (1.000) + zam/indirim zinciri = 960 deterministik");
 }
 
+
+// === TDE: çıktı şablonu ("Zorunlu çıktı: Test 1:/...") görev TEKRARI sayılmaz ===
+{
+  const tMod = await import(path.join(mainDir, "agent", "tde.js"));
+  const TDE = tMod.default || tMod;
+  const inp = [
+    "Test 1", "Birinciyi gecersen kacinci?", "",
+    "Test 2", "3 kedi onunde 2 arkasinda 2 nasil?", "",
+    "Test 3", "120 koyun 35i haric oldu kac kaldi?", "",
+    "Test 4", "4 kiz kardes her birinin 1 erkek kardesi kac erkek?", "",
+    "Zorunlu cikti:", "Test 1:", "Test 2:", "Test 3:", "Test 4:", "Final Answer:",
+  ].join("\n");
+  const r = TDE.decomposeTasks(inp);
+  assert.strictEqual(r.count, 4, "çıktı şablonu tekrarı sayılmaz -> 4 görev (8 değil)");
+  assert.deepStrictEqual(r.tasks.map((t) => t.id), ["1", "2", "3", "4"], "id'ler 1-4, tekrar yok");
+  assert.ok(/120 koyun/.test(r.tasks[2].body), "Test 3 gerçek gövdeyi tutar (placeholder değil)");
+  ok("TDE: çıktı şablonu (Zorunlu çıktı/Final Answer) görev tekrarı yaratmaz");
+}
+
 console.log(`\n${passed} test geçti ✅`);
