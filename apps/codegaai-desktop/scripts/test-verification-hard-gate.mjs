@@ -183,6 +183,97 @@ suite("multi_task_task_local_verification", async () => {
   assert.match(runaway, /Task-local guard/, "runaway repeated task drafts are collapsed before verification");
 });
 
+suite("trusted_deterministic_multitask_no_model_stall", async () => {
+  const tasks = [
+    {
+      id: "1",
+      label: "Test 1",
+      body: "Bir yar\u0131\u015fta birinci s\u0131radaki ki\u015fiyi ge\u00e7iyorsun.\nNormal yar\u0131\u015f ko\u015fullar\u0131nda ka\u00e7\u0131nc\u0131 s\u0131raya y\u00fckselirsin?\nA\u00e7\u0131klayarak cevap ver.",
+      pattern: /ge\u00e7emezsin|ge\u00e7ersiz|m\u00fcmk\u00fcn de\u011fil|imkans/i,
+    },
+    {
+      id: "2",
+      label: "Test 2",
+      body: "Bir odada 3 kedi vard\u0131r.\nHer kedinin \u00f6n\u00fcnde 2 kedi vard\u0131r.\nHer kedinin arkas\u0131nda 2 kedi vard\u0131r.\nBu nas\u0131l m\u00fcmk\u00fcnd\u00fcr?",
+      pattern: /\u00e7ember|dairesel|3 kedi/i,
+    },
+    {
+      id: "3",
+      label: "Test 3",
+      body: "Bir \u00e7ift\u00e7inin 120 koyunu vard\u0131.\n35'i hari\u00e7 hepsi \u00f6ld\u00fc.\nKa\u00e7 koyunu kald\u0131?",
+      pattern: /35/,
+    },
+    {
+      id: "4",
+      label: "Test 4",
+      body: "Bir doktorun 4 k\u0131z karde\u015fi vard\u0131r.\nBu k\u0131z karde\u015flerin her birinin 1 erkek karde\u015fi vard\u0131r.\nToplam ka\u00e7 erkek karde\u015f vard\u0131r?",
+      pattern: /1 erkek karde/i,
+    },
+  ];
+
+  let modelCalls = 0;
+  const failIfCalled = async () => {
+    modelCalls += 1;
+    throw new Error("trusted deterministic task should not call model verification");
+  };
+
+  for (const task of tasks) {
+    const draft = modelManager._deterministicTaskAnswer(task.body);
+    assert.ok(draft, `${task.label} has a deterministic answer`);
+    const result = await modelManager._finalizeTaskLocalAnswer(task, draft, failIfCalled, { trustedDeterministic: true });
+    assert.equal(result.ok, true);
+    assert.equal(result.trustedDeterministic, true);
+    assert.match(result.answer, task.pattern, `${task.label} preserves the deterministic answer`);
+  }
+  assert.equal(modelCalls, 0, "trusted deterministic multi-task suite does not enter model verification");
+});
+
+suite("trusted_deterministic_multitask_ask_fast_path", async () => {
+  const prompt = [
+    "Test 1",
+    "Bir yar\u0131\u015fta birinci s\u0131radaki ki\u015fiyi ge\u00e7iyorsun.",
+    "Normal yar\u0131\u015f ko\u015fullar\u0131nda ka\u00e7\u0131nc\u0131 s\u0131raya y\u00fckselirsin?",
+    "A\u00e7\u0131klayarak cevap ver.",
+    "",
+    "Test 2",
+    "Bir odada 3 kedi vard\u0131r.",
+    "Her kedinin \u00f6n\u00fcnde 2 kedi vard\u0131r.",
+    "Her kedinin arkas\u0131nda 2 kedi vard\u0131r.",
+    "Bu nas\u0131l m\u00fcmk\u00fcnd\u00fcr?",
+    "",
+    "Test 3",
+    "Bir \u00e7ift\u00e7inin 120 koyunu vard\u0131.",
+    "35'i hari\u00e7 hepsi \u00f6ld\u00fc.",
+    "Ka\u00e7 koyunu kald\u0131?",
+    "",
+    "Test 4",
+    "Bir doktorun 4 k\u0131z karde\u015fi vard\u0131r.",
+    "Bu k\u0131z karde\u015flerin her birinin 1 erkek karde\u015fi vard\u0131r.",
+    "Toplam ka\u00e7 erkek karde\u015f vard\u0131r?",
+    "",
+    "Zorunlu \u00e7\u0131kt\u0131:",
+    "Test 1:",
+    "Test 2:",
+    "Test 3:",
+    "Test 4:",
+    "Final Answer:",
+  ].join("\n");
+  const manager = new modelManager.ModelManager();
+  manager.generate = async () => {
+    throw new Error("trusted deterministic ask fast path should not call the model");
+  };
+
+  const started = Date.now();
+  const result = await manager.ask(prompt, { onToken: () => {} });
+  assert.equal(result.provider, "instant");
+  assert.equal(result.model, "codega-deterministic-multitask");
+  assert.ok(Date.now() - started < 1000, "trusted deterministic multi-task prompt returns without model readiness checks");
+  assert.match(result.text, /Test 1[\s\S]*ge\u00e7emezsin|ge\u00e7ersiz|m\u00fcmk\u00fcn de\u011fil|imkans/i);
+  assert.match(result.text, /Test 2[\s\S]*(\u00e7ember|dairesel|3 kedi)/i);
+  assert.match(result.text, /Test 3[\s\S]*35/);
+  assert.match(result.text, /Test 4[\s\S]*1 erkek karde/i);
+});
+
 suite("watchdog_regeneration_loop_guard", async () => {
   assert.equal(modelManager._MAX_REGENERATION_ATTEMPTS, 3);
   const tokens = [];
