@@ -348,6 +348,7 @@ const HEARTBEAT_TOKEN = "\u200b";
 function progressLabel(stage, scope, meta = {}) {
   const scopeLabel = scope === "multi_task" ? "çoklu görev" : "cevap";
   const reason = meta.reason ? String(meta.reason).replace(/[_-]+/g, " ").slice(0, 80) : "";
+  if (/^hala çalışıyor$/i.test(reason)) return `${scopeLabel}: hala çalışıyorum; son aşamayı bekliyorum.`;
   if (stage === "reasoning") return reason ? `${scopeLabel}: ${reason} üzerinde çalışıyorum.` : `${scopeLabel}: problemi parçalara ayırıyorum.`;
   if (stage === "verifying") return reason ? `${scopeLabel}: ${reason} kontrolünü yapıyorum.` : `${scopeLabel}: sonucu doğruluyorum.`;
   if (stage === "finalizing") return reason ? `${scopeLabel}: ${reason} ile son cevabı toparlıyorum.` : `${scopeLabel}: son cevabı toparlıyorum.`;
