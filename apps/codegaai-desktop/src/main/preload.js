@@ -42,6 +42,7 @@ contextBridge.exposeInMainWorld("codega", {
   recordFeedback: (payload) => ipcRenderer.invoke("feedback:record", payload),
   feedbackStats: () => ipcRenderer.invoke("feedback:stats"),
   analyzeSystem: () => ipcRenderer.invoke("system:analyze"),
+  cookbookScan: () => ipcRenderer.invoke("cookbook:scan"),
   testProvider: (payload) => ipcRenderer.invoke("provider:test", payload),
   runCode: (payload) => ipcRenderer.invoke("code:run", payload),
   devPrompt: (payload) => ipcRenderer.invoke("dev:prompt", payload),

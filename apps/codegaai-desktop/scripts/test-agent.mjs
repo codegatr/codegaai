@@ -1157,4 +1157,29 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   ok("Görev sınır bütünlüğü: gövde izolasyonu + 29x->9x onarımı, asla merged ifade");
 }
 
+
+// === COOKBOOK: donanım-farkında model fit skoru ===
+{
+  const siMod = await import(path.join(mainDir, "agent", "system-info.js"));
+  const cMod = await import(path.join(mainDir, "..", "shared", "constants.js"));
+  const SI = siMod.default || siMod;
+  const C = cMod.default || cMod;
+  const cat = C.MODEL_OPTIONS.map((o) => ({ ...o, ...(C.MODEL_CATALOG[o.id] || {}) })).filter((o) => o.minVramGb);
+  assert.ok(cat.length >= 8, "katalog metadata'sı yüklü");
+  // fit skoru: 7B GPU'da hızlı (8GB VRAM), 2GB VRAM'de CPU/sıkışık
+  assert.strictEqual(SI.scoreModelFit({ minVramGb: 7, minRamGb: 16, quality: 4 }, { vramGb: 12, ramGb: 32 }).fit, "gpu", "12GB VRAM -> 7B gpu");
+  assert.strictEqual(SI.scoreModelFit({ minVramGb: 7, minRamGb: 16, quality: 4 }, { vramGb: 6, ramGb: 16 }).fit, "gpu-tight", "6GB VRAM -> 7B sıkışık");
+  assert.strictEqual(SI.scoreModelFit({ minVramGb: 7, minRamGb: 16, quality: 4 }, { vramGb: null, ramGb: 16 }).fit, "cpu", "GPU yok ama RAM yeter -> cpu");
+  assert.strictEqual(SI.scoreModelFit({ minVramGb: 12, minRamGb: 32, quality: 5 }, { vramGb: null, ramGb: 8 }).fit, "no", "RAM de yetmez -> no");
+  // öneri: 6GB laptop -> genel 8B (kod modeli değil); 16GB box -> 14B
+  const r6 = SI.recommendCookbook({ vramGb: 6, ramGb: 16, hasGpu: true }, cat);
+  assert.ok(r6.recommended && /qwen3:8b/.test(r6.recommended.id), "6GB -> qwen3:8b genel önerilir");
+  const r16 = SI.recommendCookbook({ vramGb: 16, ramGb: 32, hasGpu: true }, cat);
+  assert.ok(r16.recommended && /14b/.test(r16.recommended.id), "16GB VRAM -> 14B önerilir");
+  // GPU yoksa en güçlü çalışabilir genel model
+  const rcpu = SI.recommendCookbook({ vramGb: null, ramGb: 16, hasGpu: false }, cat);
+  assert.ok(rcpu.recommended && rcpu.recommended.fit === "cpu", "GPU yok -> cpu önerisi");
+  ok("Cookbook: fit skoru (gpu/sıkışık/cpu/no) + donanıma göre genel-model önerisi");
+}
+
 console.log(`\n${passed} test geçti ✅`);

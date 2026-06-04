@@ -4,6 +4,33 @@ Bu dosya **bir sonraki Claude oturumu** için açık not olarak duruyor. Her bü
 
 ---
 
+## ✅ Faz 125 — Cookbook: donanım-farkında model seçici (Modeller sayfası) (2 Haz 2026, Claude)
+
+Odysseus karşılaştırmasından gelen #1 eksik: donanıma göre en güçlü modeli öner/kur. Asıl darboğaz
+zaten "3B zayıf" — bu özellik onu doğrudan çözer (örn. 16GB kutuda qwen3:14b, 6GB laptopta qwen3:8b).
+
+- shared/constants.js: MODEL_CATALOG — model başına yaklaşık Q4 donanım gereksinimi
+  (sizeGb, minVramGb, minRamGb, quality 1-5, note). 13 model.
+- agent/system-info.js (SAF + test edilebilir):
+  - scoreModelFit(model, hw): fit = gpu (VRAM rahat) | gpu-tight (sığar/sıkışık) | cpu (RAM yeter) |
+    no (yetersiz) + 0-100 skor.
+  - recommendCookbook(hw, catalog): donanıma göre en iyi GENEL modeli öner (kod modellerini Router
+    görev bazlı seçer; başlık önerisi genel).
+  - analyzeCookbook(catalog): ASYNC — VRAM'i metrics.gpuVram() (nvidia-smi) ile, RAM/CPU os ile okur.
+- main.js: cookbook:scan IPC — analyzeCookbook + ollamaListModels ile "kurulu" + "varsayılan" birleştirir.
+- preload: cookbookScan köprüsü.
+- renderer + index.html + styles.css: Modeller sayfasının başında "🍳 Cookbook" bölümü — donanım
+  satırı, öneri kartı (Kur ve Varsayılan Yap), skorlu model kartları (✅GPU/⚠️sıkışık/🐢CPU/❌, kalite
+  yıldızı, boyut). Kur = mevcut runModelSetup (Ollama pull + progress), Varsayılan = settings.defaultModel.
+  Sayfa açılışında ve kurulum bitişinde otomatik tazelenir.
+
+Regresyon (64/64): fit skoru senaryoları + 6GB→qwen3:8b, 16GB→14B, GPU yok→cpu önerisi.
+
+Test 64/64 + reasoning-guard. Surum -> **2.0.0** (Odysseus'tan ilk devşirilen özellik).
+
+---
+
+
 ## ✅ Faz 124 — Görev sınır bozulması (29x) + multi_task boş cevap düzeltmesi (2 Haz 2026, Claude)
 
 Ekran: WATCHDOG TEST çok-görev istemi BOŞ döndü; loglar 67sn doğrulama (rpre/ebse/mlvc/tcnis/sacv)

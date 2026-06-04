@@ -496,6 +496,26 @@ function registerIpc() {
   ipcMain.handle("feedback:stats", async () => feedback.stats());
 
   ipcMain.handle("system:analyze", async () => systemInfo.analyze(MODEL_OPTIONS));
+  // Cookbook: donanımı tara, model uyum skoru + öneri üret, kurulu durumla birleştir.
+  ipcMain.handle("cookbook:scan", async () => {
+    const { MODEL_CATALOG } = require("../shared/constants");
+    const catalog = MODEL_OPTIONS
+      .map((o) => ({ ...o, ...(MODEL_CATALOG[o.id] || {}) }))
+      .filter((o) => o.minVramGb); // yalnız katalog metadata'sı olanlar
+    const ck = await systemInfo.analyzeCookbook(catalog);
+    let installedIds = [];
+    try {
+      const { ollamaListModels } = require("./agent/ollama-client");
+      const installed = await ollamaListModels();
+      installedIds = (installed || []).map((m) => (m && (m.name || m.model || m.id) ? String(m.name || m.model || m.id) : "")).filter(Boolean);
+    } catch (_e) {}
+    const norm = (id) => String(id || "").toLowerCase();
+    const isInstalled = (id) => installedIds.some((x) => norm(x) === norm(id) || norm(x) === `${norm(id)}:latest`);
+    const settings = settingsStore.getSettings();
+    const current = settings && settings.defaultModel ? settings.defaultModel : DEFAULT_MODEL;
+    const models = ck.models.map((m) => ({ ...m, installed: isInstalled(m.id), isDefault: norm(m.id) === norm(current) }));
+    return { hardware: ck.hardware, models, recommended: ck.recommended, defaultModel: current };
+  });
   ipcMain.handle("metrics:get", async () => metrics.snapshot());
   ipcMain.handle("stats:get", async () => stats.summary());
   ipcMain.handle("router:info", async () => {

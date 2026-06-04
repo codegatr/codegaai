@@ -1320,6 +1320,88 @@ async function refreshModelsPage() {
 const modelsRefreshBtn = document.getElementById("models-refresh");
 if (modelsRefreshBtn) modelsRefreshBtn.addEventListener("click", () => refreshModelsPage());
 
+const FIT_BADGE = {
+  gpu: { txt: "✅ GPU — hızlı", cls: "fit-gpu" },
+  "gpu-tight": { txt: "⚠️ GPU — sıkışık", cls: "fit-tight" },
+  cpu: { txt: "🐢 CPU — yavaş", cls: "fit-cpu" },
+  no: { txt: "❌ Yetersiz", cls: "fit-no" },
+};
+const stars = (q) => "★".repeat(Math.max(0, Math.min(5, Number(q) || 0))) + "☆".repeat(5 - Math.max(0, Math.min(5, Number(q) || 0)));
+
+async function setDefaultModel(id, label) {
+  try {
+    await window.codega.setSettings({ defaultModel: id });
+    setTransientStatus(`Varsayılan model: ${label || id}`);
+    refreshCookbook();
+  } catch (e) { setTransientStatus("Ayar kaydedilemedi: " + (e.message || e)); }
+}
+
+async function refreshCookbook() {
+  const hwEl = document.getElementById("cookbook-hw");
+  const recoEl = document.getElementById("cookbook-reco");
+  const listEl = document.getElementById("cookbook-models");
+  if (!hwEl && !listEl) return;
+  try {
+    const data = await window.codega.cookbookScan();
+    const hw = (data && data.hardware) || {};
+    if (hwEl) {
+      const vram = hw.vramGb != null ? `${hw.vramGb} GB VRAM` : "GPU yok (CPU)";
+      hwEl.textContent = `Donanım: ${vram} · ${hw.ramGb} GB RAM · ${hw.cores} çekirdek`;
+    }
+    if (recoEl) {
+      if (data && data.recommended) {
+        const r = data.recommended;
+        recoEl.hidden = false;
+        recoEl.innerHTML = `<strong>Önerilen: ${(r.label || r.id).replace(/</g, "&lt;")}</strong><p>${(r.reason || "").replace(/</g, "&lt;")}</p>`;
+        const btn = document.createElement("button");
+        btn.type = "button"; btn.className = "primary-btn";
+        const recModel = (data.models || []).find((m) => m.id === r.id) || {};
+        btn.textContent = recModel.installed ? "Varsayılan Yap" : "Kur ve Varsayılan Yap";
+        btn.addEventListener("click", async () => {
+          btn.disabled = true;
+          try {
+            if (!recModel.installed) await runModelSetup(r.id, r.label || r.id);
+            await setDefaultModel(r.id, r.label || r.id);
+          } finally { btn.disabled = false; }
+        });
+        recoEl.appendChild(btn);
+      } else { recoEl.hidden = true; }
+    }
+    if (listEl) {
+      listEl.innerHTML = "";
+      for (const m of (data && data.models) || []) {
+        const badge = FIT_BADGE[m.fit] || FIT_BADGE.no;
+        const row = document.createElement("div");
+        row.className = "settings-row cookbook-row";
+        const sz = m.sizeGb ? `~${m.sizeGb} GB` : "";
+        const flags = [m.isDefault ? "● Varsayılan" : "", m.installed ? "Kurulu" : ""].filter(Boolean).join(" · ");
+        row.innerHTML = `<div><strong>${(m.label || m.id).replace(/</g, "&lt;")}</strong> <span class="fit-badge ${badge.cls}">${badge.txt}</span>`
+          + `<p>${(m.note || m.description || "").replace(/</g, "&lt;")} · ${m.params || ""} · ${sz} · <span title="kalite">${stars(m.quality)}</span>${flags ? " · " + flags : ""}</p></div>`;
+        const actions = document.createElement("div");
+        actions.className = "cookbook-actions";
+        if (!m.installed && m.fit !== "no") {
+          const dl = document.createElement("button");
+          dl.type = "button"; dl.textContent = "Kur";
+          dl.addEventListener("click", async () => { dl.disabled = true; try { await runModelSetup(m.id, m.label || m.id); refreshCookbook(); } finally { dl.disabled = false; } });
+          actions.appendChild(dl);
+        }
+        if (m.installed && !m.isDefault) {
+          const def = document.createElement("button");
+          def.type = "button"; def.textContent = "Varsayılan Yap";
+          def.addEventListener("click", () => setDefaultModel(m.id, m.label || m.id));
+          actions.appendChild(def);
+        }
+        row.appendChild(actions);
+        listEl.appendChild(row);
+      }
+    }
+  } catch (e) {
+    if (hwEl) hwEl.textContent = "Donanım taranamadı: " + (e.message || e);
+  }
+}
+const cookbookScanBtn = document.getElementById("cookbook-scan");
+if (cookbookScanBtn) cookbookScanBtn.addEventListener("click", () => refreshCookbook());
+
 async function refreshAutomations() {
   const box = document.getElementById("auto-list");
   if (!box) return;
@@ -1511,6 +1593,7 @@ els.settingsButton.addEventListener("click", async () => {
   refreshLogs();
   refreshRouter();
   refreshModelsPage();
+  refreshCookbook();
   refreshAutomations();
   refreshSecurity();
   refreshMcpStatus();
@@ -2399,6 +2482,7 @@ async function runModelSetup(modelId, label) {
       finishSetup(true, `${label || "Model"} hazır ✓`);
       if (typeof refreshModels === "function") refreshModels();
       if (typeof refreshModelsPage === "function") refreshModelsPage();
+      if (typeof refreshCookbook === "function") refreshCookbook();
     }
   } catch (e) {
     finishSetup(false, "Kurulum hatası: " + (e.message || e));
