@@ -112,11 +112,11 @@
               <div class="status-line"><span class="dot ok"></span><strong>Ollama</strong><span id="ov-health-ollama">çalışıyor</span></div>
               <div class="status-line"><span class="dot ok"></span><strong>Aktif Model</strong><span id="ov-health-model">—</span></div>
               <div class="status-line"><span class="dot ok"></span><strong>Aktif Ajan</strong><span>Yazılımcı</span></div>
-              <div class="status-line"><span class="dot warn"></span><strong>Federation/Share</strong><span>Cloudflare kuralı bekliyor</span></div>
-              <div class="status-line"><span class="dot plan"></span><strong>OpenAI</strong><span>planlı</span></div>
-              <div class="status-line"><span class="dot plan"></span><strong>Claude</strong><span>planlı</span></div>
-              <div class="status-line"><span class="dot plan"></span><strong>Gemini</strong><span>planlı</span></div>
-              <div class="status-line"><span class="dot plan"></span><strong>MCP</strong><span>planlı</span></div>
+              <div class="status-line"><span class="dot plan" id="ov-health-federation-dot"></span><strong>Federation/Share</strong><span id="ov-health-federation">kapalı</span></div>
+              <div class="status-line"><span class="dot plan" id="ov-health-openai-dot"></span><strong>OpenAI</strong><span id="ov-health-openai">yapılandırılmadı</span></div>
+              <div class="status-line"><span class="dot plan" id="ov-health-claude-dot"></span><strong>Claude</strong><span id="ov-health-claude">yapılandırılmadı</span></div>
+              <div class="status-line"><span class="dot plan" id="ov-health-gemini-dot"></span><strong>Gemini</strong><span id="ov-health-gemini">yapılandırılmadı</span></div>
+              <div class="status-line"><span class="dot plan" id="ov-health-mcp-dot"></span><strong>MCP</strong><span id="ov-health-mcp">yapılandırılmadı</span></div>
               <div class="status-line"><span class="dot ok"></span><strong>Veritabanı (yerel)</strong><span>hazır</span></div>
             </section>
             <section class="dashboard-card">
@@ -147,11 +147,13 @@
           <div class="settings-row">
             <div>
               <strong>Sağlayıcı</strong>
-              <p>Yerel (Ollama, ücretsiz/çevrimdışı) ya da OpenAI-uyumlu bulut (GPT, OpenRouter, Deepseek, Groq…). Bulut modelleri ham zekâda çok daha güçlüdür.</p>
+              <p>Yerel Ollama veya OpenAI, Claude, Gemini ve OpenAI-uyumlu bulut sağlayıcıları.</p>
             </div>
             <select id="provider-select">
               <option value="ollama">Yerel (Ollama)</option>
               <option value="openai">OpenAI-uyumlu (bulut)</option>
+              <option value="claude">Claude (Anthropic)</option>
+              <option value="gemini">Gemini (Google)</option>
             </select>
           </div>
           <div class="settings-field" id="provider-cloud-fields">
@@ -233,6 +235,8 @@
             <h2>Sağlayıcılar</h2>
             <div class="settings-row"><div><strong>Ollama</strong><p>Yerel — aktif</p></div><span class="badge-active">Aktif</span></div>
             <div class="settings-row"><div><strong>OpenAI-uyumlu (OpenAI/OpenRouter/DeepSeek/Groq)</strong><p>Zekâ &amp; Model sekmesinden API anahtarı</p></div><span class="badge-active">Destekli</span></div>
+            <div class="settings-row"><div><strong>Claude (Anthropic)</strong><p>Messages API ve akışlı yanıt desteği</p></div><span class="badge-active">Destekli</span></div>
+            <div class="settings-row"><div><strong>Gemini (Google)</strong><p>Google OpenAI-uyumlu endpoint desteği</p></div><span class="badge-active">Destekli</span></div>
           </div>
         </details>
 
@@ -543,7 +547,7 @@
           <div class="settings-row">
             <div>
               <strong>MCP Araç Sunucusu (deneysel)</strong>
-              <p>Harici bir MCP (Model Context Protocol) sunucusuna bağlan, araçlarını listele ve dene. Şimdilik manuel; ajanın otonom araç döngüsüne henüz bağlı değil.</p>
+              <p>Harici bir MCP (Model Context Protocol) sunucusuna bağlan, araçlarını listele, dene ve isteğe bağlı olarak ajanın otonom araç döngüsüne ekle.</p>
             </div>
           </div>
           <div class="settings-field">

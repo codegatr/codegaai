@@ -21,6 +21,8 @@ const factLockMod = await import(pathToFileURL(path.join(mainDir, "agent", "fact
 const factLock = factLockMod.default || factLockMod;
 const modelManagerMod = await import(pathToFileURL(path.join(mainDir, "model-manager.js")).href);
 const modelManager = modelManagerMod.default || modelManagerMod;
+const cloudProviderMod = await import(pathToFileURL(path.join(mainDir, "agent", "cloud-provider.js")).href);
+const cloudProvider = cloudProviderMod.default || cloudProviderMod;
 
 const suites = [];
 
@@ -294,6 +296,40 @@ suite("watchdog_regeneration_loop_guard", async () => {
   assert.match(simple[1], /Final Answer:\s*9\b/);
   assert.match(simple[2], /Final Answer:\s*960 TL/);
   assert.ok(Date.now() - started < 10000, "simple benchmark completes under 10 seconds");
+});
+
+suite("cloud_provider_profiles_and_wire_formats", async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    const settings = {
+      provider: "gemini",
+      geminiApiKey: "gemini-key",
+      geminiModel: "gemini-test",
+      geminiBaseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    };
+    const gemini = cloudProvider.configFromSettings(settings);
+    assert.equal(gemini.provider, "gemini");
+    assert.equal(gemini.model, "gemini-test");
+
+    globalThis.fetch = async (url, init) => {
+      assert.match(String(url), /anthropic\.com\/v1\/messages$/);
+      assert.equal(init.headers["x-api-key"], "claude-key");
+      const body = JSON.parse(init.body);
+      assert.equal(body.system, "system rule");
+      assert.equal(body.messages[0].role, "user");
+      return {
+        ok: true,
+        json: async () => ({ content: [{ type: "text", text: "claude-ok" }] }),
+      };
+    };
+    const claudeResult = await cloudProvider.cloudChat(
+      [{ role: "system", content: "system rule" }, { role: "user", content: "ping" }],
+      { provider: "claude", apiKey: "claude-key", baseUrl: "https://api.anthropic.com/v1", model: "claude-test" }
+    );
+    assert.equal(claudeResult, "claude-ok");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 let passed = 0;
