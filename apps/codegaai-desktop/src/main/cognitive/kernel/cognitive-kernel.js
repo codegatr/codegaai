@@ -62,6 +62,7 @@ function runIntake(context) {
 async function runPostValidation(context, draftAnswer, opts = {}) {
   let finalText = String(draftAnswer || "").trim();
   context.answer = finalText;
+  context.mlvc = opts.mlvc || context.mlvc || null;
   const stoppedReason = opts.stoppedReason || "";
   const isSmalltalk = stoppedReason === "smalltalk";
   const generate = opts.generate;
@@ -129,6 +130,7 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
         { passes: 1 }
       );
       if (mlvc.answer && mlvc.answer.trim()) applyCorrection(mlvc.answer.trim(), "mlvc");
+      context.mlvc = mlvc;
       mlvcApproved = !!mlvc.approved;
       if (!mlvcApproved && mlvc.errors && mlvc.errors.length) signal("mlvc", mlvc.errors[0]);
       return {
@@ -177,7 +179,7 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
   }, { blocking: true });
 
   await runStage(context, "hril", async () => {
-    const interpreted = hril.interpret(context.input, finalText);
+    const interpreted = hril.interpret(context.input, finalText, { mlvc: context.mlvc });
     if (interpreted.answer && interpreted.answer.trim()) applyCorrection(interpreted.answer.trim(), "hril");
     return { ok: true, confidence: interpreted.changed ? 100 : null, detail: { changed: !!interpreted.changed } };
   });
@@ -209,7 +211,7 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
         const repaired = await generate(sacv.buildSemanticRepairMessages(context.input, finalText, context.taskReport, coverage));
         if (repaired && String(repaired).trim()) {
           applyCorrection(String(repaired).trim(), "sacv-repair");
-          const interpreted = hril.interpret(context.input, finalText);
+          const interpreted = hril.interpret(context.input, finalText, { mlvc: context.mlvc });
           if (interpreted.answer && interpreted.answer.trim()) applyCorrection(interpreted.answer.trim(), "hril-after-sacv");
           const explained = ree.explain(context.input, finalText);
           if (explained.answer && explained.answer.trim()) applyCorrection(explained.answer.trim(), "ree-after-sacv");

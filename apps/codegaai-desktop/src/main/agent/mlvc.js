@@ -154,19 +154,36 @@ function detectPercentageChain(question) {
     const pct = parseNumber(m[2]) / 100;
     ops.push(/zam|art|yuksel|increase/.test(m[1]) ? (1 + pct) : (1 - pct));
   }
+  const signedRe = /([+-])\s*(\d+(?:[.,]\d+)?)\s*%/g;
+  while ((m = signedRe.exec(q))) {
+    const pct = parseNumber(m[2]) / 100;
+    ops.push(m[1] === "+" ? (1 + pct) : (1 - pct));
+  }
   if (!ops.length) return null;
   const result = ops.reduce((v, factor) => v * factor, base);
   const resultText = Number.isInteger(result) ? `${formatTurkishInteger(result)} TL` : `${Number(result.toFixed(6))} TL`;
+  const steps = [base];
+  for (const factor of ops) {
+    steps.push(steps[steps.length - 1] * factor);
+  }
   return {
     kind: "percentage",
     result,
     resultText,
     explanation: `${formatTurkishInteger(base)} x ${ops.map((f) => f.toFixed(2)).join(" x ")} = ${resultText.replace(/\s*TL$/, "")}`,
+    normalized_numeric_value: result,
+    normalizedValues: {
+      base,
+      factors: ops,
+      steps,
+      final: result,
+    },
   };
 }
 
 function detectMoneySubtractionChain(question) {
   const q = trFold(question);
+  if (/%/.test(String(question || ""))) return null;
   if (/\b[a-z]\b|=/.test(q) || !/(tl|para|butce|bütçe|budget|kar|profit|gelir|gider)/i.test(String(question || ""))) return null;
   const numbers = String(question || "").match(/-?\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|-?\d+(?:[.,]\d+)?/g) || [];
   if (numbers.length < 2 || !/-|cikar|çıkar|dus|düş|subtract|minus/.test(q)) return null;
