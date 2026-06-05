@@ -395,6 +395,39 @@ async def _maybe_web_search(message: str) -> str:
         return ""
 
 
+def _maybe_deliver_artifact(message: str, history: list[dict]) -> Optional[str]:
+    """
+    Acik proje/dosya/ZIP taleplerinde modeli beklemeden somut teslim uret.
+
+    Bu katman, yerel LLM'in "plan anlatma" veya "ZIP olusturamam" gibi eski
+    chatbot davranisina kacmasini engeller. Once calisan dosyalar, sonra cevap.
+    """
+    try:
+        from codegaai.core.action_delivery import build_delivery_artifact
+        artifact = build_delivery_artifact(message, history)
+        if not artifact:
+            return None
+
+        from codegaai.api.routes.files import _make_zip, _zip_store, _cleanup
+
+        data = _make_zip(artifact.project_name, artifact.files)
+        zid = str(uuid.uuid4())[:8]
+        filename = f"{artifact.project_name}.zip"
+        _zip_store[zid] = {"data": data, "filename": filename, "ts": time.time()}
+        _cleanup(_zip_store)
+
+        files = "\n".join(f"- `{name}`" for name in artifact.files.keys())
+        return (
+            f"{artifact.title} hazir.\n\n"
+            f"ZIP: [**{filename} indir**](/api/files/download/{zid}?filename={filename})\n\n"
+            f"Icerik:\n{files}\n\n"
+            "Icinde veritabani semasi, PHP dosyalari, stil dosyasi ve kurulum notlari var."
+        )
+    except Exception as exc:
+        log.warning("Teslim uretimi atlandi: %s", exc)
+        return None
+
+
 class ChatJob:
     def __init__(self, job_id: str, message: str, chat_id: Optional[int],
                  max_tokens: int, file_context: str = "", deep_think: bool = False,
@@ -528,6 +561,27 @@ async def _run_chat_job(job: ChatJob) -> None:
                 except Exception:
                     pass
             job.finish()
+            return
+
+        job.set_stage("Dosya hazirligi kontrol ediliyor...")
+        delivery = _maybe_deliver_artifact(job.message, history)
+        job.set_stage("")
+        if delivery:
+            if job.chat_id:
+                try:
+                    store = ChatStore.open()
+                    store.add_message(job.chat_id, "user", job.message)
+                except Exception:
+                    pass
+            job.append(delivery)
+            if job.chat_id:
+                try:
+                    store = ChatStore.open()
+                    store.add_message(job.chat_id, "assistant", delivery)
+                except Exception:
+                    pass
+            job.finish()
+            log.info("ChatJob %s artifact teslim etti", job.job_id)
             return
 
         decision = decide_response(job.message, history=history)
@@ -700,7 +754,7 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
                 for token in engine.stream(messages, cfg=cfg):
                     job.append(token)
             else:
-                result = engine.generate(messages, cfg=cfg, use_tools=True)
+                result = engine.generate_agentic(messages, cfg=cfg, max_iters=3)
                 job.append(result.get("content", ""))
         else:
             full_out = ""

@@ -45,7 +45,7 @@ class TestAgentBrain(unittest.TestCase):
 
         self.assertIn("decide_response", src)
         self.assertIn("decision.should_stream", src)
-        self.assertIn("engine.generate(messages, cfg=cfg, use_tools=True)", src)
+        self.assertIn("engine.generate_agentic(messages, cfg=cfg, max_iters=3)", src)
 
 
 if __name__ == "__main__":
