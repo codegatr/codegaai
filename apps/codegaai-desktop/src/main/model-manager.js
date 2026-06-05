@@ -1658,8 +1658,11 @@ class ModelManager {
         const sample = (isMultiTask && multiTaskAssembled && multiTaskAssembled.trim()) ? multiTaskAssembled : preGateText;
         const report = sacv.debugReport(sample, taskDecomposition);
         logs.warn("SACV", `SACV_WARNING (debug) — ${report.tasks.length} görev | finalTextEmpty=${report.finalTextEmpty} | unitCount=${report.unitCount}`);
+        if (report.sharedStateLeak || (report.errors || []).includes("SACV_SHARED_STATE_LEAK")) {
+          logs.error("SACV", "SACV_SHARED_STATE_LEAK");
+        }
         for (const t of report.tasks) {
-          logs.warn("SACV", `Task ${t.taskId} (${t.title}) | Q="${t.question}" | units=${JSON.stringify(t.answerUnits)} | expected=${JSON.stringify(t.expected)} | score=${t.score} | ${t.decision}${t.decision === "FAIL" ? " | reason=" + t.reason : ""}`);
+          logs.warn("SACV", `Task ${t.taskId} (${t.title}) | question="${t.question}" | detectedAnswer="${t.detectedAnswer || ""}" | detectedUnits=${JSON.stringify(t.detectedUnits || [])} | expectedAnswer="${t.expectedAnswer || ""}" | expected=${JSON.stringify(t.expected)} | score=${t.score} | ${t.decision}${t.decision === "FAIL" ? " | reason=" + t.reason : ""}`);
         }
       } catch (e) {
         try { logs.error("SACV", "debugReport hata: " + (e && e.message)); } catch (_e) {}
