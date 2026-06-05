@@ -70,6 +70,18 @@ function parseFinalAnswerSegment(answer) {
   return m ? m[1].trim() : String(answer || "").trim();
 }
 
+function detectAnswerUnit(answer) {
+  const finalText = trFold(parseFinalAnswerSegment(answer));
+  if (/\btl\b|lira/.test(finalText)) return "money";
+  if (/%|yuzde|percent/.test(finalText)) return "percent";
+  if (/\b(gun|gundur|days?|day)\b/.test(finalText)) return "days";
+  if (/\b(ay|months?|month)\b/.test(finalText)) return "months";
+  if (/\b(yil|years?|year)\b/.test(finalText)) return "years";
+  if (/\b(saat|dakika|hours?|minutes?)\b/.test(finalText)) return "time";
+  if (/\d/.test(finalText)) return "quantity";
+  return "unknown";
+}
+
 function parseFraction(answer) {
   const m = parseFinalAnswerSegment(answer).match(/(\d+)\s*\/\s*(\d+)/);
   if (!m) return null;
@@ -100,11 +112,14 @@ function parseMoney(question, answer, opts = {}) {
   const verified = verifiedMoneyFromMLVC(opts);
   if (verified) return verified;
 
+  const answerUnit = detectAnswerUnit(answer);
+  if (answerUnit !== "money") return null;
+
   const q = trFold(question);
-  if (!/\btl\b|lira|fiyat|urun/.test(q)) return null;
+  if (!/\btl\b|lira|fiyat|urun|borc|cari|odeme|fatura|kar|ortak/.test(q)) return null;
   const baseM = q.match(/(\d+(?:[.,]\d+)?)\s*tl/);
   const finalText = parseFinalAnswerSegment(answer);
-  const finalM = finalText.match(/(\d+(?:[.,]\d+)?)\s*tl/i) || String(answer || "").match(/Final Answer:\s*(\d+(?:[.,]\d+)?)/i);
+  const finalM = finalText.match(/(\d+(?:[.,]\d+)?)\s*tl/i);
   if (!baseM || !finalM) return null;
   const base = parseLocaleNumber(baseM[1]);
   const finalValue = parseLocaleNumber(finalM[1]);
@@ -198,6 +213,7 @@ module.exports = {
   parseFraction,
   parseMoney,
   parseLocaleNumber,
+  detectAnswerUnit,
   parseDecimalYears,
   parseDecimalHours,
 };
