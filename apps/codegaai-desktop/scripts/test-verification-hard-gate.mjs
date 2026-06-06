@@ -276,6 +276,61 @@ suite("trusted_deterministic_multitask_ask_fast_path", async () => {
   assert.match(result.text, /Test 4[\s\S]*1 erkek karde/i);
 });
 
+suite("trusted_deterministic_eight_task_benchmark_fast_path", async () => {
+  const prompt = [
+    "Test 1",
+    "Bir yar\u0131\u015fta birinci s\u0131radaki ki\u015fiyi ge\u00e7iyorsun.",
+    "Normal yar\u0131\u015f ko\u015fullar\u0131nda ka\u00e7\u0131nc\u0131 s\u0131raya y\u00fckselirsin?",
+    "",
+    "Test 2",
+    "Bir odada 3 kedi vard\u0131r.",
+    "Her kedinin \u00f6n\u00fcnde 2 kedi vard\u0131r.",
+    "Her kedinin arkas\u0131nda 2 kedi vard\u0131r.",
+    "Bu nas\u0131l m\u00fcmk\u00fcnd\u00fcr?",
+    "",
+    "Test 3",
+    "Bir \u00e7ift\u00e7inin 120 koyunu vard\u0131.",
+    "35'i hari\u00e7 hepsi \u00f6ld\u00fc.",
+    "Ka\u00e7 koyunu kald\u0131?",
+    "",
+    "Test 4",
+    "Bir doktorun 4 k\u0131z karde\u015fi vard\u0131r.",
+    "Bu k\u0131z karde\u015flerin her birinin 1 erkek karde\u015fi vard\u0131r.",
+    "Toplam ka\u00e7 erkek karde\u015f vard\u0131r?",
+    "",
+    "Test 5",
+    "100 kap\u0131 var. Her turda o turun kat\u0131 olan kap\u0131lar de\u011fi\u015ftirilir. Sonunda ka\u00e7 kap\u0131 a\u00e7\u0131k kal\u0131r?",
+    "",
+    "Test 6 \u2014 Mant\u0131k",
+    "Bir yar\u0131\u015fta \u00fc\u00e7\u00fcnc\u00fc s\u0131radaki ki\u015fiyi ge\u00e7iyorsun.",
+    "Ka\u00e7\u0131nc\u0131 s\u0131raya y\u00fckselirsin?",
+    "",
+    "Test 7 \u2014 Muhasebe",
+    "Bir m\u00fc\u015fteri:",
+    "85.000 TL bor\u00e7lu",
+    "\u00d6demeler:",
+    "25.000 TL",
+    "15.000 TL",
+    "20.000 TL",
+    "Kalan bor\u00e7 nedir?",
+    "",
+    "Test 8 \u2014 Final Boss",
+    "Bir baba ile o\u011flunun ya\u015flar\u0131 toplam\u0131 91'dir.",
+    "Baba o\u011flunun ya\u015f\u0131n\u0131n 6 kat\u0131d\u0131r.",
+    "Ka\u00e7 y\u0131l sonra baba o\u011flunun ya\u015f\u0131n\u0131n 5 kat\u0131 olur?",
+    "Do\u011frula.",
+  ].join("\n");
+  const manager = new modelManager.ModelManager();
+  manager.generate = async () => {
+    throw new Error("trusted deterministic eight-task prompt should not call the model");
+  };
+  const result = await manager.ask(prompt, { onToken: () => {} });
+  assert.equal(result.provider, "instant");
+  assert.match(result.text, /Test 6[\s\S]*(\u00fc\u00e7\u00fcnc\u00fc|3)/i);
+  assert.match(result.text, /Test 7[\s\S]*25\.000 TL/i);
+  assert.match(result.text, /Test 8[\s\S]*(3,25|3\.25) y\u0131l/i);
+});
+
 suite("watchdog_regeneration_loop_guard", async () => {
   assert.equal(modelManager._MAX_REGENERATION_ATTEMPTS, 3);
   const tokens = [];
@@ -296,6 +351,47 @@ suite("watchdog_regeneration_loop_guard", async () => {
   assert.match(simple[1], /Final Answer:\s*9\b/);
   assert.match(simple[2], /Final Answer:\s*960 TL/);
   assert.ok(Date.now() - started < 10000, "simple benchmark completes under 10 seconds");
+});
+
+suite("raw_generate_benchmark_fast_path_no_ollama_stall", async () => {
+  const manager = new modelManager.ModelManager();
+  manager.runOllama = async () => {
+    throw new Error("raw benchmark fast path should not call Ollama CLI");
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new Error("raw benchmark fast path should not call Ollama HTTP");
+  };
+  try {
+    const prompt = [
+      "Test 6 \u2014 Mant\u0131k",
+      "Bir yar\u0131\u015fta \u00fc\u00e7\u00fcnc\u00fc s\u0131radaki ki\u015fiyi ge\u00e7iyorsun.",
+      "Ka\u00e7\u0131nc\u0131 s\u0131raya y\u00fckselirsin?",
+      "",
+      "Test 7 \u2014 Muhasebe",
+      "Bir m\u00fc\u015fteri:",
+      "85.000 TL bor\u00e7lu",
+      "\u00d6demeler:",
+      "25.000 TL",
+      "15.000 TL",
+      "20.000 TL",
+      "Kalan bor\u00e7 nedir?",
+      "",
+      "Test 8 \u2014 Final Boss",
+      "Bir baba ile o\u011flunun ya\u015flar\u0131 toplam\u0131 91'dir.",
+      "Baba o\u011flunun ya\u015f\u0131n\u0131n 6 kat\u0131d\u0131r.",
+      "Ka\u00e7 y\u0131l sonra baba o\u011flunun ya\u015f\u0131n\u0131n 5 kat\u0131 olur?",
+      "Do\u011frula.",
+    ].join("\n");
+    const started = Date.now();
+    const result = await manager.generate("qwen3:8b", [{ role: "user", content: prompt }]);
+    assert.ok(Date.now() - started < 1000, "raw generate benchmark returns without model checks");
+    assert.match(result, /(\u00fc\u00e7\u00fcnc\u00fc|3)/i);
+    assert.match(result, /25\.000 TL/i);
+    assert.match(result, /(3,25|3\.25) y\u0131l/i);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 suite("cloud_provider_profiles_and_wire_formats", async () => {
