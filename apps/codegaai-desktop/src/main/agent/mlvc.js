@@ -96,6 +96,25 @@ function formatTurkishInteger(value) {
   return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
+function extractMoneyValues(text) {
+  const matches = [...String(text || "").matchAll(/(-?\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|-?\d+(?:[.,]\d+)?)\s*TL\b/gi)];
+  return matches.map((m) => parseNumber(m[1])).filter(Number.isFinite);
+}
+
+function parseDottedDate(value) {
+  const m = String(value || "").match(/\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b/);
+  if (!m) return null;
+  return new Date(Date.UTC(Number(m[3]), Number(m[2]) - 1, Number(m[1])));
+}
+
+function formatDottedDate(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const y = String(date.getUTCFullYear());
+  return `${d}.${m}.${y}`;
+}
+
 function answerContainsNumber(answer, expected) {
   const nums = String(answer || "").match(/-?\d+(?:[.,]\d+)?/g) || [];
   return nums.some((n) => approxEqual(parseNumber(n), expected));
@@ -123,6 +142,7 @@ function classifyMLVCDomains(question) {
   const domains = [];
   if (/%|yuzde|zam|indir|increase|decrease|discount/.test(q)) domains.push("percentage");
   if (/\b\d+\s*(saat|dakika|gun|hafta|ay|yil)|\b\d{1,2}:\d{2}\b/.test(q)) domains.push("time");
+  if (/(fatura|vade|odeme|cari|borc|kalan|kdv|kar|ortak|ortaklik)/.test(q)) domains.push("finance");
   if (/\b(x|y|z)\b|denklem|esitlik|coz|katinin\s+\d+\s+fazlasi/.test(q)) domains.push("algebra");
   if (/father|son|baba|ogul|years?\s+later|kac\s+yil\s+sonra|future\s+ratio/.test(q)) domains.push("algebra");
   if (/kesin|olasilik|probability|ihtimal|top cek|draws?|balls?|red|blue|kirmizi|mavi|replacement|geri koymadan/.test(q)) domains.push("probability");
@@ -154,19 +174,38 @@ function detectPercentageChain(question) {
     const pct = parseNumber(m[2]) / 100;
     ops.push(/zam|art|yuksel|increase/.test(m[1]) ? (1 + pct) : (1 - pct));
   }
+  const signedRe = /([+-])\s*(\d+(?:[.,]\d+)?)\s*%/g;
+  while ((m = signedRe.exec(q))) {
+    const pct = parseNumber(m[2]) / 100;
+    ops.push(m[1] === "+" ? (1 + pct) : (1 - pct));
+  }
   if (!ops.length) return null;
   const result = ops.reduce((v, factor) => v * factor, base);
   const resultText = Number.isInteger(result) ? `${formatTurkishInteger(result)} TL` : `${Number(result.toFixed(6))} TL`;
+  const steps = [base];
+  for (const factor of ops) {
+    steps.push(steps[steps.length - 1] * factor);
+  }
   return {
     kind: "percentage",
     result,
     resultText,
     explanation: `${formatTurkishInteger(base)} x ${ops.map((f) => f.toFixed(2)).join(" x ")} = ${resultText.replace(/\s*TL$/, "")}`,
+    normalized_numeric_value: result,
+    normalizedValues: {
+      base,
+      factors: ops,
+      steps,
+      final: result,
+    },
   };
 }
 
 function detectMoneySubtractionChain(question) {
   const q = trFold(question);
+  if (/%/.test(String(question || ""))) return null;
+  if (/\b\d{1,2}\.\d{1,2}\.\d{4}\b/.test(String(question || ""))) return null;
+  if (/(borc|kalan|odeme|odemeler|cari)/.test(q) && extractMoneyValues(question).length >= 2) return null;
   if (/\b[a-z]\b|=/.test(q) || !/(tl|para|butce|bütçe|budget|kar|profit|gelir|gider)/i.test(String(question || ""))) return null;
   const numbers = String(question || "").match(/-?\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|-?\d+(?:[.,]\d+)?/g) || [];
   if (numbers.length < 2 || !/-|cikar|çıkar|dus|düş|subtract|minus/.test(q)) return null;
@@ -178,6 +217,91 @@ function detectMoneySubtractionChain(question) {
     result,
     resultText: `${formatTurkishInteger(result)} TL`,
     explanation: `${values.map(formatTurkishInteger).join(" - ")} = ${formatTurkishInteger(result)}`,
+  };
+}
+
+function detectInvoiceDelay(question) {
+  const q = trFold(question);
+  if (!/(fatura|vade|odeme)/.test(q) || !/(gecik|kac\s+gun)/.test(q)) return null;
+  const dates = String(question || "").match(/\b\d{1,2}\.\d{1,2}\.\d{4}\b/g) || [];
+  if (dates.length < 2) return null;
+  const invoiceDate = parseDottedDate(dates[0]);
+  const paymentDate = parseDottedDate(dates[1]);
+  const dueMatch = q.match(/vade\D{0,20}(\d+)\s*gun/) || q.match(/(\d+)\s*gun\D{0,20}vade/);
+  if (!invoiceDate || !paymentDate || !dueMatch) return null;
+  const dueDays = Number(dueMatch[1]);
+  if (!Number.isFinite(dueDays)) return null;
+  const dueDate = new Date(invoiceDate.getTime() + dueDays * 24 * 60 * 60 * 1000);
+  const delay = Math.max(0, Math.round((paymentDate.getTime() - dueDate.getTime()) / (24 * 60 * 60 * 1000)));
+  return {
+    kind: "finance",
+    result: delay,
+    resultText: `${delay} gün`,
+    explanation: `Fatura tarihi ${formatDottedDate(invoiceDate)} + ${dueDays} gün = vade tarihi ${formatDottedDate(dueDate)}. Ödeme ${formatDottedDate(paymentDate)}; gecikme ${delay} gün`,
+    normalized_numeric_value: delay,
+    normalizedValues: { invoiceDate: dates[0], dueDays, dueDate: formatDottedDate(dueDate), paymentDate: dates[1], delay },
+  };
+}
+
+function detectDebtAfterPayments(question) {
+  const q = trFold(question);
+  if (!/(borc|kalan|odeme|odemeler|cari)/.test(q)) return null;
+  const values = extractMoneyValues(question);
+  if (values.length < 2) return null;
+  const initial = values[0];
+  const payments = values.slice(1);
+  const remaining = payments.reduce((total, value) => total - value, initial);
+  return {
+    kind: "finance",
+    result: remaining,
+    resultText: `${formatTurkishInteger(remaining)} TL`,
+    explanation: `${formatTurkishInteger(initial)} - (${payments.map(formatTurkishInteger).join(" + ")}) = ${formatTurkishInteger(remaining)} TL`,
+    normalized_numeric_value: remaining,
+    normalizedValues: { initial, payments, remaining },
+  };
+}
+
+function detectVatTotal(question) {
+  const q = trFold(question);
+  if (!/(kdv|tax|vat)/.test(q)) return null;
+  const values = extractMoneyValues(question);
+  const pctMatch = String(question || "").match(/%\s*(\d+(?:[.,]\d+)?)/);
+  if (!values.length || !pctMatch) return null;
+  const base = values[0];
+  const pct = parseNumber(pctMatch[1]);
+  if (!Number.isFinite(base) || !Number.isFinite(pct)) return null;
+  const vat = base * (pct / 100);
+  const total = base + vat;
+  return {
+    kind: "finance",
+    result: total,
+    resultText: `${formatTurkishInteger(total)} TL`,
+    explanation: `${formatTurkishInteger(base)} x 1.${String(Math.round(pct)).padStart(2, "0")} = ${formatTurkishInteger(total)} TL; KDV ${formatTurkishInteger(vat)} TL`,
+    normalized_numeric_value: total,
+    normalizedValues: { base, pct, vat, total },
+  };
+}
+
+function detectProfitShare(question) {
+  const q = trFold(question);
+  if (!/(kar|kâr|profit|ortak|ortaklik)/.test(q)) return null;
+  const values = extractMoneyValues(question);
+  if (!values.length) return null;
+  const total = values[0];
+  const partners = [];
+  const re = /\b([A-ZÇĞİÖŞÜ])\s*=\s*%?\s*(\d+(?:[.,]\d+)?)\b/g;
+  let m;
+  while ((m = re.exec(String(question || "")))) {
+    partners.push({ name: m[1], pct: parseNumber(m[2]) });
+  }
+  if (!partners.length || partners.some((p) => !Number.isFinite(p.pct))) return null;
+  const shares = partners.map((p) => ({ name: p.name, pct: p.pct, amount: total * (p.pct / 100) }));
+  const pctTotal = partners.reduce((sum, p) => sum + p.pct, 0);
+  return {
+    kind: "finance",
+    resultText: shares.map((s) => `${s.name}: ${formatTurkishInteger(s.amount)} TL`).join(", "),
+    explanation: `${formatTurkishInteger(total)} TL kâr dağılımı: ${shares.map((s) => `${s.name}=%${s.pct} -> ${formatTurkishInteger(s.amount)} TL`).join("; ")}. Oran toplamı %${pctTotal}`,
+    normalizedValues: { total, shares, pctTotal },
   };
 }
 
@@ -396,6 +520,10 @@ function detectSymbolicMultiplier(question) {
 
 function detectSingleDeterministic(question) {
   return [
+    detectInvoiceDelay(question),
+    detectVatTotal(question),
+    detectProfitShare(question),
+    detectDebtAfterPayments(question),
     detectPercentageChain(question),
     detectMoneySubtractionChain(question),
     detectHandshake(question),

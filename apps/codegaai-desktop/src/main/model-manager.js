@@ -35,7 +35,7 @@ const {
   verifyAnswer,
   finalAnswerConsistencyGuard,
 } = require("./agent/reasoning-guard");
-const { shouldRunMLVC, solveDeterministic: solveDeterministicMathLogic, verifyMathLogic } = require("./agent/mlvc");
+const { deterministicCheck, shouldRunMLVC, solveDeterministic: solveDeterministicMathLogic, verifyMathLogic } = require("./agent/mlvc");
 const ebse = require("./agent/ebse");
 const rpre = require("./agent/rpre");
 const hril = require("./agent/hril");
@@ -982,7 +982,8 @@ class ModelManager {
     }
     const mlvcInstant = !isMultiTaskInput && solveDeterministicMathLogic(input);
     if (mlvcInstant) {
-      const interpreted = hril.interpret(input, mlvcInstant);
+      const mlvcMetadata = { deterministic: deterministicCheck(input, mlvcInstant) };
+      const interpreted = hril.interpret(input, mlvcInstant, { mlvc: mlvcMetadata });
       const explained = ree.explain(input, interpreted.answer || mlvcInstant);
       return {
         provider: "instant",
@@ -1466,6 +1467,7 @@ class ModelManager {
     }
 
     let mlvcApproved = false;
+    let mlvcMetadata = null;
     if (inputNeedsVerification && agent.stoppedReason !== "smalltalk" && agent.stoppedReason !== "multi_task") {
       try {
         if (inputNeedsMLVC) {
@@ -1479,6 +1481,7 @@ class ModelManager {
             { passes: 1 }
           );
           if (mlvc.answer && mlvc.answer.trim()) applyCorrection(mlvc.answer.trim(), "mlvc");
+          mlvcMetadata = mlvc;
           mlvcApproved = !!mlvc.approved;
           if (!mlvc.approved && mlvc.errors && mlvc.errors.length) {
             try { improveDrafts.recordSignal({ kind: "mlvc", subject: mlvc.errors[0] }); } catch (_e) {}
@@ -1514,7 +1517,7 @@ class ModelManager {
     if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         finalProgress?.emit?.("finalizing", { reason: "hril" });
-        const interpreted = hril.interpret(input, finalText);
+        const interpreted = hril.interpret(input, finalText, { mlvc: mlvcMetadata });
         if (interpreted.answer && interpreted.answer.trim()) applyCorrection(interpreted.answer.trim(), "hril");
       } catch (_e) {
         // yorum katmanı cevabı bozmasın
@@ -1547,7 +1550,7 @@ class ModelManager {
           );
           if (repaired && String(repaired).trim()) {
             applyCorrection(String(repaired).trim(), "tde-coverage-repair");
-            const interpreted = hril.interpret(input, finalText);
+            const interpreted = hril.interpret(input, finalText, { mlvc: mlvcMetadata });
             if (interpreted.answer && interpreted.answer.trim()) applyCorrection(interpreted.answer.trim(), "hril-after-tde");
             const explained = ree.explain(input, finalText);
             if (explained.answer && explained.answer.trim()) applyCorrection(explained.answer.trim(), "ree-after-tde");
@@ -1621,6 +1624,7 @@ class ModelManager {
           stoppedReason: agent.stoppedReason,
           needsVerification: inputNeedsVerification,
           needsMLVC: inputNeedsMLVC,
+          mlvc: mlvcMetadata,
           needsConclusion: inputNeedsConclusion,
           deepReasoning,
           reasoningCategories,
@@ -1654,8 +1658,11 @@ class ModelManager {
         const sample = (isMultiTask && multiTaskAssembled && multiTaskAssembled.trim()) ? multiTaskAssembled : preGateText;
         const report = sacv.debugReport(sample, taskDecomposition);
         logs.warn("SACV", `SACV_WARNING (debug) — ${report.tasks.length} görev | finalTextEmpty=${report.finalTextEmpty} | unitCount=${report.unitCount}`);
+        if (report.sharedStateLeak || (report.errors || []).includes("SACV_SHARED_STATE_LEAK")) {
+          logs.error("SACV", "SACV_SHARED_STATE_LEAK");
+        }
         for (const t of report.tasks) {
-          logs.warn("SACV", `Task ${t.taskId} (${t.title}) | Q="${t.question}" | units=${JSON.stringify(t.answerUnits)} | expected=${JSON.stringify(t.expected)} | score=${t.score} | ${t.decision}${t.decision === "FAIL" ? " | reason=" + t.reason : ""}`);
+          logs.warn("SACV", `Task ${t.taskId} (${t.title}) | question="${t.question}" | detectedAnswer="${t.detectedAnswer || ""}" | detectedUnits=${JSON.stringify(t.detectedUnits || [])} | expectedAnswer="${t.expectedAnswer || ""}" | expected=${JSON.stringify(t.expected)} | score=${t.score} | ${t.decision}${t.decision === "FAIL" ? " | reason=" + t.reason : ""}`);
         }
       } catch (e) {
         try { logs.error("SACV", "debugReport hata: " + (e && e.message)); } catch (_e) {}

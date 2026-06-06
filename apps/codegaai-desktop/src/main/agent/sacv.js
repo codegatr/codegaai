@@ -22,6 +22,51 @@ function splitAnswerUnits(text) {
     .filter((part) => part.length >= 1);
 }
 
+function stripTaskPrefix(text) {
+  return String(text || "")
+    .replace(/^\s*(?:test|soru|g[oÃ¶]rev|task)?\s*\d+\s*[:).\-â€“]\s*/i, "")
+    .trim();
+}
+
+function extractUnitFamilies(text) {
+  const raw = String(text || "");
+  const units = new Set();
+  if (/\b-?\d+(?:[.,]\d+)?\s*tl\b/i.test(raw)) units.add("TL");
+  if (/\b-?\d+(?:[.,]\d+)?\s*(?:gun|gÃ¼n|day|days)\b/i.test(raw)) units.add("g\u00fcn");
+  if (/\b-?\d+(?:[.,]\d+)?\s*(?:ay|month|months)\b/i.test(raw)) units.add("ay");
+  if (/\b-?\d+(?:[.,]\d+)?\s*(?:yil|yÄ±l|year|years)\b/i.test(raw)) units.add("y\u0131l");
+  if (/%\s*-?\d+(?:[.,]\d+)?|-?\d+(?:[.,]\d+)?\s*%/.test(raw)) units.add("%");
+  if (!units.size && /\b-?\d+(?:[.,]\d+)?\b/.test(raw)) units.add("quantity");
+  return [...units];
+}
+
+function expectedAnswerForTask(task) {
+  const solved = solveDeterministic(task.body || "");
+  if (!solved) return "";
+  return finalAnswerText(solved) || solved;
+}
+
+function detectedAnswerForTask(finalText, task, ctx) {
+  if (ctx.units.length >= ctx.taskCount) {
+    const unit = ctx.units[ctx.index] || "";
+    if (unit) return stripTaskPrefix(unit.replace(/\s+/g, " ").trim());
+  }
+
+  const section = ctx.sectionMap.get(String(task.id));
+  if (section != null) return stripTaskPrefix(section.replace(/\s+/g, " ").trim());
+
+  const unit = ctx.units[ctx.index] || "";
+  if (unit) return stripTaskPrefix(unit.replace(/\s+/g, " ").trim());
+
+  const expected = expectedAnswerForTask(task);
+  if (expected) {
+    const tokens = extractResultTokens(expected);
+    const found = tokens.find((token) => tokenPresent(finalText, token));
+    if (found) return found;
+  }
+  return "";
+}
+
 function extractResultTokens(text) {
   const raw = String(text || "");
   const tokens = new Set();
@@ -169,23 +214,30 @@ function debugReport(answer, taskReport) {
   const anyLabel = sectionMap.size > 0;
   const hay = `${finalText}\n${answer}`;
   const rows = tasks.map((task, i) => {
-    const res = taskCompleteByMeaning(answer, finalText, task, { sectionMap, anyLabel, units, index: i, taskCount: tasks.length });
+    const ctx = { sectionMap, anyLabel, units, index: i, taskCount: tasks.length };
+    const res = taskCompleteByMeaning(answer, finalText, task, ctx);
     const sc = scoreTask(task, sectionMap, hay);
-    const taskUnits = sc.section != null
-      ? [sc.section.replace(/\s+/g, " ").trim().slice(0, 120)]
-      : units;
+    const detectedAnswer = detectedAnswerForTask(finalText, task, ctx);
+    const detectedUnits = extractUnitFamilies(detectedAnswer);
+    const expectedAnswer = expectedAnswerForTask(task);
     return {
       taskId: task.id,
       title: task.label,
       question: String(task.body || "").replace(/\s+/g, " ").trim().slice(0, 100),
-      answerUnits: taskUnits,
+      detectedAnswer,
+      detectedUnits,
+      expectedAnswer,
+      answerUnits: detectedAnswer ? [detectedAnswer] : [],
       expected: sc.expected,
       score: Number(sc.score.toFixed(2)),
       decision: res.ok ? "PASS" : "FAIL",
       reason: res.ok ? res.method : (res.errors[0] || "no match"),
     };
   });
-  return { tasks: rows, finalTextEmpty: !finalText.trim(), unitCount: units.length };
+  const nonEmptyAnswers = rows.map((row) => compact(row.detectedAnswer)).filter(Boolean);
+  const sharedStateLeak = nonEmptyAnswers.length > 1 && new Set(nonEmptyAnswers).size === 1;
+  const errors = sharedStateLeak ? ["SACV_SHARED_STATE_LEAK"] : [];
+  return { tasks: rows, finalTextEmpty: !finalText.trim(), unitCount: units.length, errors, sharedStateLeak };
 }
 
 function validateSemanticCompleteness(answer, taskReport) {
@@ -265,6 +317,8 @@ module.exports = {
   debugReport,
   hasDecision,
   deterministicExpectedTokens,
+  detectedAnswerForTask,
+  extractUnitFamilies,
   extractResultTokens,
   hasReasoningTrace,
   hasVerificationTrace,
