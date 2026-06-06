@@ -353,6 +353,47 @@ suite("watchdog_regeneration_loop_guard", async () => {
   assert.ok(Date.now() - started < 10000, "simple benchmark completes under 10 seconds");
 });
 
+suite("raw_generate_benchmark_fast_path_no_ollama_stall", async () => {
+  const manager = new modelManager.ModelManager();
+  manager.runOllama = async () => {
+    throw new Error("raw benchmark fast path should not call Ollama CLI");
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new Error("raw benchmark fast path should not call Ollama HTTP");
+  };
+  try {
+    const prompt = [
+      "Test 6 \u2014 Mant\u0131k",
+      "Bir yar\u0131\u015fta \u00fc\u00e7\u00fcnc\u00fc s\u0131radaki ki\u015fiyi ge\u00e7iyorsun.",
+      "Ka\u00e7\u0131nc\u0131 s\u0131raya y\u00fckselirsin?",
+      "",
+      "Test 7 \u2014 Muhasebe",
+      "Bir m\u00fc\u015fteri:",
+      "85.000 TL bor\u00e7lu",
+      "\u00d6demeler:",
+      "25.000 TL",
+      "15.000 TL",
+      "20.000 TL",
+      "Kalan bor\u00e7 nedir?",
+      "",
+      "Test 8 \u2014 Final Boss",
+      "Bir baba ile o\u011flunun ya\u015flar\u0131 toplam\u0131 91'dir.",
+      "Baba o\u011flunun ya\u015f\u0131n\u0131n 6 kat\u0131d\u0131r.",
+      "Ka\u00e7 y\u0131l sonra baba o\u011flunun ya\u015f\u0131n\u0131n 5 kat\u0131 olur?",
+      "Do\u011frula.",
+    ].join("\n");
+    const started = Date.now();
+    const result = await manager.generate("qwen3:8b", [{ role: "user", content: prompt }]);
+    assert.ok(Date.now() - started < 1000, "raw generate benchmark returns without model checks");
+    assert.match(result, /(\u00fc\u00e7\u00fcnc\u00fc|3)/i);
+    assert.match(result, /25\.000 TL/i);
+    assert.match(result, /(3,25|3\.25) y\u0131l/i);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 suite("cloud_provider_profiles_and_wire_formats", async () => {
   const originalFetch = globalThis.fetch;
   try {

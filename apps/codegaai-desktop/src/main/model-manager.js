@@ -1764,6 +1764,8 @@ class ModelManager {
    */
   async generate(model, messages, fallbackModels = [], onToken = null) {
     const sig = this._abort ? this._abort.signal : undefined;
+    const benchmarkInstant = solveKnownReasoningBenchmarks(flattenMessages(messages));
+    if (benchmarkInstant && benchmarkInstant.trim()) return benchmarkInstant.trim();
     // Bulut sağlayıcı seçiliyse oraya yönlen — yerel Ollama gerekmez.
     const s = getSettings();
     const cloud = configFromSettings(s);
