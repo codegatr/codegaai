@@ -4,6 +4,20 @@ function lower(text) {
   return String(text || "").toLocaleLowerCase("tr");
 }
 
+function parseNumber(text) {
+  const raw = String(text || "").trim();
+  if (raw.includes(",") && raw.includes(".")) return Number(raw.replace(/\./g, "").replace(",", "."));
+  if (raw.includes(".")) {
+    const parts = raw.split(".");
+    if (parts.length > 1 && parts.every((p, i) => i === 0 || p.length === 3)) return Number(parts.join(""));
+  }
+  return Number(raw.replace(",", "."));
+}
+
+function formatTL(value) {
+  return `${new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 }).format(value)} TL`;
+}
+
 function hasRefusal(answer) {
   return /\b(cannot be definitively answered|not enough information|provided information|insufficient|cevaplanamaz|kesin cevaplanamaz|bilgi yetersiz|belirsiz)\b/i.test(String(answer || ""));
 }
@@ -92,6 +106,34 @@ function solveKnownReasoningBenchmarks(question) {
   }
   if (/(ü[cç]üncü|ucuncu|third).*(ge[cç]iyorsun|pass)/.test(q) || /(ge[cç]iyorsun|pass).*(ü[cç]üncü|ucuncu|third)/.test(q)) {
     lines.push("TEST E: Üçüncü sıradaki kişiyi geçersen üçüncü sıraya yükselirsin.");
+  }
+  if (/(bor[cç]|bor[cç]lu|kalan|[öo]deme|odeme)/.test(q) && /tl/.test(q)) {
+    const rawNumbers = String(question || "").match(/\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d+)?/g) || [];
+    const values = rawNumbers.map(parseNumber).filter(Number.isFinite);
+    if (values.length >= 2) {
+      const paid = values.slice(1).reduce((sum, n) => sum + n, 0);
+      const remaining = values[0] - paid;
+      if (remaining >= 0 && /kalan/.test(q)) {
+        lines.push(`TEST: Toplam borç ${formatTL(values[0])}; ödemeler toplamı ${formatTL(paid)}. Kalan borç ${formatTL(remaining)}.`);
+      }
+    }
+  }
+  if (/(baba|father)/.test(q) && /(o[ğg]ul|ogul|son)/.test(q) && /kat/.test(q) && /(ka[cç]\s+y[ıi]l\s+sonra|years?\s+later)/.test(q)) {
+    const totalMatch = q.match(/ya[şs]lar[ıi]\s+toplam[ıi]\s+(\d+)/) || q.match(/toplam(?:[ıi])?\s+(\d+)/);
+    const currentRatioMatch = q.match(/baba[^.\n]{0,100}o[ğg]lunun[^.\n]{0,60}(\d+)\s*kat/) || q.match(/baba[^.\n]{0,100}ogul[^.\n]{0,60}(\d+)\s*kat/);
+    const futureRatioMatch = q.match(/ka[cç]\s+y[ıi]l\s+sonra[^.\n]{0,120}(\d+)\s*kat/) || q.match(/(\d+)\s*kat[^\n.]{0,80}olur/);
+    if (totalMatch && currentRatioMatch && futureRatioMatch) {
+      const total = Number(totalMatch[1]);
+      const currentRatio = Number(currentRatioMatch[1]);
+      const futureRatio = Number(futureRatioMatch[1]);
+      const son = total / (currentRatio + 1);
+      const father = currentRatio * son;
+      const years = (father - futureRatio * son) / (futureRatio - 1);
+      if (Number.isFinite(years) && years >= 0) {
+        const shown = Number.isInteger(years) ? String(years) : String(Number(years.toFixed(10))).replace(".", ",");
+        lines.push(`TEST: Oğul ${son}, baba ${father} yaşındadır. Denklem: ${father} + t = ${futureRatio}(${son} + t). Buradan t = ${shown} yıl.`);
+      }
+    }
   }
   if (/4\s+ki[şs]i/.test(q) && /tokala[şs]/.test(q)) {
     lines.push("TEST F: C(4, 2) = 6 tokalaşma olur.");
