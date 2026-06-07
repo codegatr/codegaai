@@ -1,8 +1,9 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
+const repoRoot = join(root, "..", "..");
 const required = [
   "src/main/main.js",
   "src/main/preload.js",
@@ -23,6 +24,22 @@ const required = [
 
 for (const file of required) {
   readFileSync(join(root, file), "utf8");
+}
+
+for (const file of ["AGENTS.md", "CODEGA_CORE.md", "CODEGA_RULES.md"]) {
+  readFileSync(join(repoRoot, file), "utf8");
+}
+
+const skillsRoot = join(repoRoot, "CODEGA_SKILLS");
+const skillFolders = readdirSync(skillsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory());
+if (skillFolders.length < 8) {
+  throw new Error("CODEGA agent skill catalog is incomplete");
+}
+for (const entry of skillFolders) {
+  const content = readFileSync(join(skillsRoot, entry.name, "SKILL.md"), "utf8");
+  if (!/^---\r?\nname: [a-z0-9-]+\r?\ndescription: .+\r?\n---/m.test(content)) {
+    throw new Error(`Invalid CODEGA skill frontmatter: ${entry.name}`);
+  }
 }
 
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));

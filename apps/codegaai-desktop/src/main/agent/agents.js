@@ -25,6 +25,55 @@ const SPECIALISTS = {
       "Gerekirse repo/kod incele. Kodun kısa açıklamasını da ekle.",
     tools: ["github_read", "github_list", "github_search", "calculate", "rag_search"],
   },
+  architect: {
+    label: "Mimar",
+    persona:
+      "Sen CODEGA sistem mimarısın. İş hedefini teknik sınırlara çevirir, etkilenen modülleri, " +
+      "güven sınırlarını, riskleri, testleri ve geri alma planını belirlersin. Koddan önce mevcut yapıyı incelersin.",
+    tools: ["github_read", "github_list", "github_search", "rag_search", "research"],
+  },
+  backend: {
+    label: "Backend",
+    persona:
+      "Sen CODEGA backend mühendisisin. API, veri akışı, model sağlayıcıları, Ollama, PHP, Python ve " +
+      "veritabanı davranışını güvenli, uyumlu ve test edilebilir biçimde geliştirirsin.",
+    tools: ["github_read", "github_list", "github_search", "rag_search", "calculate"],
+  },
+  flutter: {
+    label: "Flutter",
+    persona:
+      "Sen CODEGA Flutter ve mobil yayın uzmanısın. Android/iOS istemcileri, izinler, API uyumu, " +
+      "AAB, imzalama ve mağaza gereksinimlerini birlikte değerlendirirsin.",
+    tools: ["github_read", "github_list", "github_search", "rag_search", "research"],
+  },
+  devops: {
+    label: "DevOps",
+    persona:
+      "Sen CODEGA DevOps ve release uzmanısın. Build, GitHub Actions, paketleme, updater, DirectAdmin, " +
+      "backup, rollback ve health check adımlarını kanıtla doğrularsın.",
+    tools: ["github_read", "github_list", "github_search", "github_dispatch", "rag_search", "research"],
+  },
+  security: {
+    label: "Güvenlik",
+    persona:
+      "Sen CODEGA güvenlik denetçisisin. Secrets, auth, upload, tool permission, prompt injection ve " +
+      "federation privacy sınırlarını inceler; bulguları önem sırasıyla raporlarsın.",
+    tools: ["github_read", "github_list", "github_search", "rag_search", "research"],
+  },
+  qa: {
+    label: "QA",
+    persona:
+      "Sen CODEGA QA mühendisisin. Beklenen davranışı tanımlar, regresyon senaryolarını çıkarır, " +
+      "test kanıtını ve test edilmeyen riskleri açıkça raporlarsın.",
+    tools: ["github_read", "github_list", "github_search", "rag_search", "calculate"],
+  },
+  memory: {
+    label: "Bellek ve RAG",
+    persona:
+      "Sen CODEGA bellek ve RAG uzmanısın. Kalıcı gerçekleri, geçici bağlamı, belge retrieval'ını, " +
+      "kaynak güvenini ve federasyon sinyallerini birbirinden ayırırsın.",
+    tools: ["rag_search", "recall", "github_read", "github_search", "research"],
+  },
   reviewer: {
     label: "Denetçi",
     persona:
@@ -41,6 +90,13 @@ const SPECIALISTS = {
 };
 
 const ROUTE_HINTS = {
+  architect: ["architecture", "architect", "mimari", "sistem tasar", "roadmap", "multi-agent", "proje beyni"],
+  backend: ["backend", "endpoint", "provider", "ollama", "fastapi", "laravel", "directadmin", "database migration"],
+  flutter: ["flutter", "android", "ios", "aab", "play console", "app store", "mobil"],
+  devops: ["devops", "workflow", "github actions", "release", "deploy", "docker", "nginx", "ssh", "rollback", "health check"],
+  security: ["security", "güvenlik", "guvenlik", "secret", "token", "authentication", "authorization", "prompt injection", "privacy"],
+  qa: ["qa", "regression", "acceptance", "smoke test", "test plan", "test senaryosu", "ci gate"],
+  memory: ["memory", "rag", "embedding", "vector", "hafıza", "hafiza", "project brain", "federation knowledge"],
   coder: ["kod", "php", "javascript", "script", "repo", "github", "fonksiyon", "bug", "hata ayıkla", "derle", "api", "sql", "veritabanı", "deploy"],
   researcher: ["araştır", "arastir", "bul", "incele", "kaynak", "haber", "fiyat", "nedir", "kim", "karşılaştır", "karsilastir", "öğren", "ogren"],
   reviewer: ["kontrol", "denetle", "gözden geçir", "gozden gecir", "doğrula", "dogrula", "test et", "güvenlik", "guvenlik", "review"],

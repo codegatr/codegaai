@@ -1,0 +1,4 @@
+interface:
+  display_name: "Desktop UI"
+  short_description: "Build polished desktop experiences"
+  default_prompt: "Implement or review CODEGA desktop UI behavior with responsive and accessibility checks."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Autonomous Development"
+  short_description: "Run guarded coding workflows"
+  default_prompt: "Execute a guarded CODEGA autonomous development task through branch, tests, and draft PR."

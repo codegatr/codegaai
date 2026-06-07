@@ -1,0 +1,4 @@
+interface:
+  display_name: "DevOps and Release"
+  short_description: "Ship reproducible releases"
+  default_prompt: "Plan or execute CODEGA build, deployment, rollback, and release verification."

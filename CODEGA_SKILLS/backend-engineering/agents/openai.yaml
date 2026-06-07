@@ -1,0 +1,4 @@
+interface:
+  display_name: "Backend Engineering"
+  short_description: "Build secure backend services"
+  default_prompt: "Implement or review CODEGA backend work using the repository architecture and tests."

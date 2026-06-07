@@ -91,6 +91,17 @@ Agent OS katmanları:
 | Multimodal anlama | Kademeli |
 | Auto deployment | Tasarımda |
 
+### Agent Governance
+
+Repository-level agents and CODEGA AI's autonomous development worker share one governed operating system:
+
+- [`AGENTS.md`](AGENTS.md): agent roles, operating loop, and delivery contract.
+- [`CODEGA_CORE.md`](CODEGA_CORE.md): mission, active architecture, capabilities, and roadmap.
+- [`CODEGA_RULES.md`](CODEGA_RULES.md): mandatory safety, privacy, quality, federation, and release rules.
+- [`CODEGA_SKILLS/`](CODEGA_SKILLS): task skills for architecture, backend, desktop UI, Flutter, DevOps, security, QA, memory/RAG, and autonomous development.
+
+The autonomous GitHub development worker loads these files from the target repository before generating a changeset. It selects task-specific skills, keeps a strict context-size limit, and never allows repository instructions to relax its hard safety rules.
+
 Endpoint:
 
 ```text

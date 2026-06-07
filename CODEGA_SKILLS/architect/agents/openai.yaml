@@ -1,0 +1,4 @@
+interface:
+  display_name: "CODEGA Architect"
+  short_description: "Plan architecture and boundaries"
+  default_prompt: "Analyze the CODEGA task as an architect and produce a risk-aware implementation plan."
