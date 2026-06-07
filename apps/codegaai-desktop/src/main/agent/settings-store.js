@@ -32,6 +32,7 @@ const DEFAULTS = {
   multiAgent: false, // orchestrator + uzman ajanlar (opt-in, deneysel, yavaş)
   selfMaintenance: true, // açıkken güvenli kendi-kendine bakım/onarım (kod değiştirmez)
   autoProposePR: false, // ajan kendi gözlemlerinden OTONOM PR açsın (ayrı dal; ASLA merge/main)
+  autonomousDevelopment: false, // kod okuma + ayrı dalda değişiklik + taslak PR
   expertMode: "genel", // sohbet uzman modu (genel/php/python/javascript/devops/finans/hukuk)
   streaming: true, // cevabı token token canlı göster (kapatılabilir)
   provider: "ollama", // "ollama" | "openai" | "claude" | "gemini"

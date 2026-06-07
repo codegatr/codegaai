@@ -83,8 +83,9 @@ Agent OS katmanları:
 | Araç kullanımı | Aktif |
 | Planner + Executor | Aktif |
 | Uzman AI modları | Aktif |
-| Kod tabanı okuma | Kademeli |
-| Test ve self-repair döngüsü | Kademeli |
+| Kod tabanı okuma | Aktif - seçili GitHub dosyaları ve SHA tabanlı değişiklik |
+| Otonom kod geliştirme | Aktif - korumalı kapsam, ayrı dal, taslak PR ve PR CI |
+| Test ve self-repair döngüsü | Aktif - PR doğrulama paketi, insan onayıyla birleştirme |
 | Prompt mühendisliği motoru | Tasarımda |
 | Sandbox VM | Kademeli |
 | Multimodal anlama | Kademeli |
