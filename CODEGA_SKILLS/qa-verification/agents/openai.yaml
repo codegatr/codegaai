@@ -1,0 +1,4 @@
+interface:
+  display_name: "QA Verification"
+  short_description: "Prove behavior with focused tests"
+  default_prompt: "Design and run CODEGA validation for the requested change and report residual risk."

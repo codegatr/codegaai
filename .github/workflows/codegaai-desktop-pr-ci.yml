@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - "apps/codegaai-desktop/**"
+      - "AGENTS.md"
+      - "CODEGA_CORE.md"
+      - "CODEGA_RULES.md"
+      - "CODEGA_SKILLS/**"
       - ".github/workflows/codegaai-desktop-pr-ci.yml"
 
 permissions:

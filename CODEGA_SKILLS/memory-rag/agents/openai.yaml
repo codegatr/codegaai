@@ -1,0 +1,4 @@
+interface:
+  display_name: "Memory and RAG"
+  short_description: "Build trustworthy knowledge retrieval"
+  default_prompt: "Implement or review CODEGA memory, embeddings, retrieval, and learning quality."

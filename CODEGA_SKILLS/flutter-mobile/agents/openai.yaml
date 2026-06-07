@@ -1,0 +1,4 @@
+interface:
+  display_name: "Flutter Mobile"
+  short_description: "Build CODEGA mobile clients"
+  default_prompt: "Design or implement a CODEGA Flutter feature with platform and release constraints."

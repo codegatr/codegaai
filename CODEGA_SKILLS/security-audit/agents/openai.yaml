@@ -1,0 +1,4 @@
+interface:
+  display_name: "Security Audit"
+  short_description: "Audit secrets and trust boundaries"
+  default_prompt: "Perform a threat-led security review of the requested CODEGA change."
