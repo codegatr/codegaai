@@ -30,10 +30,15 @@ async function ollamaChat(model, messages, opts = {}) {
   } = opts;
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let timedOut = false;
+  const abortFromParent = () => controller.abort();
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
   if (opts.signal) {
     if (opts.signal.aborted) controller.abort();
-    else opts.signal.addEventListener("abort", () => controller.abort(), { once: true });
+    else opts.signal.addEventListener("abort", abortFromParent, { once: true });
   }
   try {
     const res = await fetch(`${host}/api/chat`, {
@@ -52,8 +57,16 @@ async function ollamaChat(model, messages, opts = {}) {
     }
     const data = await res.json();
     return (data && data.message && data.message.content) || "";
+  } catch (error) {
+    if (error && error.name === "AbortError" && timedOut) {
+      const timeout = new Error(`Ollama ${Math.round(timeoutMs / 1000)} saniye içinde yanıt vermedi.`);
+      timeout.name = "TimeoutError";
+      throw timeout;
+    }
+    throw error;
   } finally {
     clearTimeout(timer);
+    if (opts.signal) opts.signal.removeEventListener("abort", abortFromParent);
   }
 }
 
@@ -72,10 +85,15 @@ async function ollamaChatStream(model, messages, opts = {}) {
   } = opts;
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let timedOut = false;
+  const abortFromParent = () => controller.abort();
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
   if (opts.signal) {
     if (opts.signal.aborted) controller.abort();
-    else opts.signal.addEventListener("abort", () => controller.abort(), { once: true });
+    else opts.signal.addEventListener("abort", abortFromParent, { once: true });
   }
   let full = "";
   try {
@@ -117,13 +135,26 @@ async function ollamaChatStream(model, messages, opts = {}) {
         }
       }
     } catch (e) {
-      // Kullanıcı durdurdu / zaman aşımı: o ana dek üretilen kısmı KORU
-      if (e && e.name === "AbortError") return full;
+      // Durdurma ve zaman aşımı üst katmana taşınır; aksi halde CLI fallback
+      // aynı isteği bir 90 saniye daha çalıştırıp arayüzü yeniden kilitliyordu.
+      if (e && e.name === "AbortError" && timedOut) {
+        const timeout = new Error(`Ollama ${Math.round(timeoutMs / 1000)} saniye içinde yanıt vermedi.`);
+        timeout.name = "TimeoutError";
+        throw timeout;
+      }
       throw e;
     }
     return full;
+  } catch (error) {
+    if (error && error.name === "AbortError" && timedOut) {
+      const timeout = new Error(`Ollama ${Math.round(timeoutMs / 1000)} saniye içinde yanıt vermedi.`);
+      timeout.name = "TimeoutError";
+      throw timeout;
+    }
+    throw error;
   } finally {
     clearTimeout(timer);
+    if (opts.signal) opts.signal.removeEventListener("abort", abortFromParent);
   }
 }
 

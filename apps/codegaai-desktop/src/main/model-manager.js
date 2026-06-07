@@ -317,11 +317,16 @@ function _normTr(s) {
     .replace(/ü/g, "u").replace(/ö/g, "o").replace(/ç/g, "c");
 }
 const SMALLTALK_RE = /^(selam|merhaba|merhabalar|gunaydin|iyi gunler|iyi geceler|iyi aksamlar|naber|nasilsin|tesekkur|tesekkurler|sagol|sag ol|eyvallah|gorusuruz|hosca kal|hello|hi|hey|thanks|tesekkur ederim)\b/;
+const CONVERSATIONAL_RE = /\b(sence|seninle|senin halin|ne olacak|devam edebilir misin|cevabina devam|beni anladin mi|burada misin|iyi misin|nasil gidiyor|neden cevap veremiyorsun|neden takildin|bu halimiz)\b/;
+const HEAVY_REQUEST_RE = /\b(arastir|incele|analiz et|kod yaz|duzelt|olustur|planla|karsilastir|hesapla|terminal|github|dosya|veritabani|deploy|test et)\b/;
 function isSmallTalk(input) {
   const t = String(input || "").trim();
-  if (!t || t.length > 25 || /\?/.test(t)) return false;
-  if (t.split(/\s+/).length > 4) return false; // selam+istek olmasın
-  return SMALLTALK_RE.test(_normTr(t));
+  if (!t) return false;
+  const normalized = _normTr(t).replace(/[?!.,;:]+/g, " ").replace(/\s+/g, " ").trim();
+  const words = normalized.split(/\s+/).filter(Boolean);
+  if (t.length <= 40 && words.length <= 6 && SMALLTALK_RE.test(normalized)) return true;
+  if (t.length > 160 || words.length > 24 || HEAVY_REQUEST_RE.test(normalized)) return false;
+  return CONVERSATIONAL_RE.test(normalized);
 }
 function smallTalkPrompt(humanTone) {
   return (
@@ -422,7 +427,7 @@ function instantAnswer(input) {
 
 function runCommand(command, args, options = {}) {
   return new Promise((resolve) => {
-    const { onData, timeoutMs = OLLAMA_COMMAND_TIMEOUT_MS, ...spawnOptions } = options;
+    const { onData, timeoutMs = OLLAMA_COMMAND_TIMEOUT_MS, signal, ...spawnOptions } = options;
     const child = spawn(command, args, {
       windowsHide: true,
       shell: false,
@@ -432,15 +437,26 @@ function runCommand(command, args, options = {}) {
     let stderr = "";
     let settled = false;
     let timedOut = false;
+    let aborted = false;
     let timeoutTimer = null;
     let forceTimer = null;
+    const abortChild = () => {
+      aborted = true;
+      try { child.kill(); } catch (_e) {}
+    };
     const finish = (result) => {
       if (settled) return;
       settled = true;
       if (timeoutTimer) clearTimeout(timeoutTimer);
       if (forceTimer) clearTimeout(forceTimer);
+      if (signal) signal.removeEventListener("abort", abortChild);
       resolve(result);
     };
+
+    if (signal) {
+      if (signal.aborted) abortChild();
+      else signal.addEventListener("abort", abortChild, { once: true });
+    }
 
     if (timeoutMs > 0) {
       timeoutTimer = setTimeout(() => {
@@ -474,12 +490,15 @@ function runCommand(command, args, options = {}) {
     });
     child.on("close", (code) => {
       finish({
-        ok: code === 0 && !timedOut,
+        ok: code === 0 && !timedOut && !aborted,
         code,
         stdout,
         stderr,
         timedOut,
-        error: timedOut ? "Ollama yanıtı zaman aşımına uğradı." : undefined,
+        aborted,
+        error: timedOut
+          ? "Ollama yanıtı zaman aşımına uğradı."
+          : aborted ? "Ollama isteği durduruldu." : undefined,
       });
     });
   });
@@ -928,6 +947,7 @@ class ModelManager {
 
   async _ask(input, opts = {}) {
     const _t0 = Date.now();
+    const fastConversation = isSmallTalk(input);
     const reasoningCategories = classifyReasoningProblem(input);
     const inputNeedsVerification = shouldVerifyAnswer(input);
     const inputNeedsConclusion = shouldEnforceConclusion(input);
@@ -943,7 +963,7 @@ class ModelManager {
     });
     const cognitiveIntake = cognitiveKernel.runIntake(cognitiveContextState);
     const taskDecomposition = cognitiveIntake.taskReport;
-    const inputNeedsCognitivePipeline = deepReasoning && shouldRunCognitivePipeline(input) && !inputNeedsMLVC;
+    const inputNeedsCognitivePipeline = !fastConversation && deepReasoning && shouldRunCognitivePipeline(input) && !inputNeedsMLVC;
     // Akış yalnızca (opt-in) bilişsel hat çalışırken kapanır. Aksi halde cevap token token
     // akar — kullanıcı "düşünüyorum"da DONMAZ. Doğrulama/sonuç turları akışı engellemez.
     const onToken = inputNeedsCognitivePipeline ? null : (opts.onToken || null);
@@ -1087,11 +1107,11 @@ class ModelManager {
     }
 
     // Otonom öğrenme: kullanıcı hakkında hatırladıklarını system prompt'a kat
-    const memory = settings.autonomousLearning ? recall(input, 4) : [];
+    const memory = settings.autonomousLearning && !fastConversation ? recall(input, 4) : [];
 
     // RAG: eklenen doküman/bilgi tabanından alakalı parçaları getir
     let ragContext = [];
-    if (settings.ragEnabled) {
+    if (settings.ragEnabled && !fastConversation) {
       try {
         const hits = await rag.search(input, 4);
         ragContext = hits.map((h) => `[${h.title}] ${h.text}`);
@@ -1102,7 +1122,7 @@ class ModelManager {
 
     // Otonom öğrenmeyle toplanan bilgiyi cevaba kat ("kör olma" / hızlandır)
     let learnedContext = [];
-    if (settings.continuousLearning || settings.autonomousLearning) {
+    if (!fastConversation && (settings.continuousLearning || settings.autonomousLearning)) {
       try {
         let hits = [];
         if (settings.semanticSearch) {
@@ -1128,7 +1148,7 @@ class ModelManager {
     const cognitiveContext = cognitivePreflight.context || "";
 
     let plan = [];
-    if (settings.planner && looksLikeGoal(input)) {
+    if (!fastConversation && settings.planner && looksLikeGoal(input)) {
       try {
         const plannerInput = cognitiveContext
           ? `${cognitiveContext}\n\nOriginal user request:\n${input}`
@@ -1300,7 +1320,7 @@ class ModelManager {
           stoppedReason: "multi_task",
           toolCalls: [],
         };
-      } else if (isSmallTalk(input)) {
+      } else if (fastConversation) {
         // Basit selam/sohbet: araçsız, kısa, doğrudan cevap (ajan saçmalamasın)
         const sttMsgs = [
           { role: "system", content: smallTalkPrompt(settings.humanTone) },
@@ -1358,6 +1378,15 @@ class ModelManager {
         agent = await runReact(messages, streamFn, { maxIters: 3 });
       }
     } catch (e) {
+      if (this._aborted || (e && e.name === "AbortError")) {
+        this._abort = null;
+        this.state = { ...this.state, status: READY_STATES.READY, message: "Durduruldu" };
+        return {
+          provider: this.state.provider || "ollama",
+          model: selectedModel,
+          text: "⏹️ Üretim durduruldu.",
+        };
+      }
       this.state = {
         ...this.state,
         status: READY_STATES.ERROR,
@@ -1810,14 +1839,31 @@ class ModelManager {
           : await ollamaChat(model, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS, signal: sig });
         if (content && content.trim()) return content;
       } catch (_e) {
+        if (sig && sig.aborted) {
+          const aborted = new Error("Ollama isteği durduruldu.");
+          aborted.name = "AbortError";
+          throw aborted;
+        }
+        if (_e && _e.name === "TimeoutError") throw _e;
         // HTTP başarısız -> CLI fallback (akışsız)
       }
+    }
+    if (sig && sig.aborted) {
+      const aborted = new Error("Ollama isteği durduruldu.");
+      aborted.name = "AbortError";
+      throw aborted;
     }
     const prompt = flattenMessages(messages);
     const models = [model, ...fallbackModels.filter((m) => m !== model)].slice(0, 3);
     for (const m of models) {
+      if (sig && sig.aborted) {
+        const aborted = new Error("Ollama isteği durduruldu.");
+        aborted.name = "AbortError";
+        throw aborted;
+      }
       const result = await this.runOllama(["run", m, prompt], {
         timeoutMs: OLLAMA_CHAT_TIMEOUT_MS,
+        signal: sig,
       });
       if (result.ok && String(result.stdout || "").trim()) {
         return result.stdout.trim();
