@@ -1529,6 +1529,132 @@ body[data-theme="oled"] { --bg: #000; }
   color: var(--accent);
 }
 
+.model-card-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: 14px;
+}
+.model-manager-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .018);
+}
+.model-manager-card.is-active {
+  border-color: color-mix(in srgb, #22c55e 46%, var(--line));
+  background: color-mix(in srgb, #22c55e 5%, transparent);
+}
+.model-manager-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.model-manager-card__identity {
+  min-width: 0;
+}
+.model-manager-card__identity strong {
+  display: block;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.model-manager-card__identity code {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.model-manager-card__controls {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.model-manager-card p {
+  min-height: 34px;
+  margin: 12px 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.model-manager-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.model-manager-card__meta span {
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+.model-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.model-state::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #6b7280;
+  content: "";
+}
+.model-state.active {
+  border-color: rgba(34, 197, 94, .35);
+  color: #22c55e;
+}
+.model-state.active::before { background: #22c55e; }
+.model-state.missing::before { background: #f59e0b; }
+.model-action {
+  min-height: 28px;
+  padding: 5px 9px !important;
+  border-radius: 6px !important;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.model-action.primary {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--line));
+  color: var(--accent);
+}
+.model-action.danger:not(:disabled) {
+  color: #ef4444;
+}
+.section-collapse-btn {
+  float: right;
+  margin-top: -2px;
+}
+@media (max-width: 1120px) {
+  .model-card-list { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .model-manager-card__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .model-manager-card__controls {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
 /* Mesaj zaman damgası */
 .msg-time { margin-top: 6px; font-size: 0.72em; opacity: 0.45; }
 .message.user .msg-time { text-align: right; }

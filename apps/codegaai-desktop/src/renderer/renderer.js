@@ -1398,6 +1398,180 @@ async function refreshModelsPage() {
     }
   } catch (_e) {}
 }
+async function refreshModelsPageCompact() {
+  const installedBox = document.getElementById("models-installed");
+  const availableBox = document.getElementById("models-available");
+  if (!installedBox && !availableBox) return;
+
+  const [data, settings] = await Promise.all([
+    window.codega.listModels(),
+    window.codega.getSettings(),
+  ]);
+  const options = (data && data.options) || [];
+  const configuredDefault = settings.defaultModel || settings.model || "";
+  const defaultModel = options.some((model) => model.installed && model.id === configuredDefault)
+    ? configuredDefault
+    : (data && data.status && data.status.model) || "";
+  const taskLabels = { chat: "Sohbet", code: "Kod", writing: "Yazı", image: "Görsel" };
+
+  const createCard = (model, installed) => {
+    const active = installed && model.id === defaultModel;
+    const card = document.createElement("article");
+    card.className = `model-manager-card${active ? " is-active" : ""}`;
+
+    const header = document.createElement("div");
+    header.className = "model-manager-card__header";
+
+    const identity = document.createElement("div");
+    identity.className = "model-manager-card__identity";
+    const title = document.createElement("strong");
+    title.textContent = model.label || model.id;
+    const modelId = document.createElement("code");
+    modelId.textContent = model.id;
+    identity.append(title, modelId);
+
+    const controls = document.createElement("div");
+    controls.className = "model-manager-card__controls";
+    const status = document.createElement("span");
+    status.className = `model-state ${active ? "active" : installed ? "passive" : "missing"}`;
+    status.textContent = active ? "Aktif" : installed ? "Pasif" : "Yüklü değil";
+    controls.appendChild(status);
+
+    if (installed && !active) {
+      const activate = document.createElement("button");
+      activate.type = "button";
+      activate.className = "model-action primary";
+      activate.textContent = "Varsayılan Yap";
+      activate.addEventListener("click", async () => {
+        activate.disabled = true;
+        await setDefaultModel(model.id, model.label || model.id);
+        await refreshModelsPageCompact();
+      });
+      controls.appendChild(activate);
+    }
+
+    if (installed) {
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "model-action danger";
+      remove.textContent = "Sil";
+      remove.disabled = active;
+      remove.title = active
+        ? "Aktif modeli silmeden önce başka bir modeli varsayılan yap."
+        : "Modeli cihazdan sil";
+      remove.addEventListener("click", async () => {
+        if (!window.confirm(`${model.id} silinsin mi?`)) return;
+        remove.disabled = true;
+        setTransientStatus(`${model.id} siliniyor…`);
+        try {
+          const result = await window.codega.deleteModel({ id: model.id });
+          setTransientStatus(result && result.ok ? `${model.id} silindi.` : "Model silinemedi.");
+          await refreshModelsPageCompact();
+          await refreshCookbook();
+        } catch (error) {
+          setTransientStatus("Hata: " + (error.message || error));
+          remove.disabled = false;
+        }
+      });
+      controls.appendChild(remove);
+    } else {
+      const download = document.createElement("button");
+      download.type = "button";
+      download.className = "model-action primary";
+      download.textContent = "İndir";
+      download.addEventListener("click", async () => {
+        download.disabled = true;
+        try {
+          await runModelSetup(model.id, model.label || model.id);
+          await refreshModelsPageCompact();
+          await refreshCookbook();
+        } finally {
+          download.disabled = false;
+        }
+      });
+      controls.appendChild(download);
+    }
+
+    header.append(identity, controls);
+
+    const description = document.createElement("p");
+    description.textContent = model.description || "Yerel Ollama modeli";
+
+    const meta = document.createElement("div");
+    meta.className = "model-manager-card__meta";
+    const task = document.createElement("span");
+    task.textContent = taskLabels[model.task] || "Genel";
+    const size = document.createElement("span");
+    size.textContent = model.sizeGb ? `~${model.sizeGb} GB` : "Boyut bilinmiyor";
+    meta.append(task, size);
+
+    card.append(header, description, meta);
+    return card;
+  };
+
+  if (installedBox) {
+    installedBox.innerHTML = "";
+    const installed = options
+      .filter((model) => model.installed)
+      .sort((a, b) =>
+        Number(b.id === defaultModel) - Number(a.id === defaultModel) ||
+        String(a.label || a.id).localeCompare(String(b.label || b.id), "tr")
+      );
+    if (!installed.length) {
+      installedBox.innerHTML = '<p class="log-empty">Kurulu yerel model yok. İndirilebilir modellerden birini seçebilirsin.</p>';
+    } else {
+      installed.forEach((model) => installedBox.appendChild(createCard(model, true)));
+    }
+  }
+
+  if (availableBox) {
+    availableBox.innerHTML = "";
+    options
+      .filter((model) => !model.installed)
+      .forEach((model) => availableBox.appendChild(createCard(model, false)));
+  }
+}
+
+refreshModelsPage = refreshModelsPageCompact;
+
+function simplifyModelsLayout() {
+  const group = document.querySelector('[data-cat="models"]');
+  if (!group || group.dataset.compactReady === "true") return;
+  group.dataset.compactReady = "true";
+
+  const addCollapseButton = (section, label) => {
+    if (!section || section.querySelector(".section-collapse-btn")) return;
+    const heading = section.querySelector("h2");
+    if (!heading) return;
+    const content = Array.from(section.children).filter((child) => child !== heading);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "mini-btn section-collapse-btn";
+    button.textContent = label;
+    button.setAttribute("aria-expanded", "false");
+    content.forEach((child) => { child.hidden = true; });
+    button.addEventListener("click", () => {
+      const open = button.getAttribute("aria-expanded") !== "true";
+      button.setAttribute("aria-expanded", open ? "true" : "false");
+      button.textContent = open ? "Gizle" : label;
+      content.forEach((child) => { child.hidden = !open; });
+    });
+    heading.appendChild(button);
+  };
+
+  addCollapseButton(document.getElementById("models-available")?.closest(".settings-section"), "Modelleri Göster");
+  addCollapseButton(document.querySelector(".model-update-center"), "Güncellemeleri Göster");
+
+  for (const section of group.querySelectorAll(".settings-section")) {
+    const heading = section.querySelector("h2");
+    if (heading && heading.textContent.toLocaleLowerCase("tr").includes("sağlayıcı")) {
+      section.hidden = true;
+    }
+  }
+}
+
+simplifyModelsLayout();
+
 const modelsRefreshBtn = document.getElementById("models-refresh");
 if (modelsRefreshBtn) modelsRefreshBtn.addEventListener("click", () => refreshModelsPage());
 
@@ -1546,7 +1720,7 @@ async function refreshCookbook() {
         recoEl.appendChild(btn);
       } else { recoEl.hidden = true; }
     }
-    if (listEl) {
+    if (listEl && !listEl.hidden) {
       listEl.innerHTML = "";
       for (const m of (data && data.models) || []) {
         const badge = FIT_BADGE[m.fit] || FIT_BADGE.no;
