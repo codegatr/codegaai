@@ -78,6 +78,19 @@ async function readFile(owner, repo, filePath, ref) {
   return "";
 }
 
+/** Dosya içeriğini SHA metadata'sıyla oku. */
+async function readFileMeta(owner, repo, filePath, ref) {
+  const q = ref ? `?ref=${encodeURIComponent(ref)}` : "";
+  const data = await gh(`/repos/${owner}/${repo}/contents/${filePath}${q}`);
+  if (Array.isArray(data)) throw new Error(`Dosya beklenirken dizin bulundu: ${filePath}`);
+  if (!data || !data.content) throw new Error(`Dosya içeriği okunamadı: ${filePath}`);
+  return {
+    content: Buffer.from(data.content, "base64").toString("utf8"),
+    sha: data.sha || null,
+    path: data.path || filePath,
+  };
+}
+
 /** Dizin listele. */
 async function listDir(owner, repo, dirPath = "", ref) {
   const q = ref ? `?ref=${encodeURIComponent(ref)}` : "";
@@ -180,11 +193,31 @@ async function createFileOnBranch(owner, repo, filePath, branch, content, messag
   });
 }
 
+/** Belirli bir dalda dosya oluştur veya mevcut dosyayı SHA ile güncelle. */
+async function putFileOnBranch(owner, repo, filePath, branch, content, message, sha = null) {
+  return gh(`/repos/${owner}/${repo}/contents/${filePath}`, {
+    method: "PUT",
+    body: {
+      message: message || "CODEGA AI kod değişikliği",
+      content: Buffer.from(String(content), "utf8").toString("base64"),
+      branch,
+      ...(sha ? { sha } : {}),
+    },
+  });
+}
+
 /** Pull Request aç (otomatik birleştirmez — insan onayı bekler). */
-async function openPullRequest(owner, repo, head, base, title, body) {
+async function openPullRequest(owner, repo, head, base, title, body, options = {}) {
   return gh(`/repos/${owner}/${repo}/pulls`, {
     method: "POST",
-    body: { title, head, base, body, maintainer_can_modify: true },
+    body: {
+      title,
+      head,
+      base,
+      body,
+      maintainer_can_modify: true,
+      draft: options.draft === true,
+    },
   });
 }
 
@@ -192,6 +225,7 @@ module.exports = {
   hasToken,
   testConnection,
   readFile,
+  readFileMeta,
   listDir,
   searchCode,
   dispatchWorkflow,
@@ -202,6 +236,7 @@ module.exports = {
   getBranchSha,
   createBranch,
   createFileOnBranch,
+  putFileOnBranch,
   openPullRequest,
   splitRepo,
 };

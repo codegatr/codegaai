@@ -12,6 +12,7 @@ const githubClient = require("./agent/github-client");
 const rag = require("./agent/rag");
 const { runSelfCheck } = require("./agent/self-maintenance");
 const selfImprove = require("./agent/self-improve");
+const autonomousDev = require("./agent/autonomous-dev");
 const improveDrafts = require("./agent/improve-drafts");
 const feedback = require("./agent/feedback");
 const systemInfo = require("./agent/system-info");
@@ -463,6 +464,7 @@ function registerIpc() {
         { key: "Gemini API anahtarı", present: !!String(s.geminiApiKey || "").trim(), hint: mask(s.geminiApiKey), note: "Yalnızca bu cihazda saklanır; yalnızca Google Gemini API'ye gider." },
       ],
       permissions: [
+        { key: "Otonom Kod Geliştirme", enabled: !!s.autonomousDevelopment, note: "Yalnız seçilen dosyaları okur; ayrı dalda taslak PR açar ve otomatik birleştirmez." },
         { key: "Kod Çalıştırma", enabled: true, note: "Yalnızca sen 'Çalıştır' deyince; ajan kendiliğinden çalıştırmaz. İzolasyon yok (kendi yetkilerinle)." },
         { key: "MCP araçları (ajana bağlı)", enabled: !!s.mcpAutoTools, note: "Yalnızca senin tanımladığın sunucu; opt-in." },
         { key: "Sürekli Öğrenme (ağ erişimi)", enabled: !!s.continuousLearning, note: "Açıkken kaynaklara internet isteği yapar." },
@@ -497,6 +499,13 @@ function registerIpc() {
           enabled: !!s.autoProposePR,
           last: lastAutoPropose ? { at: lastAutoPropose.at, info: `PR #${lastAutoPropose.number}` } : null,
         },
+        {
+          key: "autonomousDevelopment",
+          label: "Otonom Kod Geliştirme",
+          desc: "Seçilen repo dosyalarını okuyup güvenlik sınırları içinde kod değişikliği üretir ve taslak PR açar.",
+          enabled: !!s.autonomousDevelopment,
+          last: null,
+        },
       ],
     };
   });
@@ -512,6 +521,29 @@ function registerIpc() {
       version: app.getVersion(),
     });
     return selfImprove.submitProposal(githubClient, repo, proposal);
+  });
+
+  ipcMain.handle("development:run", async (_event, payload) => {
+    const settings = settingsStore.getSettings();
+    if (!settings.autonomousDevelopment) {
+      throw new Error("Önce Ayarlar bölümünden Otonom Kod Geliştirme'yi aç.");
+    }
+    const repository = String((payload && payload.repo) || settings.knowledgeRepo || "").trim();
+    if (!repository) throw new Error("Hedef repo gerekli (owner/repo).");
+    if (!githubClient.hasToken()) throw new Error("GitHub bağlantısı yapılandırılmamış.");
+    const status = modelManager.getStatus ? modelManager.getStatus() : {};
+    const model = (status && status.model) || DEFAULT_MODEL;
+    const result = await autonomousDev.runAutonomousDevelopment({
+      git: githubClient,
+      repository,
+      task: payload && payload.task,
+      requestedPaths: payload && payload.paths,
+      model,
+      version: app.getVersion(),
+      generate: (messages) => modelManager.generate(model, messages),
+    });
+    try { logs.info("development", `Taslak PR #${result.number}: ${result.title}`); } catch (_e) {}
+    return result;
   });
 
   ipcMain.handle("improve:drafts", async () => improveDrafts.getDrafts());

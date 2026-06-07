@@ -572,6 +572,20 @@
           <div class="model-list" id="improve-drafts-list"></div>
           <div class="settings-row">
             <div>
+              <strong>Otonom Kod Geliştirme Laboratuvarı</strong>
+              <p>CODEGA AI seçtiğin repo dosyalarını okur, kodu düzenler ve ayrı dalda taslak Pull Request açar. Main dalına yazmaz; otomatik birleştirme yapmaz.</p>
+            </div>
+            <button type="button" id="toggle-autonomous-development">—</button>
+          </div>
+          <div class="settings-field">
+            <input type="text" id="development-repo" placeholder="Hedef repo: owner/repo" autocomplete="off" />
+            <input type="text" id="development-paths" placeholder="Dosyalar: src/app.js, src/styles.css (en fazla 4)" autocomplete="off" />
+            <textarea id="development-task" rows="4" placeholder="Geliştirme görevi: sorunu, beklenen davranışı ve kabul ölçütlerini yaz."></textarea>
+            <button type="button" id="development-run">Kodu Geliştir ve Taslak PR Aç</button>
+            <p id="development-status">Kapalı. Etkinleştirdiğinde yalnız belirttiğin dosyalar değiştirilebilir.</p>
+          </div>
+          <div class="settings-row">
+            <div>
               <strong>MCP Araç Sunucusu (deneysel)</strong>
               <p>Harici bir MCP (Model Context Protocol) sunucusuna bağlan, araçlarını listele, dene ve isteğe bağlı olarak ajanın otonom araç döngüsüne ekle.</p>
             </div>

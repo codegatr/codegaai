@@ -64,6 +64,12 @@ const els = {
   toggleMaintenance: document.getElementById("toggle-maintenance"),
   runMaintenance: document.getElementById("run-maintenance"),
   toggleAutoPropose: document.getElementById("toggle-autopropose"),
+  toggleAutonomousDevelopment: document.getElementById("toggle-autonomous-development"),
+  developmentRepo: document.getElementById("development-repo"),
+  developmentPaths: document.getElementById("development-paths"),
+  developmentTask: document.getElementById("development-task"),
+  developmentRun: document.getElementById("development-run"),
+  developmentStatus: document.getElementById("development-status"),
   expertSelect: document.getElementById("expert-select"),
   toggleStreaming: document.getElementById("toggle-streaming"),
   toggleContinuous: document.getElementById("toggle-continuous"),
@@ -2317,6 +2323,33 @@ if (improveSubmit) {
   });
 }
 
+if (els.developmentRun) {
+  els.developmentRun.addEventListener("click", async () => {
+    const repo = (els.developmentRepo.value || "").trim();
+    const paths = (els.developmentPaths.value || "").trim();
+    const task = (els.developmentTask.value || "").trim();
+    if (!repo || !paths || !task) {
+      setTransientStatus("Repo, hedef dosyalar ve geliştirme görevi gerekli.");
+      return;
+    }
+    els.developmentRun.disabled = true;
+    els.developmentStatus.textContent = "Dosyalar okunuyor, kod değişikliği hazırlanıyor…";
+    try {
+      const result = await window.codega.runAutonomousDevelopment({ repo, paths, task });
+      els.developmentStatus.textContent =
+        `Taslak PR #${result.number} açıldı · ${result.changedFiles.length} dosya · ${result.branch}`;
+      try { await navigator.clipboard.writeText(result.url); } catch (_e) {}
+      setTransientStatus(`Taslak PR #${result.number} açıldı; bağlantı kopyalandı.`);
+      els.developmentTask.value = "";
+    } catch (error) {
+      els.developmentStatus.textContent = `Geliştirme durdu: ${error.message || error}`;
+      setTransientStatus("Kod geliştirme görevi tamamlanamadı.");
+    } finally {
+      els.developmentRun.disabled = false;
+    }
+  });
+}
+
 // Kendi kendine bakım: elle çalıştır + sonucu göster
 function summarizeMaintenance(rep) {
   if (!rep || !rep.items) return "Bakım bilgisi yok.";
@@ -2417,6 +2450,9 @@ async function refreshAgentSettings() {
     applyToggleLabel(els.toggleMultiAgent, !!agentSettings.multiAgent);
     applyToggleLabel(els.toggleMaintenance, agentSettings.selfMaintenance !== false);
     if (els.toggleAutoPropose) applyToggleLabel(els.toggleAutoPropose, !!agentSettings.autoProposePR);
+    if (els.toggleAutonomousDevelopment) {
+      applyToggleLabel(els.toggleAutonomousDevelopment, !!agentSettings.autonomousDevelopment);
+    }
     if (els.expertSelect) els.expertSelect.value = agentSettings.expertMode || "genel";
     if (els.toggleStreaming) applyToggleLabel(els.toggleStreaming, agentSettings.streaming !== false);
     if (els.toggleContinuous) applyToggleLabel(els.toggleContinuous, !!agentSettings.continuousLearning);
@@ -2435,6 +2471,14 @@ async function refreshAgentSettings() {
     applyToggleLabel(els.toggleFederation, !!agentSettings.federation);
     applyToggleLabel(els.toggleIdle, !!agentSettings.idleLearning);
     els.knowledgeRepo.value = agentSettings.knowledgeRepo || "";
+    if (els.developmentRepo && !els.developmentRepo.value) {
+      els.developmentRepo.value = agentSettings.knowledgeRepo || "";
+    }
+    if (els.developmentStatus) {
+      els.developmentStatus.textContent = agentSettings.autonomousDevelopment
+        ? "Hazır. En fazla 4 hedef dosya, ayrı dal ve taslak PR güvenlik sınırı etkin."
+        : "Kapalı. Etkinleştirdiğinde yalnız belirttiğin dosyalar değiştirilebilir.";
+    }
     els.githubToken.value = "";
     els.githubToken.placeholder = agentSettings.githubToken
       ? "•••• (kayıtlı — değiştirmek için yaz)"
@@ -2589,6 +2633,11 @@ els.togglePlanner.addEventListener("click", () => toggleSetting("planner", els.t
 els.toggleMultiAgent.addEventListener("click", () => toggleSetting("multiAgent", els.toggleMultiAgent));
 if (els.toggleMaintenance) els.toggleMaintenance.addEventListener("click", () => toggleSetting("selfMaintenance", els.toggleMaintenance));
 if (els.toggleAutoPropose) els.toggleAutoPropose.addEventListener("click", () => toggleSetting("autoProposePR", els.toggleAutoPropose));
+if (els.toggleAutonomousDevelopment) {
+  els.toggleAutonomousDevelopment.addEventListener("click", () =>
+    toggleSetting("autonomousDevelopment", els.toggleAutonomousDevelopment).then(() => refreshAgentSettings())
+  );
+}
 if (els.toggleStreaming) els.toggleStreaming.addEventListener("click", () => toggleSetting("streaming", els.toggleStreaming));
 if (els.toggleModelUpdates) els.toggleModelUpdates.addEventListener("click", () => toggleSetting("autoModelUpdates", els.toggleModelUpdates));
 if (els.expertSelect) els.expertSelect.addEventListener("change", async () => { agentSettings = await window.codega.setSettings({ expertMode: els.expertSelect.value }); setTransientStatus("Uzman modu: " + els.expertSelect.value); });
