@@ -3,6 +3,7 @@ const fs = require("node:fs");
 const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const { APP_NAME, FEDERATION_BASE_URL, MODEL_OPTIONS, DEFAULT_MODEL } = require("../shared/constants");
 const { ModelManager } = require("./model-manager");
+const { ModelUpdateService } = require("./agent/model-update-service");
 const { UpdateService } = require("./update-service");
 const settingsStore = require("./agent/settings-store");
 const memory = require("./agent/memory");
@@ -25,6 +26,18 @@ const { ollamaReachable } = require("./agent/ollama-client");
 
 const modelManager = new ModelManager();
 const updateService = new UpdateService();
+const modelUpdateService = new ModelUpdateService({
+  updateModel: (name, onProgress) => modelManager.updateModel(name, onProgress),
+  logs,
+});
+
+function broadcastModelUpdateStatus(status) {
+  for (const win of BrowserWindow.getAllWindows()) {
+    try {
+      if (!win.isDestroyed()) win.webContents.send("model-updates:status", status);
+    } catch (_e) {}
+  }
+}
 
 // Kendi kendine bakım (güvenli): açıkken periyodik sağlık + bozuk depo onarımı
 let lastMaintenance = null;
@@ -358,6 +371,23 @@ function registerIpc() {
     return status;
   });
 
+  ipcMain.handle("model-updates:status", async () => modelUpdateService.snapshot());
+  ipcMain.handle("model-updates:check", async () => {
+    const status = await modelUpdateService.check();
+    broadcastModelUpdateStatus(status);
+    return status;
+  });
+  ipcMain.handle("model-updates:apply", async (event, name) => {
+    const result = await modelUpdateService.apply(name, (progress) => {
+      try {
+        if (!event.sender || event.sender.isDestroyed()) return;
+        event.sender.send("model:status", progress);
+      } catch (_e) {}
+    });
+    broadcastModelUpdateStatus(result.updates);
+    return result;
+  });
+
   ipcMain.handle("updates:check", async () => updateService.check());
   ipcMain.handle("updates:download", async () => updateService.download());
   ipcMain.handle("updates:install", async () => updateService.installNow());
@@ -641,6 +671,30 @@ app.whenReady().then(async () => {
     if (Date.now() - lastActivityAt < 2 * 60 * 1000) return; // 2 dk boşta değilse atla
     knowledge.syncUp().catch(() => {});
   }, 5 * 60 * 1000);
+
+  // Kurulu Ollama modellerinin resmi manifestlerini günlük kontrol et.
+  // Yalnız cihaz en az 5 dakika boşta kaldığında aynı model etiketi güncellenir.
+  const maybeUpdateModels = async () => {
+    const s = settingsStore.getSettings();
+    if (s.autoModelUpdates === false) return;
+    if (Date.now() - lastActivityAt < 5 * 60 * 1000) return;
+    const previous = modelUpdateService.snapshot();
+    const hours = Math.max(1, Number(s.modelUpdateCheckHours) || 24);
+    if (previous.lastCheck && Date.now() - previous.lastCheck < hours * 60 * 60 * 1000) return;
+    const checked = await modelUpdateService.check();
+    broadcastModelUpdateStatus(checked);
+    if (!checked.models.some((model) => model.updateAvailable)) return;
+    const applied = await modelUpdateService.applyAll((progress) => {
+      for (const win of BrowserWindow.getAllWindows()) {
+        try {
+          if (!win.isDestroyed()) win.webContents.send("model:status", progress);
+        } catch (_e) {}
+      }
+    });
+    broadcastModelUpdateStatus(applied.status);
+  };
+  setTimeout(() => maybeUpdateModels().catch(() => {}), 6 * 60 * 1000);
+  setInterval(() => maybeUpdateModels().catch(() => {}), 60 * 60 * 1000);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

@@ -815,12 +815,31 @@ class ModelManager {
       return this.getStatus();
     }
 
+    return this._pullModel(target, onProgress, "indiriliyor");
+  }
+
+  async updateModel(modelId, onProgress) {
+    const target = modelOption(modelId || DEFAULT_MODEL);
+    await this.detect();
+    if (this.state.provider !== "ollama") {
+      return {
+        ...this.getStatus(),
+        model: target.id,
+        message: "Ollama çalışmıyor. Model güncellemesi uygulanamadı.",
+        action: "install_ollama",
+        actionUrl: OLLAMA_DOWNLOAD_URL,
+      };
+    }
+    return this._pullModel(target, onProgress, "güncelleniyor");
+  }
+
+  async _pullModel(target, onProgress, actionLabel) {
     this.state = {
       ...this.state,
       model: target.id,
       task: target.task || "chat",
       status: READY_STATES.CHECKING,
-      message: `${target.label} indiriliyor`,
+      message: `${target.label} ${actionLabel}`,
       progress: {
         raw: "",
         percent: 0,
@@ -839,7 +858,7 @@ class ModelManager {
         const percentText = progress.percent !== null ? ` %${Math.round(progress.percent)}` : "";
         this.state = {
           ...this.state,
-          message: `${target.label} indiriliyor${percentText}`,
+          message: `${target.label} ${actionLabel}${percentText}`,
           progress,
         };
         onProgress?.(this.getStatus());
@@ -849,7 +868,7 @@ class ModelManager {
       this.state = {
         ...this.state,
         status: READY_STATES.ERROR,
-        message: result.stderr || result.error || `${target.label} indirilemedi`,
+        message: result.stderr || result.error || `${target.label} işlemi tamamlanamadı`,
       };
       return this.getStatus();
     }

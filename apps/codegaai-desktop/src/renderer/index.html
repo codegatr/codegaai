@@ -109,14 +109,28 @@
           <div class="overview-dashboard">
             <section class="dashboard-card">
               <h2>AI Health Dashboard</h2>
-              <div class="status-line"><span class="dot ok"></span><strong>Ollama</strong><span id="ov-health-ollama">çalışıyor</span></div>
-              <div class="status-line"><span class="dot ok"></span><strong>Aktif Model</strong><span id="ov-health-model">—</span></div>
+              <button type="button" class="status-line health-link" data-settings-target="models" aria-label="Ollama ve model ayarlarını aç">
+                <span class="dot ok"></span><strong>Ollama</strong><span id="ov-health-ollama">çalışıyor</span><span class="health-link-arrow" aria-hidden="true">›</span>
+              </button>
+              <button type="button" class="status-line health-link" data-settings-target="models" aria-label="Aktif model ayarlarını aç">
+                <span class="dot ok"></span><strong>Aktif Model</strong><span id="ov-health-model">—</span><span class="health-link-arrow" aria-hidden="true">›</span>
+              </button>
               <div class="status-line"><span class="dot ok"></span><strong>Aktif Ajan</strong><span>Yazılımcı</span></div>
-              <div class="status-line"><span class="dot plan" id="ov-health-federation-dot"></span><strong>Federation/Share</strong><span id="ov-health-federation">kapalı</span></div>
-              <div class="status-line"><span class="dot plan" id="ov-health-openai-dot"></span><strong>OpenAI</strong><span id="ov-health-openai">yapılandırılmadı</span></div>
-              <div class="status-line"><span class="dot plan" id="ov-health-claude-dot"></span><strong>Claude</strong><span id="ov-health-claude">yapılandırılmadı</span></div>
-              <div class="status-line"><span class="dot plan" id="ov-health-gemini-dot"></span><strong>Gemini</strong><span id="ov-health-gemini">yapılandırılmadı</span></div>
-              <div class="status-line"><span class="dot plan" id="ov-health-mcp-dot"></span><strong>MCP</strong><span id="ov-health-mcp">yapılandırılmadı</span></div>
+              <button type="button" class="status-line health-link" data-settings-target="agents" data-focus-target="toggle-federation" aria-label="Federe ağ ayarlarını aç">
+                <span class="dot plan" id="ov-health-federation-dot"></span><strong>Federation/Share</strong><span id="ov-health-federation">kapalı</span><span class="health-link-arrow" aria-hidden="true">›</span>
+              </button>
+              <button type="button" class="status-line health-link" data-settings-target="ai" data-provider-target="openai" aria-label="OpenAI ayarlarını aç">
+                <span class="dot plan" id="ov-health-openai-dot"></span><strong>OpenAI</strong><span id="ov-health-openai">yapılandırılmadı</span><span class="health-link-arrow" aria-hidden="true">›</span>
+              </button>
+              <button type="button" class="status-line health-link" data-settings-target="ai" data-provider-target="claude" aria-label="Claude ayarlarını aç">
+                <span class="dot plan" id="ov-health-claude-dot"></span><strong>Claude</strong><span id="ov-health-claude">yapılandırılmadı</span><span class="health-link-arrow" aria-hidden="true">›</span>
+              </button>
+              <button type="button" class="status-line health-link" data-settings-target="ai" data-provider-target="gemini" aria-label="Gemini ayarlarını aç">
+                <span class="dot plan" id="ov-health-gemini-dot"></span><strong>Gemini</strong><span id="ov-health-gemini">yapılandırılmadı</span><span class="health-link-arrow" aria-hidden="true">›</span>
+              </button>
+              <button type="button" class="status-line health-link" data-settings-target="mcp" data-focus-target="mcp-url" aria-label="MCP ayarlarını aç">
+                <span class="dot plan" id="ov-health-mcp-dot"></span><strong>MCP</strong><span id="ov-health-mcp">yapılandırılmadı</span><span class="health-link-arrow" aria-hidden="true">›</span>
+              </button>
               <div class="status-line"><span class="dot ok"></span><strong>Veritabanı (yerel)</strong><span>hazır</span></div>
             </section>
             <section class="dashboard-card">
@@ -226,6 +240,18 @@
           <div class="settings-section">
             <h2>Kurulu Modeller <button type="button" id="models-refresh" class="mini-btn">Yenile</button></h2>
             <div class="model-list" id="models-installed"></div>
+          </div>
+          <div class="settings-section model-update-center">
+            <h2>Model Güncelleme Merkezi <button type="button" id="model-updates-check" class="mini-btn">Şimdi Kontrol Et</button></h2>
+            <div class="settings-row">
+              <div>
+                <strong>Kurulu modelleri otomatik güncelle</strong>
+                <p>Resmi Ollama manifestlerini günlük kontrol eder; yalnız cihaz boştayken ve aynı model etiketi için güncelleme varsa indirir.</p>
+              </div>
+              <button type="button" id="toggle-model-updates">—</button>
+            </div>
+            <p class="overview-note model-update-summary" id="model-updates-summary">Henüz kontrol edilmedi.</p>
+            <div class="model-list" id="model-updates-list"></div>
           </div>
           <div class="settings-section">
             <h2>İndirilebilir Modeller</h2>
