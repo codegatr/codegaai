@@ -1506,6 +1506,10 @@ body[data-theme="oled"] { --bg: #000; }
 .cookbook-reco p { margin: 4px 0 10px; opacity: 0.85; font-size: 0.9em; }
 .cookbook-row { align-items: center; }
 .cookbook-actions { display: flex; gap: 6px; }
+.agent-watch-panel { border-color: color-mix(in srgb, #22c55e 24%, var(--line)); }
+.agent-watch-empty { padding: 18px 20px; color: var(--muted); font-size: 13px; }
+.agent-watch-row strong { color: var(--text); }
+.agent-watch-row button { flex: 0 0 auto; }
 .fit-badge { display: inline-block; font-size: 0.72em; padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: middle; border: 1px solid transparent; }
 .fit-gpu { background: rgba(34,197,94,0.15); color: #22c55e; border-color: rgba(34,197,94,0.4); }
 .fit-tight { background: rgba(245,158,11,0.15); color: #f59e0b; border-color: rgba(245,158,11,0.4); }

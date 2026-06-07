@@ -12,6 +12,7 @@ const required = [
   "src/main/agent/ollama-client.js",
   "src/main/agent/model-update-service.js",
   "src/main/agent/autonomous-dev.js",
+  "src/main/agent/agent-watch.js",
   "src/main/agent/cloud-provider.js",
   "src/main/agent/agent-loop.js",
   "src/main/agent/tools.js",

@@ -1,0 +1,242 @@
+"use strict";
+
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+
+const DEFAULT_SOURCES = Object.freeze([
+  { id: "openai-codex", label: "OpenAI Codex", repo: "openai/codex", tier: "official" },
+  { id: "claude-code", label: "Anthropic Claude Code", repo: "anthropics/claude-code", tier: "official" },
+  { id: "gemini-cli", label: "Google Gemini CLI", repo: "google-gemini/gemini-cli", tier: "official" },
+  { id: "openhands", label: "OpenHands", repo: "All-Hands-AI/OpenHands", tier: "community" },
+  { id: "aider", label: "Aider", repo: "Aider-AI/aider", tier: "community" },
+  { id: "cline", label: "Cline", repo: "cline/cline", tier: "community" },
+  { id: "continue", label: "Continue", repo: "continuedev/continue", tier: "community" },
+]);
+
+const REUSE_LICENSES = new Set(["apache-2.0", "bsd-2-clause", "bsd-3-clause", "isc", "mit"]);
+
+function storePath() {
+  return process.env.CODEGA_AGENT_WATCH_PATH || path.join(os.homedir(), ".codega-ai", "agent-watch.json");
+}
+
+function emptyState() {
+  return { lastScanAt: null, sources: {}, findings: [], errors: [] };
+}
+
+function load() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(storePath(), "utf8"));
+    return {
+      ...emptyState(),
+      ...parsed,
+      sources: parsed && typeof parsed.sources === "object" ? parsed.sources : {},
+      findings: Array.isArray(parsed && parsed.findings) ? parsed.findings : [],
+      errors: Array.isArray(parsed && parsed.errors) ? parsed.errors : [],
+    };
+  } catch (_e) {
+    return emptyState();
+  }
+}
+
+function save(state) {
+  const target = storePath();
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  const temp = `${target}.tmp`;
+  fs.writeFileSync(temp, JSON.stringify(state, null, 2), "utf8");
+  try {
+    fs.renameSync(temp, target);
+  } catch (_e) {
+    fs.copyFileSync(temp, target);
+    fs.rmSync(temp, { force: true });
+  }
+}
+
+function splitRepo(repo) {
+  const parts = String(repo || "").split("/");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) throw new Error(`Gecersiz GitHub deposu: ${repo}`);
+  return { owner: parts[0], name: parts[1] };
+}
+
+function licensePolicy(spdxId) {
+  const id = String(spdxId || "").trim().toLowerCase();
+  if (REUSE_LICENSES.has(id)) {
+    return { mode: "reviewable-reuse", label: "Inceleme sonrasi yeniden kullanim uygun" };
+  }
+  return { mode: "research-only", label: "Yalniz mimari arastirma" };
+}
+
+function sanitizeText(value, max = 240) {
+  return String(value || "").replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+async function githubJson(apiPath, { token = "", fetchImpl = fetch, timeoutMs = 15000 } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetchImpl(`https://api.github.com${apiPath}`, {
+      signal: controller.signal,
+      headers: {
+        Accept: "application/vnd.github+json",
+        "User-Agent": "CODEGA-AI-Agent-Watch",
+        "X-GitHub-Api-Version": "2022-11-28",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) {
+      const error = new Error(`GitHub HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+    return response.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function scanSource(source, options = {}) {
+  const { owner, name } = splitRepo(source.repo);
+  const encodedRepo = `${encodeURIComponent(owner)}/${encodeURIComponent(name)}`;
+  const repo = await githubJson(`/repos/${encodedRepo}`, options);
+  const commits = await githubJson(`/repos/${encodedRepo}/commits?per_page=1`, options);
+  let release = null;
+  try {
+    release = await githubJson(`/repos/${encodedRepo}/releases/latest`, options);
+  } catch (error) {
+    if (error.status !== 404) throw error;
+  }
+  const latestCommit = Array.isArray(commits) ? commits[0] : null;
+  const spdx = repo && repo.license ? repo.license.spdx_id : null;
+  return {
+    id: source.id,
+    label: source.label,
+    repo: source.repo,
+    tier: source.tier,
+    url: repo.html_url || `https://github.com/${source.repo}`,
+    description: sanitizeText(repo.description),
+    license: spdx || "UNKNOWN",
+    policy: licensePolicy(spdx),
+    stars: Number(repo.stargazers_count) || 0,
+    defaultBranch: repo.default_branch || "main",
+    pushedAt: repo.pushed_at || null,
+    latestCommit: latestCommit ? {
+      sha: latestCommit.sha,
+      url: latestCommit.html_url,
+      message: sanitizeText(latestCommit.commit && latestCommit.commit.message),
+      at: latestCommit.commit && latestCommit.commit.author ? latestCommit.commit.author.date : null,
+    } : null,
+    latestRelease: release ? {
+      tag: release.tag_name || release.name || "release",
+      name: sanitizeText(release.name || release.tag_name),
+      url: release.html_url,
+      publishedAt: release.published_at || null,
+    } : null,
+  };
+}
+
+function buildFindings(previous, current, scannedAt) {
+  const findings = [];
+  if (!previous) {
+    findings.push({
+      id: `${current.id}:baseline:${current.latestCommit ? current.latestCommit.sha : scannedAt}`,
+      sourceId: current.id,
+      source: current.label,
+      repo: current.repo,
+      kind: "baseline",
+      title: `${current.label} izlemeye alindi`,
+      detail: current.description || "Ilk kaynak goruntusu kaydedildi.",
+      url: current.url,
+      policy: current.policy,
+      at: scannedAt,
+    });
+    return findings;
+  }
+  if (current.latestRelease && (!previous.latestRelease || previous.latestRelease.tag !== current.latestRelease.tag)) {
+    findings.push({
+      id: `${current.id}:release:${current.latestRelease.tag}`,
+      sourceId: current.id,
+      source: current.label,
+      repo: current.repo,
+      kind: "release",
+      title: `${current.label}: ${current.latestRelease.name || current.latestRelease.tag}`,
+      detail: `Yeni surum: ${current.latestRelease.tag}`,
+      url: current.latestRelease.url,
+      policy: current.policy,
+      at: scannedAt,
+    });
+  }
+  if (current.latestCommit && (!previous.latestCommit || previous.latestCommit.sha !== current.latestCommit.sha)) {
+    findings.push({
+      id: `${current.id}:commit:${current.latestCommit.sha}`,
+      sourceId: current.id,
+      source: current.label,
+      repo: current.repo,
+      kind: "commit",
+      title: `${current.label} deposunda yeni degisiklik`,
+      detail: current.latestCommit.message || current.latestCommit.sha.slice(0, 8),
+      url: current.latestCommit.url,
+      policy: current.policy,
+      at: scannedAt,
+    });
+  }
+  return findings;
+}
+
+async function scan(options = {}) {
+  const previous = load();
+  const scannedAt = Date.now();
+  const sources = options.sources || DEFAULT_SOURCES;
+  const nextSources = { ...previous.sources };
+  const errors = [];
+  const newFindings = [];
+
+  const results = await Promise.allSettled(sources.map((source) => scanSource(source, options)));
+  for (let index = 0; index < sources.length; index += 1) {
+    const source = sources[index];
+    const result = results[index];
+    if (result.status === "fulfilled") {
+      const current = result.value;
+      newFindings.push(...buildFindings(previous.sources[source.id], current, scannedAt));
+      nextSources[source.id] = current;
+      continue;
+    }
+    try {
+      errors.push({ source: source.label, repo: source.repo, message: sanitizeText(result.reason && result.reason.message), at: scannedAt });
+    } catch (_e) {}
+  }
+
+  const seen = new Set();
+  const findings = [...newFindings, ...previous.findings]
+    .filter((item) => item && item.id && !seen.has(item.id) && seen.add(item.id))
+    .slice(0, 100);
+  const state = { lastScanAt: scannedAt, sources: nextSources, findings, errors: errors.slice(0, 30) };
+  save(state);
+  return status(state, newFindings.length);
+}
+
+function status(state = load(), newCount = 0) {
+  const sourceList = Object.values(state.sources || {});
+  return {
+    lastScanAt: state.lastScanAt,
+    sourceCount: DEFAULT_SOURCES.length,
+    healthySources: sourceList.length,
+    newCount,
+    sources: sourceList,
+    findings: (state.findings || []).slice(0, 20),
+    errors: (state.errors || []).slice(0, 10),
+  };
+}
+
+module.exports = {
+  DEFAULT_SOURCES,
+  REUSE_LICENSES,
+  buildFindings,
+  githubJson,
+  licensePolicy,
+  load,
+  save,
+  scan,
+  scanSource,
+  status,
+  storePath,
+};

@@ -46,6 +46,8 @@ const DEFAULTS = {
   geminiApiKey: "",
   geminiModel: "gemini-2.5-flash",
   continuousLearning: false, // açıkken kaynaklardan sürekli öğren
+  agentWatch: true, // güvenilir AI ajan depolarını GitHub üzerinden izle
+  agentWatchIntervalHours: 6,
   learningTopics: "", // virgülle ayrılmış konular (boşsa öğrenilen/kişisel hafızadan türetilir)
   learningSources: "wikipedia,web,github,stackoverflow,arxiv,hackernews,mdn",
   learningSyncRepo: "", // owner/repo — öğrenilenleri buraya yedekle (boşsa yalnız yerel)

@@ -18,6 +18,7 @@ const feedback = require("./agent/feedback");
 const systemInfo = require("./agent/system-info");
 const learning = require("./agent/learning");
 const learningStore = require("./agent/learning-store");
+const agentWatch = require("./agent/agent-watch");
 const installer = require("./agent/installer");
 const metrics = require("./agent/metrics");
 const stats = require("./agent/stats");
@@ -163,6 +164,50 @@ function scheduleLearning() {
   };
   setTimeout(tick, 60 * 1000); // ilk tur ~1 dk sonra
   setInterval(tick, 25 * 60 * 1000); // sonra her 25 dk
+}
+
+let _agentWatchRunning = false;
+let lastAgentWatch = null;
+async function runAgentWatch(reason = "scheduled") {
+  if (_agentWatchRunning) return lastAgentWatch || agentWatch.status();
+  _agentWatchRunning = true;
+  try {
+    const s = settingsStore.getSettings();
+    const result = await agentWatch.scan({ token: String(s.githubToken || "").trim() });
+    lastAgentWatch = { at: Date.now(), reason, ...result };
+    try { logs.info("agent-watch", `GitHub ajan radari: ${result.healthySources}/${result.sourceCount} kaynak, +${result.newCount} bulgu`); } catch (_e) {}
+    if (result.newCount > 0) {
+      try {
+        learningStore.addNotes(result.findings.slice(0, result.newCount).map((f) => ({
+          source: "github-agent-watch",
+          topic: f.source,
+          text: `${f.title}: ${f.detail} [${f.policy && f.policy.mode ? f.policy.mode : "research"}]`,
+          url: f.url,
+          at: f.at || Date.now(),
+        })));
+      } catch (_e) {}
+    }
+    return lastAgentWatch;
+  } finally {
+    _agentWatchRunning = false;
+  }
+}
+
+function scheduleAgentWatch() {
+  const tick = async () => {
+    try {
+      const s = settingsStore.getSettings();
+      if (!s.agentWatch) return;
+      const current = agentWatch.status();
+      const hours = Math.max(1, Number(s.agentWatchIntervalHours) || 6);
+      if (current.lastScanAt && Date.now() - current.lastScanAt < hours * 60 * 60 * 1000) return;
+      await runAgentWatch("scheduled");
+    } catch (e) {
+      try { logs.warn("agent-watch", e.message || String(e)); } catch (_e) {}
+    }
+  };
+  setTimeout(tick, 90 * 1000);
+  setInterval(tick, 30 * 60 * 1000);
 }
 
 let lastAutoPropose = null;
@@ -394,6 +439,12 @@ function registerIpc() {
   ipcMain.handle("updates:install", async () => updateService.installNow());
 
   ipcMain.handle("settings:get", async () => settingsStore.getSettings());
+  ipcMain.handle("external:open", async (_event, rawUrl) => {
+    const url = String(rawUrl || "").trim();
+    if (!/^https:\/\/github\.com\//i.test(url)) throw new Error("Yalnızca GitHub bağlantıları açılabilir.");
+    await shell.openExternal(url);
+    return true;
+  });
   ipcMain.handle("settings:set", async (_event, patch) => {
     const next = settingsStore.setSettings(patch);
     if (patch && (("mcpAutoTools" in patch) || ("mcpServerUrl" in patch))) { refreshMcpTools().catch(() => {}); }
@@ -476,6 +527,7 @@ function registerIpc() {
 
   ipcMain.handle("automations:status", async () => {
     const s = settingsStore.getSettings();
+    const watchStatus = lastAgentWatch || agentWatch.status();
     return {
       items: [
         {
@@ -484,6 +536,16 @@ function registerIpc() {
           desc: "GitHub + Web + Wikipedia (+arXiv/SO/HN/MDN) kaynaklarından her ~25 dk konu araştırır.",
           enabled: !!s.continuousLearning,
           last: lastLearn ? { at: lastLearn.at, info: `son konu: ${lastLearn.topic} (+${lastLearn.added})` } : null,
+        },
+        {
+          key: "agentWatch",
+          label: "GitHub Agent Watch",
+          desc: "Claude, Codex, Gemini CLI ve seçili ajan depolarını izler; lisans kapılı bulguları yerel hafızaya alır.",
+          enabled: !!s.agentWatch,
+          last: watchStatus.lastScanAt ? {
+            at: watchStatus.lastScanAt,
+            info: `${watchStatus.healthySources}/${watchStatus.sourceCount} kaynak`,
+          } : null,
         },
         {
           key: "selfMaintenance",
@@ -549,6 +611,8 @@ function registerIpc() {
   ipcMain.handle("improve:drafts", async () => improveDrafts.getDrafts());
   ipcMain.handle("improve:clearDrafts", async () => { improveDrafts.clearAll(); return true; });
   ipcMain.handle("improve:autoStatus", async () => lastAutoPropose);
+  ipcMain.handle("agent-watch:status", async () => lastAgentWatch || agentWatch.status());
+  ipcMain.handle("agent-watch:scan", async () => runAgentWatch("manual"));
 
   ipcMain.handle("feedback:record", async (_event, payload) => {
     const data = feedback.record(payload || {});
@@ -673,6 +737,8 @@ app.whenReady().then(async () => {
     process.env.CODEGA_STATS_PATH || path.join(userDataPath, "stats.json");
   process.env.CODEGA_LOGS_PATH =
     process.env.CODEGA_LOGS_PATH || path.join(userDataPath, "logs.json");
+  process.env.CODEGA_AGENT_WATCH_PATH =
+    process.env.CODEGA_AGENT_WATCH_PATH || path.join(userDataPath, "agent-watch.json");
   process.env.CODEGA_MODELS_PATH =
     process.env.CODEGA_MODELS_PATH || path.join(userDataPath, "ollama-models");
   process.env.OLLAMA_MODELS = process.env.OLLAMA_MODELS || process.env.CODEGA_MODELS_PATH;
@@ -687,6 +753,7 @@ app.whenReady().then(async () => {
   doMaintenance().then(() => maybeAutoPropose()).catch(() => {});
   setInterval(() => { doMaintenance().then(() => maybeAutoPropose()).catch(() => {}); }, 5 * 60 * 1000);
   scheduleLearning();
+  scheduleAgentWatch();
   refreshMcpTools().catch(() => {});
   try { logs.info("app", `CODEGA AI ${app.getVersion()} başladı`); } catch (_e) {}
   process.on("uncaughtException", (e) => { try { logs.error("uncaught", e && (e.stack || e.message || e)); } catch (_e2) {} });

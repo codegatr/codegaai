@@ -57,13 +57,20 @@ function _run(cmd, args, timeoutMs = 4000) {
 
 /** NVIDIA GPU VRAM kullanımı (yüzde) + MB değerleri; yoksa null. */
 async function gpuVram() {
-  const out = await _run("nvidia-smi", ["--query-gpu=memory.used,memory.total", "--format=csv,noheader,nounits"]);
+  const out = await _run("nvidia-smi", ["--query-gpu=name,memory.used,memory.total", "--format=csv,noheader,nounits"]);
   if (!out) return null;
   const line = out.split("\n").map((l) => l.trim()).find(Boolean);
   if (!line) return null;
-  const m = line.split(",").map((x) => parseInt(x.trim(), 10));
-  if (m.length < 2 || !m[1]) return null;
-  return { usedMB: m[0], totalMB: m[1], percent: Math.max(0, Math.min(100, Math.round((m[0] / m[1]) * 100))) };
+  const parts = line.split(",").map((x) => x.trim());
+  const usedMB = parseInt(parts[1], 10);
+  const totalMB = parseInt(parts[2], 10);
+  if (parts.length < 3 || !totalMB) return null;
+  return {
+    name: parts[0] || null,
+    usedMB,
+    totalMB,
+    percent: Math.max(0, Math.min(100, Math.round((usedMB / totalMB) * 100))),
+  };
 }
 
 /** Tüm metrikleri topla. Eksikler null. */

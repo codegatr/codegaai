@@ -92,17 +92,30 @@ function recommendCookbook(hw, catalog) {
  * Gerçek donanımı oku (VRAM nvidia-smi, RAM/CPU os) ve cookbook üret. ASYNC.
  * catalog: [{ id, label, description, task, ...katalog metadata }]
  */
-async function analyzeCookbook(catalog = []) {
-  const os = require("os");
-  const ramGb = Math.max(1, Math.round(os.totalmem() / 1024 ** 3));
+async function analyzeCookbook(catalog = [], deps = {}) {
+  const osApi = deps.os || require("os");
+  const metrics = deps.metrics || require("./metrics");
+  const ramGb = Math.max(1, Math.round(osApi.totalmem() / 1024 ** 3));
   let vramGb = null;
   let gpuName = null;
   try {
-    const metrics = require("./metrics");
     const g = await metrics.gpuVram();
-    if (g && g.totalMB) vramGb = Math.round((g.totalMB / 1024) * 10) / 10;
+    if (g && g.totalMB) {
+      vramGb = Math.round((g.totalMB / 1024) * 10) / 10;
+      gpuName = g.name || null;
+    }
   } catch (_e) { /* GPU yok/okunamadı */ }
-  const hw = { ramGb, vramGb, cores: (os.cpus() || []).length, hasGpu: vramGb != null, gpuName };
+  const cpus = osApi.cpus() || [];
+  const hw = {
+    ramGb,
+    vramGb,
+    cores: cpus.length,
+    cpuName: ((cpus[0] && cpus[0].model) || "bilinmiyor").trim(),
+    hasGpu: vramGb != null,
+    gpuName,
+    gpuProbe: vramGb != null ? "nvidia-smi" : "not-detected",
+    scannedAt: Date.now(),
+  };
   const reco = recommendCookbook(hw, catalog);
   return { hardware: hw, models: reco.items, recommended: reco.recommended };
 }

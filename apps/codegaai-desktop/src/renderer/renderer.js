@@ -1689,18 +1689,29 @@ async function setDefaultModel(id, label) {
   } catch (e) { setTransientStatus("Ayar kaydedilemedi: " + (e.message || e)); }
 }
 
-async function refreshCookbook() {
+let cookbookScanRunning = false;
+async function refreshCookbook(manual = false) {
   const hwEl = document.getElementById("cookbook-hw");
   const recoEl = document.getElementById("cookbook-reco");
   const listEl = document.getElementById("cookbook-models");
   if (!hwEl && !listEl) return;
+  if (cookbookScanRunning) return;
+  cookbookScanRunning = true;
+  if (cookbookScanBtn) {
+    cookbookScanBtn.disabled = true;
+    cookbookScanBtn.textContent = "Taranıyor…";
+  }
+  if (manual && hwEl) hwEl.textContent = "CPU, RAM ve NVIDIA VRAM yeniden taranıyor…";
   try {
     const data = await window.codega.cookbookScan();
     const hw = (data && data.hardware) || {};
     if (hwEl) {
       const vram = hw.vramGb != null ? `${hw.vramGb} GB VRAM` : "GPU yok (CPU)";
-      hwEl.textContent = `Donanım: ${vram} · ${hw.ramGb} GB RAM · ${hw.cores} çekirdek`;
+      const gpu = hw.gpuName ? ` · ${hw.gpuName}` : "";
+      const time = hw.scannedAt ? new Date(hw.scannedAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "";
+      hwEl.textContent = `Donanım: ${vram}${gpu} · ${hw.ramGb} GB RAM · ${hw.cores} çekirdek${time ? ` · ${time}` : ""}`;
     }
+    if (manual) setTransientStatus("Donanım taraması tamamlandı.");
     if (recoEl) {
       if (data && data.recommended) {
         const r = data.recommended;
@@ -1750,10 +1761,17 @@ async function refreshCookbook() {
     }
   } catch (e) {
     if (hwEl) hwEl.textContent = "Donanım taranamadı: " + (e.message || e);
+    if (manual) setTransientStatus("Donanım taraması başarısız: " + (e.message || e));
+  } finally {
+    cookbookScanRunning = false;
+    if (cookbookScanBtn) {
+      cookbookScanBtn.disabled = false;
+      cookbookScanBtn.textContent = "Donanımı Tara";
+    }
   }
 }
 const cookbookScanBtn = document.getElementById("cookbook-scan");
-if (cookbookScanBtn) cookbookScanBtn.addEventListener("click", () => refreshCookbook());
+if (cookbookScanBtn) cookbookScanBtn.addEventListener("click", () => refreshCookbook(true));
 
 async function refreshAutomations() {
   const box = document.getElementById("auto-list");
@@ -1786,7 +1804,69 @@ async function refreshAutomations() {
   } catch (_e) {}
 }
 const autoRefreshBtn = document.getElementById("auto-refresh");
-if (autoRefreshBtn) autoRefreshBtn.addEventListener("click", () => refreshAutomations());
+if (autoRefreshBtn) autoRefreshBtn.addEventListener("click", () => { refreshAutomations(); refreshAgentWatch(); });
+
+function safeText(value) {
+  return String(value == null ? "" : value).replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[char]);
+}
+
+async function refreshAgentWatch() {
+  const summary = document.getElementById("agent-watch-summary");
+  const findings = document.getElementById("agent-watch-findings");
+  if (!summary || !findings) return;
+  if (!window.codega || !window.codega.agentWatchStatus) {
+    summary.textContent = "GitHub Agent Watch uygulama bağlantısı bekleniyor.";
+    return;
+  }
+  try {
+    const data = await window.codega.agentWatchStatus();
+    const last = data.lastScanAt ? new Date(data.lastScanAt).toLocaleString("tr-TR") : "henüz taranmadı";
+    summary.textContent = `${data.healthySources || 0}/${data.sourceCount || 0} kaynak erişilebilir · Son tarama: ${last}`
+      + ((data.errors || []).length ? ` · ${(data.errors || []).length} hata` : "");
+    findings.innerHTML = "";
+    const rows = (data.findings || []).slice(0, 8);
+    if (!rows.length) {
+      findings.innerHTML = '<div class="agent-watch-empty">Henüz bulgu yok. İlk tarama kaynakların başlangıç görüntüsünü oluşturur.</div>';
+      return;
+    }
+    for (const item of rows) {
+      const row = document.createElement("div");
+      row.className = "settings-row agent-watch-row";
+      const policy = item.policy && item.policy.mode === "reviewable-reuse" ? "Lisans incelemesiyle kullanılabilir" : "Yalnız araştırma";
+      row.innerHTML = `<div><strong>${safeText(item.title)}</strong><p>${safeText(item.detail)}<br><span class="log-time">${safeText(item.repo)} · ${safeText(policy)}</span></p></div>`;
+      if (item.url) {
+        const open = document.createElement("button");
+        open.type = "button";
+        open.textContent = "GitHub";
+        open.addEventListener("click", () => window.codega.openExternal(item.url));
+        row.appendChild(open);
+      }
+      findings.appendChild(row);
+    }
+  } catch (e) {
+    summary.textContent = "GitHub Agent Watch okunamadı: " + (e.message || e);
+  }
+}
+
+const agentWatchRunBtn = document.getElementById("agent-watch-run");
+if (agentWatchRunBtn) agentWatchRunBtn.addEventListener("click", async () => {
+  agentWatchRunBtn.disabled = true;
+  agentWatchRunBtn.textContent = "Taranıyor…";
+  setTransientStatus("GitHub ajan depoları taranıyor…");
+  try {
+    const result = await window.codega.runAgentWatch();
+    setTransientStatus(`Agent Watch tamamlandı: ${result.healthySources}/${result.sourceCount} kaynak, ${result.newCount} yeni bulgu.`);
+    await refreshAgentWatch();
+    await refreshAutomations();
+  } catch (e) {
+    setTransientStatus("Agent Watch hatası: " + (e.message || e));
+  } finally {
+    agentWatchRunBtn.disabled = false;
+    agentWatchRunBtn.textContent = "Şimdi Tara";
+  }
+});
 
 async function refreshSecurity() {
   const creds = document.getElementById("security-creds");
@@ -1949,6 +2029,7 @@ els.settingsButton.addEventListener("click", async () => {
   refreshModelsPage();
   refreshCookbook();
   refreshAutomations();
+  refreshAgentWatch();
   refreshSecurity();
   refreshMcpStatus();
   refreshRag();

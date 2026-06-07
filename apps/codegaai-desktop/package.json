@@ -1,7 +1,7 @@
 {
   "name": "codega-ai-desktop",
   "productName": "CODEGA AI",
-  "version": "2.3.16",
+  "version": "2.3.17",
   "description": "CODEGA AI clean Windows-first desktop app.",
   "author": "CODEGA",
   "private": true,
@@ -16,7 +16,8 @@
     "test:reasoning:regression": "node scripts/run-reasoning-regression.mjs",
     "test:model-updates": "node scripts/test-model-updates.mjs",
     "test:autonomous-development": "node scripts/test-autonomous-development.mjs",
-    "test:ci": "npm run check && npm run test:model-updates && npm run test:autonomous-development && npm run test:reasoning && npm run test:verification && npm run test:reasoning:regression",
+    "test:agent-watch": "node scripts/test-agent-watch.mjs",
+    "test:ci": "npm run check && npm run test:model-updates && npm run test:autonomous-development && npm run test:agent-watch && npm run test:reasoning && npm run test:verification && npm run test:reasoning:regression",
     "pack": "electron-builder --dir",
     "dist:win": "electron-builder --win nsis --x64 --publish never",
     "release:win": "electron-builder --win nsis --x64 --publish always",
