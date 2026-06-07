@@ -91,6 +91,10 @@ const els = {
   knowledgeStatus: document.getElementById("knowledge-status"),
   installOllama: document.getElementById("install-ollama"),
   ollamaRowStatus: document.getElementById("ollama-row-status"),
+  toggleModelUpdates: document.getElementById("toggle-model-updates"),
+  modelUpdatesCheck: document.getElementById("model-updates-check"),
+  modelUpdatesSummary: document.getElementById("model-updates-summary"),
+  modelUpdatesList: document.getElementById("model-updates-list"),
   ragStats: document.getElementById("rag-stats"),
   ragClear: document.getElementById("rag-clear"),
   ragTitle: document.getElementById("rag-title"),
@@ -1391,6 +1395,104 @@ async function refreshModelsPage() {
 const modelsRefreshBtn = document.getElementById("models-refresh");
 if (modelsRefreshBtn) modelsRefreshBtn.addEventListener("click", () => refreshModelsPage());
 
+function formatModelUpdateTime(value) {
+  if (!value) return "Henüz kontrol edilmedi";
+  try {
+    return new Intl.DateTimeFormat("tr-TR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(new Date(value));
+  } catch (_e) {
+    return "Kontrol edildi";
+  }
+}
+
+function renderModelUpdates(data) {
+  if (!els.modelUpdatesSummary || !els.modelUpdatesList) return;
+  const status = data || {};
+  const models = Array.isArray(status.models) ? status.models : [];
+  const updates = models.filter((model) => model.updateAvailable);
+  if (status.checking) {
+    els.modelUpdatesSummary.textContent = "Resmi Ollama manifestleri kontrol ediliyor…";
+  } else if (status.error) {
+    els.modelUpdatesSummary.textContent = `Kontrol tamamlanamadı: ${status.error}`;
+  } else if (!status.lastCheck) {
+    els.modelUpdatesSummary.textContent = "Henüz kontrol edilmedi.";
+  } else if (updates.length) {
+    els.modelUpdatesSummary.textContent = `${updates.length} model güncellemesi hazır · Son kontrol: ${formatModelUpdateTime(status.lastCheck)}`;
+  } else {
+    els.modelUpdatesSummary.textContent = `Kurulu modeller güncel · Son kontrol: ${formatModelUpdateTime(status.lastCheck)}`;
+  }
+
+  els.modelUpdatesList.innerHTML = "";
+  if (!models.length && status.lastCheck) {
+    els.modelUpdatesList.innerHTML = '<p class="log-empty">Kurulu Ollama modeli bulunamadı.</p>';
+    return;
+  }
+  for (const model of models) {
+    const row = document.createElement("div");
+    row.className = `settings-row model-update-row${model.updateAvailable ? " update-ready" : ""}`;
+    const detail = model.checked
+      ? model.updateAvailable ? "Yeni resmi manifest bulundu" : "Güncel"
+      : "Resmi manifest doğrulanamadı";
+    row.innerHTML = `<div><strong>${escapeHtml(model.name)}</strong><p class="update-state">${detail}</p></div>`;
+    if (model.updateAvailable) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = "Güncelle";
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        if (els.setupTitle) els.setupTitle.textContent = `${model.name} güncelleniyor`;
+        if (els.setupStatus) els.setupStatus.textContent = "Resmi model paketi indiriliyor…";
+        if (els.setupBar) {
+          els.setupBar.style.width = "0%";
+          els.setupBar.classList.add("indeterminate");
+        }
+        if (els.setupDialog && !els.setupDialog.open) els.setupDialog.showModal();
+        try {
+          const result = await window.codega.applyModelUpdate(model.name);
+          renderModelUpdates(result && result.updates);
+          setTransientStatus(`${model.name} güncellendi.`);
+          if (els.setupStatus) els.setupStatus.textContent = "Model güncellendi.";
+          if (els.setupBar) {
+            els.setupBar.classList.remove("indeterminate");
+            els.setupBar.style.width = "100%";
+          }
+        } catch (error) {
+          setTransientStatus(`Güncelleme başarısız: ${error.message || error}`);
+          if (els.setupStatus) els.setupStatus.textContent = `Hata: ${error.message || error}`;
+        } finally {
+          button.disabled = false;
+        }
+      });
+      row.appendChild(button);
+    }
+    els.modelUpdatesList.appendChild(row);
+  }
+}
+
+async function refreshModelUpdates(force = false) {
+  if (!els.modelUpdatesSummary) return;
+  try {
+    if (force) {
+      if (els.modelUpdatesCheck) els.modelUpdatesCheck.disabled = true;
+      renderModelUpdates({ checking: true, models: [] });
+    }
+    const status = force
+      ? await window.codega.checkModelUpdates()
+      : await window.codega.modelUpdatesStatus();
+    renderModelUpdates(status);
+  } catch (error) {
+    renderModelUpdates({ error: error.message || String(error), models: [] });
+  } finally {
+    if (els.modelUpdatesCheck) els.modelUpdatesCheck.disabled = false;
+  }
+}
+
+if (els.modelUpdatesCheck) {
+  els.modelUpdatesCheck.addEventListener("click", () => refreshModelUpdates(true));
+}
+
 const FIT_BADGE = {
   gpu: { txt: "✅ GPU — hızlı", cls: "fit-gpu" },
   "gpu-tight": { txt: "⚠️ GPU — sıkışık", cls: "fit-tight" },
@@ -1656,6 +1758,7 @@ els.settingsButton.addEventListener("click", async () => {
   els.settings.showModal();
   setActiveCat("overview");
   await refreshModels();
+  await refreshModelUpdates();
   await refreshAgentSettings();
   updateOverview();
   refreshImproveDrafts();
@@ -1758,8 +1861,10 @@ function setActiveCat(cat) {
   settingsCats.classList.remove("searching");
   settingsCats.querySelectorAll(".hidden-row").forEach((r) => r.classList.remove("hidden-row"));
   settingsCats.querySelectorAll(".settings-group[data-cat]").forEach((g) => {
+    const active = g.dataset.cat === cat;
     g.style.display = "";
-    g.classList.toggle("active", g.dataset.cat === cat);
+    g.classList.toggle("active", active);
+    g.open = active;
   });
   if (settingsNav) {
     settingsNav.querySelectorAll(".nav-btn").forEach((b) => {
@@ -1767,6 +1872,27 @@ function setActiveCat(cat) {
     });
   }
 }
+
+document.querySelectorAll("[data-settings-target]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const cat = button.dataset.settingsTarget;
+    if (!cat) return;
+    setActiveCat(cat);
+    const provider = button.dataset.providerTarget;
+    if (provider && els.providerSelect) {
+      els.providerSelect.value = provider;
+      updateProviderVisibility();
+    }
+    const targetId = button.dataset.focusTarget;
+    window.requestAnimationFrame(() => {
+      const target = targetId
+        ? document.getElementById(targetId)
+        : provider ? els.providerSelect : settingsCats.querySelector(`.settings-group[data-cat="${cat}"]`);
+      target?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+      target?.focus?.({ preventScroll: true });
+    });
+  });
+});
 
 function runSettingsSearch(q) {
   if (!settingsCats) return;
@@ -2297,6 +2423,7 @@ async function refreshAgentSettings() {
     if (els.toggleSemantic) applyToggleLabel(els.toggleSemantic, !!agentSettings.semanticSearch);
     if (els.toggleDistill) applyToggleLabel(els.toggleDistill, !!agentSettings.distillLearning);
     if (els.toggleMcpAuto) applyToggleLabel(els.toggleMcpAuto, !!agentSettings.mcpAutoTools);
+    if (els.toggleModelUpdates) applyToggleLabel(els.toggleModelUpdates, agentSettings.autoModelUpdates !== false);
     if (els.learnTopics) els.learnTopics.value = agentSettings.learningTopics || "";
     const learnSources = document.getElementById("learn-sources");
     if (learnSources) learnSources.value = agentSettings.learningSources || "";
@@ -2463,6 +2590,7 @@ els.toggleMultiAgent.addEventListener("click", () => toggleSetting("multiAgent",
 if (els.toggleMaintenance) els.toggleMaintenance.addEventListener("click", () => toggleSetting("selfMaintenance", els.toggleMaintenance));
 if (els.toggleAutoPropose) els.toggleAutoPropose.addEventListener("click", () => toggleSetting("autoProposePR", els.toggleAutoPropose));
 if (els.toggleStreaming) els.toggleStreaming.addEventListener("click", () => toggleSetting("streaming", els.toggleStreaming));
+if (els.toggleModelUpdates) els.toggleModelUpdates.addEventListener("click", () => toggleSetting("autoModelUpdates", els.toggleModelUpdates));
 if (els.expertSelect) els.expertSelect.addEventListener("change", async () => { agentSettings = await window.codega.setSettings({ expertMode: els.expertSelect.value }); setTransientStatus("Uzman modu: " + els.expertSelect.value); });
 els.toggleFederation.addEventListener("click", () => toggleSetting("federation", els.toggleFederation));
 els.clearMemory.addEventListener("click", async () => {
@@ -2610,6 +2738,9 @@ window.codega.onModelStatus((status) => {
   scheduleModelStatus(status);
   updateSetupFromStatus(status);
 });
+if (window.codega.onModelUpdateStatus) {
+  window.codega.onModelUpdateStatus((status) => renderModelUpdates(status));
+}
 window.codega.onUpdateStatus((payload) => {
   const state = payload?.state || "unknown";
   const detail = payload?.detail || {};

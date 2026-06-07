@@ -50,6 +50,8 @@ const DEFAULTS = {
   learningSyncRepo: "", // owner/repo — öğrenilenleri buraya yedekle (boşsa yalnız yerel)
   semanticSearch: false, // öğrenilen bilgide anlamsal (embedding) arama; nomic-embed-text gerekir
   embedModel: "nomic-embed-text",
+  autoModelUpdates: true, // kurulu resmi Ollama modellerini boşta ve günlük kontrol et
+  modelUpdateCheckHours: 24,
   theme: "oled", // görünüm teması (oled/slate/midnight/warm)
   accent: "#f59e0b", // vurgu rengi (prototip amber)
   fontScale: "orta", // sohbet yazı boyutu (kucuk/orta/buyuk)

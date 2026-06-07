@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld("codega", {
   listModels: () => ipcRenderer.invoke("models:list"),
   deleteModel: (payload) => ipcRenderer.invoke("model:delete", payload),
   setupModel: (payload) => ipcRenderer.invoke("model:setup", payload),
+  modelUpdatesStatus: () => ipcRenderer.invoke("model-updates:status"),
+  checkModelUpdates: () => ipcRenderer.invoke("model-updates:check"),
+  applyModelUpdate: (name) => ipcRenderer.invoke("model-updates:apply", name),
   getMetrics: () => ipcRenderer.invoke("metrics:get"),
   getStats: () => ipcRenderer.invoke("stats:get"),
   getLogs: () => ipcRenderer.invoke("logs:get"),
@@ -60,6 +63,9 @@ contextBridge.exposeInMainWorld("codega", {
   },
   onModelStatus: (callback) => {
     ipcRenderer.on("model:status", (_event, payload) => callback(payload));
+  },
+  onModelUpdateStatus: (callback) => {
+    ipcRenderer.on("model-updates:status", (_event, payload) => callback(payload));
   },
   onUpdateStatus: (callback) => {
     ipcRenderer.on("updates:status", (_event, payload) => callback(payload));

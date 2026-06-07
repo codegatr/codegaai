@@ -1,4 +1,5 @@
 "use strict";
+const crypto = require("node:crypto");
 /**
  * agent/ollama-client.js
  * -----------------------
@@ -145,18 +146,89 @@ async function ollamaReachable(host = OLLAMA_HOST, timeoutMs = 2000) {
  * @returns {Promise<string[]|null>} model adları, ya da servis yoksa null
  */
 async function ollamaListModels(host = OLLAMA_HOST, timeoutMs = 4000) {
+  const details = await ollamaListModelDetails(host, timeoutMs);
+  return details ? details.map((m) => m.name).filter(Boolean) : null;
+}
+
+/**
+ * Kurulu model meta verisini döndürür. `digest`, resmi Ollama registry manifesti
+ * ile karşılaştırılarak model dosyası indirilmeden güncelleme tespit edilebilir.
+ */
+async function ollamaListModelDetails(host = OLLAMA_HOST, timeoutMs = 4000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(`${host}/api/tags`, { signal: controller.signal });
     if (!res.ok) return null;
     const data = await res.json();
-    return (data.models || []).map((m) => m.name).filter(Boolean);
+    return (data.models || []).filter((m) => m && m.name);
   } catch (_e) {
     return null;
   } finally {
     clearTimeout(timer);
   }
+}
+
+function parseOfficialModelRef(name) {
+  const value = String(name || "").trim().toLowerCase();
+  if (!value || value.includes("@") || value.startsWith("http") || value.startsWith("hf.co/")) return null;
+  const colon = value.lastIndexOf(":");
+  const modelPath = colon > value.lastIndexOf("/") ? value.slice(0, colon) : value;
+  const tag = colon > value.lastIndexOf("/") ? value.slice(colon + 1) : "latest";
+  if (!/^[a-z0-9._/-]+$/.test(modelPath) || !/^[a-z0-9._-]+$/.test(tag)) return null;
+  const repository = modelPath.includes("/") ? modelPath : `library/${modelPath}`;
+  return { repository, tag };
+}
+
+/**
+ * Resmi Ollama registry manifestinin digest'ini hesaplar.
+ * Registry `Docker-Content-Digest` başlığını her zaman göndermediği için,
+ * Docker Registry v2 kuralındaki gibi manifestin ham baytlarından sha256 alınır.
+ */
+async function ollamaRemoteDigest(name, opts = {}) {
+  const parsed = parseOfficialModelRef(name);
+  if (!parsed) return null;
+  const fetchImpl = opts.fetchImpl || fetch;
+  const timeoutMs = Number(opts.timeoutMs) || 8000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const url = `https://registry.ollama.ai/v2/${parsed.repository}/manifests/${parsed.tag}`;
+    const res = await fetchImpl(url, {
+      headers: {
+        Accept: "application/vnd.docker.distribution.manifest.v2+json",
+        "User-Agent": "CODEGA-AI",
+      },
+      signal: controller.signal,
+    });
+    if (!res.ok) return null;
+    const headerDigest = res.headers && res.headers.get
+      ? res.headers.get("docker-content-digest")
+      : null;
+    if (headerDigest) return headerDigest;
+    const body = Buffer.from(await res.arrayBuffer());
+    return `sha256:${crypto.createHash("sha256").update(body).digest("hex")}`;
+  } catch (_e) {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function ollamaCheckModelUpdate(model, opts = {}) {
+  const name = typeof model === "string" ? model : model && model.name;
+  const rawLocalDigest = typeof model === "object" && model ? String(model.digest || "") : "";
+  const localDigest = rawLocalDigest && !rawLocalDigest.includes(":")
+    ? `sha256:${rawLocalDigest}`
+    : rawLocalDigest;
+  const remoteDigest = await ollamaRemoteDigest(name, opts);
+  return {
+    name: String(name || ""),
+    localDigest: localDigest || null,
+    remoteDigest,
+    updateAvailable: !!(localDigest && remoteDigest && localDigest !== remoteDigest),
+    checked: !!remoteDigest,
+  };
 }
 
 async function ollamaDeleteModel(name, host = OLLAMA_HOST, timeoutMs = 8000) {
@@ -177,4 +249,14 @@ async function ollamaDeleteModel(name, host = OLLAMA_HOST, timeoutMs = 8000) {
   }
 }
 
-module.exports = { ollamaChat, ollamaChatStream, ollamaReachable, ollamaListModels, ollamaDeleteModel, OLLAMA_HOST };
+module.exports = {
+  ollamaChat,
+  ollamaChatStream,
+  ollamaReachable,
+  ollamaListModels,
+  ollamaListModelDetails,
+  ollamaRemoteDigest,
+  ollamaCheckModelUpdate,
+  ollamaDeleteModel,
+  OLLAMA_HOST,
+};
