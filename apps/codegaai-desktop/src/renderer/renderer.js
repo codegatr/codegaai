@@ -1083,10 +1083,12 @@ async function regenerateLast() {
   const streamView = createStreamView(placeholder);
   let rafPending = false;
   const offStream = window.codega.onChatStream((token) => {
-    if (_kickWatchdog) _kickWatchdog();
     const kind = streamView.apply(token);
     if (kind === "ignored") return;
-    if (kind === "answer") clearTimeout(slowNotice);
+    if (kind === "answer") {
+      if (_kickWatchdog) _kickWatchdog();
+      clearTimeout(slowNotice);
+    }
     if (!rafPending) {
       rafPending = true;
       requestAnimationFrame(() => { rafPending = false; renderConversation(); scrollConversationToBottom(); });
@@ -1147,10 +1149,12 @@ async function handleSubmit() {
   const streamView = createStreamView(placeholder);
   let rafPending = false;
   const offStream = window.codega.onChatStream((token) => {
-    if (_kickWatchdog) _kickWatchdog();
     const kind = streamView.apply(token);
     if (kind === "ignored") return;
-    if (kind === "answer") clearTimeout(slowNotice);
+    if (kind === "answer") {
+      if (_kickWatchdog) _kickWatchdog();
+      clearTimeout(slowNotice);
+    }
     if (!rafPending) {
       rafPending = true;
       requestAnimationFrame(() => {
@@ -1224,29 +1228,40 @@ if (els.scrollBottomBtn) els.scrollBottomBtn.addEventListener("click", () => {
 });
 if (els.historySearch) els.historySearch.addEventListener("input", () => { historyQuery = els.historySearch.value; renderHistory(); });
 let _metricsTimer = null;
-let _kickWatchdog = null; // akışta her token geldiğinde watchdog'u sıfırlar
+let _kickWatchdog = null; // akışta her gerçek token geldiğinde idle watchdog'u sıfırlar
 
-// Watchdog artık SABİT toplam süre değil, BOŞTA-KALMA sayacıdır: model token ürettikçe
-// (akış) sıfırlanır; yalnızca gerçekten takılırsa (idleMs boyunca hiç ilerleme yoksa)
-// güvenli şekilde durdurur. Böylece uzun (çok-soruluk) cevaplar yarıda kesilmez.
-function sendMessageWithWatchdog(text, options = {}, idleMs = 90000) {
+// İki katmanlı koruma: gerçek cevap tokenları idle sayacını sıfırlar; görünmez
+// heartbeat/progress satırları sıfırlamaz. hardMs ise her durumda kesin üst sınırdır.
+function sendMessageWithWatchdog(text, options = {}, idleMs = 90000, hardMs = 150000) {
   let timer = null;
+  let hardTimer = null;
   let rejectFn = null;
+  let settled = false;
+  const stopAndReject = async (message) => {
+    if (settled) return;
+    settled = true;
+    try { await window.codega.abortChat(); } catch (_e) {}
+    if (rejectFn) rejectFn(new Error(message));
+  };
   const arm = () => {
     if (timer) window.clearTimeout(timer);
-    timer = window.setTimeout(async () => {
-      try { await window.codega.abortChat(); } catch (_e) {}
-      if (rejectFn) rejectFn(new Error("Model uzun süre ilerleme bildirmedi (takılmış olabilir); işlem güvenli şekilde durduruldu. Tekrar deneyebilirsin."));
-    }, idleMs);
+    timer = window.setTimeout(() => stopAndReject(
+      "Model uzun süre gerçek bir yanıt üretmedi; işlem durduruldu. Daha hafif bir model seçip tekrar deneyebilirsin."
+    ), idleMs);
   };
   const timeout = new Promise((_, reject) => { rejectFn = reject; });
   arm();
+  hardTimer = window.setTimeout(() => stopAndReject(
+    `Yanıt ${Math.round(hardMs / 1000)} saniyelik üst süreyi aştı ve durduruldu. Modeli veya ağı kontrol edip tekrar deneyebilirsin.`
+  ), hardMs);
   _kickWatchdog = arm;
   return Promise.race([
     window.codega.sendMessage(text, options),
     timeout,
   ]).finally(() => {
+    settled = true;
     if (timer) window.clearTimeout(timer);
+    if (hardTimer) window.clearTimeout(hardTimer);
     if (_kickWatchdog === arm) _kickWatchdog = null;
   });
 }
