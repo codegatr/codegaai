@@ -55,6 +55,13 @@ const { SPECIALISTS, routeStep, buildSpecialistPrompt } = require("./agent/agent
 const improveDrafts = require("./agent/improve-drafts");
 const experts = require("./agent/experts");
 
+function extractWeatherCity(input) {
+  const match = String(input || "").trim().match(
+    /(?:bug[uü]n\s+)?([\p{L}.-]+)(?:['’](?:da|de|ta|te))?\s+(?:hava\s+durumu|hava\s+nas[ıi]l|ka[çc]\s+derece)/iu
+  );
+  return match ? match[1].trim() : "";
+}
+
 function taskLocalFinalAnswer(answer) {
   const text = String(answer || "").trim();
   const final = finalAnswerSanitizer.finalAnswerText(text);
@@ -1037,6 +1044,15 @@ class ModelManager {
       };
     }
 
+    const weatherCity = !isMultiTaskInput && extractWeatherCity(input);
+    if (weatherCity) {
+      return {
+        provider: "tool",
+        model: "codega-weather",
+        text: await AGENT_TOOLS.weather.fn(weatherCity),
+      };
+    }
+
     const settings = getSettings();
     const cloudConfig = configFromSettings(settings);
     const requestedCloud = cloudProfile(settings.provider);
@@ -1894,6 +1910,7 @@ module.exports = {
   missingModelReply,
   parsePullProgress,
   isSmallTalk,
+  extractWeatherCity,
   _verifyTaskLocalAnswer: verifyTaskLocalAnswer,
   _finalizeTaskLocalAnswer: finalizeTaskLocalAnswer,
   _deterministicTaskAnswer: deterministicTaskAnswer,
