@@ -11,6 +11,7 @@ const required = [
   "src/main/update-service.js",
   "src/main/agent/ollama-client.js",
   "src/main/agent/model-update-service.js",
+  "src/main/agent/model-storage.js",
   "src/main/agent/autonomous-dev.js",
   "src/main/agent/agent-watch.js",
   "src/main/agent/cloud-provider.js",
@@ -46,6 +47,16 @@ for (const entry of skillFolders) {
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 if (!pkg.build?.nsis || !pkg.dependencies?.["electron-updater"]) {
   throw new Error("Installer/updater configuration is missing");
+}
+
+const settingsHtml = readFileSync(join(root, "src/renderer/index.html"), "utf8");
+const rendererJs = readFileSync(join(root, "src/renderer/renderer.js"), "utf8");
+const preloadJs = readFileSync(join(root, "src/main/preload.js"), "utf8");
+for (const marker of ["model-storage-path", "model-storage-status", "move-model-storage"]) {
+  if (!settingsHtml.includes(marker)) throw new Error(`Model storage UI is missing: ${marker}`);
+}
+if (!rendererJs.includes("moveModelStorage") || !preloadJs.includes("model-storage:move")) {
+  throw new Error("Model storage IPC wiring is incomplete");
 }
 
 console.log("CODEGA AI desktop scaffold OK");

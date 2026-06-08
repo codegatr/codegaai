@@ -6,15 +6,50 @@ import fs from "node:fs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const modelModule = await import(pathToFileURL(path.join(root, "src", "main", "model-manager.js")).href);
-const { ModelManager, extractWeatherCity, isSmallTalk } = modelModule.default || modelModule;
+const {
+  ModelManager,
+  extractWeatherCity,
+  isSmallTalk,
+  shouldRunHardValidation,
+} = modelModule.default || modelModule;
 
 assert.equal(isSmallTalk("Ne olacak seninle bu halimiz?"), true);
 assert.equal(isSmallTalk("Sorunun cevabına devam edebilir misin sence?"), true);
 assert.equal(isSmallTalk("Burada mısın?"), true);
 assert.equal(isSmallTalk("GitHub reposunu incele ve hataları düzelt"), false);
+assert.equal(isSmallTalk("Biraz duzelmissin sanki."), true);
+assert.equal(isSmallTalk("Bu kez daha iyi olmus."), true);
+assert.equal(isSmallTalk("Biraz d\u00fczelmi\u015fsin sanki."), true);
 assert.equal(isSmallTalk("PHP ile REST API kodu yaz"), false);
+assert.equal(shouldRunHardValidation({
+  fastConversation: true,
+  taskDecomposition: { applicable: false },
+}), false);
+assert.equal(shouldRunHardValidation({
+  fastConversation: false,
+  taskDecomposition: { applicable: false },
+}), false);
+assert.equal(shouldRunHardValidation({
+  fastConversation: false,
+  inputNeedsVerification: true,
+  taskDecomposition: { applicable: false },
+}), true);
 assert.equal(extractWeatherCity("Bugün Konya'da hava durumu nasıl?"), "Konya");
 assert.equal(extractWeatherCity("Ankara hava nasıl?"), "Ankara");
+
+const casualManager = new ModelManager();
+casualManager.state = {
+  provider: "ollama",
+  status: "ready",
+  model: "qwen3:4b",
+  task: "chat",
+  message: "Hazır",
+};
+casualManager.installedModels = async () => ["qwen3:4b"];
+casualManager.generate = async () => "Evet, biraz toparlandım. Teşekkür ederim.";
+const casualAnswer = await casualManager.ask("Biraz düzelmişsin sanki.");
+assert.equal(casualAnswer.text, "Evet, biraz toparlandım. Teşekkür ederim.");
+assert.doesNotMatch(casualAnswer.text, /Final Answer|doğrulama kapısı/i);
 
 const rendererSource = fs.readFileSync(path.join(root, "src", "renderer", "renderer.js"), "utf8");
 const helperStart = rendererSource.indexOf("function foldAssistantOutput");
