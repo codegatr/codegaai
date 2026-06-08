@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("codega", {
   getStatus: () => ipcRenderer.invoke("app:status"),
   getModels: () => ipcRenderer.invoke("models:list"),
+  moveModelStorage: () => ipcRenderer.invoke("model-storage:move"),
   sendMessage: (message, opts) => ipcRenderer.invoke("chat:send", message, opts),
   shareChat: (chat) => ipcRenderer.invoke("chat:share", chat),
   prepareModel: (modelId) => ipcRenderer.invoke("model:prepare", modelId),
@@ -70,6 +71,11 @@ contextBridge.exposeInMainWorld("codega", {
   },
   onModelUpdateStatus: (callback) => {
     ipcRenderer.on("model-updates:status", (_event, payload) => callback(payload));
+  },
+  onModelStorageStatus: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on("model-storage:status", handler);
+    return () => ipcRenderer.removeListener("model-storage:status", handler);
   },
   onUpdateStatus: (callback) => {
     ipcRenderer.on("updates:status", (_event, payload) => callback(payload));

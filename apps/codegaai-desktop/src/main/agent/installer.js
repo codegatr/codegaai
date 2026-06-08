@@ -76,6 +76,73 @@ function run(cmd, args, { onData, timeoutMs = 0, detached = false } = {}) {
   });
 }
 
+function ollamaCommandCandidates() {
+  const candidates = [process.platform === "win32" ? "ollama.exe" : "ollama"];
+  if (process.platform === "win32") {
+    const local = process.env.LOCALAPPDATA || "";
+    const programFiles = process.env.ProgramFiles || "";
+    if (local) candidates.unshift(
+      path.join(local, "Programs", "Ollama", "ollama.exe"),
+      path.join(local, "Ollama", "ollama.exe")
+    );
+    if (programFiles) candidates.unshift(path.join(programFiles, "Ollama", "ollama.exe"));
+  } else if (process.platform === "darwin") {
+    candidates.unshift("/Applications/Ollama.app/Contents/Resources/ollama", "/opt/homebrew/bin/ollama", "/usr/local/bin/ollama");
+  } else {
+    candidates.unshift("/usr/local/bin/ollama", "/usr/bin/ollama");
+  }
+  return [...new Set(candidates)];
+}
+
+function findOllamaCommand() {
+  return ollamaCommandCandidates().find((candidate) => (
+    candidate === "ollama" ||
+    candidate === "ollama.exe" ||
+    fs.existsSync(candidate)
+  )) || (process.platform === "win32" ? "ollama.exe" : "ollama");
+}
+
+async function persistOllamaModelsPath(modelsPath) {
+  const raw = String(modelsPath || "").trim();
+  if (!raw) throw new Error("Model dizini boş olamaz.");
+  const value = path.resolve(raw);
+  process.env.OLLAMA_MODELS = value;
+  if (process.platform === "win32") {
+    const escaped = value.replace(/'/g, "''");
+    const result = await run("powershell.exe", [
+      "-NoProfile",
+      "-Command",
+      `[Environment]::SetEnvironmentVariable('OLLAMA_MODELS','${escaped}','User')`,
+    ], { timeoutMs: 15000 });
+    if (!result.ok) throw new Error("Windows kullanıcı model dizini ayarı kaydedilemedi.");
+  }
+  return value;
+}
+
+async function stopOllama() {
+  if (process.platform === "win32") {
+    await run("taskkill.exe", ["/F", "/IM", "ollama.exe"], { timeoutMs: 12000 });
+  } else {
+    await run("pkill", ["-f", "ollama serve"], { timeoutMs: 12000 });
+  }
+  await new Promise((resolve) => setTimeout(resolve, 900));
+  return { ok: true };
+}
+
+async function restartOllama(modelsPath) {
+  const env = { ...process.env, OLLAMA_MODELS: path.resolve(modelsPath) };
+  await stopOllama();
+  const command = findOllamaCommand();
+  const child = spawn(command, ["serve"], {
+    detached: true,
+    windowsHide: true,
+    stdio: "ignore",
+    env,
+  });
+  child.unref();
+  return { ok: true, command };
+}
+
 /** Ollama kurulu mu? (`ollama --version`) */
 async function detectOllama() {
   const r = await run(process.platform === "win32" ? "ollama.exe" : "ollama", ["--version"], { timeoutMs: 6000 });
@@ -143,4 +210,15 @@ async function installOllama(onData) {
   return { ok: false, message: "Linux kurulumu başarısız: " + (r.err || r.out).slice(0, 200) };
 }
 
-module.exports = { detectOllama, installOllama, headSize, ollamaInstallerUrl, modelSizeGb, hasCommand };
+module.exports = {
+  detectOllama,
+  findOllamaCommand,
+  hasCommand,
+  headSize,
+  installOllama,
+  modelSizeGb,
+  ollamaInstallerUrl,
+  persistOllamaModelsPath,
+  restartOllama,
+  stopOllama,
+};

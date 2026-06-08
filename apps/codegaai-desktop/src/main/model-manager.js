@@ -324,7 +324,7 @@ function _normTr(s) {
     .replace(/ü/g, "u").replace(/ö/g, "o").replace(/ç/g, "c");
 }
 const SMALLTALK_RE = /^(selam|merhaba|merhabalar|gunaydin|iyi gunler|iyi geceler|iyi aksamlar|naber|nasilsin|tesekkur|tesekkurler|sagol|sag ol|eyvallah|gorusuruz|hosca kal|hello|hi|hey|thanks|tesekkur ederim)\b/;
-const CONVERSATIONAL_RE = /\b(sence|seninle|senin halin|ne olacak|devam edebilir misin|cevabina devam|beni anladin mi|burada misin|iyi misin|nasil gidiyor|neden cevap veremiyorsun|neden takildin|bu halimiz)\b/;
+const CONVERSATIONAL_RE = /\b(sence|seninle|senin halin|ne olacak|devam edebilir misin|cevabina devam|beni anladin mi|burada misin|iyi misin|nasil gidiyor|neden cevap veremiyorsun|neden takildin|bu halimiz|duzelmissin|gelismissin|daha iyi olmussun|biraz daha iyi|fena degil|guzel olmus|iyi olmus|harika olmus|bu kez olmus|seni ozledim)\b/;
 const HEAVY_REQUEST_RE = /\b(arastir|incele|analiz et|kod yaz|duzelt|olustur|planla|karsilastir|hesapla|terminal|github|dosya|veritabani|deploy|test et)\b/;
 function isSmallTalk(input) {
   const t = String(input || "").trim();
@@ -334,6 +334,20 @@ function isSmallTalk(input) {
   if (t.length <= 40 && words.length <= 6 && SMALLTALK_RE.test(normalized)) return true;
   if (t.length > 160 || words.length > 24 || HEAVY_REQUEST_RE.test(normalized)) return false;
   return CONVERSATIONAL_RE.test(normalized);
+}
+function shouldRunHardValidation({
+  fastConversation = false,
+  inputNeedsVerification = false,
+  inputNeedsMLVC = false,
+  inputNeedsCognitivePipeline = false,
+  taskDecomposition = null,
+} = {}) {
+  return !fastConversation && Boolean(
+    inputNeedsVerification ||
+    inputNeedsMLVC ||
+    inputNeedsCognitivePipeline ||
+    taskDecomposition?.applicable
+  );
 }
 function smallTalkPrompt(humanTone) {
   return (
@@ -977,6 +991,13 @@ class ModelManager {
     const cognitiveIntake = cognitiveKernel.runIntake(cognitiveContextState);
     const taskDecomposition = cognitiveIntake.taskReport;
     const inputNeedsCognitivePipeline = !fastConversation && deepReasoning && shouldRunCognitivePipeline(input) && !inputNeedsMLVC;
+    const requiresHardValidation = shouldRunHardValidation({
+      fastConversation,
+      inputNeedsVerification,
+      inputNeedsMLVC,
+      inputNeedsCognitivePipeline,
+      taskDecomposition,
+    });
     // Akış yalnızca (opt-in) bilişsel hat çalışırken kapanır. Aksi halde cevap token token
     // akar — kullanıcı "düşünüyorum"da DONMAZ. Doğrulama/sonuç turları akışı engellemez.
     const onToken = inputNeedsCognitivePipeline ? null : (opts.onToken || null);
@@ -1458,7 +1479,7 @@ class ModelManager {
 
     // Öz değerlendirme (opt-in): cevabı denetle, gerekiyorsa düzelt
     let finalText = text;
-    const finalProgress = agent.stoppedReason !== "smalltalk" && agent.stoppedReason !== "multi_task"
+    const finalProgress = requiresHardValidation && agent.stoppedReason !== "smalltalk" && agent.stoppedReason !== "multi_task"
       ? makeVerificationProgress(keepAlive, "final_answer")
       : null;
     const applyCorrection = (candidate, source) => {
@@ -1572,7 +1593,7 @@ class ModelManager {
       }
     }
 
-    if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
+    if (requiresHardValidation && agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         finalProgress?.emit?.("verifying", { reason: "benchmark-repair" });
         const repaired = repairBenchmarkAnswer(input, finalText);
@@ -1584,7 +1605,7 @@ class ModelManager {
 
     // HRIL (Human Reasoning & Interpretation Layer): matematiksel olarak doğru sonucu
     // insanın hemen anlayacağı karşılığa çevirir (örn. 7/15 -> %46,67; 0.5 saat -> 30 dk).
-    if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
+    if (requiresHardValidation && agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         finalProgress?.emit?.("finalizing", { reason: "hril" });
         const interpreted = hril.interpret(input, finalText, { mlvc: mlvcMetadata });
@@ -1596,7 +1617,7 @@ class ModelManager {
 
     // REE (Reasoning -> Explanation Engine): doğrulanmış/yorumlanmış sonucu kısa,
     // anlaşılır açıklama yapısına çevirir; sonucu değiştirmez.
-    if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
+    if (requiresHardValidation && agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         finalProgress?.emit?.("finalizing", { reason: "ree" });
         const explained = ree.explain(input, finalText);
@@ -1638,7 +1659,7 @@ class ModelManager {
     // Final Answer hard gate:
     // 1) soru metni Final Answer içine giremez
     // 2) her tespit edilen görev Final Answer içinde tam bir kez cevaplanmalı
-    if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
+    if (requiresHardValidation && agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         finalProgress?.emit?.("verifying", { reason: "final-answer-sanitizer" });
         let finalCheck = finalAnswerSanitizer.validateFinalAnswer(finalText, input, taskDecomposition);
@@ -1682,12 +1703,12 @@ class ModelManager {
       }
     }
 
-    // Cognitive Kernel final authority: every non-smalltalk answer exits through the
-    // same staged orchestration pipeline. If a blocking gate still fails after repair,
-    // the unsafe draft is not delivered to the user.
+    // The hard verification kernel is reserved for tasks that actually need structured
+    // verification. Ordinary conversation and low-risk factual replies must not be
+    // rejected merely because they do not contain an internal "Final Answer:" section.
     const preGateText = finalText;
     let hardGateBlocked = false;
-    if (agent.stoppedReason !== "smalltalk") {
+    if (requiresHardValidation && agent.stoppedReason !== "smalltalk") {
       try {
         finalProgress?.emit?.("verifying", { reason: "hard-gate" });
         const post = await cognitiveKernel.runPostValidation(cognitiveContextState, finalText, {
@@ -1910,6 +1931,7 @@ module.exports = {
   missingModelReply,
   parsePullProgress,
   isSmallTalk,
+  shouldRunHardValidation,
   extractWeatherCity,
   _verifyTaskLocalAnswer: verifyTaskLocalAnswer,
   _finalizeTaskLocalAnswer: finalizeTaskLocalAnswer,

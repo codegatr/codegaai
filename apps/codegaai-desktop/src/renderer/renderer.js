@@ -33,6 +33,9 @@ const els = {
   settingsButton: document.getElementById("settings-button"),
   prepareModel: document.getElementById("prepare-model"),
   modelDetail: document.getElementById("model-detail"),
+  modelStoragePath: document.getElementById("model-storage-path"),
+  modelStorageStatus: document.getElementById("model-storage-status"),
+  moveModelStorage: document.getElementById("move-model-storage"),
   modelList: document.getElementById("model-list"),
   modelDownload: document.getElementById("model-download"),
   modelDownloadTitle: document.getElementById("model-download-title"),
@@ -902,10 +905,9 @@ async function refreshModels() {
 async function refreshStatus() {
   const status = await window.codega.getStatus();
   els.version.textContent = `v${status.version}`;
-  const modelStorage = document.getElementById("model-storage-path");
-  if (modelStorage) {
-    modelStorage.textContent = status.paths?.models || "Ollama varsayılan model dizini";
-    modelStorage.title = modelStorage.textContent;
+  if (els.modelStoragePath) {
+    els.modelStoragePath.textContent = status.paths?.models || "Ollama varsayılan model dizini";
+    els.modelStoragePath.title = els.modelStoragePath.textContent;
   }
   setModelStatus(status.model);
   await refreshModels();
@@ -2898,6 +2900,38 @@ els.installOllama.addEventListener("click", async () => {
   } finally {
     els.installOllama.disabled = false;
   }
+});
+
+if (els.moveModelStorage) {
+  els.moveModelStorage.addEventListener("click", async () => {
+    els.moveModelStorage.disabled = true;
+    if (els.modelStorageStatus) els.modelStorageStatus.textContent = "Hedef klasör seçimi bekleniyor…";
+    try {
+      const result = await window.codega.moveModelStorage();
+      if (result?.canceled) {
+        if (els.modelStorageStatus) els.modelStorageStatus.textContent = "Taşıma iptal edildi.";
+        return;
+      }
+      if (result?.ok) {
+        if (els.modelStorageStatus) els.modelStorageStatus.textContent = "Modeller yeni dizinde hazır.";
+        await refreshStatus();
+      }
+    } catch (error) {
+      if (els.modelStorageStatus) {
+        els.modelStorageStatus.textContent = `Taşıma başarısız: ${error.message || error}`;
+      }
+    } finally {
+      els.moveModelStorage.disabled = false;
+    }
+  });
+}
+
+window.codega.onModelStorageStatus?.((status) => {
+  if (els.modelStorageStatus && status?.message) els.modelStorageStatus.textContent = status.message;
+  if (els.moveModelStorage) {
+    els.moveModelStorage.disabled = !["complete", "error"].includes(status?.phase);
+  }
+  if (status?.phase === "complete") refreshStatus().catch(() => {});
 });
 
 els.knowledgeUp.addEventListener("click", async () => {
