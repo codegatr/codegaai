@@ -1886,6 +1886,7 @@ async function refreshAgentWatch() {
     const data = await window.codega.agentWatchStatus();
     const last = data.lastScanAt ? new Date(data.lastScanAt).toLocaleString("tr-TR") : "henüz taranmadı";
     summary.textContent = `${data.healthySources || 0}/${data.sourceCount || 0} kaynak erişilebilir · Son tarama: ${last}`
+      + ` · Resmî ${data.officialSources || 0} · Araştırma ${data.researchSources || 0} · Engelli ${data.blockedSources || 0}`
       + ((data.errors || []).length ? ` · ${(data.errors || []).length} hata` : "");
     findings.innerHTML = "";
     const rows = (data.findings || []).slice(0, 8);
@@ -1896,8 +1897,9 @@ async function refreshAgentWatch() {
     for (const item of rows) {
       const row = document.createElement("div");
       row.className = "settings-row agent-watch-row";
-      const policy = item.policy && item.policy.mode === "reviewable-reuse" ? "Lisans incelemesiyle kullanılabilir" : "Yalnız araştırma";
-      row.innerHTML = `<div><strong>${safeText(item.title)}</strong><p>${safeText(item.detail)}<br><span class="log-time">${safeText(item.repo)} · ${safeText(policy)}</span></p></div>`;
+      const policy = item.policy || {};
+      const policyLabel = policy.label || (policy.mode === "reviewable-reuse" ? "Lisans incelemesiyle kullanılabilir" : "Yalnız araştırma");
+      row.innerHTML = `<div><strong>${safeText(item.title)}</strong><p>${safeText(item.detail)}<br><span class="log-time">${safeText(item.repo)} · ${safeText(policyLabel)}</span>${policy.reason ? `<br><span class="log-time">${safeText(policy.reason)}</span>` : ""}</p></div>`;
       if (item.url) {
         const open = document.createElement("button");
         open.type = "button";
