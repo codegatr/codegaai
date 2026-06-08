@@ -936,7 +936,13 @@ class ModelManager {
   }
 
   ask(input, opts = {}) {
-    const run = () => this._ask(input, opts);
+    const run = async () => {
+      const result = await this._ask(input, opts);
+      if (!result || typeof result.text !== "string") return result;
+      const taskReport = tde.decomposeTasks(input);
+      const cleaned = finalAnswerSanitizer.cleanUserFacingOutput(result.text, input, taskReport);
+      return cleaned.changed ? { ...result, text: cleaned.answer } : result;
+    };
     const result = this._queue.then(run, run);
     this._queue = result.then(
       () => undefined,

@@ -1,5 +1,7 @@
 "use strict";
 
+const { cleanUserFacingOutput } = require("./final-answer-sanitizer");
+
 function lower(text) {
   return String(text || "").toLocaleLowerCase("tr");
 }
@@ -233,7 +235,10 @@ function solveKnownReasoningBenchmarks(question) {
 
   const uniqueLines = [...new Set(lines)];
   if (!uniqueLines.length) return "";
-  return `${uniqueLines.join("\n")}\n\nFinal Answer: ${uniqueLines.map((line) => line.replace(/^TEST\s+/, "")).join(" | ")}`;
+  return cleanUserFacingOutput(
+    `Final Answer: ${uniqueLines.join(" | ")}`,
+    question
+  ).answer;
 }
 
 function repairBenchmarkAnswer(question, answer) {

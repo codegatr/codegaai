@@ -27,6 +27,8 @@ const tdeMod = await import(pathToFileURL(path.join(mainDir, "agent", "tde.js"))
 const tde = tdeMod.default || tdeMod;
 const finalMod = await import(pathToFileURL(path.join(mainDir, "agent", "final-answer-sanitizer.js")).href);
 const finalSanitizer = finalMod.default || finalMod;
+const benchmarkMod = await import(pathToFileURL(path.join(mainDir, "agent", "benchmark-reasoner.js")).href);
+const benchmark = benchmarkMod.default || benchmarkMod;
 const factLockMod = await import(pathToFileURL(path.join(mainDir, "agent", "fact-lock.js")).href);
 const factLock = factLockMod.default || factLockMod;
 const cvlMod = await import(pathToFileURL(path.join(mainDir, "agent", "cvl.js")).href);
@@ -588,6 +590,29 @@ const duplicateFinal = finalSanitizer.validateFinalAnswer(
   taskReport
 );
 assert.equal(duplicateFinal.ok, true, "Final Answer sanitizer does not enforce exact task labels");
+
+for (const label of ["TEST:", "MLVC:", "ARL:", "SSV:", "SACV:", "İnsan Yorumu:", "Human Comment:"]) {
+  assert.equal(
+    finalSanitizer.stripInternalLabel(`${label} Temiz cevap.`),
+    "Temiz cevap.",
+    `${label} is removed from user-facing output`
+  );
+}
+
+const cleanupPrompt = [
+  "Test 1: In a race, if you overtake the first person, what place are you?",
+  "Test 2: Three cats each have two cats in front and two behind. How?",
+  "Test 3: In the 100 door toggle problem, how many doors remain open?",
+  "Test 4: In a race, if you overtake the second person, what place are you?",
+].join("\n");
+const cleanedBenchmark = benchmark.solveKnownReasoningBenchmarks(cleanupPrompt);
+assert.doesNotMatch(cleanedBenchmark, /\b(?:TEST|MLVC|ARL|SSV|SACV)\s*:/i, "internal verification labels never reach the user");
+assert.doesNotMatch(cleanedBenchmark, /\|/, "verified answers are not emitted as a pipe-joined dump");
+assert.equal(cleanedBenchmark.split(/\r?\n/).filter((line) => /kedi/i.test(line)).length, 1, "the cat task appears once without a duplicate variant");
+assert.equal((cleanedBenchmark.match(/100 kapı/gi) || []).length, 1, "the 100 doors task appears once");
+assert.equal((cleanedBenchmark.match(/^Test \d+:/gm) || []).length, 4, "one clean answer is kept for each original task");
+assert.match(cleanedBenchmark, /^Test 1: Normal yarış koşullarında/m, "first task keeps the shortest verified answer");
+assert.match(cleanedBenchmark, /^Test 4: İkinci sıradaki kişiyi geçersen/m, "fourth task remains distinct from the first task");
 
 const semanticNoLabels = sacv.validateSemanticCompleteness(
   [
