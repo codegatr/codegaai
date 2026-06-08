@@ -55,6 +55,7 @@ try {
   assert.equal(first.newCount, 1);
   assert.equal(first.findings[0].kind, "baseline");
   assert.equal(first.sources[0].policy.mode, "reviewable-reuse");
+  assert.equal(first.sourceCount, 1);
 
   const unchanged = await watch.scan({ sources, fetchImpl: fetchFor({ sha: "aaa", tag: "v1" }) });
   assert.equal(unchanged.newCount, 0);
@@ -64,6 +65,13 @@ try {
   assert.ok(changed.findings.some((item) => item.kind === "release"));
   assert.ok(changed.findings.some((item) => item.kind === "commit"));
   assert.equal(watch.licensePolicy("UNKNOWN").mode, "research-only");
+  assert.equal(watch.sourcePolicy("anthropics/claude-code", "NOASSERTION").mode, "official-reference");
+  assert.equal(watch.sourcePolicy("VILA-Lab/Dive-into-Claude-Code", "CC-BY-NC-SA-4.0").mode, "research-only");
+  assert.equal(watch.sourcePolicy("tanbiralam/claude-code", "MIT").mode, "blocked");
+  assert.equal(watch.sourcePolicy("tanbiralam/claude-code", "MIT").contentPolicy, "metadata-only");
+  assert.ok(watch.DEFAULT_SOURCES.some((source) => source.repo === "anthropics/claude-code"));
+  assert.ok(watch.DEFAULT_SOURCES.some((source) => source.repo === "VILA-Lab/Dive-into-Claude-Code"));
+  assert.ok(watch.DEFAULT_SOURCES.some((source) => source.repo === "tanbiralam/claude-code"));
 
   const cookbook = await systemInfo.analyzeCookbook(
     [{ id: "qwen3:8b", label: "Qwen3 8B", minVramGb: 7, minRamGb: 16, quality: 4 }],

@@ -49,8 +49,13 @@ assert.equal(parsed.title, "Fix");
 
 assert.throws(() => validateChangeSet({
   title: "Leak",
+  tests: ["npm test"],
   changes: [{ path: "src/app.js", content: 'const token = "ghp_abcdefghijklmnopqrstuvwxyz123456";' }],
 }, [{ path: "src/app.js", content: "old", sha: "sha-1" }]), /gizli anahtar/);
+assert.throws(() => validateChangeSet({
+  title: "Untested",
+  changes: [{ path: "src/app.js", content: "export const answer = 42;\n" }],
+}, [{ path: "src/app.js", content: "old", sha: "sha-1" }]), /doğrulama komutu|test adımı/i);
 
 const calls = [];
 let generatedMessages = [];

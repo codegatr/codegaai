@@ -211,6 +211,36 @@ async function toolWeather(city) {
   }
 }
 
+async function toolWeatherDirect(city) {
+  const c = String(city || "").trim();
+  if (!c) return "Şehir gerekli.";
+  try {
+    const geoRaw = await fetchText(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(c)}&count=1&language=tr`
+    );
+    const geo = JSON.parse(geoRaw);
+    if (!geo.results || !geo.results.length) return `'${c}' için konum bulunamadı.`;
+    const { latitude, longitude, name, admin1, country } = geo.results[0];
+    const weatherRaw = await fetchText(
+      `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&wind_speed_unit=kmh&timezone=Europe%2FIstanbul`
+    );
+    const current = JSON.parse(weatherRaw).current;
+    const conditions = {
+      0: "açık", 1: "çoğunlukla açık", 2: "parçalı bulutlu", 3: "kapalı",
+      45: "sisli", 48: "kırağılı sis", 51: "hafif çisenti", 53: "çisenti",
+      55: "yoğun çisenti", 61: "hafif yağmurlu", 63: "yağmurlu",
+      65: "kuvvetli yağmurlu", 71: "hafif kar yağışlı", 73: "kar yağışlı",
+      75: "yoğun kar yağışlı", 80: "hafif sağanak", 81: "sağanak",
+      82: "kuvvetli sağanak", 95: "gök gürültülü",
+    };
+    const location = [name, admin1, country].filter(Boolean).join(", ");
+    const condition = conditions[current.weather_code] || "hava koşulu bilinmiyor";
+    return `${location} için güncel hava ${condition}: ${current.temperature_2m} °C, hissedilen ${current.apparent_temperature} °C, rüzgar ${current.wind_speed_10m} km/sa.`;
+  } catch (error) {
+    return `Hava durumu alınamadı: ${error.message || error}`;
+  }
+}
+
 // --------------------------------------------------------------- memory tools
 function toolRemember(fact) {
   const r = remember(fact);
@@ -305,7 +335,7 @@ const TOOLS = {
   github_dispatch: { fn: toolGithubDispatch, desc: "GitHub Actions workflow tetikle (sen istersen)" },
   calculate: { fn: toolCalculate, desc: "Matematiksel hesap yap" },
   current_time: { fn: toolCurrentTime, desc: "Şu anki tarih/saat (Türkiye)" },
-  weather: { fn: toolWeather, desc: "Bir şehrin hava durumu" },
+  weather: { fn: toolWeatherDirect, desc: "Bir şehrin hava durumu" },
   remember: { fn: toolRemember, desc: "Kalıcı belleğe bilgi kaydet" },
   recall: { fn: toolRecall, desc: "Kalıcı bellekte ara" },
 };
@@ -484,5 +514,6 @@ module.exports = {
   // doğrudan test için:
   toolCalculate,
   toolCurrentTime,
+  toolWeather: toolWeatherDirect,
   parseSearchResults,
 };

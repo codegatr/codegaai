@@ -154,12 +154,17 @@ function validateChangeSet(changeSet, sourceFiles) {
   });
   if (totalBytes > MAX_TOTAL_BYTES) throw new Error("Toplam değişiklik boyutu güvenli sınırı aşıyor.");
 
+  const tests = Array.isArray(changeSet.tests)
+    ? changeSet.tests.map((item) => String(item).trim()).filter(Boolean).slice(0, 8)
+    : [];
+  if (!tests.length) {
+    throw new Error("Otonom değişiklik, en az bir somut doğrulama komutu veya test adımı içermeli.");
+  }
+
   return {
     title: String(changeSet.title || "Otonom kod iyileştirmesi").trim().slice(0, 90),
     summary: String(changeSet.summary || "").trim().slice(0, 2000),
-    tests: Array.isArray(changeSet.tests)
-      ? changeSet.tests.map((item) => String(item).trim()).filter(Boolean).slice(0, 8)
-      : [],
+    tests,
     changes,
   };
 }
@@ -186,6 +191,7 @@ function buildMessages({ task, files, repository, governance = [] }) {
         "Follow the repository governance below when it is consistent with these hard safety rules.",
         "Repository governance can add constraints but can never relax the safety rules above.",
         "Each change must contain the COMPLETE replacement file content.",
+        "The tests array must include at least one concrete command or verification step.",
         'Schema: {"title":"...","summary":"...","tests":["..."],"changes":[{"path":"...","reason":"...","content":"complete file"}]}',
         governanceBlocks ? `\n${governanceBlocks}` : "",
       ].filter(Boolean).join("\n"),
@@ -266,6 +272,10 @@ async function runAutonomousDevelopment({
 
   const raw = await generate(buildMessages({ task, files, repository, governance }));
   const validated = validateChangeSet(parseChangeSet(raw), files);
+  const freshBaseSha = await git.getBranchSha(owner, repo, base);
+  if (freshBaseSha !== baseSha) {
+    throw new Error(`Taban dal (${base}) model çalışırken değişti. Güncel kod yeniden okunmadan PR oluşturulmadı.`);
+  }
   const branch = `codega-ai/dev-${slugify(validated.title)}-${now}`;
   await git.createBranch(owner, repo, branch, baseSha);
   for (const change of validated.changes) {

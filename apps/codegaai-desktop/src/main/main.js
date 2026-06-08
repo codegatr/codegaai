@@ -178,13 +178,15 @@ async function runAgentWatch(reason = "scheduled") {
     try { logs.info("agent-watch", `GitHub ajan radari: ${result.healthySources}/${result.sourceCount} kaynak, +${result.newCount} bulgu`); } catch (_e) {}
     if (result.newCount > 0) {
       try {
-        learningStore.addNotes(result.findings.slice(0, result.newCount).map((f) => ({
+        learningStore.addNotes(result.findings.slice(0, result.newCount)
+          .filter((f) => !f.policy || f.policy.mode !== "blocked")
+          .map((f) => ({
           source: "github-agent-watch",
           topic: f.source,
           text: `${f.title}: ${f.detail} [${f.policy && f.policy.mode ? f.policy.mode : "research"}]`,
           url: f.url,
           at: f.at || Date.now(),
-        })));
+          })));
       } catch (_e) {}
     }
     return lastAgentWatch;

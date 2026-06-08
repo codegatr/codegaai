@@ -162,13 +162,59 @@ function normalizeChat(chat) {
           .filter((message) => message && (message.role === "user" || message.role === "assistant"))
           .map((message) => ({
             role: message.role,
-            text: String(message.text || ""),
+            text: message.role === "assistant"
+              ? cleanStoredAssistantOutput(message.text)
+              : String(message.text || ""),
             createdAt: Number(message.createdAt) || Date.now(),
           }))
       : [],
     context: String(chat.context || ""),
     updatedAt: Number(chat.updatedAt) || Date.now(),
   };
+}
+
+function foldAssistantOutput(text) {
+  return String(text || "")
+    .toLocaleLowerCase("tr")
+    .replace(/\u0131/g, "i")
+    .replace(/\u011f/g, "g")
+    .replace(/\u00fc/g, "u")
+    .replace(/\u015f/g, "s")
+    .replace(/\u00f6/g, "o")
+    .replace(/\u00e7/g, "c")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function cleanStoredAssistantOutput(value) {
+  const original = String(value || "").trim();
+  const internalLabel = "(?:TEST(?:\\s+[A-Z])?|MLVC|ARL|SSV|SACV|\\u0130nsan Yorumu|Human Comment)";
+  const hasInternalDump = new RegExp(`(?:^|[\\n|])\\s*${internalLabel}\\s*:`, "im").test(original);
+  if (!hasInternalDump) return original;
+  const finalMatch = original.match(/Final Answer\s*:\s*([\s\S]*)$/i);
+  const source = finalMatch ? finalMatch[1] : original;
+  const stripLabel = new RegExp(`^\\s*${internalLabel}\\s*:\\s*`, "i");
+  const candidates = source.split(/\s*\|\s*|\r?\n+/)
+    .map((part) => part.replace(stripLabel, "").trim())
+    .filter(Boolean);
+  const keyFor = (text) => {
+    const folded = foldAssistantOutput(text);
+    if (/\b(?:kedi|cat)\b/.test(folded) && /\b(?:cember|dairesel|circle)\b/.test(folded)) return "cats-circle";
+    if (/\b100\b/.test(folded) && /\b(?:kapi|door)\b/.test(folded) && /\b10\b/.test(folded)) return "doors-10";
+    if (/\b(?:ikinci|second)\b/.test(folded) && /\b(?:gec|pass|overtake)\w*/.test(folded)) return "pass-second";
+    if (/\b(?:birinci|first)\b/.test(folded) && /\b(?:gec|pass|overtake)\w*/.test(folded)) return "pass-first";
+    return folded.replace(/[^a-z0-9]+/g, " ").trim();
+  };
+  const groups = [];
+  for (const candidate of candidates) {
+    const key = keyFor(candidate);
+    const existing = groups.find((entry) => entry.key === key);
+    if (!existing) groups.push({ key, answer: candidate });
+    else if (candidate.length < existing.answer.length) existing.answer = candidate;
+  }
+  if (!groups.length) return original;
+  if (groups.length === 1) return groups[0].answer;
+  return groups.map((entry, index) => `Test ${index + 1}: ${entry.answer}`).join("\n");
 }
 
 function saveChats() {
@@ -268,6 +314,7 @@ function loadChats() {
     state.activeChat = state.chats.some((chat) => chat.id === payload.activeChat)
       ? payload.activeChat
       : state.chats[0]?.id || null;
+    saveChats();
   } catch (error) {
     console.warn("Sohbet geçmişi okunamadı", error);
     state.chats = [];
@@ -1105,7 +1152,7 @@ async function regenerateLast() {
   }, 60000);
   try {
     const answer = await sendMessageWithWatchdog(userText, { regenerate: true, context: (currentChat().context || "") });
-    placeholder.text = answer.text;
+    placeholder.text = cleanStoredAssistantOutput(answer.text);
   } catch (error) {
     placeholder.text = `Bir aksama oldu: ${error.message || error}`;
   } finally {
@@ -1176,7 +1223,7 @@ async function handleSubmit() {
   }, 60000);
   try {
     const answer = await sendMessageWithWatchdog(sendText, { context: (currentChat().context || "") });
-    placeholder.text = answer.text; // final cevap otorite (akış bozulsa bile tam metin)
+    placeholder.text = cleanStoredAssistantOutput(answer.text); // final cevap otorite
     await refreshModels();
   } catch (error) {
     placeholder.text = `Bir aksama oldu: ${error.message || error}`;
@@ -1839,6 +1886,7 @@ async function refreshAgentWatch() {
     const data = await window.codega.agentWatchStatus();
     const last = data.lastScanAt ? new Date(data.lastScanAt).toLocaleString("tr-TR") : "henüz taranmadı";
     summary.textContent = `${data.healthySources || 0}/${data.sourceCount || 0} kaynak erişilebilir · Son tarama: ${last}`
+      + ` · Resmî ${data.officialSources || 0} · Araştırma ${data.researchSources || 0} · Engelli ${data.blockedSources || 0}`
       + ((data.errors || []).length ? ` · ${(data.errors || []).length} hata` : "");
     findings.innerHTML = "";
     const rows = (data.findings || []).slice(0, 8);
@@ -1849,8 +1897,9 @@ async function refreshAgentWatch() {
     for (const item of rows) {
       const row = document.createElement("div");
       row.className = "settings-row agent-watch-row";
-      const policy = item.policy && item.policy.mode === "reviewable-reuse" ? "Lisans incelemesiyle kullanılabilir" : "Yalnız araştırma";
-      row.innerHTML = `<div><strong>${safeText(item.title)}</strong><p>${safeText(item.detail)}<br><span class="log-time">${safeText(item.repo)} · ${safeText(policy)}</span></p></div>`;
+      const policy = item.policy || {};
+      const policyLabel = policy.label || (policy.mode === "reviewable-reuse" ? "Lisans incelemesiyle kullanılabilir" : "Yalnız araştırma");
+      row.innerHTML = `<div><strong>${safeText(item.title)}</strong><p>${safeText(item.detail)}<br><span class="log-time">${safeText(item.repo)} · ${safeText(policyLabel)}</span>${policy.reason ? `<br><span class="log-time">${safeText(policy.reason)}</span>` : ""}</p></div>`;
       if (item.url) {
         const open = document.createElement("button");
         open.type = "button";

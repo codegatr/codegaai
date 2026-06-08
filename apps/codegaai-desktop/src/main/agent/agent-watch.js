@@ -3,10 +3,13 @@
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const sourceTrust = require("./source-trust");
 
 const DEFAULT_SOURCES = Object.freeze([
   { id: "openai-codex", label: "OpenAI Codex", repo: "openai/codex", tier: "official" },
   { id: "claude-code", label: "Anthropic Claude Code", repo: "anthropics/claude-code", tier: "official" },
+  { id: "claude-code-research", label: "Dive into Claude Code", repo: "VILA-Lab/Dive-into-Claude-Code", tier: "research" },
+  { id: "claude-code-leak-watch", label: "Claude Code Leak Watch", repo: "tanbiralam/claude-code", tier: "blocked" },
   { id: "gemini-cli", label: "Google Gemini CLI", repo: "google-gemini/gemini-cli", tier: "official" },
   { id: "openhands", label: "OpenHands", repo: "All-Hands-AI/OpenHands", tier: "community" },
   { id: "aider", label: "Aider", repo: "Aider-AI/aider", tier: "community" },
@@ -14,14 +17,14 @@ const DEFAULT_SOURCES = Object.freeze([
   { id: "continue", label: "Continue", repo: "continuedev/continue", tier: "community" },
 ]);
 
-const REUSE_LICENSES = new Set(["apache-2.0", "bsd-2-clause", "bsd-3-clause", "isc", "mit"]);
+const REUSE_LICENSES = sourceTrust.REUSE_LICENSES;
 
 function storePath() {
   return process.env.CODEGA_AGENT_WATCH_PATH || path.join(os.homedir(), ".codega-ai", "agent-watch.json");
 }
 
 function emptyState() {
-  return { lastScanAt: null, sources: {}, findings: [], errors: [] };
+  return { lastScanAt: null, configuredSourceCount: DEFAULT_SOURCES.length, sources: {}, findings: [], errors: [] };
 }
 
 function load() {
@@ -59,11 +62,7 @@ function splitRepo(repo) {
 }
 
 function licensePolicy(spdxId) {
-  const id = String(spdxId || "").trim().toLowerCase();
-  if (REUSE_LICENSES.has(id)) {
-    return { mode: "reviewable-reuse", label: "Inceleme sonrasi yeniden kullanim uygun" };
-  }
-  return { mode: "research-only", label: "Yalniz mimari arastirma" };
+  return sourceTrust.licensePolicy(spdxId);
 }
 
 function sanitizeText(value, max = 240) {
@@ -107,6 +106,7 @@ async function scanSource(source, options = {}) {
   }
   const latestCommit = Array.isArray(commits) ? commits[0] : null;
   const spdx = repo && repo.license ? repo.license.spdx_id : null;
+  const policy = sourceTrust.sourcePolicy(source.repo, spdx);
   return {
     id: source.id,
     label: source.label,
@@ -115,7 +115,7 @@ async function scanSource(source, options = {}) {
     url: repo.html_url || `https://github.com/${source.repo}`,
     description: sanitizeText(repo.description),
     license: spdx || "UNKNOWN",
-    policy: licensePolicy(spdx),
+    policy,
     stars: Number(repo.stargazers_count) || 0,
     defaultBranch: repo.default_branch || "main",
     pushedAt: repo.pushed_at || null,
@@ -209,7 +209,13 @@ async function scan(options = {}) {
   const findings = [...newFindings, ...previous.findings]
     .filter((item) => item && item.id && !seen.has(item.id) && seen.add(item.id))
     .slice(0, 100);
-  const state = { lastScanAt: scannedAt, sources: nextSources, findings, errors: errors.slice(0, 30) };
+  const state = {
+    lastScanAt: scannedAt,
+    configuredSourceCount: sources.length,
+    sources: nextSources,
+    findings,
+    errors: errors.slice(0, 30),
+  };
   save(state);
   return status(state, newFindings.length);
 }
@@ -218,8 +224,11 @@ function status(state = load(), newCount = 0) {
   const sourceList = Object.values(state.sources || {});
   return {
     lastScanAt: state.lastScanAt,
-    sourceCount: DEFAULT_SOURCES.length,
+    sourceCount: Number(state.configuredSourceCount) || DEFAULT_SOURCES.length,
     healthySources: sourceList.length,
+    officialSources: sourceList.filter((item) => item.policy && item.policy.trust === "official").length,
+    researchSources: sourceList.filter((item) => item.policy && item.policy.mode === "research-only").length,
+    blockedSources: sourceList.filter((item) => item.policy && item.policy.mode === "blocked").length,
     newCount,
     sources: sourceList,
     findings: (state.findings || []).slice(0, 20),
@@ -237,6 +246,7 @@ module.exports = {
   save,
   scan,
   scanSource,
+  sourcePolicy: sourceTrust.sourcePolicy,
   status,
   storePath,
 };
