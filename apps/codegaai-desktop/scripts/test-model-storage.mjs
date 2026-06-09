@@ -9,7 +9,12 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const storageModule = await import(pathToFileURL(
   path.join(root, "src", "main", "agent", "model-storage.js")
 ).href);
-const { directoryStats, moveModelStorage, validateMove } = storageModule.default || storageModule;
+const {
+  directoryStats,
+  discoverModelStorage,
+  moveModelStorage,
+  validateMove,
+} = storageModule.default || storageModule;
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "codega-model-storage-"));
 const source = path.join(temp, "source");
@@ -21,6 +26,36 @@ fs.writeFileSync(path.join(source, "manifests", "registry", "latest"), "manifest
 
 assert.throws(() => validateMove(source, source), /aynı/);
 assert.throws(() => validateMove(source, path.join(source, "nested")), /içinde/);
+
+const fakeHome = path.join(temp, "home");
+const ollamaDefault = path.join(fakeHome, ".ollama", "models");
+const emptyConfigured = path.join(temp, "empty-codega-models");
+fs.mkdirSync(path.join(ollamaDefault, "blobs"), { recursive: true });
+fs.mkdirSync(path.join(ollamaDefault, "manifests"), { recursive: true });
+fs.mkdirSync(emptyConfigured, { recursive: true });
+fs.writeFileSync(path.join(ollamaDefault, "blobs", "sha256-real"), "real-model", "utf8");
+const discoveredDefault = await discoverModelStorage({
+  configuredPath: emptyConfigured,
+  environmentPath: "",
+  home: fakeHome,
+  platform: "win32",
+  codegaDefaultPath: emptyConfigured,
+});
+assert.equal(discoveredDefault.path, ollamaDefault);
+assert.equal(discoveredDefault.files, 1);
+assert.equal(discoveredDefault.source, "ollama-default");
+
+fs.mkdirSync(path.join(emptyConfigured, "blobs"), { recursive: true });
+fs.writeFileSync(path.join(emptyConfigured, "blobs", "sha256-configured"), "configured-model", "utf8");
+const discoveredConfigured = await discoverModelStorage({
+  configuredPath: emptyConfigured,
+  environmentPath: "",
+  home: fakeHome,
+  platform: "win32",
+  codegaDefaultPath: emptyConfigured,
+});
+assert.equal(discoveredConfigured.path, emptyConfigured);
+assert.equal(discoveredConfigured.source, "configured");
 
 const before = await directoryStats(source);
 const progress = [];

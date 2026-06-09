@@ -909,6 +909,13 @@ async function refreshStatus() {
     els.modelStoragePath.textContent = status.paths?.models || "Ollama varsayılan model dizini";
     els.modelStoragePath.title = els.modelStoragePath.textContent;
   }
+  if (els.modelStorageStatus && status.paths?.modelStorage) {
+    const storage = status.paths.modelStorage;
+    const size = formatBytes(storage.bytes);
+    els.modelStorageStatus.textContent = storage.files > 0
+      ? `${storage.files} model dosyası${size ? ` · ${size}` : ""} bulundu. Başka bir diske güvenli şekilde taşıyabilirsin.`
+      : "Bu dizinde model dosyası bulunamadı. CODEGA AI diğer Ollama konumlarını da denetleyecek.";
+  }
   setModelStatus(status.model);
   await refreshModels();
 }
