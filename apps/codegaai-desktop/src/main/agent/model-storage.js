@@ -1,6 +1,7 @@
 "use strict";
 
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 
 function resolved(value) {
@@ -50,6 +51,72 @@ async function directoryStats(root) {
   return { files, bytes };
 }
 
+function defaultOllamaModelPath(platform = process.platform, home = os.homedir()) {
+  if (platform === "win32" || platform === "darwin" || platform === "linux") {
+    return path.join(home, ".ollama", "models");
+  }
+  return path.join(home, ".ollama", "models");
+}
+
+function uniquePaths(values) {
+  const seen = new Set();
+  return values
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .map((value) => path.resolve(value))
+    .filter((value) => {
+      const key = process.platform === "win32" ? value.toLowerCase() : value;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+async function inspectModelStorage(candidate) {
+  const stats = await directoryStats(candidate.path);
+  const hasLayout = fs.existsSync(path.join(candidate.path, "blobs")) ||
+    fs.existsSync(path.join(candidate.path, "manifests"));
+  return {
+    ...candidate,
+    path: path.resolve(candidate.path),
+    exists: fs.existsSync(candidate.path),
+    hasLayout,
+    ...stats,
+  };
+}
+
+async function discoverModelStorage(options = {}) {
+  const candidates = uniquePaths([
+    options.configuredPath,
+    options.environmentPath,
+    defaultOllamaModelPath(options.platform, options.home),
+    options.codegaDefaultPath,
+  ]).map((candidatePath) => {
+    const configured = String(options.configuredPath || "").trim();
+    const environment = String(options.environmentPath || "").trim();
+    const defaultPath = defaultOllamaModelPath(options.platform, options.home);
+    return {
+      path: candidatePath,
+      source: configured && path.resolve(configured) === candidatePath
+        ? "configured"
+        : environment && path.resolve(environment) === candidatePath
+          ? "environment"
+          : path.resolve(defaultPath) === candidatePath
+            ? "ollama-default"
+            : "codega-default",
+    };
+  });
+  const inspected = [];
+  for (const candidate of candidates) inspected.push(await inspectModelStorage(candidate));
+  const selected = inspected.find((candidate) => candidate.files > 0 && candidate.hasLayout) ||
+    inspected.find((candidate) => candidate.files > 0) ||
+    inspected.find((candidate) => candidate.source === "configured") ||
+    inspected.find((candidate) => candidate.source === "environment") ||
+    inspected.find((candidate) => candidate.source === "ollama-default") ||
+    inspected[0];
+  return { ...(selected || {}), candidates: inspected };
+}
+
 async function moveModelStorage(source, target, options = {}) {
   const locations = validateMove(source, target);
   const notify = typeof options.onProgress === "function" ? options.onProgress : () => {};
@@ -83,6 +150,9 @@ async function moveModelStorage(source, target, options = {}) {
 
 module.exports = {
   directoryStats,
+  defaultOllamaModelPath,
+  discoverModelStorage,
+  inspectModelStorage,
   moveModelStorage,
   validateMove,
 };

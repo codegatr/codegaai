@@ -26,6 +26,8 @@ const stats = require("./agent/stats");
 const logs = require("./agent/logs");
 const agentTools = require("./agent/tools");
 const { ollamaReachable } = require("./agent/ollama-client");
+const inheritedOllamaModelsPath = String(process.env.OLLAMA_MODELS || "").trim();
+let activeModelStorage = null;
 
 const modelManager = new ModelManager();
 const updateService = new UpdateService();
@@ -48,6 +50,16 @@ function broadcastModelStorageStatus(status) {
       if (!win.isDestroyed()) win.webContents.send("model-storage:status", status);
     } catch (_e) {}
   }
+}
+
+async function resolveModelStorage() {
+  const configuredPath = String(settingsStore.getSettings().modelStoragePath || "").trim();
+  activeModelStorage = await modelStorage.discoverModelStorage({
+    configuredPath,
+    environmentPath: inheritedOllamaModelsPath,
+    codegaDefaultPath: path.join(app.getPath("userData"), "ollama-models"),
+  });
+  return activeModelStorage;
 }
 
 // Kendi kendine bakım (güvenli): açıkken periyodik sağlık + bozuk depo onarımı
@@ -270,12 +282,18 @@ function createWindow() {
 function registerIpc() {
   ipcMain.handle("app:status", async () => {
     const model = await modelManager.detect();
+    const storage = await resolveModelStorage();
     return {
       appName: APP_NAME,
       version: app.getVersion(),
       paths: {
         userData: app.getPath("userData"),
-        models: process.env.OLLAMA_MODELS || "",
+        models: storage.path || "",
+        modelStorage: {
+          files: storage.files || 0,
+          bytes: storage.bytes || 0,
+          source: storage.source || "",
+        },
       },
       model,
     };
@@ -344,10 +362,21 @@ function registerIpc() {
     });
     if (selected.canceled || !selected.filePaths?.[0]) return { ok: false, canceled: true };
 
-    const source = path.resolve(process.env.OLLAMA_MODELS || process.env.CODEGA_MODELS_PATH || "");
+    const discovered = await resolveModelStorage();
+    const source = path.resolve(discovered.path || "");
     const target = path.resolve(selected.filePaths[0]);
     modelStorage.validateMove(source, target);
-    const stats = await modelStorage.directoryStats(source);
+    const stats = { files: discovered.files || 0, bytes: discovered.bytes || 0 };
+    if (!stats.files) {
+      throw new Error(
+        `Taşınacak Ollama modeli bulunamadı. Kontrol edilen kaynak: ${source}. ` +
+        "Önce Ollama'da kurulu modellerin göründüğünü doğrula."
+      );
+    }
+    const existingTargetStats = await modelStorage.directoryStats(target);
+    if (existingTargetStats.files > 0) {
+      throw new Error("Hedef klasör boş olmalı. D: üzerinde yeni ve boş bir klasör seç.");
+    }
     const sizeGb = (stats.bytes / (1024 ** 3)).toFixed(stats.bytes >= 1024 ** 3 ? 1 : 2);
     const confirm = await dialog.showMessageBox(win, {
       type: "question",
@@ -369,6 +398,7 @@ function registerIpc() {
     broadcastModelStorageStatus({ phase: "stopping", message: "Ollama güvenli şekilde durduruluyor." });
     await installer.stopOllama();
     let persistedTarget = false;
+    let copiedTarget = false;
     try {
       const result = fs.existsSync(source)
         ? await modelStorage.moveModelStorage(source, target, {
@@ -376,11 +406,13 @@ function registerIpc() {
           removeSource: false,
         })
         : { ok: true, source, target, files: 0, bytes: 0 };
+      copiedTarget = true;
       await installer.persistOllamaModelsPath(target);
       persistedTarget = true;
       settingsStore.setSettings({ modelStoragePath: target });
       process.env.CODEGA_MODELS_PATH = target;
       process.env.OLLAMA_MODELS = target;
+      activeModelStorage = { ...result, path: target, source: "configured", exists: true, hasLayout: true };
       broadcastModelStorageStatus({ phase: "restarting", message: "Ollama yeni model diziniyle başlatılıyor." });
       await installer.restartOllama(target);
       let reachable = false;
@@ -390,6 +422,10 @@ function registerIpc() {
       }
       if (!reachable) throw new Error("Ollama yeni model diziniyle başlatılamadı. Eski dizin geri yükleniyor.");
       await modelManager.detect();
+      const installedAfterMove = await modelManager.installedModels();
+      if (!installedAfterMove.length) {
+        throw new Error("Yeni dizindeki modeller Ollama tarafından görülmedi. Eski dizin geri yükleniyor.");
+      }
       if (fs.existsSync(source)) {
         broadcastModelStorageStatus({ phase: "cleaning", message: "Yeni dizin doğrulandı; eski model dosyaları temizleniyor." });
         await fs.promises.rm(source, { recursive: true, force: true });
@@ -405,9 +441,13 @@ function registerIpc() {
           settingsStore.setSettings({ modelStoragePath: source });
           process.env.CODEGA_MODELS_PATH = source;
           process.env.OLLAMA_MODELS = source;
+          activeModelStorage = await resolveModelStorage();
         } catch (_e) {}
       }
       try { await installer.restartOllama(source); } catch (_e) {}
+      if (copiedTarget && fs.existsSync(target)) {
+        try { await fs.promises.rm(target, { recursive: true, force: true }); } catch (_e) {}
+      }
       throw error;
     }
   });
@@ -826,16 +866,29 @@ app.whenReady().then(async () => {
     process.env.CODEGA_LOGS_PATH || path.join(userDataPath, "logs.json");
   process.env.CODEGA_AGENT_WATCH_PATH =
     process.env.CODEGA_AGENT_WATCH_PATH || path.join(userDataPath, "agent-watch.json");
-  const savedModelStoragePath = String(settingsStore.getSettings().modelStoragePath || "").trim();
-  process.env.CODEGA_MODELS_PATH =
-    process.env.CODEGA_MODELS_PATH || savedModelStoragePath || path.join(userDataPath, "ollama-models");
-  process.env.OLLAMA_MODELS = process.env.OLLAMA_MODELS || process.env.CODEGA_MODELS_PATH;
-  try { fs.mkdirSync(process.env.OLLAMA_MODELS, { recursive: true }); } catch (_e) {}
+  const storage = await resolveModelStorage();
+  process.env.CODEGA_MODELS_PATH = storage.path || path.join(userDataPath, "ollama-models");
+  process.env.OLLAMA_MODELS = storage.path || process.env.CODEGA_MODELS_PATH;
+  try { fs.mkdirSync(process.env.CODEGA_MODELS_PATH, { recursive: true }); } catch (_e) {}
 
   registerIpc();
   createWindow();
   updateService.start();
   await modelManager.detect();
+  const installedAtStartup = await modelManager.installedModels();
+  if (!installedAtStartup.length && storage.files > 0) {
+    try {
+      logs.warn("models", `Ollama boş depo kullanıyor; gerçek model diziniyle yeniden başlatılıyor: ${storage.path}`);
+      await installer.restartOllama(storage.path);
+      for (let attempt = 0; attempt < 15; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (await ollamaReachable()) break;
+      }
+      await modelManager.detect();
+    } catch (error) {
+      try { logs.error("models", `Model deposu otomatik düzeltilemedi: ${error.message || error}`); } catch (_e) {}
+    }
+  }
 
   // Kendi kendine bakım: açılışta bir kez + her 5 dakikada bir (güvenli, kod değiştirmez)
   doMaintenance().then(() => maybeAutoPropose()).catch(() => {});
