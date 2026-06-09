@@ -14,12 +14,12 @@ const os = require("os");
 function recommendModel(ramGB, options = []) {
   const find = (id) => options.find((o) => o.id === id);
   let id;
-  if (ramGB < 6) id = "qwen3:1.7b";
-  else if (ramGB < 10) id = "qwen3:4b";
-  else if (ramGB < 18) id = "qwen3:8b";
-  else if (ramGB >= 32) id = "qwen3:14b";
-  else id = "qwen3:8b";
-  const opt = find(id) || find("qwen3:4b") || find("qwen2.5:3b") || options[0] || { id, label: id };
+  if (ramGB < 6) id = "qwen3.5:0.8b";
+  else if (ramGB < 10) id = "qwen3.5:2b";
+  else if (ramGB < 18) id = "qwen3.5:4b";
+  else if (ramGB >= 40) id = "qwen3.6:27b";
+  else id = "qwen3.5:9b";
+  const opt = find(id) || find("qwen3.5:4b") || find("qwen3:4b") || options[0] || { id, label: id };
   return {
     id: opt.id,
     label: opt.label || opt.id,

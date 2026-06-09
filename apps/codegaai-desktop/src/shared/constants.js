@@ -1,7 +1,37 @@
 const APP_NAME = "CODEGA AI";
 const FEDERATION_BASE_URL = "https://ai.codega.com.tr/api/federation";
-const DEFAULT_MODEL = "qwen3:4b";
+const DEFAULT_MODEL = "qwen3.5:4b";
 const MODEL_OPTIONS = [
+  {
+    id: "qwen3.5:0.8b",
+    label: "Qwen3.5 0.8B",
+    description: "Guncel ve cok hafif Qwen3.5",
+    task: "chat",
+  },
+  {
+    id: "qwen3.5:2b",
+    label: "Qwen3.5 2B",
+    description: "Dusuk bellekli cihazlar icin guncel model",
+    task: "chat",
+  },
+  {
+    id: "qwen3.5:4b",
+    label: "Qwen3.5 4B",
+    description: "Guncel varsayilan; sohbet, muhakeme ve arac kullanimi",
+    task: "writing",
+  },
+  {
+    id: "qwen3.5:9b",
+    label: "Qwen3.5 9B",
+    description: "Guclu yerel muhakeme ve kodlama secenegi",
+    task: "writing",
+  },
+  {
+    id: "qwen3.6:27b",
+    label: "Qwen3.6 27B",
+    description: "En yeni ust seviye Qwen; yuksek RAM veya VRAM ister",
+    task: "writing",
+  },
   {
     id: "qwen3:1.7b",
     label: "Qwen3 1.7B",
@@ -92,6 +122,11 @@ const UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 // sizeGb = indirme boyutu, minVramGb = GPU'da rahat çalışma için, minRamGb = CPU/sistem,
 // quality = 1..5 (Türkçe akıl yürütme için kabaca), note = kısa açıklama.
 const MODEL_CATALOG = {
+  "qwen3.5:0.8b": { params: "0.8B", sizeGb: 1.0, minVramGb: 2, minRamGb: 4, quality: 2, note: "En hafif guncel Qwen3.5" },
+  "qwen3.5:2b": { params: "2B", sizeGb: 2.0, minVramGb: 3, minRamGb: 6, quality: 3, note: "Dusuk donanim icin guncel" },
+  "qwen3.5:4b": { params: "4B", sizeGb: 3.4, minVramGb: 5, minRamGb: 10, quality: 4, note: "Guncel varsayilan - en iyi yerel denge" },
+  "qwen3.5:9b": { params: "9B", sizeGb: 6.6, minVramGb: 8, minRamGb: 18, quality: 5, note: "Guclu muhakeme; CPU offload gerekebilir" },
+  "qwen3.6:27b": { params: "27B", sizeGb: 17.0, minVramGb: 20, minRamGb: 40, quality: 5, note: "En yeni ust seviye Qwen; workstation" },
   "qwen2.5:1.5b": { params: "1.5B", sizeGb: 1.0, minVramGb: 2, minRamGb: 4, quality: 2, note: "En hızlı, en hafif sohbet" },
   "qwen3:1.7b": { params: "1.7B", sizeGb: 1.4, minVramGb: 2, minRamGb: 4, quality: 2, note: "Yeni nesil çok hafif" },
   "llama3.2:3b": { params: "3B", sizeGb: 2.0, minVramGb: 3, minRamGb: 6, quality: 2, note: "Hafif genel amaçlı" },

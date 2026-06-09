@@ -544,17 +544,16 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   const siMod = await import(path.join(mainDir, "agent", "system-info.js"));
   const si = siMod.default || siMod;
   const opts = [
-    { id: "qwen3:1.7b", label: "Qwen3 1.7B" },
-    { id: "qwen3:4b", label: "Qwen3 4B" },
-    { id: "qwen2.5:1.5b", label: "Qwen 2.5 1.5B" },
-    { id: "qwen2.5:3b", label: "Qwen 2.5 3B" },
-    { id: "qwen3:8b", label: "Qwen3 8B" },
-    { id: "qwen3:14b", label: "Qwen3 14B" },
+    { id: "qwen3.5:0.8b", label: "Qwen3.5 0.8B" },
+    { id: "qwen3.5:2b", label: "Qwen3.5 2B" },
+    { id: "qwen3.5:4b", label: "Qwen3.5 4B" },
+    { id: "qwen3.5:9b", label: "Qwen3.5 9B" },
+    { id: "qwen3.6:27b", label: "Qwen3.6 27B" },
   ];
-  assert.strictEqual(si.recommendModel(4, opts).id, "qwen3:1.7b", "düşük RAM -> küçük model");
-  assert.strictEqual(si.recommendModel(8, opts).id, "qwen3:4b", "orta RAM -> 4B");
-  assert.strictEqual(si.recommendModel(16, opts).id, "qwen3:8b", "yüksek RAM -> 8B (güncel)");
-  assert.strictEqual(si.recommendModel(32, opts).id, "qwen3:14b", "çok yüksek RAM -> 14B");
+  assert.strictEqual(si.recommendModel(4, opts).id, "qwen3.5:0.8b", "low RAM -> current compact model");
+  assert.strictEqual(si.recommendModel(8, opts).id, "qwen3.5:2b", "medium RAM -> current 2B");
+  assert.strictEqual(si.recommendModel(16, opts).id, "qwen3.5:4b", "high RAM -> current 4B");
+  assert.strictEqual(si.recommendModel(32, opts).id, "qwen3.5:9b", "very high RAM -> current 9B");
   ok("Sistem analizi: donanıma göre güncel model önerisi");
 }
 

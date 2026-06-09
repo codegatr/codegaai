@@ -324,7 +324,7 @@ function _normTr(s) {
     .replace(/ü/g, "u").replace(/ö/g, "o").replace(/ç/g, "c");
 }
 const SMALLTALK_RE = /^(selam|merhaba|merhabalar|gunaydin|iyi gunler|iyi geceler|iyi aksamlar|naber|nasilsin|tesekkur|tesekkurler|sagol|sag ol|eyvallah|gorusuruz|hosca kal|hello|hi|hey|thanks|tesekkur ederim)\b/;
-const CONVERSATIONAL_RE = /\b(sence|seninle|senin halin|ne olacak|devam edebilir misin|cevabina devam|beni anladin mi|burada misin|iyi misin|nasil gidiyor|neden cevap veremiyorsun|neden takildin|bu halimiz|duzelmissin|gelismissin|daha iyi olmussun|biraz daha iyi|fena degil|guzel olmus|iyi olmus|harika olmus|bu kez olmus|seni ozledim)\b/;
+const CONVERSATIONAL_RE = /\b(sence|seninle|senin halin|ne olacak|devam edebilir misin|cevabina devam|beni anladin mi|burada misin|iyi misin|hazir misin|nasil gidiyor|neden cevap veremiyorsun|neden takildin|bu halimiz|duzelmissin|gelismissin|daha iyi olmussun|biraz daha iyi|fena degil|guzel olmus|iyi olmus|harika olmus|bu kez olmus|seni ozledim)\b/;
 const HEAVY_REQUEST_RE = /\b(arastir|incele|analiz et|kod yaz|duzelt|olustur|planla|karsilastir|hesapla|terminal|github|dosya|veritabani|deploy|test et)\b/;
 function isSmallTalk(input) {
   const t = String(input || "").trim();
@@ -419,10 +419,10 @@ function makeVerificationProgress(onToken, scope = "answer") {
 }
 
 const TASK_MODELS = {
-  code: ["qwen2.5-coder:7b", "qwen2.5-coder:3b", "qwen2.5-coder:7b-instruct", "qwen2.5-coder:3b-instruct", "qwen3:8b", DEFAULT_MODEL],
-  image: ["qwen3:4b", "gemma3:4b", "qwen3:8b", "qwen2.5:3b", DEFAULT_MODEL],
-  writing: ["qwen3:8b", "qwen3:4b", "qwen3:14b", "mistral:7b", "qwen2.5:3b", DEFAULT_MODEL],
-  chat: [DEFAULT_MODEL, "qwen3:1.7b", "qwen3:8b", "qwen2.5:3b", "qwen2.5:1.5b", "llama3.2:3b"],
+  code: ["qwen3.5:9b", "qwen2.5-coder:7b", "qwen2.5-coder:3b", "qwen2.5-coder:7b-instruct", "qwen2.5-coder:3b-instruct", "qwen3.5:4b", "qwen3:8b", DEFAULT_MODEL],
+  image: ["qwen3.5:4b", "gemma3:4b", "qwen3.5:9b", "qwen3:4b", DEFAULT_MODEL],
+  writing: ["qwen3.5:9b", "qwen3.5:4b", "qwen3.6:27b", "qwen3:8b", "qwen3:14b", "mistral:7b", DEFAULT_MODEL],
+  chat: [DEFAULT_MODEL, "qwen3.5:2b", "qwen3.5:0.8b", "qwen3.5:9b", "qwen3:4b", "qwen3:1.7b", "llama3.2:3b"],
 };
 
 function instantAnswer(input) {
