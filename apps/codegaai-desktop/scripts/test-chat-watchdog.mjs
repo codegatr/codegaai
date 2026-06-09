@@ -20,6 +20,8 @@ assert.equal(isSmallTalk("GitHub reposunu incele ve hataları düzelt"), false);
 assert.equal(isSmallTalk("Biraz duzelmissin sanki."), true);
 assert.equal(isSmallTalk("Bu kez daha iyi olmus."), true);
 assert.equal(isSmallTalk("Biraz d\u00fczelmi\u015fsin sanki."), true);
+assert.equal(isSmallTalk("S\u0131navlara haz\u0131r m\u0131s\u0131n?"), true);
+assert.equal(isSmallTalk("Yar\u0131na haz\u0131r m\u0131s\u0131n?"), true);
 assert.equal(isSmallTalk("PHP ile REST API kodu yaz"), false);
 assert.equal(shouldRunHardValidation({
   fastConversation: true,
@@ -50,6 +52,11 @@ casualManager.generate = async () => "Evet, biraz toparlandım. Teşekkür ederi
 const casualAnswer = await casualManager.ask("Biraz düzelmişsin sanki.");
 assert.equal(casualAnswer.text, "Evet, biraz toparlandım. Teşekkür ederim.");
 assert.doesNotMatch(casualAnswer.text, /Final Answer|doğrulama kapısı/i);
+
+casualManager.generate = async () => "Haz\u0131r\u0131m. Sorular\u0131 g\u00f6nder, birlikte \u00e7\u00f6zelim.";
+const examAnswer = await casualManager.ask("S\u0131navlara haz\u0131r m\u0131s\u0131n?");
+assert.equal(examAnswer.text, "Haz\u0131r\u0131m. Sorular\u0131 g\u00f6nder, birlikte \u00e7\u00f6zelim.");
+assert.doesNotMatch(examAnswer.text, /Final Answer|do\u011frulama kap\u0131s\u0131/i);
 
 const rendererSource = fs.readFileSync(path.join(root, "src", "renderer", "renderer.js"), "utf8");
 const helperStart = rendererSource.indexOf("function foldAssistantOutput");
