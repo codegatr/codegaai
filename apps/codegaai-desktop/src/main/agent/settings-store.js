@@ -33,6 +33,12 @@ const DEFAULTS = {
   selfMaintenance: true, // açıkken güvenli kendi-kendine bakım/onarım (kod değiştirmez)
   autoProposePR: false, // ajan kendi gözlemlerinden OTONOM PR açsın (ayrı dal; ASLA merge/main)
   autonomousDevelopment: false, // kod okuma + ayrı dalda değişiklik + taslak PR
+  autonomousDevelopmentSchedule: false, // gözlenen sorunlardan boşta ve zaman aralıklı taslak PR üret
+  autonomousDevelopmentRepo: "",
+  autonomousDevelopmentPaths: "",
+  autonomousDevelopmentIntervalHours: 24,
+  autonomousDevelopmentLastRun: 0,
+  autonomousDevelopmentLastResult: "",
   expertMode: "genel", // sohbet uzman modu (genel/php/python/javascript/devops/finans/hukuk)
   streaming: true, // cevabı token token canlı göster (kapatılabilir)
   provider: "ollama", // "ollama" | "openai" | "claude" | "gemini"

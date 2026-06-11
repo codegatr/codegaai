@@ -14,6 +14,7 @@ const {
   validateChangeSet,
   validateRequestedPaths,
 } = require(join(root, "src", "main", "agent", "autonomous-dev.js"));
+const { evaluateAutonomousRun } = require(join(root, "src", "main", "agent", "autonomous-loop.js"));
 
 assert.deepEqual(
   validateRequestedPaths("src/app.js, src/styles.css"),
@@ -124,6 +125,31 @@ assert.equal(calls[2][5].draft, true);
 assert.match(calls[2][4], /otomatik birleştirilmez/);
 
 assert.match(generatedMessages[0].content, /GOVERNANCE: AGENTS\.md/);
+
+const loopReady = evaluateAutonomousRun({
+  settings: {
+    autonomousDevelopment: true,
+    autonomousDevelopmentSchedule: true,
+    autonomousDevelopmentRepo: "codegatr/codegaai",
+    autonomousDevelopmentPaths: "src/app.js",
+    autonomousDevelopmentIntervalHours: 24,
+  },
+  hasToken: true,
+  drafts: [{ key: "empty_response", idea: "Boş yanıt", rationale: "Üç kez tekrarlandı." }],
+  now: 48 * 60 * 60 * 1000,
+  lastActivityAt: 0,
+});
+assert.equal(loopReady.ready, true);
+assert.match(loopReady.task, /smallest safe fix/i);
+assert.equal(evaluateAutonomousRun({
+  settings: {
+    autonomousDevelopment: true,
+    autonomousDevelopmentSchedule: true,
+    autonomousDevelopmentRepo: "codegatr/codegaai",
+    autonomousDevelopmentPaths: "src/app.js",
+  },
+  hasToken: false,
+}).reason, "github-unavailable");
 
 const loadedGovernance = await loadGovernanceFiles({
   git,

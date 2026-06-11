@@ -13,6 +13,7 @@ const required = [
   "src/main/agent/model-update-service.js",
   "src/main/agent/model-storage.js",
   "src/main/agent/autonomous-dev.js",
+  "src/main/agent/autonomous-loop.js",
   "src/main/agent/agent-watch.js",
   "src/main/agent/cloud-provider.js",
   "src/main/agent/agent-loop.js",
@@ -57,6 +58,12 @@ for (const marker of ["model-storage-path", "model-storage-status", "move-model-
 }
 if (!rendererJs.includes("moveModelStorage") || !preloadJs.includes("model-storage:move")) {
   throw new Error("Model storage IPC wiring is incomplete");
+}
+for (const marker of ["starter-actions", "Sen hazır olduğunda hazırım.", "toggle-autonomous-schedule"]) {
+  if (!settingsHtml.includes(marker)) throw new Error(`New home/autonomous loop UI is missing: ${marker}`);
+}
+if (!rendererJs.includes('classList.toggle("empty-chat"')) {
+  throw new Error("Empty-chat layout state is not wired");
 }
 
 console.log("CODEGA AI desktop scaffold OK");
