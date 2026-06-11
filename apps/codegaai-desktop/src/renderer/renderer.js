@@ -68,8 +68,10 @@ const els = {
   runMaintenance: document.getElementById("run-maintenance"),
   toggleAutoPropose: document.getElementById("toggle-autopropose"),
   toggleAutonomousDevelopment: document.getElementById("toggle-autonomous-development"),
+  toggleAutonomousSchedule: document.getElementById("toggle-autonomous-schedule"),
   developmentRepo: document.getElementById("development-repo"),
   developmentPaths: document.getElementById("development-paths"),
+  developmentInterval: document.getElementById("development-interval"),
   developmentTask: document.getElementById("development-task"),
   developmentRun: document.getElementById("development-run"),
   developmentStatus: document.getElementById("development-status"),
@@ -425,6 +427,7 @@ function renderHistory() {
 function renderConversation() {
   const chat = currentChat();
   els.conversation.innerHTML = "";
+  document.body.classList.toggle("empty-chat", !chat.messages.length);
   if (!chat.messages.length) {
     els.conversation.appendChild(els.welcome);
     return;
@@ -494,6 +497,18 @@ function renderConversation() {
   }
   scrollConversationToBottom();
 }
+
+document.querySelectorAll("[data-starter-prompt]").forEach((button) => {
+  button.addEventListener("click", () => {
+    els.input.value = button.dataset.starterPrompt || "";
+    els.input.dispatchEvent(new Event("input", { bubbles: true }));
+    focusComposer();
+  });
+});
+
+document.querySelectorAll("[data-starter-action='attach']").forEach((button) => {
+  button.addEventListener("click", () => document.getElementById("file-input")?.click());
+});
 
 // Hangi elemanın gerçekten kaydığını bul (conversation iç kaydırıcıysa o, değilse pencere).
 function _getScroller() {
@@ -2663,6 +2678,11 @@ if (els.developmentRun) {
     els.developmentRun.disabled = true;
     els.developmentStatus.textContent = "Dosyalar okunuyor, kod değişikliği hazırlanıyor…";
     try {
+      agentSettings = await window.codega.setSettings({
+        autonomousDevelopmentRepo: repo,
+        autonomousDevelopmentPaths: paths,
+        autonomousDevelopmentIntervalHours: Math.max(1, Math.min(168, Number(els.developmentInterval?.value) || 24)),
+      });
       const result = await window.codega.runAutonomousDevelopment({ repo, paths, task });
       els.developmentStatus.textContent =
         `Taslak PR #${result.number} açıldı · ${result.changedFiles.length} dosya · ${result.branch}`;
@@ -2781,6 +2801,9 @@ async function refreshAgentSettings() {
     if (els.toggleAutonomousDevelopment) {
       applyToggleLabel(els.toggleAutonomousDevelopment, !!agentSettings.autonomousDevelopment);
     }
+    if (els.toggleAutonomousSchedule) {
+      applyToggleLabel(els.toggleAutonomousSchedule, !!agentSettings.autonomousDevelopmentSchedule);
+    }
     if (els.expertSelect) els.expertSelect.value = agentSettings.expertMode || "genel";
     if (els.toggleStreaming) applyToggleLabel(els.toggleStreaming, agentSettings.streaming !== false);
     if (els.toggleContinuous) applyToggleLabel(els.toggleContinuous, !!agentSettings.continuousLearning);
@@ -2799,12 +2822,13 @@ async function refreshAgentSettings() {
     applyToggleLabel(els.toggleFederation, !!agentSettings.federation);
     applyToggleLabel(els.toggleIdle, !!agentSettings.idleLearning);
     els.knowledgeRepo.value = agentSettings.knowledgeRepo || "";
-    if (els.developmentRepo && !els.developmentRepo.value) {
-      els.developmentRepo.value = agentSettings.knowledgeRepo || "";
-    }
+    if (els.developmentRepo) els.developmentRepo.value = agentSettings.autonomousDevelopmentRepo || agentSettings.knowledgeRepo || "";
+    if (els.developmentPaths) els.developmentPaths.value = agentSettings.autonomousDevelopmentPaths || "";
+    if (els.developmentInterval) els.developmentInterval.value = String(agentSettings.autonomousDevelopmentIntervalHours || 24);
     if (els.developmentStatus) {
+      const lastResult = String(agentSettings.autonomousDevelopmentLastResult || "").trim();
       els.developmentStatus.textContent = agentSettings.autonomousDevelopment
-        ? "Hazır. En fazla 4 hedef dosya, ayrı dal ve taslak PR güvenlik sınırı etkin."
+        ? `${agentSettings.autonomousDevelopmentSchedule ? "Gözlem döngüsü açık." : "Elle çalışma hazır."} En fazla 4 hedef dosya, ayrı dal ve taslak PR sınırı etkin.${lastResult ? ` Sonuç: ${lastResult}` : ""}`
         : "Kapalı. Etkinleştirdiğinde yalnız belirttiğin dosyalar değiştirilebilir.";
     }
     els.githubToken.value = "";
@@ -2997,6 +3021,25 @@ if (els.toggleAutonomousDevelopment) {
   els.toggleAutonomousDevelopment.addEventListener("click", () =>
     toggleSetting("autonomousDevelopment", els.toggleAutonomousDevelopment).then(() => refreshAgentSettings())
   );
+}
+if (els.toggleAutonomousSchedule) {
+  els.toggleAutonomousSchedule.addEventListener("click", async () => {
+    const repo = (els.developmentRepo?.value || "").trim();
+    const paths = (els.developmentPaths?.value || "").trim();
+    const enabling = !agentSettings?.autonomousDevelopmentSchedule;
+    if (enabling && (!repo || !paths)) {
+      setTransientStatus("Önce hedef repo ve en fazla 4 dosya yolu belirle.");
+      return;
+    }
+    agentSettings = await window.codega.setSettings({
+      autonomousDevelopment: enabling ? true : !!agentSettings.autonomousDevelopment,
+      autonomousDevelopmentRepo: repo,
+      autonomousDevelopmentPaths: paths,
+      autonomousDevelopmentIntervalHours: Math.max(1, Math.min(168, Number(els.developmentInterval?.value) || 24)),
+    });
+    await toggleSetting("autonomousDevelopmentSchedule", els.toggleAutonomousSchedule);
+    await refreshAgentSettings();
+  });
 }
 if (els.toggleStreaming) els.toggleStreaming.addEventListener("click", () => toggleSetting("streaming", els.toggleStreaming));
 if (els.toggleModelUpdates) els.toggleModelUpdates.addEventListener("click", () => toggleSetting("autoModelUpdates", els.toggleModelUpdates));

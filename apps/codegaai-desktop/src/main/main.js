@@ -13,6 +13,7 @@ const rag = require("./agent/rag");
 const { runSelfCheck } = require("./agent/self-maintenance");
 const selfImprove = require("./agent/self-improve");
 const autonomousDev = require("./agent/autonomous-dev");
+const { evaluateAutonomousRun } = require("./agent/autonomous-loop");
 const improveDrafts = require("./agent/improve-drafts");
 const feedback = require("./agent/feedback");
 const systemInfo = require("./agent/system-info");
@@ -256,6 +257,73 @@ async function maybeAutoPropose() {
   }
 }
 let lastActivityAt = Date.now();
+let autonomousDevelopmentRunning = false;
+let lastAutonomousDevelopment = null;
+
+async function maybeAutonomousDevelop(trigger = "scheduled") {
+  if (autonomousDevelopmentRunning) return null;
+  const settings = settingsStore.getSettings();
+  const evaluation = evaluateAutonomousRun({
+    settings,
+    hasToken: githubClient.hasToken(),
+    drafts: improveDrafts.getProposable(),
+    now: Date.now(),
+    lastActivityAt,
+  });
+  if (!evaluation.ready) return null;
+
+  autonomousDevelopmentRunning = true;
+  const startedAt = Date.now();
+  settingsStore.setSettings({
+    autonomousDevelopmentLastRun: startedAt,
+    autonomousDevelopmentLastResult: "Taslak PR hazırlanıyor",
+  });
+  try {
+    const status = modelManager.getStatus ? modelManager.getStatus() : {};
+    const model = (status && status.model) || DEFAULT_MODEL;
+    const result = await autonomousDev.runAutonomousDevelopment({
+      git: githubClient,
+      repository: evaluation.repository,
+      task: evaluation.task,
+      requestedPaths: evaluation.requestedPaths,
+      model,
+      version: app.getVersion(),
+      generate: (messages) => modelManager.generate(model, messages),
+    });
+    improveDrafts.markProposed(evaluation.draft.key);
+    lastAutonomousDevelopment = {
+      at: Date.now(),
+      trigger,
+      ok: true,
+      number: result.number,
+      url: result.url,
+      idea: evaluation.draft.idea,
+    };
+    settingsStore.setSettings({
+      autonomousDevelopmentLastRun: startedAt,
+      autonomousDevelopmentLastResult: `Taslak PR #${result.number}`,
+    });
+    try { logs.info("development", `Gözlem döngüsü taslak PR #${result.number} açtı: ${result.title}`); } catch (_e) {}
+    return result;
+  } catch (error) {
+    const message = error && (error.message || String(error));
+    lastAutonomousDevelopment = { at: Date.now(), trigger, ok: false, message };
+    settingsStore.setSettings({
+      autonomousDevelopmentLastRun: startedAt,
+      autonomousDevelopmentLastResult: `Durduruldu: ${String(message).slice(0, 180)}`,
+    });
+    try { logs.warn("development", `Gözlem döngüsü durdu: ${message}`); } catch (_e) {}
+    return null;
+  } finally {
+    autonomousDevelopmentRunning = false;
+  }
+}
+
+async function runMaintenanceAutomations() {
+  await doMaintenance();
+  const development = await maybeAutonomousDevelop("maintenance");
+  if (!development) await maybeAutoPropose();
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -691,9 +759,12 @@ function registerIpc() {
         {
           key: "autonomousDevelopment",
           label: "Otonom Kod Geliştirme",
-          desc: "Seçilen repo dosyalarını okuyup güvenlik sınırları içinde kod değişikliği üretir ve taslak PR açar.",
+          desc: "Gözlenen tekrar eden sorunlarda seçilen repo dosyalarını okuyup güvenlik sınırları içinde taslak PR açar.",
           enabled: !!s.autonomousDevelopment,
-          last: null,
+          last: lastAutonomousDevelopment ? {
+            at: lastAutonomousDevelopment.at,
+            info: lastAutonomousDevelopment.ok ? `PR #${lastAutonomousDevelopment.number}` : "durduruldu",
+          } : null,
         },
       ],
     };
@@ -738,6 +809,10 @@ function registerIpc() {
   ipcMain.handle("improve:drafts", async () => improveDrafts.getDrafts());
   ipcMain.handle("improve:clearDrafts", async () => { improveDrafts.clearAll(); return true; });
   ipcMain.handle("improve:autoStatus", async () => lastAutoPropose);
+  ipcMain.handle("development:status", async () => ({
+    running: autonomousDevelopmentRunning,
+    last: lastAutonomousDevelopment,
+  }));
   ipcMain.handle("agent-watch:status", async () => lastAgentWatch || agentWatch.status());
   ipcMain.handle("agent-watch:scan", async () => runAgentWatch("manual"));
 
@@ -891,8 +966,8 @@ app.whenReady().then(async () => {
   }
 
   // Kendi kendine bakım: açılışta bir kez + her 5 dakikada bir (güvenli, kod değiştirmez)
-  doMaintenance().then(() => maybeAutoPropose()).catch(() => {});
-  setInterval(() => { doMaintenance().then(() => maybeAutoPropose()).catch(() => {}); }, 5 * 60 * 1000);
+  runMaintenanceAutomations().catch(() => {});
+  setInterval(() => { runMaintenanceAutomations().catch(() => {}); }, 5 * 60 * 1000);
   scheduleLearning();
   scheduleAgentWatch();
   refreshMcpTools().catch(() => {});

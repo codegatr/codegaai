@@ -6,7 +6,7 @@
     <title>CODEGA AI</title>
     <link rel="stylesheet" href="./styles.css">
   </head>
-  <body>
+  <body class="empty-chat">
     <aside class="history-panel">
       <div class="brand">
         <div class="brand-mark">C</div>
@@ -26,8 +26,9 @@
 
       <section class="conversation" id="conversation">
         <div class="welcome" id="welcome">
-          <h1>CODEGA AI</h1>
-          <p>Ne yapmak istiyorsun?</p>
+          <div class="welcome-kicker"><span></span> CODEGA AI · YEREL AJAN</div>
+          <h1>Sen hazır olduğunda hazırım.</h1>
+          <p>Sor, araştır, üret veya bir projeyi birlikte yürüt.</p>
         </div>
       </section>
 
@@ -47,6 +48,16 @@
           <button type="submit" id="send-btn" title="Gönder">➤</button>
           <button type="button" id="stop-btn" title="Durdur" hidden>■</button>
         </form>
+        <div class="starter-actions" id="starter-actions" aria-label="Hızlı başlangıçlar">
+          <button type="button" data-starter-prompt="Bu konuyu güncel ve güvenilir kaynaklardan araştır: ">Web'de araştır</button>
+          <button type="button" data-starter-prompt="Bu kod tabanını incele, en önemli sorunu bul ve çözüm planı çıkar: ">Kod incele</button>
+          <button type="button" data-starter-action="attach">Dosya analiz et</button>
+          <button type="button" data-starter-prompt="Aşağıdaki hedef için uygulanabilir bir proje planı hazırla: ">Proje planla</button>
+        </div>
+        <div class="starter-meta" id="starter-meta">
+          <span><i></i> Cihazında hazır</span>
+          <span>Dosyalar iznin olmadan paylaşılmaz</span>
+        </div>
         <input type="file" id="file-input" hidden accept=".txt,.md,.csv,.tsv,.json,.js,.ts,.jsx,.tsx,.php,.py,.html,.htm,.css,.scss,.sql,.log,.xml,.yml,.yaml,.sh,.ini,.env,.c,.cpp,.h,.java,.go,.rs,.rb,.vue,.svelte,.zip,.rar,.7z,.tar,.gz,.png,.jpg,.jpeg,.gif,.webp,.bmp,.svg,.pdf" />
       </section>
     </main>
@@ -583,9 +594,17 @@
             </div>
             <button type="button" id="toggle-autonomous-development">—</button>
           </div>
+          <div class="settings-row">
+            <div>
+              <strong>Gözlemden Taslak PR Döngüsü</strong>
+              <p>Tekrarlanan hata ve olumsuz geri bildirimleri bekler; cihaz boşta olduğunda seçtiğin dosyalarda en küçük düzeltmeyi hazırlayıp taslak PR açar.</p>
+            </div>
+            <button type="button" id="toggle-autonomous-schedule">—</button>
+          </div>
           <div class="settings-field">
             <input type="text" id="development-repo" placeholder="Hedef repo: owner/repo" autocomplete="off" />
             <input type="text" id="development-paths" placeholder="Dosyalar: src/app.js, src/styles.css (en fazla 4)" autocomplete="off" />
+            <input type="number" id="development-interval" min="1" max="168" step="1" value="24" aria-label="Otonom geliştirme denetim aralığı (saat)" />
             <textarea id="development-task" rows="4" placeholder="Geliştirme görevi: sorunu, beklenen davranışı ve kabul ölçütlerini yaz."></textarea>
             <button type="button" id="development-run">Kodu Geliştir ve Taslak PR Aç</button>
             <p id="development-status">Kapalı. Etkinleştirdiğinde yalnız belirttiğin dosyalar değiştirilebilir.</p>

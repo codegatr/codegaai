@@ -45,6 +45,7 @@ contextBridge.exposeInMainWorld("codega", {
   maintenanceStatus: () => ipcRenderer.invoke("maintenance:status"),
   proposeImprovement: (payload) => ipcRenderer.invoke("improve:propose", payload),
   runAutonomousDevelopment: (payload) => ipcRenderer.invoke("development:run", payload),
+  autonomousDevelopmentStatus: () => ipcRenderer.invoke("development:status"),
   improveDrafts: () => ipcRenderer.invoke("improve:drafts"),
   clearImproveDrafts: () => ipcRenderer.invoke("improve:clearDrafts"),
   recordFeedback: (payload) => ipcRenderer.invoke("feedback:record", payload),
