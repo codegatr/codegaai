@@ -1,7 +1,7 @@
 {
   "name": "codega-ai-desktop",
   "productName": "CODEGA AI",
-  "version": "2.3.24",
+  "version": "2.3.25",
   "description": "CODEGA AI clean Windows-first desktop app.",
   "author": "CODEGA",
   "private": true,
@@ -19,7 +19,8 @@
     "test:chat-watchdog": "node scripts/test-chat-watchdog.mjs",
     "test:autonomous-development": "node scripts/test-autonomous-development.mjs",
     "test:agent-watch": "node scripts/test-agent-watch.mjs",
-    "test:ci": "npm run check && npm run test:model-updates && npm run test:model-storage && npm run test:chat-watchdog && npm run test:autonomous-development && npm run test:agent-watch && npm run test:reasoning && npm run test:verification && npm run test:reasoning:regression",
+    "test:agent-loop": "node scripts/test-agent-loop-resilience.mjs",
+    "test:ci": "npm run check && npm run test:model-updates && npm run test:model-storage && npm run test:chat-watchdog && npm run test:autonomous-development && npm run test:agent-watch && npm run test:agent-loop && npm run test:reasoning && npm run test:verification && npm run test:reasoning:regression",
     "pack": "electron-builder --dir",
     "dist:win": "electron-builder --win nsis --x64 --publish never",
     "release:win": "electron-builder --win nsis --x64 --publish always",

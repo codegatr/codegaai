@@ -11,6 +11,10 @@ const {
   ollamaCheckModelUpdate,
 } = require("../src/main/agent/ollama-client");
 const { ModelUpdateService } = require("../src/main/agent/model-update-service");
+const {
+  compareVersions,
+  scanModelCatalog,
+} = require("../src/main/agent/model-catalog-watch");
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 
 const manifest = Buffer.from('{"schemaVersion":2,"config":{"digest":"sha256:test"}}');
@@ -57,14 +61,67 @@ const service = new ModelUpdateService({
     applied.push(name);
     return { status: "ready", model: name };
   },
+  checkCatalog: async () => ({
+    lastCheck: 1234,
+    sources: [{ id: "qwen", latestGeneration: "Qwen3.7" }],
+    discoveries: [{ id: "qwen", latestGeneration: "Qwen3.7" }],
+    errors: [],
+  }),
 });
 
 const checked = await service.check();
 assert.equal(checked.lastCheck, 1234);
 assert.equal(checked.models[0].updateAvailable, true);
+assert.equal(checked.catalog.discoveries[0].latestGeneration, "Qwen3.7");
 const result = await service.apply("qwen3:8b");
 assert.deepEqual(applied, ["qwen3:8b"]);
 assert.equal(result.ok, true);
+
+const offlineService = new ModelUpdateService({
+  now: () => 2222,
+  listModels: async () => null,
+  checkCatalog: async () => ({
+    lastCheck: 2222,
+    sources: [{ id: "qwen", latestGeneration: "Qwen3.6" }],
+    discoveries: [],
+    errors: [],
+  }),
+});
+const offlineStatus = await offlineService.check();
+assert.equal(offlineStatus.lastCheck, 2222);
+assert.equal(offlineStatus.catalog.sources[0].id, "qwen", "catalog radar should work while Ollama is offline");
+assert.match(offlineStatus.error, /Ollama/i);
+
+assert.ok(compareVersions("Qwen3.7", "Qwen3.6") > 0, "new model generations should compare numerically");
+assert.equal(compareVersions("Qwen3.6", "Qwen3.6"), 0);
+
+const catalogResponses = new Map([
+  ["/repos/QwenLM/Qwen3.6", { html_url: "https://github.com/QwenLM/Qwen3.6", description: "Qwen", pushed_at: "2026-01-01" }],
+  ["/orgs/QwenLM/repos?per_page=100&sort=pushed", [
+    { name: "Qwen3.6", html_url: "https://github.com/QwenLM/Qwen3.6", pushed_at: "2026-01-01" },
+    { name: "Qwen3.7", html_url: "https://github.com/QwenLM/Qwen3.7", pushed_at: "2026-02-01" },
+  ]],
+]);
+const catalogFetch = async (url) => {
+  const parsed = new URL(url);
+  const key = parsed.pathname + parsed.search;
+  if (key.endsWith("/releases/latest")) {
+    return { ok: false, status: 404, json: async () => ({}) };
+  }
+  return { ok: true, status: 200, json: async () => catalogResponses.get(key) };
+};
+const catalog = await scanModelCatalog({
+  sources: [{
+    id: "qwen",
+    label: "Qwen",
+    repo: "QwenLM/Qwen3.6",
+    currentGeneration: "Qwen3.6",
+    discoverOrg: "QwenLM",
+    generationPattern: /^Qwen(\d+(?:\.\d+)?)$/i,
+  }],
+  fetchImpl: catalogFetch,
+});
+assert.equal(catalog.discoveries[0].latestGeneration, "Qwen3.7");
 
 const html = readFileSync(join(scriptDir, "../src/renderer/index.html"), "utf8");
 const renderer = readFileSync(join(scriptDir, "../src/renderer/renderer.js"), "utf8");

@@ -34,6 +34,7 @@ const modelManager = new ModelManager();
 const updateService = new UpdateService();
 const modelUpdateService = new ModelUpdateService({
   updateModel: (name, onProgress) => modelManager.updateModel(name, onProgress),
+  catalogOptions: () => ({ token: String(settingsStore.getSettings().githubToken || "").trim() }),
   logs,
 });
 
