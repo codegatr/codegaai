@@ -1678,16 +1678,22 @@ function renderModelUpdates(data) {
   const status = data || {};
   const models = Array.isArray(status.models) ? status.models : [];
   const updates = models.filter((model) => model.updateAvailable);
+  const catalog = status.catalog || {};
+  const discoveries = Array.isArray(catalog.discoveries) ? catalog.discoveries : [];
   if (status.checking) {
     els.modelUpdatesSummary.textContent = "Resmi Ollama manifestleri kontrol ediliyor…";
   } else if (status.error) {
-    els.modelUpdatesSummary.textContent = `Kontrol tamamlanamadı: ${status.error}`;
+    els.modelUpdatesSummary.textContent = catalog.sources?.length
+      ? `Ollama kontrolü tamamlanamadı; resmi model radarı çalışıyor · ${status.error}`
+      : `Kontrol tamamlanamadı: ${status.error}`;
   } else if (!status.lastCheck) {
     els.modelUpdatesSummary.textContent = "Henüz kontrol edilmedi.";
   } else if (updates.length) {
     els.modelUpdatesSummary.textContent = `${updates.length} model güncellemesi hazır · Son kontrol: ${formatModelUpdateTime(status.lastCheck)}`;
+  } else if (discoveries.length) {
+    els.modelUpdatesSummary.textContent = `${discoveries.length} yeni model ailesi bulundu · Son kontrol: ${formatModelUpdateTime(status.lastCheck)}`;
   } else {
-    els.modelUpdatesSummary.textContent = `Kurulu modeller güncel · Son kontrol: ${formatModelUpdateTime(status.lastCheck)}`;
+    els.modelUpdatesSummary.textContent = `Kurulu modeller güncel · Resmi model radarı aktif · Son kontrol: ${formatModelUpdateTime(status.lastCheck)}`;
   }
 
   els.modelUpdatesList.innerHTML = "";
@@ -1733,6 +1739,17 @@ function renderModelUpdates(data) {
       });
       row.appendChild(button);
     }
+    els.modelUpdatesList.appendChild(row);
+  }
+  for (const source of discoveries) {
+    const row = document.createElement("div");
+    row.className = "settings-row model-update-row update-ready";
+    row.innerHTML = `<div><strong>${escapeHtml(source.label)}: ${escapeHtml(source.latestGeneration)}</strong><p class="update-state">Yeni resmi model ailesi bulundu; donanım ve Ollama paketi doğrulanmadan otomatik kurulmaz.</p></div>`;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "Resmi Kaynak";
+    button.addEventListener("click", () => window.codega.openExternal(source.url));
+    row.appendChild(button);
     els.modelUpdatesList.appendChild(row);
   }
 }

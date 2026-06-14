@@ -447,14 +447,25 @@ function stripToolCalls(text) {
  * Metindeki tüm araç çağrılarını (her formatta) çalıştır.
  * @returns {Promise<{calls: Array}>}
  */
-async function parseAndRunTools(text, allowedTools = null) {
+async function parseAndRunTools(text, allowedTools = null, options = {}) {
   const allow = Array.isArray(allowedTools) ? new Set(allowedTools) : null;
+  const skipSignatures = options.skipSignatures instanceof Set ? options.skipSignatures : null;
+  const signatureFor = typeof options.signatureFor === "function"
+    ? options.signatureFor
+    : ((call) => `${call.name}:${JSON.stringify(call.args)}`);
   const calls = [];
+  const skipped = [];
   for (const found of extractToolCalls(text)) {
     const name = found.name;
     const args = parseArgs(found.argsStr);
     const def = TOOLS[name];
     const call = { name, args, result: null, error: null, elapsedMs: 0 };
+    const signature = signatureFor(call);
+    if (skipSignatures && skipSignatures.has(signature)) {
+      skipped.push(call);
+      continue;
+    }
+    if (skipSignatures) skipSignatures.add(signature);
     const t0 = Date.now();
     if (allow && !allow.has(name)) {
       // Bu ajanın yetki politikası bu aracı içermiyor
@@ -473,7 +484,7 @@ async function parseAndRunTools(text, allowedTools = null) {
     call.elapsedMs = Date.now() - t0;
     calls.push(call);
   }
-  return { calls };
+  return { calls, skipped };
 }
 
 function toolsSystemPrompt() {

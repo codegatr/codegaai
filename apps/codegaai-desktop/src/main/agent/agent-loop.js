@@ -38,6 +38,26 @@ function formatObservation(calls) {
   return lines.join("\n");
 }
 
+function toolCallSignature(call) {
+  const args = call && call.args && typeof call.args === "object"
+    ? JSON.stringify(call.args, Object.keys(call.args).sort())
+    : String(call && call.args || "");
+  return `${String(call && call.name || "").trim()}:${args}`;
+}
+
+function recoveryObservation(calls, repeated = []) {
+  const failed = calls.filter((call) => call && call.error);
+  const parts = [];
+  if (repeated.length) {
+    parts.push(`Tekrarlanan araç çağrısı engellendi: ${repeated.map((call) => call.name).join(", ")}.`);
+  }
+  if (failed.length) {
+    parts.push(`Başarısız araçlar: ${failed.map((call) => `${call.name}: ${call.error}`).join(" | ")}.`);
+  }
+  parts.push("Aynı çağrıyı yineleme. Argümanları düzelt, farklı bir araç kullan veya eldeki kanıtla durumu açıkça yanıtla.");
+  return `## Ajan Kurtarma Rehberi\n${parts.join("\n")}`;
+}
+
 /**
  * @param {Array<{role,content}>} messages
  * @param {(msgs:Array)=>Promise<string>} generateFn
@@ -47,6 +67,7 @@ function formatObservation(calls) {
 async function runReact(messages, generateFn, opts = {}) {
   const { maxIters = 4, observationRole = "user", allowedTools = null } = opts;
   const convo = messages.slice();
+  const seenToolCalls = new Set();
   const result = {
     content: "",
     iterations: 0,
@@ -76,7 +97,10 @@ async function runReact(messages, generateFn, opts = {}) {
       return result;
     }
 
-    const { calls } = await parseAndRunTools(raw, allowedTools);
+    const { calls, skipped: repeated } = await parseAndRunTools(raw, allowedTools, {
+      skipSignatures: seenToolCalls,
+      signatureFor: toolCallSignature,
+    });
     step.toolCalls = calls.map((c) => ({
       name: c.name, args: c.args, result: c.result, error: c.error, elapsedMs: c.elapsedMs,
     }));
@@ -84,13 +108,16 @@ async function runReact(messages, generateFn, opts = {}) {
       result.toolCalls.push({ name: c.name, result: c.result, elapsedMs: c.elapsedMs });
     }
 
-    const observation = formatObservation(calls);
+    const observation = (repeated.length || calls.some((call) => call.error))
+      ? `${formatObservation(calls)}\n\n${recoveryObservation(calls, repeated)}`
+      : formatObservation(calls);
     step.observation = observation;
     result.steps.push(step);
 
     convo.push({ role: "assistant", content: raw });
     convo.push({ role: observationRole, content: observation });
     result.iterations = i;
+    if (!calls.length && repeated.length) result.stoppedReason = "repeated_tool_call";
   }
 
   // max_iters doldu: araçsız son sentez
@@ -102,6 +129,12 @@ async function runReact(messages, generateFn, opts = {}) {
   try {
     const finalRaw = (await generateFn(convo)) || "";
     result.content = cleanFinal(finalRaw);
+    if (!result.content) {
+      const useful = result.toolCalls.map((call) => call.result).filter(Boolean);
+      result.content = useful.length
+        ? `Toplanan araç sonuçları:\n${useful.join("\n\n")}`
+        : "Bu görev için güvenilir bir sonuç üretemedim. Araç çağrıları sonuç vermedi; farklı bir yaklaşımla yeniden deneyebilirim.";
+    }
   } catch (e) {
     result.content = `⚠️ Final üretim hatası: ${e.message || e}`;
   }
@@ -109,4 +142,11 @@ async function runReact(messages, generateFn, opts = {}) {
   return result;
 }
 
-module.exports = { runReact, hasToolCall, cleanFinal };
+module.exports = {
+  runReact,
+  hasToolCall,
+  cleanFinal,
+  formatObservation,
+  recoveryObservation,
+  toolCallSignature,
+};

@@ -4,6 +4,7 @@ const {
   ollamaListModelDetails,
   ollamaCheckModelUpdate,
 } = require("./ollama-client");
+const { scanModelCatalog } = require("./model-catalog-watch");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -14,6 +15,8 @@ class ModelUpdateService {
     this.listModels = options.listModels || ollamaListModelDetails;
     this.checkModel = options.checkModel || ollamaCheckModelUpdate;
     this.updateModel = options.updateModel;
+    this.checkCatalog = options.checkCatalog || scanModelCatalog;
+    this.catalogOptions = options.catalogOptions || (() => ({}));
     this.logs = options.logs || null;
     this.now = options.now || (() => Date.now());
     this.state = {
@@ -21,6 +24,12 @@ class ModelUpdateService {
       applying: false,
       lastCheck: null,
       models: [],
+      catalog: {
+        lastCheck: null,
+        sources: [],
+        discoveries: [],
+        errors: [],
+      },
       error: null,
     };
   }
@@ -33,6 +42,15 @@ class ModelUpdateService {
     if (this.state.checking) return this.snapshot();
     this.state.checking = true;
     this.state.error = null;
+    try {
+      this.state.catalog = await this.checkCatalog(this.catalogOptions());
+    } catch (catalogError) {
+      this.state.catalog = {
+        ...this.state.catalog,
+        lastCheck: this.now(),
+        errors: [{ source: "model-radar", message: catalogError.message || String(catalogError) }],
+      };
+    }
     try {
       const installed = await this.listModels();
       if (!Array.isArray(installed)) {
@@ -51,6 +69,7 @@ class ModelUpdateService {
       this.state.lastCheck = this.now();
       this.logs?.info?.("models", `Model güncelleme kontrolü: ${results.filter((m) => m.updateAvailable).length} güncelleme`);
     } catch (error) {
+      this.state.lastCheck = this.now();
       this.state.error = error && error.message ? error.message : String(error);
       this.logs?.warn?.("models", `Model güncelleme kontrolü başarısız: ${this.state.error}`);
     } finally {
