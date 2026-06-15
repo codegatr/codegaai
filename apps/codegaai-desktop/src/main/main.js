@@ -26,9 +26,11 @@ const metrics = require("./agent/metrics");
 const stats = require("./agent/stats");
 const logs = require("./agent/logs");
 const agentTools = require("./agent/tools");
+const runtimePolicy = require("./agent/runtime-policy");
 const { ollamaReachable } = require("./agent/ollama-client");
 const inheritedOllamaModelsPath = String(process.env.OLLAMA_MODELS || "").trim();
 let activeModelStorage = null;
+let lastMcpHealth = null;
 
 const modelManager = new ModelManager();
 const updateService = new UpdateService();
@@ -169,10 +171,30 @@ async function learnOnce(manualTopic) {
 async function refreshMcpTools() {
   try {
     const s = settingsStore.getSettings();
+    const permission = runtimePolicy.permissionDecision(s, "mcp");
+    if (!permission.allowed) {
+      agentTools.clearMcpTools();
+      lastMcpHealth = {
+        ok: false,
+        checkedAt: Date.now(),
+        message: permission.requiresApproval
+          ? "MCP araçları kullanıcı izni bekliyor."
+          : "MCP araçları güvenlik politikasıyla kapalı.",
+        toolCount: 0,
+        permission: permission.mode,
+      };
+      return { ok: false, count: 0, tools: [], message: lastMcpHealth.message };
+    }
     if (s.mcpAutoTools && /^https?:\/\//i.test(s.mcpServerUrl || "")) {
       const mcp = require("./agent/mcp-client");
-      const { tools: list } = await mcp.listTools(s.mcpServerUrl);
+      const { tools: list, serverInfo } = await mcp.listToolsWithRetry(s.mcpServerUrl);
       const added = agentTools.setMcpTools(s.mcpServerUrl, list || []);
+      lastMcpHealth = {
+        ok: true,
+        checkedAt: Date.now(),
+        serverInfo: serverInfo || null,
+        toolCount: added.length,
+      };
       try { logs.info("mcp", `Ajana ${added.length} MCP aracı bağlandı (${s.mcpServerUrl})`); } catch (_e) {}
       return { ok: true, count: added.length, tools: added };
     }
@@ -180,13 +202,17 @@ async function refreshMcpTools() {
     return { ok: true, count: 0, tools: [] };
   } catch (e) {
     try { agentTools.clearMcpTools(); } catch (_e) {}
+    lastMcpHealth = { ok: false, checkedAt: Date.now(), message: e.message || String(e), toolCount: 0 };
     return { ok: false, message: e.message || String(e) };
   }
 }
 
 function scheduleLearning() {
   const tick = async () => {
-    try { if (settingsStore.getSettings().continuousLearning) await learnOnce(); } catch (_e) {}
+    try {
+      const settings = settingsStore.getSettings();
+      if (settings.scheduledTasksEnabled && settings.continuousLearning) await learnOnce();
+    } catch (_e) {}
   };
   setTimeout(tick, 60 * 1000); // ilk tur ~1 dk sonra
   setInterval(tick, 25 * 60 * 1000); // sonra her 25 dk
@@ -225,7 +251,7 @@ function scheduleAgentWatch() {
   const tick = async () => {
     try {
       const s = settingsStore.getSettings();
-      if (!s.agentWatch) return;
+      if (!s.scheduledTasksEnabled || !s.agentWatch) return;
       const current = agentWatch.status();
       const hours = Math.max(1, Number(s.agentWatchIntervalHours) || 6);
       if (current.lastScanAt && Date.now() - current.lastScanAt < hours * 60 * 60 * 1000) return;
@@ -267,6 +293,15 @@ let lastAutonomousDevelopment = null;
 async function maybeAutonomousDevelop(trigger = "scheduled") {
   if (autonomousDevelopmentRunning) return null;
   const settings = settingsStore.getSettings();
+  const permission = runtimePolicy.permissionDecision(settings, "autonomousDevelopment");
+  if (!permission.allowed) {
+    settingsStore.setSettings({
+      autonomousDevelopmentLastResult: permission.requiresApproval
+        ? "Zamanlanmış geliştirme kullanıcı izni bekliyor"
+        : "Güvenlik politikası tarafından durduruldu",
+    });
+    return null;
+  }
   const evaluation = evaluateAutonomousRun({
     settings,
     hasToken: githubClient.hasToken(),
@@ -324,6 +359,7 @@ async function maybeAutonomousDevelop(trigger = "scheduled") {
 }
 
 async function runMaintenanceAutomations() {
+  if (settingsStore.getSettings().scheduledTasksEnabled === false) return;
   await doMaintenance();
   const development = await maybeAutonomousDevelop("maintenance");
   if (!development) await maybeAutoPropose();
@@ -657,7 +693,35 @@ function registerIpc() {
     if (patch && (("mcpAutoTools" in patch) || ("mcpServerUrl" in patch))) { refreshMcpTools().catch(() => {}); }
     return next;
   });
+  ipcMain.handle("workspace:addTrusted", async () => {
+    const selected = await dialog.showOpenDialog({
+      title: "Güvenilen çalışma klasörü seç",
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (selected.canceled || !selected.filePaths[0]) return settingsStore.getSettings();
+    const current = settingsStore.getSettings();
+    return settingsStore.setSettings({
+      trustedFolders: [...(current.trustedFolders || []), selected.filePaths[0]],
+    });
+  });
+  ipcMain.handle("workspace:removeTrusted", async (_event, folder) => {
+    const target = runtimePolicy.normalizeFolder(folder);
+    const current = settingsStore.getSettings();
+    return settingsStore.setSettings({
+      trustedFolders: (current.trustedFolders || []).filter(
+        (item) => runtimePolicy.normalizeFolder(item) !== target,
+      ),
+    });
+  });
   ipcMain.handle("mcp:refreshTools", async () => refreshMcpTools());
+  ipcMain.handle("mcp:health", async () => {
+    const settings = settingsStore.getSettings();
+    const url = String(settings.mcpServerUrl || "").trim();
+    if (!/^https?:\/\//i.test(url)) return { ok: false, configured: false, message: "MCP sunucusu tanımlı değil." };
+    const mcp = require("./agent/mcp-client");
+    lastMcpHealth = await mcp.healthCheck(url);
+    return { configured: true, ...lastMcpHealth };
+  });
   ipcMain.handle("memory:list", async () => memory.listFacts());
   ipcMain.handle("memory:clear", async () => memory.clearAll());
 
@@ -722,6 +786,23 @@ function registerIpc() {
         { key: "Gemini API anahtarı", present: !!String(s.geminiApiKey || "").trim(), hint: mask(s.geminiApiKey), note: "Yalnızca bu cihazda saklanır; yalnızca Google Gemini API'ye gider." },
       ],
       permissions: [
+        {
+          key: "Güvenilen çalışma alanları",
+          enabled: Array.isArray(s.trustedFolders) && s.trustedFolders.length > 0,
+          note: s.trustedFolders && s.trustedFolders.length
+            ? `${s.trustedFolders.length} klasör ajan işlemlerine açık.`
+            : "Henüz güvenilen klasör yok; dosya ve geliştirme eylemleri onay gerektirir.",
+        },
+        {
+          key: "Model otomatik yedekleme",
+          enabled: s.modelAutoFallback !== false,
+          note: runtimePolicy.configuredProviderChain(s).join(" → "),
+        },
+        {
+          key: "Zamanlanmış görevler",
+          enabled: s.scheduledTasksEnabled !== false,
+          note: "Öğrenme, ajan radarı, bakım ve model kontrollerinin ana anahtarı.",
+        },
         { key: "Otonom Kod Geliştirme", enabled: !!s.autonomousDevelopment, note: "Yalnız seçilen dosyaları okur; ayrı dalda taslak PR açar ve otomatik birleştirmez." },
         { key: "Kod Çalıştırma", enabled: true, note: "Yalnızca sen 'Çalıştır' deyince; ajan kendiliğinden çalıştırmaz. İzolasyon yok (kendi yetkilerinle)." },
         { key: "MCP araçları (ajana bağlı)", enabled: !!s.mcpAutoTools, note: "Yalnızca senin tanımladığın sunucu; opt-in." },
@@ -729,6 +810,13 @@ function registerIpc() {
         { key: "Otomatik Öneri PR", enabled: !!s.autoProposePR, note: "GitHub'da yalnız dal açar; ana dala merge etmez." },
         { key: "GitHub yedek (öğrenilenler)", enabled: !!String(s.learningSyncRepo || "").trim(), note: "Açıksa öğrenilenleri belirttiğin repoya yazar." },
       ],
+      runtime: {
+        deviceName: s.remoteToolsDeviceName,
+        trustedFolders: s.trustedFolders || [],
+        toolPermissions: s.toolPermissions || {},
+        providerChain: runtimePolicy.configuredProviderChain(s),
+        mcp: lastMcpHealth,
+      },
     };
   });
 
@@ -797,6 +885,10 @@ function registerIpc() {
 
   ipcMain.handle("development:run", async (_event, payload) => {
     const settings = settingsStore.getSettings();
+    const permission = runtimePolicy.permissionDecision(settings, "autonomousDevelopment");
+    if (permission.mode === "deny") {
+      throw new Error("Otonom geliştirme güvenlik politikasıyla kapalı.");
+    }
     if (!settings.autonomousDevelopment) {
       throw new Error("Önce Ayarlar bölümünden Otonom Kod Geliştirme'yi aç.");
     }
@@ -899,12 +991,16 @@ function registerIpc() {
 
   ipcMain.handle("mcp:listTools", async (_event, payload) => {
     const mcp = require("./agent/mcp-client");
+    const permission = runtimePolicy.permissionDecision(settingsStore.getSettings(), "mcp");
+    if (permission.mode === "deny") throw new Error("MCP güvenlik politikasıyla kapalı.");
     const url = (payload && payload.url) || "";
     if (!/^https?:\/\//i.test(url)) throw new Error("Geçerli bir http(s) URL gir.");
     return mcp.listTools(url);
   });
   ipcMain.handle("mcp:callTool", async (_event, payload) => {
     const mcp = require("./agent/mcp-client");
+    const permission = runtimePolicy.permissionDecision(settingsStore.getSettings(), "mcp");
+    if (permission.mode === "deny") throw new Error("MCP güvenlik politikasıyla kapalı.");
     const url = (payload && payload.url) || "";
     const name = (payload && payload.name) || "";
     if (!/^https?:\/\//i.test(url)) throw new Error("Geçerli bir http(s) URL gir.");
@@ -919,6 +1015,10 @@ function registerIpc() {
 
   ipcMain.handle("code:run", async (_event, payload) => {
     const { runCode } = require("./agent/code-runner");
+    const permission = runtimePolicy.permissionDecision(settingsStore.getSettings(), "codeExecution");
+    if (permission.mode === "deny") {
+      return { ok: false, stdout: "", stderr: "Kod çalıştırma güvenlik politikasıyla kapalı.", exitCode: -1 };
+    }
     const lang = (payload && payload.language) || "";
     const code = (payload && payload.code) || "";
     if (!code.trim()) return { ok: false, stdout: "", stderr: "Kod boş.", exitCode: -1 };
@@ -994,6 +1094,7 @@ app.whenReady().then(async () => {
   // (kod yazmaz). ~5 dk boşta kalınca ve ayar açıksa çalışır.
   setInterval(() => {
     const s = settingsStore.getSettings();
+    if (s.scheduledTasksEnabled === false) return;
     if (!s.idleLearning) return;
     if (Date.now() - lastActivityAt < 2 * 60 * 1000) return; // 2 dk boşta değilse atla
     knowledge.syncUp().catch(() => {});
@@ -1003,6 +1104,7 @@ app.whenReady().then(async () => {
   // Yalnız cihaz en az 5 dakika boşta kaldığında aynı model etiketi güncellenir.
   const maybeUpdateModels = async () => {
     const s = settingsStore.getSettings();
+    if (s.scheduledTasksEnabled === false) return;
     if (s.autoModelUpdates === false) return;
     if (Date.now() - lastActivityAt < 5 * 60 * 1000) return;
     const previous = modelUpdateService.snapshot();

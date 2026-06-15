@@ -196,6 +196,18 @@
           </div>
           <div class="settings-row">
             <div>
+              <strong>Otomatik model yedekleme</strong>
+              <p>Seçili sağlayıcı yanıt vermezse yapılandırılmış diğer sağlayıcılara ve yerel Ollama'ya güvenli sırayla geçer.</p>
+            </div>
+            <button type="button" id="toggle-model-fallback">—</button>
+          </div>
+          <div class="settings-field">
+            <label for="model-fallback-order">Yedekleme sırası</label>
+            <input type="text" id="model-fallback-order" placeholder="ollama, openai, claude, gemini" autocomplete="off" />
+            <button type="button" id="save-model-fallback">Sırayı Kaydet</button>
+          </div>
+          <div class="settings-row">
+            <div>
               <strong>Uzman Modu</strong>
               <p>Sohbeti bir alana göre yönlendirir (PHP, Python, DevOps, Finans, Hukuk…).</p>
             </div>
@@ -650,6 +662,32 @@
           <div class="settings-section">
             <h2>Hassas Yetkiler</h2>
             <div class="model-list" id="security-perms"></div>
+          </div>
+          <div class="settings-section">
+            <h2>Ajan Çalışma Zamanı</h2>
+            <div class="settings-row">
+              <div><strong>Cihaz adı</strong><p>Uzak araç, federe ağ ve görev kayıtlarında bu cihazı tanımlar.</p></div>
+              <input type="text" id="runtime-device-name" placeholder="CODEGA-Cihaz" autocomplete="off" />
+            </div>
+            <div class="settings-row">
+              <div><strong>Zamanlanmış görevler</strong><p>Öğrenme, GitHub ajan radarı, bakım ve model güncelleme kontrollerinin ana anahtarı.</p></div>
+              <button type="button" id="toggle-scheduled-tasks">—</button>
+            </div>
+            <div class="settings-row">
+              <div><strong>Araç izin politikası</strong><p>allow: otomatik, ask: kullanıcı eylemi/onayı, deny: tamamen kapalı.</p></div>
+              <div class="permission-grid">
+                <label>Ağ <select id="permission-network"><option value="allow">allow</option><option value="ask">ask</option><option value="deny">deny</option></select></label>
+                <label>MCP <select id="permission-mcp"><option value="allow">allow</option><option value="ask">ask</option><option value="deny">deny</option></select></label>
+                <label>Kod <select id="permission-code"><option value="allow">allow</option><option value="ask">ask</option><option value="deny">deny</option></select></label>
+                <label>Otonom geliştirme <select id="permission-development"><option value="allow">allow</option><option value="ask">ask</option><option value="deny">deny</option></select></label>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div><strong>Güvenilen çalışma alanları</strong><p>Ajan yalnızca açıkça güvendiğin klasörlerde dosya ve proje işlemleri yapabilir.</p></div>
+              <button type="button" id="add-trusted-workspace">Klasör Ekle</button>
+            </div>
+            <div class="model-list" id="trusted-workspaces"></div>
+            <button type="button" id="save-runtime-policy">Çalışma Zamanını Kaydet</button>
           </div>
         </details>
 

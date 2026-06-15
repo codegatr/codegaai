@@ -16,6 +16,8 @@ const required = [
   "src/main/agent/autonomous-loop.js",
   "src/main/agent/agent-watch.js",
   "src/main/agent/cloud-provider.js",
+  "src/main/agent/runtime-policy.js",
+  "src/main/agent/mcp-client.js",
   "src/main/agent/agent-loop.js",
   "src/main/agent/tools.js",
   "src/main/agent/memory.js",
@@ -64,6 +66,12 @@ for (const marker of ["starter-actions", "Sen hazır olduğunda hazırım.", "to
 }
 if (!rendererJs.includes('classList.toggle("empty-chat"')) {
   throw new Error("Empty-chat layout state is not wired");
+}
+for (const marker of ["model-fallback-order", "permission-network", "trusted-workspaces", "toggle-scheduled-tasks"]) {
+  if (!settingsHtml.includes(marker)) throw new Error(`Agent runtime UI is missing: ${marker}`);
+}
+for (const marker of ["addTrustedWorkspace", "mcpHealth"]) {
+  if (!preloadJs.includes(marker)) throw new Error(`Agent runtime IPC is missing: ${marker}`);
 }
 
 console.log("CODEGA AI desktop scaffold OK");

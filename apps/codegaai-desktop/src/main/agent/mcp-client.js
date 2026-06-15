@@ -96,4 +96,47 @@ async function callTool(url, name, args = {}) {
   return { isError: !!(r.result && r.result.isError), text: text || JSON.stringify(r.result) };
 }
 
-module.exports = { connect, listTools, callTool, PROTOCOL_VERSION };
+async function healthCheck(url, opts = {}) {
+  const startedAt = Date.now();
+  try {
+    const result = await listTools(url);
+    return {
+      ok: true,
+      latencyMs: Date.now() - startedAt,
+      serverInfo: result.serverInfo || null,
+      toolCount: result.tools.length,
+      checkedAt: Date.now(),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      latencyMs: Date.now() - startedAt,
+      message: error && (error.message || String(error)),
+      checkedAt: Date.now(),
+    };
+  }
+}
+
+async function listToolsWithRetry(url, opts = {}) {
+  const attempts = Math.max(1, Math.min(4, Number(opts.attempts) || 3));
+  const delayMs = Math.max(50, Number(opts.delayMs) || 350);
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await listTools(url);
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
+    }
+  }
+  throw lastError;
+}
+
+module.exports = {
+  connect,
+  listTools,
+  listToolsWithRetry,
+  callTool,
+  healthCheck,
+  PROTOCOL_VERSION,
+};

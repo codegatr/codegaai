@@ -1758,7 +1758,44 @@ body[data-theme="oled"] { --bg: #000; }
   justify-self: end;
 }
 
+.permission-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: min(720px, 100%);
+}
+
+.permission-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.permission-grid select,
+#runtime-device-name,
+#model-fallback-order {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  padding: 8px 10px;
+}
+
+#trusted-workspaces {
+  margin: 10px 0;
+}
+
+#trusted-workspaces .settings-row {
+  min-height: 52px;
+}
+
 @media (max-width: 760px) {
+  .permission-grid {
+    grid-template-columns: 1fr;
+  }
+
   body {
     grid-template-columns: 1fr;
   }
