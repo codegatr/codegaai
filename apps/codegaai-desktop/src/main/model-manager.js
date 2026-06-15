@@ -345,6 +345,36 @@ function isTechnicalDiagnostic(input) {
     /\b(hata|error|failed|failure|exception|timeout|takildi|calismiyor|bozuldu|500|404|403|401|502|503|504|err_[a-z_]+)\b/.test(text)
   );
 }
+function intentText(input) {
+  return _normTr(input)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function isInteractiveSoftwareRequest(input) {
+  const text = intentText(input);
+  if (!text) return false;
+  const hasSoftwareContext = /\b(php|laravel|flutter|api|veritabani|database|clean architecture|yazilim|uygulama|sistem|backend|frontend|mobil|web|kod)\b/.test(text);
+  const hasDeliveryVerb = /\b(gelistir|olustur|tasarla|kur|uygula|yaz|hazirla|planla|analiz et)\b/.test(text);
+  return hasSoftwareContext && hasDeliveryVerb;
+}
+function wantsExplicitMultiAgent(input) {
+  const text = intentText(input);
+  return /\b(coklu ajan|multi agent|multi-agent|ajan ekibi|uzman ajanlar|ajanlari kullan|architect agent|backend agent|frontend agent|devops agent|security agent)\b/.test(text);
+}
+function shouldUseMultiAgent(settings, input) {
+  return settings?.multiAgent === true && wantsExplicitMultiAgent(input);
+}
+function softwareDeliveryPlan() {
+  return [
+    "Gereksinimleri, aktorleri, is akislarini ve kabul kriterlerini analiz et",
+    "Domain modelini ve veritabani semasini iliskiler, indeksler ve kisitlarla tasarla",
+    "Laravel API katmanini kimlik dogrulama, yetkilendirme, dogrulama ve hata yonetimiyle gelistir",
+    "Flutter uygulamasini Clean Architecture katmanlari, durum yonetimi ve API istemcisiyle kurgula",
+    "Test, guvenlik, izleme ve dagitim adimlarini tamamla",
+  ];
+}
 function shouldRunHardValidation({
   fastConversation = false,
   technicalDiagnostic = false,
@@ -987,6 +1017,7 @@ class ModelManager {
     const _t0 = Date.now();
     const fastConversation = isSmallTalk(input);
     const technicalDiagnostic = isTechnicalDiagnostic(input);
+    const interactiveSoftwareRequest = isInteractiveSoftwareRequest(input);
     const reasoningCategories = classifyReasoningProblem(input);
     const inputNeedsVerification = shouldVerifyAnswer(input);
     const inputNeedsConclusion = shouldEnforceConclusion(input);
@@ -1002,9 +1033,9 @@ class ModelManager {
     });
     const cognitiveIntake = cognitiveKernel.runIntake(cognitiveContextState);
     const taskDecomposition = cognitiveIntake.taskReport;
-    const inputNeedsCognitivePipeline = !fastConversation && deepReasoning && shouldRunCognitivePipeline(input) && !inputNeedsMLVC;
+    const inputNeedsCognitivePipeline = !fastConversation && !interactiveSoftwareRequest && deepReasoning && shouldRunCognitivePipeline(input) && !inputNeedsMLVC;
     const requiresHardValidation = shouldRunHardValidation({
-      fastConversation,
+      fastConversation: fastConversation || interactiveSoftwareRequest,
       technicalDiagnostic,
       inputNeedsVerification,
       inputNeedsMLVC,
@@ -1206,7 +1237,16 @@ class ModelManager {
     const cognitiveContext = cognitivePreflight.context || "";
 
     let plan = [];
-    if (!fastConversation && settings.planner && looksLikeGoal(input)) {
+    if (interactiveSoftwareRequest && settings.planner) {
+      plan = softwareDeliveryPlan(input);
+      try {
+        opts.onProgress?.({
+          stage: "reasoning",
+          scope: "answer",
+          text: "Istek analiz edildi; mimari ve uygulama plani hazirlaniyor.",
+        });
+      } catch (_e) {}
+    } else if (!fastConversation && settings.planner && looksLikeGoal(input)) {
       try {
         const plannerInput = cognitiveContext
           ? `${cognitiveContext}\n\nOriginal user request:\n${input}`
@@ -1395,7 +1435,7 @@ class ModelManager {
         ];
         const direct = await this.generate(selectedModel, sttMsgs, attemptModels, onToken);
         agent = { content: direct, iterations: 0, stoppedReason: "smalltalk", toolCalls: [] };
-      } else if (settings.multiAgent && looksLikeGoal(input)) {
+      } else if (shouldUseMultiAgent(settings, input) && looksLikeGoal(input)) {
         // Multi-agent: orchestrator → uzman ajanlar → denetçi sentezi
         const gen = (msgs) => this.generate(selectedModel, msgs);
         const orch = await runOrchestrated(input, {
@@ -1519,7 +1559,7 @@ class ModelManager {
     // silebiliyor ("2 | 12" gibi anonim çıktı). Bu modda onları atlar, sonda geri yükleriz.
     const isMultiTask = agent.stoppedReason === "multi_task";
     const multiTaskAssembled = isMultiTask ? agent.content : "";
-    if (settings.selfReflection && !inputNeedsCognitivePipeline && agent.stoppedReason !== "smalltalk" && !isMultiTask) {
+    if (settings.selfReflection && !interactiveSoftwareRequest && !inputNeedsCognitivePipeline && agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         finalProgress?.emit?.("verifying", { reason: "self-reflection" });
         const r = await reflect(input, text, (msgs) => this.generate(selectedModel, msgs));
@@ -1972,6 +2012,10 @@ module.exports = {
   parsePullProgress,
   isSmallTalk,
   isTechnicalDiagnostic,
+  isInteractiveSoftwareRequest,
+  wantsExplicitMultiAgent,
+  shouldUseMultiAgent,
+  softwareDeliveryPlan,
   shouldRunHardValidation,
   extractWeatherCity,
   _verifyTaskLocalAnswer: verifyTaskLocalAnswer,

@@ -1140,11 +1140,17 @@ async function regenerateLast() {
   const placeholder = msgs[msgs.length - 1];
 
   const streamView = createStreamView(placeholder);
-  const offStatus = window.codega.onChatStatus(setChatWorkingStatus);
+  const offStatus = window.codega.onChatStatus((status) => {
+    setChatWorkingStatus(status);
+    if (_kickWatchdog) _kickWatchdog();
+  });
   let rafPending = false;
   const offStream = window.codega.onChatStream((token) => {
     const kind = streamView.apply(token);
-    if (kind === "ignored") return;
+    if (kind === "ignored") {
+      if (_kickWatchdog) _kickWatchdog();
+      return;
+    }
     if (kind === "answer") {
       if (_kickWatchdog) _kickWatchdog();
       clearTimeout(slowNotice);
@@ -1208,11 +1214,17 @@ async function handleSubmit() {
   const placeholder = chat.messages[chat.messages.length - 1];
   // Streaming: token geldikçe placeholder'ı canlı güncelle (akış kapalıysa hiç gelmez)
   const streamView = createStreamView(placeholder);
-  const offStatus = window.codega.onChatStatus(setChatWorkingStatus);
+  const offStatus = window.codega.onChatStatus((status) => {
+    setChatWorkingStatus(status);
+    if (_kickWatchdog) _kickWatchdog();
+  });
   let rafPending = false;
   const offStream = window.codega.onChatStream((token) => {
     const kind = streamView.apply(token);
-    if (kind === "ignored") return;
+    if (kind === "ignored") {
+      if (_kickWatchdog) _kickWatchdog();
+      return;
+    }
     if (kind === "answer") {
       if (_kickWatchdog) _kickWatchdog();
       clearTimeout(slowNotice);
@@ -1293,9 +1305,9 @@ if (els.historySearch) els.historySearch.addEventListener("input", () => { histo
 let _metricsTimer = null;
 let _kickWatchdog = null; // akışta her gerçek token geldiğinde idle watchdog'u sıfırlar
 
-// İki katmanlı koruma: gerçek cevap tokenları idle sayacını sıfırlar; görünmez
-// heartbeat/progress satırları sıfırlamaz. hardMs ise her durumda kesin üst sınırdır.
-function sendMessageWithWatchdog(text, options = {}, idleMs = 90000, hardMs = 150000) {
+// İki katmanlı koruma: cevap tokenları ile motorun ilerleme/heartbeat sinyalleri idle
+// sayacını sıfırlar. hardMs ise takılan bir işi her durumda sonlandıran kesin üst sınırdır.
+function sendMessageWithWatchdog(text, options = {}, idleMs = 135000, hardMs = 300000) {
   let timer = null;
   let hardTimer = null;
   let rejectFn = null;
