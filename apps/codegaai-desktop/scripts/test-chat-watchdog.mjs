@@ -9,9 +9,13 @@ const modelModule = await import(pathToFileURL(path.join(root, "src", "main", "m
 const {
   ModelManager,
   extractWeatherCity,
+  isInteractiveSoftwareRequest,
   isSmallTalk,
   isTechnicalDiagnostic,
+  shouldUseMultiAgent,
   shouldRunHardValidation,
+  softwareDeliveryPlan,
+  wantsExplicitMultiAgent,
 } = modelModule.default || modelModule;
 
 assert.equal(isSmallTalk("Ne olacak seninle bu halimiz?"), true);
@@ -25,6 +29,12 @@ assert.equal(isSmallTalk("S\u0131navlara haz\u0131r m\u0131s\u0131n?"), true);
 assert.equal(isSmallTalk("Yar\u0131na haz\u0131r m\u0131s\u0131n?"), true);
 assert.equal(isSmallTalk("PHP ile REST API kodu yaz"), false);
 assert.equal(isTechnicalDiagnostic("POST /admin/login.php 500 Internal Server Error"), true);
+const softwarePrompt = "Arac Sigorta ve Muayene Takip Sistemi gelistir. PHP Laravel + Flutter kullan. Clean Architecture uygula. Once analiz yap, sonra veritabani tasarimi olustur, ardindan API'leri gelistir.";
+assert.equal(isInteractiveSoftwareRequest(softwarePrompt), true);
+assert.equal(wantsExplicitMultiAgent(softwarePrompt), false);
+assert.equal(shouldUseMultiAgent({ multiAgent: true }, softwarePrompt), false);
+assert.equal(shouldUseMultiAgent({ multiAgent: true }, `${softwarePrompt} Uzman ajanlardan olusan bir ajan ekibi kullan.`), true);
+assert.equal(softwareDeliveryPlan().length, 5);
 assert.equal(isTechnicalDiagnostic("Sınavlara hazır mısın?"), false);
 assert.equal(shouldRunHardValidation({
   fastConversation: true,
@@ -85,11 +95,32 @@ const diagnosticAnswer = await diagnosticManager.ask(
 assert.match(diagnosticAnswer.text, /HTTP 500/);
 assert.doesNotMatch(diagnosticAnswer.text, /Final Answer|do\u011frulama kap\u0131s\u0131|\u00c7al\u0131\u015fma \u00f6zeti/i);
 
+const softwareManager = new ModelManager();
+softwareManager.state = {
+  provider: "ollama",
+  status: "ready",
+  model: "qwen3:4b",
+  task: "code",
+  message: "Hazir",
+};
+softwareManager.installedModels = async () => ["qwen3:4b"];
+let softwareGenerateCalls = 0;
+softwareManager.generate = async () => {
+  softwareGenerateCalls += 1;
+  return "Once kapsami netlestirip domain modelini kuracagim; ardindan Laravel API ve Flutter istemcisini Clean Architecture katmanlariyla gelistirecegim.";
+};
+const softwareAnswer = await softwareManager.ask(softwarePrompt);
+assert.match(softwareAnswer.text, /Laravel API/);
+assert.equal(softwareGenerateCalls, 1, "interactive software requests must start with one direct model call");
+
 const rendererSource = fs.readFileSync(path.join(root, "src", "renderer", "renderer.js"), "utf8");
 const preloadSource = fs.readFileSync(path.join(root, "src", "main", "preload.js"), "utf8");
 const mainSource = fs.readFileSync(path.join(root, "src", "main", "main.js"), "utf8");
 assert.match(preloadSource, /onChatStatus/);
 assert.match(mainSource, /chat:status/);
+assert.match(rendererSource, /onChatStatus\(\(status\) => \{[\s\S]*?_kickWatchdog\(\)/);
+assert.match(rendererSource, /kind === "ignored"[\s\S]*?_kickWatchdog\(\)/);
+assert.match(rendererSource, /idleMs = 135000, hardMs = 300000/);
 assert.doesNotMatch(rendererSource, /placeholder\.text\s*=\s*this\.progress/);
 const helperStart = rendererSource.indexOf("function foldAssistantOutput");
 const helperEnd = rendererSource.indexOf("function saveChats");
