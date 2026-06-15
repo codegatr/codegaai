@@ -75,6 +75,22 @@ function sanitizeText(value, max = 240) {
   return String(value || "").replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 }
 
+const CAPABILITY_RULES = Object.freeze([
+  ["tooling", /\b(tool|function call|mcp|plugin|extension)\b/i],
+  ["memory", /\b(memory|context|session|checkpoint|restore)\b/i],
+  ["orchestration", /\b(agent|subagent|multi-agent|orchestrat|delegate)\b/i],
+  ["safety", /\b(permission|sandbox|security|approval|policy|secret)\b/i],
+  ["automation", /\b(hook|automation|workflow|background|schedule)\b/i],
+  ["quality", /\b(test|verify|eval|benchmark|review|lint)\b/i],
+  ["models", /\b(model|qwen|gemini|claude|gpt|llama|ollama)\b/i],
+  ["ux", /\b(ui|ux|interface|stream|progress|terminal|desktop)\b/i],
+]);
+
+function classifyCapabilities(...values) {
+  const text = values.map((value) => sanitizeText(value, 1000)).join(" ");
+  return CAPABILITY_RULES.filter(([, pattern]) => pattern.test(text)).map(([name]) => name);
+}
+
 async function githubJson(apiPath, { token = "", fetchImpl = fetch, timeoutMs = 15000 } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -154,6 +170,7 @@ function buildFindings(previous, current, scannedAt) {
       url: current.url,
       policy: current.policy,
       at: scannedAt,
+      capabilities: classifyCapabilities(current.description),
     });
     return findings;
   }
@@ -169,6 +186,7 @@ function buildFindings(previous, current, scannedAt) {
       url: current.latestRelease.url,
       policy: current.policy,
       at: scannedAt,
+      capabilities: classifyCapabilities(current.latestRelease.name, current.description),
     });
   }
   if (current.latestCommit && (!previous.latestCommit || previous.latestCommit.sha !== current.latestCommit.sha)) {
@@ -183,6 +201,7 @@ function buildFindings(previous, current, scannedAt) {
       url: current.latestCommit.url,
       policy: current.policy,
       at: scannedAt,
+      capabilities: classifyCapabilities(current.latestCommit.message, current.description),
     });
   }
   return findings;
@@ -246,6 +265,7 @@ module.exports = {
   DEFAULT_SOURCES,
   REUSE_LICENSES,
   buildFindings,
+  classifyCapabilities,
   githubJson,
   licensePolicy,
   load,

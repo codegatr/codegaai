@@ -335,14 +335,23 @@ function isSmallTalk(input) {
   if (t.length > 160 || words.length > 24 || HEAVY_REQUEST_RE.test(normalized)) return false;
   return CONVERSATIONAL_RE.test(normalized);
 }
+function isTechnicalDiagnostic(input) {
+  const text = _normTr(input);
+  if (!text.trim()) return false;
+  return Boolean(
+    /\b(http|https|php|javascript|typescript|python|sql|api|server|sunucu|nginx|apache|directadmin|docker|github|chrome|browser|veritabani|database|stack trace|exception)\b/.test(text) &&
+    /\b(hata|error|failed|failure|exception|timeout|takildi|calismiyor|bozuldu|500|404|403|401|502|503|504|err_[a-z_]+)\b/.test(text)
+  );
+}
 function shouldRunHardValidation({
   fastConversation = false,
+  technicalDiagnostic = false,
   inputNeedsVerification = false,
   inputNeedsMLVC = false,
   inputNeedsCognitivePipeline = false,
   taskDecomposition = null,
 } = {}) {
-  return !fastConversation && Boolean(
+  return !fastConversation && !technicalDiagnostic && Boolean(
     inputNeedsVerification ||
     inputNeedsMLVC ||
     inputNeedsCognitivePipeline ||
@@ -381,30 +390,30 @@ function progressLabel(stage, scope, meta = {}) {
   return `${scopeLabel}: işlem sürüyor.`;
 }
 
-function makeVerificationProgress(onToken, scope = "answer") {
+function makeVerificationProgress(onProgress, scope = "answer", onHeartbeat = null) {
   const startedAt = Date.now();
   let stage = "reasoning";
   let attempt = 0;
   let lastVisible = "";
   const sendVisible = (meta = {}) => {
-    if (typeof onToken !== "function") return;
+    if (typeof onProgress !== "function") return;
     const elapsed = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
     const line = `Çalışma özeti: ${progressLabel(stage, scope, meta)} (${elapsed} sn)\n`;
     if (line === lastVisible) return;
     lastVisible = line;
-    try { onToken(line); } catch (_e) {}
+    try { onProgress({ stage, scope, attempt, elapsed, text: line.trim() }); } catch (_e) {}
   };
   const emit = (nextStage = stage, meta = {}) => {
     stage = nextStage || stage;
     attempt = meta.attempt == null ? attempt : meta.attempt;
-    try { if (typeof onToken === "function") onToken(HEARTBEAT_TOKEN); } catch (_e) {}
+    try { if (typeof onHeartbeat === "function") onHeartbeat(HEARTBEAT_TOKEN); } catch (_e) {}
     sendVisible(meta);
     try {
       const reason = meta.reason ? ` reason=${String(meta.reason).slice(0, 120)}` : "";
       logs.info("verification", `stage=${stage} attempt=${attempt} scope=${scope} elapsed=${Date.now() - startedAt}ms${reason}`);
     } catch (_e) {}
   };
-  const timer = typeof onToken === "function"
+  const timer = typeof onProgress === "function" || typeof onHeartbeat === "function"
     ? setInterval(() => emit(stage, { attempt, reason: "hala çalışıyor" }), PROGRESS_HEARTBEAT_MS)
     : null;
   if (timer && timer.unref) timer.unref();
@@ -975,6 +984,7 @@ class ModelManager {
   async _ask(input, opts = {}) {
     const _t0 = Date.now();
     const fastConversation = isSmallTalk(input);
+    const technicalDiagnostic = isTechnicalDiagnostic(input);
     const reasoningCategories = classifyReasoningProblem(input);
     const inputNeedsVerification = shouldVerifyAnswer(input);
     const inputNeedsConclusion = shouldEnforceConclusion(input);
@@ -993,6 +1003,7 @@ class ModelManager {
     const inputNeedsCognitivePipeline = !fastConversation && deepReasoning && shouldRunCognitivePipeline(input) && !inputNeedsMLVC;
     const requiresHardValidation = shouldRunHardValidation({
       fastConversation,
+      technicalDiagnostic,
       inputNeedsVerification,
       inputNeedsMLVC,
       inputNeedsCognitivePipeline,
@@ -1272,7 +1283,7 @@ class ModelManager {
         // Her görevi BAĞIMSIZ çöz, task_results[]'e doldur, finali TÜM diziden kur.
         const detectedTasks = taskDecomposition.tasks;
         const taskResults = [];
-        const progress = makeVerificationProgress(keepAlive, "multi_task");
+        const progress = makeVerificationProgress(opts.onProgress, "multi_task", keepAlive);
         try {
         for (let i = 0; i < detectedTasks.length; i++) {
           const t = detectedTasks[i];
@@ -1280,7 +1291,15 @@ class ModelManager {
           const bodyHash = hashTaskBody(t.body);
           progress.emit("reasoning", { attempt: 0, reason: t.label || `task-${i + 1}` });
           // GÖRÜNÜR ilerleme: kullanıcı boş/donmuş ekran görmesin (final cevap bunları değiştirir).
-          if (keepAlive) { try { keepAlive(`🧠 ${t.label || `Görev ${i + 1}`} çözülüyor… (${i + 1}/${detectedTasks.length})\n`); } catch (_e) {} }
+          if (opts.onProgress) {
+            try {
+              opts.onProgress({
+                stage: "reasoning",
+                scope: "multi_task",
+                text: `${t.label || `Görev ${i + 1}`} çözülüyor (${i + 1}/${detectedTasks.length})`,
+              });
+            } catch (_e) {}
+          }
           const taskFactLock = factLock.extractFacts(t.body);
           const tMsgs = [
             {
@@ -1480,7 +1499,7 @@ class ModelManager {
     // Öz değerlendirme (opt-in): cevabı denetle, gerekiyorsa düzelt
     let finalText = text;
     const finalProgress = requiresHardValidation && agent.stoppedReason !== "smalltalk" && agent.stoppedReason !== "multi_task"
-      ? makeVerificationProgress(keepAlive, "final_answer")
+      ? makeVerificationProgress(opts.onProgress, "final_answer", keepAlive)
       : null;
     const applyCorrection = (candidate, source) => {
       const check = cvl.validateCorrection(input, finalText, candidate, { source });
@@ -1681,7 +1700,7 @@ class ModelManager {
             finalCheck = finalAnswerSanitizer.validateFinalAnswer(finalText, input, taskDecomposition);
           }
           if (!finalCheck.ok) {
-            finalText = `${finalText}\n\nFinal Answer Kontrol Uyarısı: ${finalCheck.errors.join(" ")}`;
+            try { logs.warn("verification", `final answer sanitizer warning: ${finalCheck.errors.join(" ")}`); } catch (_e) {}
           }
         }
       } catch (_e) {
@@ -1733,12 +1752,8 @@ class ModelManager {
         hardGateBlocked = true;
         const message = error && error.message ? error.message : "verification hard gate failed";
         try { improveDrafts.recordSignal({ kind: "cognitive_kernel_error", subject: message }); } catch (_e) {}
-        finalText = [
-          "Yanıt doğrulama kapısından geçmedi, bu yüzden hatalı olabilecek cevabı göstermiyorum.",
-          `Bloke eden aşama: final-hard-gate. ${message}`,
-          "",
-          "Final Answer: Yanıt güvenli şekilde doğrulanamadı.",
-        ].join("\n");
+        try { logs.error("verification", `hard gate failed: ${message}`); } catch (_e) {}
+        finalText = preGateText || "Bu yanıtı güvenilir biçimde tamamlayamadım. Lütfen tekrar dene.";
       }
     }
 
@@ -1931,6 +1946,7 @@ module.exports = {
   missingModelReply,
   parsePullProgress,
   isSmallTalk,
+  isTechnicalDiagnostic,
   shouldRunHardValidation,
   extractWeatherCity,
   _verifyTaskLocalAnswer: verifyTaskLocalAnswer,

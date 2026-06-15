@@ -58,6 +58,7 @@ const DEFAULTS = {
   learningTopics: "", // virgülle ayrılmış konular (boşsa öğrenilen/kişisel hafızadan türetilir)
   learningSources: "wikipedia,web,github,stackoverflow,arxiv,hackernews,mdn",
   learningSyncRepo: "", // owner/repo — öğrenilenleri buraya yedekle (boşsa yalnız yerel)
+  learningSyncBranch: "codega-knowledge", // öğrenme notları üretim dalına yazılmaz
   semanticSearch: false, // öğrenilen bilgide anlamsal (embedding) arama; nomic-embed-text gerekir
   embedModel: "nomic-embed-text",
   autoModelUpdates: true, // kurulu resmi Ollama modellerini boşta ve günlük kontrol et
