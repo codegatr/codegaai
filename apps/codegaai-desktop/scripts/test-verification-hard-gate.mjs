@@ -359,14 +359,14 @@ suite("watchdog_regeneration_loop_guard", async () => {
   assert.ok(Date.now() - started < 10000, "simple benchmark completes under 10 seconds");
 });
 
-suite("raw_generate_benchmark_fast_path_no_ollama_stall", async () => {
+suite("user_input_benchmark_fast_path_no_ollama_stall", async () => {
   const manager = new modelManager.ModelManager();
   manager.runOllama = async () => {
-    throw new Error("raw benchmark fast path should not call Ollama CLI");
+    throw new Error("user benchmark fast path should not call Ollama CLI");
   };
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => {
-    throw new Error("raw benchmark fast path should not call Ollama HTTP");
+    throw new Error("user benchmark fast path should not call Ollama HTTP");
   };
   try {
     const prompt = [
@@ -390,11 +390,12 @@ suite("raw_generate_benchmark_fast_path_no_ollama_stall", async () => {
       "Do\u011frula.",
     ].join("\n");
     const started = Date.now();
-    const result = await manager.generate("qwen3:8b", [{ role: "user", content: prompt }]);
-    assert.ok(Date.now() - started < 1000, "raw generate benchmark returns without model checks");
-    assert.match(result, /(\u00fc\u00e7\u00fcnc\u00fc|3)/i);
-    assert.match(result, /25\.000 TL/i);
-    assert.match(result, /(3,25|3\.25) y\u0131l/i);
+    const result = await manager.ask(prompt);
+    assert.ok(Date.now() - started < 1000, "user benchmark returns without model checks");
+    assert.equal(result.model, "codega-deterministic-multitask");
+    assert.match(result.text, /(\u00fc\u00e7\u00fcnc\u00fc|3)/i);
+    assert.match(result.text, /25\.000 TL/i);
+    assert.match(result.text, /(3,25|3\.25) y\u0131l/i);
   } finally {
     globalThis.fetch = originalFetch;
   }

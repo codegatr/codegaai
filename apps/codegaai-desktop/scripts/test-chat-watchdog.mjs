@@ -113,14 +113,44 @@ const softwareAnswer = await softwareManager.ask(softwarePrompt);
 assert.match(softwareAnswer.text, /Laravel API/);
 assert.equal(softwareGenerateCalls, 1, "interactive software requests must start with one direct model call");
 
+const isolatedManager = new ModelManager();
+isolatedManager.state = {
+  provider: "ollama",
+  status: "ready",
+  model: "qwen3:4b",
+  task: "code",
+  message: "Hazir",
+};
+isolatedManager.installedModels = async () => ["qwen3:4b"];
+const isolatedPrompts = [];
+isolatedManager.generate = async (_model, messages) => {
+  isolatedPrompts.push(messages.map((message) => String(message.content || "")).join("\n"));
+  return "Laravel domain modeli, API katmani ve Flutter istemcisi icin uygulanabilir bir plan hazirladim.";
+};
+await isolatedManager.ask("PHP servis katmani icin kisa bir ornek ver.", { chatId: "first-chat" });
+await isolatedManager.ask(softwarePrompt, { chatId: "software-chat" });
+assert.doesNotMatch(
+  isolatedPrompts.at(-1),
+  /PHP servis katmani icin kisa bir ornek ver/i,
+  "a new chat must not inherit another chat's server-side history"
+);
+
 const rendererSource = fs.readFileSync(path.join(root, "src", "renderer", "renderer.js"), "utf8");
+const modelManagerSource = fs.readFileSync(path.join(root, "src", "main", "model-manager.js"), "utf8");
 const preloadSource = fs.readFileSync(path.join(root, "src", "main", "preload.js"), "utf8");
 const mainSource = fs.readFileSync(path.join(root, "src", "main", "main.js"), "utf8");
 assert.match(preloadSource, /onChatStatus/);
 assert.match(mainSource, /chat:status/);
+assert.match(mainSource, /chatId:\s*\(opts && opts\.chatId\)/);
 assert.match(rendererSource, /onChatStatus\(\(status\) => \{[\s\S]*?_kickWatchdog\(\)/);
 assert.match(rendererSource, /kind === "ignored"[\s\S]*?_kickWatchdog\(\)/);
 assert.match(rendererSource, /idleMs = 135000, hardMs = 300000/);
+assert.match(rendererSource, /chatId:\s*currentChat\(\)\.id/);
+assert.doesNotMatch(
+  modelManagerSource,
+  /solveKnownReasoningBenchmarks\(flattenMessages\(messages\)\)/,
+  "benchmark shortcuts must never inspect system prompts or conversation history"
+);
 assert.doesNotMatch(rendererSource, /placeholder\.text\s*=\s*this\.progress/);
 const helperStart = rendererSource.indexOf("function foldAssistantOutput");
 const helperEnd = rendererSource.indexOf("function saveChats");

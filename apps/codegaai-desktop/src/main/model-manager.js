@@ -776,6 +776,7 @@ class ModelManager {
   constructor() {
     this.ollamaCommand = null;
     this.history = []; // sunucu-tarafı çok-turlu hafıza ({role, content})
+    this.sessionHistories = new Map(); // renderer sohbetlerini birbirinden kesin olarak ayır
     this._abort = null; // mevcut üretimi durdurmak için
     this._aborted = false;
     this._queue = Promise.resolve(); // ask() serileştirme kuyruğu
@@ -997,6 +998,13 @@ class ModelManager {
     return false;
   }
 
+  historyFor(chatId) {
+    const sessionId = String(chatId || "").trim();
+    if (!sessionId) return this.history;
+    if (!this.sessionHistories.has(sessionId)) this.sessionHistories.set(sessionId, []);
+    return this.sessionHistories.get(sessionId);
+  }
+
   ask(input, opts = {}) {
     const run = async () => {
       const result = await this._ask(input, opts);
@@ -1048,10 +1056,11 @@ class ModelManager {
     // keepAlive: GÖRÜNMEZ heartbeat HER ZAMAN renderer'a gider (içerik gizliyken bile) ki
     // uzun doğrulama/çok-görev turlarında watchdog (90sn idle) cevabı yarıda KESMESİN.
     const keepAlive = opts.onToken || null;
+    const conversationHistory = this.historyFor(opts.chatId);
     // Yeniden üretim: önceki turu (user+assistant) geçmişten çıkar ki bağlam tekrarlanmasın
     if (opts.regenerate) {
-      if (this.history.length && this.history[this.history.length - 1].role === "assistant") this.history.pop();
-      if (this.history.length && this.history[this.history.length - 1].role === "user") this.history.pop();
+      if (conversationHistory.length && conversationHistory[conversationHistory.length - 1].role === "assistant") conversationHistory.pop();
+      if (conversationHistory.length && conversationHistory[conversationHistory.length - 1].role === "user") conversationHistory.pop();
     }
     // ÇOK-GÖREV ÖNCELİĞİ: girdi birden çok görev içeriyorsa, anlık tek-cevap kısa-devreleri
     // (instant/benchmark/MLVC) ATLA. Aksi halde MLVC tüm metni tek soru sanıp "1000 | 2" gibi
@@ -1273,7 +1282,7 @@ class ModelManager {
       },
       ...(cognitiveIntake.messages || []),
       ...(cognitiveContext ? [{ role: "system", content: cognitiveContext }] : []),
-      ...this.history,
+      ...conversationHistory,
       { role: "user", content: input },
     ];
 
@@ -1288,7 +1297,7 @@ class ModelManager {
       if (!cloudMode && wantsWebResearch(input)) {
         // ZORUNLU ARAŞTIRMA: zayıf yerel model aracı tetikleyemiyor → biz çalıştırırız.
         // Kullanıcıya "sen Google'a bak" DEMEK yerine gerçekten arar ve özetleriz.
-        const query = extractResearchQuery(input, this.history);
+        const query = extractResearchQuery(input, conversationHistory);
         if (onToken) onToken(`🔎 İnternette araştırıyorum: "${query}"…\n\n`);
         let research = "";
         try {
@@ -1430,7 +1439,7 @@ class ModelManager {
         // Basit selam/sohbet: araçsız, kısa, doğrudan cevap (ajan saçmalamasın)
         const sttMsgs = [
           { role: "system", content: smallTalkPrompt(settings.humanTone) },
-          ...this.history.slice(-4),
+          ...conversationHistory.slice(-4),
           { role: "user", content: input },
         ];
         const direct = await this.generate(selectedModel, sttMsgs, attemptModels, onToken);
@@ -1851,10 +1860,10 @@ class ModelManager {
     finalProgress?.emit?.("finalizing", { reason: "history-and-stats" });
     finalProgress?.stop?.();
 
-    this.history.push({ role: "user", content: input });
-    this.history.push({ role: "assistant", content: finalText });
-    if (this.history.length > MAX_HISTORY_MESSAGES) {
-      this.history = this.history.slice(-MAX_HISTORY_MESSAGES);
+    conversationHistory.push({ role: "user", content: input });
+    conversationHistory.push({ role: "assistant", content: finalText });
+    if (conversationHistory.length > MAX_HISTORY_MESSAGES) {
+      conversationHistory.splice(0, conversationHistory.length - MAX_HISTORY_MESSAGES);
     }
 
     // Gerçek kullanım istatistiği (demo değil): istek/token/süre/model/ajan
@@ -1914,8 +1923,6 @@ class ModelManager {
    */
   async generate(model, messages, fallbackModels = [], onToken = null) {
     const sig = this._abort ? this._abort.signal : undefined;
-    const benchmarkInstant = solveKnownReasoningBenchmarks(flattenMessages(messages));
-    if (benchmarkInstant && benchmarkInstant.trim()) return benchmarkInstant.trim();
     // Bulut sağlayıcı seçiliyse oraya yönlen — yerel Ollama gerekmez.
     const s = getSettings();
     const providers = configuredProviderChain(s);
