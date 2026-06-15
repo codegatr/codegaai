@@ -12,11 +12,11 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Desktop sürümü (örn. 0.5.0). Boş bırakılırsa package.json kullanılır."
+        description: "Desktop surumu (orn. 2.3.28). Bos birakilirsa package.json kullanilir."
         required: false
         type: string
       publish_release:
-        description: "GitHub Release ve updater metadata yayınla"
+        description: "GitHub Release ve updater metadata yayinla"
         required: false
         default: true
         type: boolean
@@ -28,13 +28,16 @@ jobs:
   build-desktop-macos:
     name: Build CODEGA AI macOS app
     runs-on: macos-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: apps/codegaai-desktop
     env:
-      # Apple sertifikası yok -> imzalama denemesini kapat (CI başarısız olmasın).
-      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      CSC_LINK: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_BASE64 }}
+      CSC_KEY_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_NOTARIZATION_APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_NOTARIZATION_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_NOTARIZATION_TEAM_ID }}
 
     steps:
       - name: Checkout
@@ -59,7 +62,8 @@ jobs:
             VERSION="$(node -p "require('./package.json').version")"
           fi
           if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
-            echo "Invalid desktop version: $VERSION"; exit 1
+            echo "Invalid desktop version: $VERSION"
+            exit 1
           fi
           npm version "$VERSION" --no-git-tag-version --allow-same-version
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -71,14 +75,75 @@ jobs:
       - name: Verification-first test suite
         run: npm run test:ci
 
-      - name: Build macOS app (dmg + zip, unsigned)
+      - name: Require Apple release credentials
+        shell: bash
+        run: |
+          missing=()
+          [[ -n "$CSC_LINK" ]] || missing+=("APPLE_DEVELOPER_ID_CERTIFICATE_BASE64")
+          [[ -n "$CSC_KEY_PASSWORD" ]] || missing+=("APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD")
+          [[ -n "$APPLE_ID" ]] || missing+=("APPLE_NOTARIZATION_APPLE_ID")
+          [[ -n "$APPLE_APP_SPECIFIC_PASSWORD" ]] || missing+=("APPLE_NOTARIZATION_PASSWORD")
+          [[ -n "$APPLE_TEAM_ID" ]] || missing+=("APPLE_NOTARIZATION_TEAM_ID")
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing required GitHub Actions secrets: %s\n' "${missing[*]}"
+            echo "Refusing to publish an unsigned macOS application."
+            exit 1
+          fi
+
+      - name: Build and sign macOS app
         run: npm run dist:mac
+
+      - name: Verify Developer ID signature
+        shell: bash
+        run: |
+          found=0
+          while IFS= read -r -d '' app; do
+            found=1
+            codesign --verify --deep --strict --verbose=2 "$app"
+            identity="$(codesign -dv --verbose=4 "$app" 2>&1 | sed -n 's/^Authority=//p' | head -1)"
+            if [[ "$identity" != Developer\ ID\ Application:* ]]; then
+              echo "Unexpected signing identity for $app: $identity"
+              exit 1
+            fi
+          done < <(find release -type d -name "CODEGA AI.app" -print0)
+          if [[ "$found" -ne 1 ]]; then
+            echo "No signed CODEGA AI.app bundle was produced."
+            exit 1
+          fi
+
+      - name: Notarize and staple macOS disk images
+        shell: bash
+        run: |
+          shopt -s nullglob
+          dmgs=(release/*.dmg)
+          if (( ${#dmgs[@]} == 0 )); then
+            echo "No DMG files were produced."
+            exit 1
+          fi
+          for dmg in "${dmgs[@]}"; do
+            echo "Submitting $dmg for Apple notarization..."
+            xcrun notarytool submit "$dmg" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --wait
+            xcrun stapler staple "$dmg"
+            xcrun stapler validate "$dmg"
+          done
+
+      - name: Verify Gatekeeper acceptance
+        shell: bash
+        run: |
+          shopt -s nullglob
+          for dmg in release/*.dmg; do
+            spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
+          done
 
       - name: Verify updater metadata
         shell: bash
         run: |
           if [ ! -f "release/latest-mac.yml" ]; then
-            echo "release/latest-mac.yml üretilmedi; electron-updater bu derlemeyi göremez."
+            echo "release/latest-mac.yml was not produced."
             exit 1
           fi
 
