@@ -9,6 +9,7 @@
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const runtimePolicy = require("./runtime-policy");
 
 const DEFAULTS = {
   autonomousLearning: true, // kullanıcı hakkında öğren + hatırla
@@ -42,6 +43,17 @@ const DEFAULTS = {
   expertMode: "genel", // sohbet uzman modu (genel/php/python/javascript/devops/finans/hukuk)
   streaming: true, // cevabı token token canlı göster (kapatılabilir)
   provider: "ollama", // "ollama" | "openai" | "claude" | "gemini"
+  modelAutoFallback: true,
+  modelFallbackOrder: ["ollama", "openai", "claude", "gemini"],
+  trustedFolders: [],
+  toolPermissions: {
+    network: "allow",
+    mcp: "ask",
+    codeExecution: "ask",
+    autonomousDevelopment: "ask",
+  },
+  remoteToolsDeviceName: "",
+  scheduledTasksEnabled: true,
   modelStoragePath: "", // Ollama model dosyalarının kullanıcı tarafından seçilen kalıcı dizini
   openaiBaseUrl: "https://api.openai.com/v1",
   openaiApiKey: "", // YALNIZCA yerelde saklanır; kullanıcının kendi sağlayıcısına gider
@@ -76,18 +88,45 @@ function settingsPath() {
 function getSettings() {
   try {
     const raw = JSON.parse(fs.readFileSync(settingsPath(), "utf8"));
-    return { ...DEFAULTS, ...raw };
+    return normalizeSettings({ ...DEFAULTS, ...raw });
   } catch (_e) {
-    return { ...DEFAULTS };
+    return normalizeSettings({ ...DEFAULTS });
   }
 }
 
 function setSettings(patch) {
-  const next = { ...getSettings(), ...(patch || {}) };
+  const current = getSettings();
+  const incoming = patch || {};
+  const next = normalizeSettings({
+    ...current,
+    ...incoming,
+    toolPermissions: {
+      ...(current.toolPermissions || {}),
+      ...(incoming.toolPermissions || {}),
+    },
+  });
   const p = settingsPath();
   fs.mkdirSync(path.dirname(p), { recursive: true });
   fs.writeFileSync(p, JSON.stringify(next, null, 2), "utf8");
   return next;
 }
 
-module.exports = { DEFAULTS, getSettings, setSettings, settingsPath };
+function normalizeSettings(settings) {
+  const next = { ...settings };
+  next.trustedFolders = runtimePolicy.normalizeTrustedFolders(next.trustedFolders);
+  next.modelFallbackOrder = runtimePolicy.normalizeProviderOrder(next.modelFallbackOrder, next.provider);
+  next.remoteToolsDeviceName = String(next.remoteToolsDeviceName || runtimePolicy.defaultDeviceName()).trim();
+  next.toolPermissions = {
+    ...DEFAULTS.toolPermissions,
+    ...(next.toolPermissions || {}),
+  };
+  for (const key of Object.keys(next.toolPermissions)) {
+    next.toolPermissions[key] = runtimePolicy.normalizePermission(
+      next.toolPermissions[key],
+      DEFAULTS.toolPermissions[key] || "ask",
+    );
+  }
+  return next;
+}
+
+module.exports = { DEFAULTS, getSettings, setSettings, settingsPath, normalizeSettings };

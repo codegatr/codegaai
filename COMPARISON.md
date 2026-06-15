@@ -39,6 +39,26 @@ This document is an engineering gap analysis, not a marketing scorecard. Capabil
 6. Add scenario evaluations for coding, research, Turkish conversation, vision and recovery.
 7. Keep model/provider manifests current without silently replacing a user's selected model.
 
+## Runtime Foundation Added In 2.3.27
+
+- Trusted workspace boundaries are stored as normalized absolute paths.
+- Network, MCP, code execution and autonomous development have explicit `allow`, `ask` and `deny` policies.
+- Scheduled learning, maintenance, agent monitoring and model checks share one master switch.
+- OpenAI-compatible, Claude, Gemini and Ollama providers use a configurable fallback order.
+- MCP discovery includes retry, latency, server identity, tool count and visible health status.
+- Device identity is explicit for remote tools, federation and audit records.
+- Technical requests that begin with a greeting are no longer misclassified as small talk.
+
+The `ask` policy currently blocks unattended tool use and permits an explicit user-triggered action. A dedicated per-call approval dialog and resumable approval queue remain the next security milestone.
+
+## Official Design References
+
+- Anthropic Claude Code settings and permission model: https://docs.anthropic.com/en/docs/claude-code/settings
+- OpenAI Codex project instructions and agent guidance: https://developers.openai.com/codex/guides/agents-md
+- Google Gemini CLI agent and sandbox architecture: https://github.com/google-gemini/gemini-cli
+- Ollama tool calling: https://docs.ollama.com/capabilities/tool-calling
+- Model Context Protocol debugging guidance: https://modelcontextprotocol.io/docs/tools/debugging
+
 ## Design Rule
 
 CODEGA AI should learn principles and public interfaces from trusted sources. It must not copy proprietary or leaked source code, silently mutate production, or treat internet content as trusted instructions.

@@ -17,9 +17,33 @@
  */
 
 const { remember, recall } = require("./memory");
+const settingsStore = require("./settings-store");
+const runtimePolicy = require("./runtime-policy");
 
 const TOOL_PATTERN = /<tool>\s*([\s\S]*?)\s*<\/tool>/gi;
 const CALL_PATTERN = /^(\w+)\(([\s\S]*)\)$/;
+const NETWORK_TOOLS = new Set([
+  "web_search",
+  "research",
+  "read_url",
+  "weather",
+  "github_read",
+  "github_list",
+  "github_search",
+  "github_dispatch",
+]);
+
+function capabilityForTool(name) {
+  if (String(name || "").startsWith("mcp_")) return "mcp";
+  if (NETWORK_TOOLS.has(name)) return "network";
+  return null;
+}
+
+function toolPermission(name) {
+  const capability = capabilityForTool(name);
+  if (!capability) return { allowed: true, requiresApproval: false, mode: "allow" };
+  return runtimePolicy.permissionDecision(settingsStore.getSettings(), capability);
+}
 
 function hasToolCall(text) {
   return extractToolCalls(text).length > 0;
@@ -540,6 +564,16 @@ async function parseAndRunTools(text, allowedTools = null, options = {}) {
       // Bu ajanın yetki politikası bu aracı içermiyor
       call.error = "not_allowed";
       call.result = `⚠️ Bu ajan '${name}' aracını kullanma yetkisine sahip değil.`;
+      call.elapsedMs = 0;
+      calls.push(call);
+      continue;
+    }
+    const permission = toolPermission(name);
+    if (!permission.allowed) {
+      call.error = permission.requiresApproval ? "approval_required" : "policy_denied";
+      call.result = permission.requiresApproval
+        ? `Bu işlem kullanıcı onayı gerektiriyor: ${name}. Ayarlar > Güvenlik > Ajan Çalışma Zamanı bölümünden izin verebilirsin.`
+        : `Güvenlik politikası '${name}' aracını engelledi.`;
       call.elapsedMs = 0;
       calls.push(call);
       continue;

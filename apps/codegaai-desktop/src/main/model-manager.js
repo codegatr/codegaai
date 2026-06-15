@@ -13,6 +13,7 @@ const {
 } = require("../shared/constants");
 const { ollamaChat, ollamaChatStream, ollamaReachable, ollamaListModels } = require("./agent/ollama-client");
 const { configFromSettings, cloudChat, cloudChatStream, profile: cloudProfile } = require("./agent/cloud-provider");
+const { configuredProviderChain } = require("./agent/runtime-policy");
 const { runReact } = require("./agent/agent-loop");
 const { TOOLS: AGENT_TOOLS } = require("./agent/tools");
 const logs = require("./agent/logs");
@@ -326,13 +327,14 @@ function _normTr(s) {
 const SMALLTALK_RE = /^(selam|merhaba|merhabalar|gunaydin|iyi gunler|iyi geceler|iyi aksamlar|naber|nasilsin|tesekkur|tesekkurler|sagol|sag ol|eyvallah|gorusuruz|hosca kal|hello|hi|hey|thanks|tesekkur ederim)\b/;
 const CONVERSATIONAL_RE = /\b(sence|seninle|senin halin|ne olacak|devam edebilir misin|cevabina devam|beni anladin mi|burada misin|iyi misin|hazir misin|nasil gidiyor|neden cevap veremiyorsun|neden takildin|bu halimiz|duzelmissin|gelismissin|daha iyi olmussun|biraz daha iyi|fena degil|guzel olmus|iyi olmus|harika olmus|bu kez olmus|seni ozledim)\b/;
 const HEAVY_REQUEST_RE = /\b(arastir|incele|analiz et|kod yaz|duzelt|olustur|planla|karsilastir|hesapla|terminal|github|dosya|veritabani|deploy|test et)\b/;
+const TECHNICAL_REQUEST_RE = /\b(php|python|javascript|typescript|sql|api|fonksiyon|uygulama|site|proje)\b.*\b(yaz|yap|duzelt|olustur|incele|kontrol et)\b/;
 function isSmallTalk(input) {
   const t = String(input || "").trim();
   if (!t) return false;
   const normalized = _normTr(t).replace(/[?!.,;:]+/g, " ").replace(/\s+/g, " ").trim();
   const words = normalized.split(/\s+/).filter(Boolean);
+  if (t.length > 160 || words.length > 24 || HEAVY_REQUEST_RE.test(normalized) || TECHNICAL_REQUEST_RE.test(normalized)) return false;
   if (t.length <= 40 && words.length <= 6 && SMALLTALK_RE.test(normalized)) return true;
-  if (t.length > 160 || words.length > 24 || HEAVY_REQUEST_RE.test(normalized)) return false;
   return CONVERSATIONAL_RE.test(normalized);
 }
 function isTechnicalDiagnostic(input) {
@@ -1086,10 +1088,12 @@ class ModelManager {
     }
 
     const settings = getSettings();
-    const cloudConfig = configFromSettings(settings);
-    const requestedCloud = cloudProfile(settings.provider);
+    const providerChain = configuredProviderChain(settings);
+    const activeProvider = providerChain[0] || settings.provider || "ollama";
+    const cloudConfig = configFromSettings(settings, { provider: activeProvider });
+    const requestedCloud = cloudProfile(activeProvider);
     const cloudMode = Boolean(requestedCloud && String(cloudConfig.apiKey || "").trim());
-    if (requestedCloud && !cloudMode) {
+    if (requestedCloud && !cloudMode && settings.modelAutoFallback === false) {
       return {
         provider: "instant",
         model: "codega-provider-setup",
@@ -1106,7 +1110,7 @@ class ModelManager {
       selectedModel = cloudConfig.model;
       attemptModels = [selectedModel];
       this.state = {
-        provider: settings.provider,
+        provider: activeProvider,
         status: READY_STATES.READY,
         model: selectedModel,
         task,
@@ -1874,23 +1878,38 @@ class ModelManager {
     if (benchmarkInstant && benchmarkInstant.trim()) return benchmarkInstant.trim();
     // Bulut sağlayıcı seçiliyse oraya yönlen — yerel Ollama gerekmez.
     const s = getSettings();
-    const cloud = configFromSettings(s);
-    if (cloudProfile(s.provider) && String(cloud.apiKey || "").trim()) {
+    const providers = configuredProviderChain(s);
+    const primaryProvider = providers[0] || "ollama";
+    const tryCloudProvider = async (provider) => {
+      const cloud = configFromSettings(s, { provider });
       try {
         const o = {
           ...cloud,
           signal: sig,
         };
-        const content = onToken
+        const content = onToken && provider === primaryProvider
           ? await cloudChatStream(messages, { ...o, onToken })
           : await cloudChat(messages, o);
-        if (content && content.trim()) return content;
-      } catch (_e) {
-        return ""; // bulut hatası -> üst katman boş-yanıt mesajı verir
+        if (content && content.trim()) {
+          if (provider !== primaryProvider) {
+            try { logs.info("model-router", `${primaryProvider} yerine ${provider} yedek sağlayıcısı kullanıldı.`); } catch (_e) {}
+          }
+          return content;
+        }
+      } catch (error) {
+        if (sig && sig.aborted) throw error;
+        try { logs.warn("model-router", `${provider} başarısız: ${error.message || error}`); } catch (_e) {}
       }
       return "";
+    };
+    const cloudProviders = providers.filter((item) => item !== "ollama");
+    if (primaryProvider !== "ollama") {
+      for (const provider of cloudProviders) {
+        const content = await tryCloudProvider(provider);
+        if (content) return content;
+      }
     }
-    if (await ollamaReachable()) {
+    if (providers.includes("ollama") && await ollamaReachable()) {
       try {
         const content = onToken
           ? await ollamaChatStream(model, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS, onToken, signal: sig })
@@ -1925,6 +1944,12 @@ class ModelManager {
       });
       if (result.ok && String(result.stdout || "").trim()) {
         return result.stdout.trim();
+      }
+    }
+    if (primaryProvider === "ollama") {
+      for (const provider of cloudProviders) {
+        const content = await tryCloudProvider(provider);
+        if (content) return content;
       }
     }
     return "";

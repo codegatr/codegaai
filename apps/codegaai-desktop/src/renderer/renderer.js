@@ -77,6 +77,9 @@ const els = {
   developmentStatus: document.getElementById("development-status"),
   expertSelect: document.getElementById("expert-select"),
   toggleStreaming: document.getElementById("toggle-streaming"),
+  toggleModelFallback: document.getElementById("toggle-model-fallback"),
+  modelFallbackOrder: document.getElementById("model-fallback-order"),
+  saveModelFallback: document.getElementById("save-model-fallback"),
   toggleContinuous: document.getElementById("toggle-continuous"),
   toggleSemantic: document.getElementById("toggle-semantic"),
   toggleMcpAuto: document.getElementById("toggle-mcp-auto"),
@@ -1991,10 +1994,72 @@ async function refreshSecurity() {
         perms.appendChild(row);
       }
     }
+    renderRuntimePolicy(data && data.runtime);
   } catch (_e) {}
+}
+
+function renderRuntimePolicy(runtime) {
+  const data = runtime || {};
+  const device = document.getElementById("runtime-device-name");
+  if (device) device.value = data.deviceName || "";
+  const permissions = data.toolPermissions || {};
+  const permissionFields = {
+    "permission-network": permissions.network,
+    "permission-mcp": permissions.mcp,
+    "permission-code": permissions.codeExecution,
+    "permission-development": permissions.autonomousDevelopment,
+  };
+  for (const [id, value] of Object.entries(permissionFields)) {
+    const field = document.getElementById(id);
+    if (field) field.value = value || "ask";
+  }
+  const list = document.getElementById("trusted-workspaces");
+  if (list) {
+    list.innerHTML = "";
+    const folders = Array.isArray(data.trustedFolders) ? data.trustedFolders : [];
+    if (!folders.length) list.innerHTML = '<p class="log-empty">Henüz güvenilen çalışma alanı yok.</p>';
+    for (const folder of folders) {
+      const row = document.createElement("div");
+      row.className = "settings-row";
+      const text = document.createElement("div");
+      text.innerHTML = `<strong>Çalışma alanı</strong><p>${safeText(folder)}</p>`;
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "mini-btn danger";
+      remove.textContent = "Kaldır";
+      remove.addEventListener("click", async () => {
+        agentSettings = await window.codega.removeTrustedWorkspace(folder);
+        await refreshSecurity();
+      });
+      row.append(text, remove);
+      list.appendChild(row);
+    }
+  }
 }
 const securityRefreshBtn = document.getElementById("security-refresh");
 if (securityRefreshBtn) securityRefreshBtn.addEventListener("click", () => refreshSecurity());
+
+const addTrustedWorkspaceBtn = document.getElementById("add-trusted-workspace");
+if (addTrustedWorkspaceBtn) addTrustedWorkspaceBtn.addEventListener("click", async () => {
+  agentSettings = await window.codega.addTrustedWorkspace();
+  await refreshSecurity();
+});
+
+const saveRuntimePolicyBtn = document.getElementById("save-runtime-policy");
+if (saveRuntimePolicyBtn) saveRuntimePolicyBtn.addEventListener("click", async () => {
+  const value = (id, fallback = "ask") => (document.getElementById(id) || {}).value || fallback;
+  agentSettings = await window.codega.setSettings({
+    remoteToolsDeviceName: value("runtime-device-name", "CODEGA-Cihaz").trim(),
+    toolPermissions: {
+      network: value("permission-network"),
+      mcp: value("permission-mcp"),
+      codeExecution: value("permission-code"),
+      autonomousDevelopment: value("permission-development"),
+    },
+  });
+  setTransientStatus("Ajan çalışma zamanı politikası kaydedildi.");
+  await refreshSecurity();
+});
 
 const devPromptBtn = document.getElementById("dev-prompt-btn");
 if (devPromptBtn) devPromptBtn.addEventListener("click", async () => {
@@ -2034,8 +2099,19 @@ async function refreshMcpStatus() {
     box.appendChild(r2);
     const r3 = document.createElement("div");
     r3.className = "settings-row";
-    r3.innerHTML = `<div><strong>Yapılandırma</strong><p>Sunucu URL, araç listeleme ve manuel çağrı "Hafıza & Bilgi" sekmesindedir.</p></div>`;
+    let health = null;
+    try { health = await window.codega.mcpHealth(); } catch (_e) {}
+    const healthText = !url
+      ? "Sunucu tanımlı değil"
+      : health && health.ok
+        ? `${health.latencyMs || 0} ms · ${health.toolCount || 0} araç`
+        : (health && health.message) || "Bağlantı kurulamadı";
+    r3.innerHTML = `<div><strong>Bağlantı Sağlığı</strong><p>${safeText(healthText)}</p></div><span class="${health && health.ok ? 'badge-active' : 'badge-plan'}">${health && health.ok ? 'Hazır' : 'Kontrol Gerekli'}</span>`;
     box.appendChild(r3);
+    const r4 = document.createElement("div");
+    r4.className = "settings-row";
+    r4.innerHTML = `<div><strong>Yapılandırma</strong><p>Sunucu URL, araç listeleme ve manuel çağrı "Hafıza & Bilgi" sekmesindedir.</p></div>`;
+    box.appendChild(r4);
   } catch (_e) {}
 }
 const mcpStatusRefreshBtn = document.getElementById("mcp-status-refresh");
@@ -2815,11 +2891,19 @@ async function refreshAgentSettings() {
     }
     if (els.expertSelect) els.expertSelect.value = agentSettings.expertMode || "genel";
     if (els.toggleStreaming) applyToggleLabel(els.toggleStreaming, agentSettings.streaming !== false);
+    if (els.toggleModelFallback) applyToggleLabel(els.toggleModelFallback, agentSettings.modelAutoFallback !== false);
+    if (els.modelFallbackOrder) {
+      els.modelFallbackOrder.value = Array.isArray(agentSettings.modelFallbackOrder)
+        ? agentSettings.modelFallbackOrder.join(", ")
+        : String(agentSettings.modelFallbackOrder || "");
+    }
     if (els.toggleContinuous) applyToggleLabel(els.toggleContinuous, !!agentSettings.continuousLearning);
     if (els.toggleSemantic) applyToggleLabel(els.toggleSemantic, !!agentSettings.semanticSearch);
     if (els.toggleDistill) applyToggleLabel(els.toggleDistill, !!agentSettings.distillLearning);
     if (els.toggleMcpAuto) applyToggleLabel(els.toggleMcpAuto, !!agentSettings.mcpAutoTools);
     if (els.toggleModelUpdates) applyToggleLabel(els.toggleModelUpdates, agentSettings.autoModelUpdates !== false);
+    const scheduledTasks = document.getElementById("toggle-scheduled-tasks");
+    if (scheduledTasks) applyToggleLabel(scheduledTasks, agentSettings.scheduledTasksEnabled !== false);
     if (els.learnTopics) els.learnTopics.value = agentSettings.learningTopics || "";
     const learnSources = document.getElementById("learn-sources");
     if (learnSources) learnSources.value = agentSettings.learningSources || "";
@@ -3051,6 +3135,26 @@ if (els.toggleAutonomousSchedule) {
   });
 }
 if (els.toggleStreaming) els.toggleStreaming.addEventListener("click", () => toggleSetting("streaming", els.toggleStreaming));
+if (els.toggleModelFallback) {
+  els.toggleModelFallback.addEventListener("click", () => toggleSetting("modelAutoFallback", els.toggleModelFallback));
+}
+if (els.saveModelFallback) {
+  els.saveModelFallback.addEventListener("click", async () => {
+    const order = String(els.modelFallbackOrder?.value || "")
+      .split(",")
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean);
+    agentSettings = await window.codega.setSettings({ modelFallbackOrder: order });
+    setTransientStatus(`Model yedekleme sırası: ${agentSettings.modelFallbackOrder.join(" → ")}`);
+    await refreshAgentSettings();
+  });
+}
+const scheduledTasksToggle = document.getElementById("toggle-scheduled-tasks");
+if (scheduledTasksToggle) {
+  scheduledTasksToggle.addEventListener("click", () =>
+    toggleSetting("scheduledTasksEnabled", scheduledTasksToggle).then(() => refreshSecurity())
+  );
+}
 if (els.toggleModelUpdates) els.toggleModelUpdates.addEventListener("click", () => toggleSetting("autoModelUpdates", els.toggleModelUpdates));
 if (els.expertSelect) els.expertSelect.addEventListener("change", async () => { agentSettings = await window.codega.setSettings({ expertMode: els.expertSelect.value }); setTransientStatus("Uzman modu: " + els.expertSelect.value); });
 els.toggleFederation.addEventListener("click", () => toggleSetting("federation", els.toggleFederation));

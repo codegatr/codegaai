@@ -344,11 +344,13 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
     "Test H and Test J cannot be definitively answered based on the provided information."
   );
   assert.strictEqual(repaired.repaired, true);
-  assert.match(repaired.answer, /TEST H:.*4/);
-  assert.match(repaired.answer, /TEST J:.*59.*58.*57/);
+  assert.match(repaired.answer, /Test 1:.*4/);
+  assert.match(repaired.answer, /Test 2:.*59.*58.*57/);
+  assert.doesNotMatch(repaired.answer, /\bTEST\s+[A-Z]:/);
   const instant = benchmark.solveKnownReasoningBenchmarks(prompt);
-  assert.match(instant, /TEST H:.*4/);
-  assert.match(instant, /TEST J:.*59.*58.*57/);
+  assert.match(instant, /Test 1:.*4/);
+  assert.match(instant, /Test 2:.*59.*58.*57/);
+  assert.doesNotMatch(instant, /\bTEST\s+[A-Z]:/);
   ok("Benchmark reasoner: cevaplanabilir refusal/eksik yanıt onarılır");
 }
 

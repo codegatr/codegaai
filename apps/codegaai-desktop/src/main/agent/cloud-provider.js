@@ -46,6 +46,13 @@ function configFromSettings(settings, overrides = {}) {
   };
 }
 
+function configsFromSettings(settings) {
+  const runtimePolicy = require("./runtime-policy");
+  return runtimePolicy.configuredProviderChain(settings)
+    .filter((provider) => provider !== "ollama")
+    .map((provider) => configFromSettings(settings, { provider }));
+}
+
 function anthropicEndpoint(baseUrl) {
   return `${String(baseUrl || PROVIDERS.claude.baseUrl).replace(/\/+$/, "")}/messages`;
 }
@@ -173,6 +180,7 @@ module.exports = {
   PROVIDERS,
   profile,
   configFromSettings,
+  configsFromSettings,
   cloudChat,
   cloudChatStream,
   cloudTest,
