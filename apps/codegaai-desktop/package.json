@@ -46,6 +46,7 @@
       "src/**/*",
       "package.json"
     ],
+    "afterSign": "scripts/notarize-macos.cjs",
     "win": {
       "target": [
         {
@@ -78,8 +79,7 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.inherit.plist",
-      "afterSign": "scripts/notarize-macos.cjs"
+      "entitlementsInherit": "build/entitlements.mac.inherit.plist"
     },
     "dmg": {
       "title": "CODEGA AI ${version} ${arch}"
