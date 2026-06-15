@@ -32,6 +32,7 @@
     "electron-updater": "^6.3.9"
   },
   "devDependencies": {
+    "@electron/notarize": "^2.5.0",
     "electron": "^33.4.11",
     "electron-builder": "^25.1.8"
   },
@@ -74,7 +75,11 @@
         }
       ],
       "category": "public.app-category.developer-tools",
-      "identity": null
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.inherit.plist",
+      "afterSign": "scripts/notarize-macos.cjs"
     },
     "dmg": {
       "title": "CODEGA AI ${version} ${arch}"
