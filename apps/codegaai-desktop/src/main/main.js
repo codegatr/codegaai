@@ -424,6 +424,7 @@ function registerIpc() {
       onProgress,
       regenerate: !!(opts && opts.regenerate),
       context: (opts && opts.context) || "",
+      chatId: (opts && opts.chatId) || "",
     });
   });
 

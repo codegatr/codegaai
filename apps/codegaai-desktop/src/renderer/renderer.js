@@ -1170,7 +1170,11 @@ async function regenerateLast() {
     scrollConversationToBottom();
   }, 60000);
   try {
-    const answer = await sendMessageWithWatchdog(userText, { regenerate: true, context: (currentChat().context || "") });
+    const answer = await sendMessageWithWatchdog(userText, {
+      regenerate: true,
+      context: (currentChat().context || ""),
+      chatId: currentChat().id,
+    });
     placeholder.text = cleanStoredAssistantOutput(answer.text);
   } catch (error) {
     placeholder.text = `Bir aksama oldu: ${error.message || error}`;
@@ -1249,7 +1253,10 @@ async function handleSubmit() {
     scrollConversationToBottom();
   }, 60000);
   try {
-    const answer = await sendMessageWithWatchdog(sendText, { context: (currentChat().context || "") });
+    const answer = await sendMessageWithWatchdog(sendText, {
+      context: (currentChat().context || ""),
+      chatId: currentChat().id,
+    });
     placeholder.text = cleanStoredAssistantOutput(answer.text); // final cevap otorite
     await refreshModels();
   } catch (error) {
