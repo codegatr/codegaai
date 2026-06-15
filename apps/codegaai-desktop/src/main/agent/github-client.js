@@ -181,6 +181,20 @@ async function createBranch(owner, repo, newBranch, fromSha) {
   });
 }
 
+/** Hedef dal yoksa taban daldan oluştur; varsa mevcut dalı kullan. */
+async function ensureBranch(owner, repo, branch, baseBranch = "main") {
+  try {
+    const existing = await getBranchSha(owner, repo, branch);
+    if (existing) return { branch, sha: existing, created: false };
+  } catch (_e) {
+    // Dal yok; aşağıda taban daldan oluşturulacak.
+  }
+  const baseSha = await getBranchSha(owner, repo, baseBranch);
+  if (!baseSha) throw new Error(`Taban dal bulunamadı: ${baseBranch}`);
+  await createBranch(owner, repo, branch, baseSha);
+  return { branch, sha: baseSha, created: true };
+}
+
 /** Belirli bir dalda yeni dosya oluştur (contents API). */
 async function createFileOnBranch(owner, repo, filePath, branch, content, message) {
   return gh(`/repos/${owner}/${repo}/contents/${filePath}`, {
@@ -235,6 +249,7 @@ module.exports = {
   getRepoMeta,
   getBranchSha,
   createBranch,
+  ensureBranch,
   createFileOnBranch,
   putFileOnBranch,
   openPullRequest,

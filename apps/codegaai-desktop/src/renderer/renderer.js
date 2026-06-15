@@ -255,36 +255,27 @@ function isInvisibleProgressToken(token) {
   return String(token || "").replace(/\u200b/g, "").trim() === "";
 }
 
-function isProgressStatusToken(token) {
-  return /^Çalışma özeti:/i.test(String(token || "").trim());
-}
-
 function longThinkingNotice() {
-  return "Çalışma özeti: cevap beklenenden uzun sürüyor; modeli ve doğrulama adımlarını izliyorum.";
+  return "Yanıt beklenenden uzun sürüyor; model çalışmaya devam ediyor.";
 }
 
 function oneMinuteStatusNotice(lastStatus) {
-  const current = String(lastStatus || longThinkingNotice()).replace(/\s+$/g, "");
-  return [
-    current,
-    "",
-    "Durum kontrolü: 1 dakikayı geçti. Hala çalışıyorum; istersen kırmızı durdur düğmesiyle kesebilirsin. Devam edersem sonucu tamamlamaya çalışacağım.",
-  ].join("\n");
+  return `${String(lastStatus || longThinkingNotice()).trim()} Bir dakikayı geçti; istersen Durdur düğmesiyle kesebilirsin.`;
+}
+
+function setChatWorkingStatus(value) {
+  const text = typeof value === "string" ? value : value?.text;
+  if (!text || !els.modelPill) return;
+  els.modelPill.textContent = String(text).replace(/^Çalışma özeti:\s*/i, "").trim();
 }
 
 function createStreamView(placeholder) {
   return {
     answer: "",
-    progress: "",
     firstContent: true,
     apply(token) {
       if (isInvisibleProgressToken(token)) return "ignored";
       const text = String(token || "");
-      if (isProgressStatusToken(text)) {
-        this.progress = text.trim();
-        if (!this.answer.trim()) placeholder.text = this.progress;
-        return "progress";
-      }
       if (this.firstContent) {
         this.answer = "";
         this.firstContent = false;
@@ -294,16 +285,10 @@ function createStreamView(placeholder) {
       return "answer";
     },
     showSlowNotice() {
-      if (!this.answer.trim()) {
-        this.progress = this.progress || longThinkingNotice();
-        placeholder.text = this.progress;
-      }
+      if (!this.answer.trim()) setChatWorkingStatus(longThinkingNotice());
     },
     showOneMinuteNotice() {
-      if (!this.answer.trim()) {
-        this.progress = oneMinuteStatusNotice(this.progress);
-        placeholder.text = this.progress;
-      }
+      if (!this.answer.trim()) setChatWorkingStatus(oneMinuteStatusNotice());
     },
   };
 }
@@ -1152,6 +1137,7 @@ async function regenerateLast() {
   const placeholder = msgs[msgs.length - 1];
 
   const streamView = createStreamView(placeholder);
+  const offStatus = window.codega.onChatStatus(setChatWorkingStatus);
   let rafPending = false;
   const offStream = window.codega.onChatStream((token) => {
     const kind = streamView.apply(token);
@@ -1183,6 +1169,7 @@ async function regenerateLast() {
     clearTimeout(slowNotice);
     clearTimeout(statusNotice);
     offStream();
+    offStatus();
     isSending = false;
     setSendingUi(false);
   }
@@ -1218,6 +1205,7 @@ async function handleSubmit() {
   const placeholder = chat.messages[chat.messages.length - 1];
   // Streaming: token geldikçe placeholder'ı canlı güncelle (akış kapalıysa hiç gelmez)
   const streamView = createStreamView(placeholder);
+  const offStatus = window.codega.onChatStatus(setChatWorkingStatus);
   let rafPending = false;
   const offStream = window.codega.onChatStream((token) => {
     const kind = streamView.apply(token);
@@ -1255,6 +1243,7 @@ async function handleSubmit() {
     clearTimeout(slowNotice);
     clearTimeout(statusNotice);
     offStream();
+    offStatus();
     isSending = false;
     setSendingUi(false);
   }
@@ -1940,7 +1929,10 @@ async function refreshAgentWatch() {
       row.className = "settings-row agent-watch-row";
       const policy = item.policy || {};
       const policyLabel = policy.label || (policy.mode === "reviewable-reuse" ? "Lisans incelemesiyle kullanılabilir" : "Yalnız araştırma");
-      row.innerHTML = `<div><strong>${safeText(item.title)}</strong><p>${safeText(item.detail)}<br><span class="log-time">${safeText(item.repo)} · ${safeText(policyLabel)}</span>${policy.reason ? `<br><span class="log-time">${safeText(policy.reason)}</span>` : ""}</p></div>`;
+      const capabilityText = Array.isArray(item.capabilities) && item.capabilities.length
+        ? `<br><span class="log-time">Yetenek alanları: ${safeText(item.capabilities.join(", "))}</span>`
+        : "";
+      row.innerHTML = `<div><strong>${safeText(item.title)}</strong><p>${safeText(item.detail)}<br><span class="log-time">${safeText(item.repo)} · ${safeText(policyLabel)}</span>${capabilityText}${policy.reason ? `<br><span class="log-time">${safeText(policy.reason)}</span>` : ""}</p></div>`;
       if (item.url) {
         const open = document.createElement("button");
         open.type = "button";

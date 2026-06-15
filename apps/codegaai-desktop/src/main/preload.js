@@ -67,6 +67,11 @@ contextBridge.exposeInMainWorld("codega", {
     ipcRenderer.on("chat:stream", handler);
     return () => ipcRenderer.removeListener("chat:stream", handler);
   },
+  onChatStatus: (cb) => {
+    const handler = (_e, payload) => cb(payload);
+    ipcRenderer.on("chat:status", handler);
+    return () => ipcRenderer.removeListener("chat:status", handler);
+  },
   onModelStatus: (callback) => {
     ipcRenderer.on("model:status", (_event, payload) => callback(payload));
   },

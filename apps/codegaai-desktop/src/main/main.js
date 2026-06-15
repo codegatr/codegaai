@@ -146,8 +146,11 @@ async function learnOnce(manualTopic) {
   if (added && repo && githubClient.hasToken()) {
     try {
       const { owner, repo: r } = githubClient.splitRepo(repo);
+      const settings = settingsStore.getSettings();
       const meta = await githubClient.getRepoMeta(owner, r);
-      const branch = (meta && meta.default_branch) || "main";
+      const baseBranch = (meta && meta.default_branch) || "main";
+      const branch = settings.learningSyncBranch || "codega-knowledge";
+      await githubClient.ensureBranch(owner, r, branch, baseBranch);
       const lines = notes.map((n) => `- [${n.source}] ${n.topic}: ${String(n.text).replace(/\n/g, " ")}${n.url ? ` (${n.url})` : ""}`);
       await githubClient.appendToFile(owner, r, "ogrenilenler.md", branch, lines, `CODEGA AI öğrendi: ${topic}`);
     } catch (_e) { /* yedek hatası öğrenmeyi durdurmasın */ }
@@ -376,8 +379,16 @@ function registerIpc() {
     const onToken = streamOn
       ? (t) => { try { event.sender.send("chat:stream", t); } catch (_e) {} }
       : null;
+    const onProgress = (payload) => {
+      try { event.sender.send("chat:status", payload); } catch (_e) {}
+    };
     try { if (settingsStore.getSettings().debugLogging) logs.info("chat", `İstek: ${String(message).slice(0, 60)}`); } catch (_e) {}
-    return modelManager.ask(message, { onToken, regenerate: !!(opts && opts.regenerate), context: (opts && opts.context) || "" });
+    return modelManager.ask(message, {
+      onToken,
+      onProgress,
+      regenerate: !!(opts && opts.regenerate),
+      context: (opts && opts.context) || "",
+    });
   });
 
   ipcMain.handle("chat:share", async (_event, chat) => {

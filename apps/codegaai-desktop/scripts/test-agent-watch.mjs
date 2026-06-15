@@ -72,6 +72,10 @@ try {
   assert.ok(watch.DEFAULT_SOURCES.some((source) => source.repo === "anthropics/claude-code"));
   assert.ok(watch.DEFAULT_SOURCES.some((source) => source.repo === "VILA-Lab/Dive-into-Claude-Code"));
   assert.ok(watch.DEFAULT_SOURCES.some((source) => source.repo === "tanbiralam/claude-code"));
+  assert.deepEqual(
+    watch.classifyCapabilities("Add MCP tools, checkpoint restore and permission policy"),
+    ["tooling", "memory", "safety"],
+  );
 
   const cookbook = await systemInfo.analyzeCookbook(
     [{ id: "qwen3:8b", label: "Qwen3 8B", minVramGb: 7, minRamGb: 16, quality: 4 }],

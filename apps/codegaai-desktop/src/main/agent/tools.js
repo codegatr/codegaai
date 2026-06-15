@@ -389,6 +389,65 @@ function parseArgs(argsStr) {
   }
 }
 
+function normalizeStructuredArgs(value) {
+  if (Array.isArray(value)) return value;
+  if (value == null) return [];
+  if (typeof value === "string") {
+    try { return normalizeStructuredArgs(JSON.parse(value)); } catch (_e) { return [value]; }
+  }
+  if (typeof value === "object") {
+    if (Array.isArray(value.args)) return value.args;
+    if (Object.hasOwn(value, "input")) return [value.input];
+    const keys = Object.keys(value);
+    if (keys.length === 1) return [value[keys[0]]];
+    return [JSON.stringify(value)];
+  }
+  return [value];
+}
+
+function extractStructuredToolCalls(text, known) {
+  const source = String(text || "");
+  const calls = [];
+  const candidates = [];
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/gi;
+  let match;
+  while ((match = fenced.exec(source)) !== null) {
+    candidates.push({ raw: match[1].trim(), start: match.index, end: fenced.lastIndex });
+  }
+  const lines = source.split(/\r?\n/);
+  let offset = 0;
+  for (const line of lines) {
+    const raw = line.trim();
+    if ((raw.startsWith("{") && raw.endsWith("}")) || (raw.startsWith("[") && raw.endsWith("]"))) {
+      const start = offset + line.indexOf(raw);
+      candidates.push({ raw, start, end: start + raw.length });
+    }
+    offset += line.length + 1;
+  }
+  for (const candidate of candidates) {
+    let parsed;
+    try { parsed = JSON.parse(candidate.raw); } catch (_e) { continue; }
+    const items = Array.isArray(parsed) ? parsed : [parsed];
+    for (const item of items) {
+      const nativeCalls = Array.isArray(item?.tool_calls) ? item.tool_calls : [item];
+      for (const native of nativeCalls) {
+        const fn = native?.function || native;
+        const name = String(fn?.name || fn?.tool || native?.tool || "").trim();
+        if (!known.has(name)) continue;
+        const rawArgs = fn?.arguments ?? fn?.args ?? native?.arguments ?? native?.args;
+        calls.push({
+          name,
+          args: normalizeStructuredArgs(rawArgs),
+          start: candidate.start,
+          end: candidate.end,
+          structured: true,
+        });
+      }
+    }
+  }
+  return calls;
+}
+
 // Küçük modeller <tool>...</tool> formatını her zaman tutturamaz. Bu yüzden
 // araç çağrılarını delimiter'dan BAĞIMSIZ yakalarız: bilinen bir araç adının
 // ardından gelen `(...)` çağrısını buluruz — ister <tool>, ister (tool), ister
@@ -396,8 +455,8 @@ function parseArgs(argsStr) {
 function extractToolCalls(text) {
   const s = String(text || "");
   const known = new Set(Object.keys(TOOLS));
+  const calls = extractStructuredToolCalls(s, known);
   const nameRe = /([A-Za-z_]\w*)\s*\(/g;
-  const calls = [];
   let m;
   while ((m = nameRe.exec(s)) !== null) {
     const name = m[1];
@@ -417,10 +476,19 @@ function extractToolCalls(text) {
       else if (ch === ")") { depth -= 1; if (depth === 0) break; }
     }
     const argsStr = s.slice(open + 1, j);
-    calls.push({ name, argsStr, start: m.index, end: j + 1 });
+    const overlapsStructured = calls.some((call) => m.index >= call.start && m.index < call.end);
+    if (!overlapsStructured) calls.push({ name, argsStr, start: m.index, end: j + 1 });
     nameRe.lastIndex = j + 1;
   }
-  return calls;
+  const seen = new Set();
+  return calls
+    .sort((a, b) => a.start - b.start)
+    .filter((call) => {
+      const key = `${call.start}:${call.end}:${call.name}:${JSON.stringify(call.args || call.argsStr || "")}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 // Final cevaptan araç çağrılarını ve delimiter kalıntılarını temizle.
@@ -432,6 +500,7 @@ function stripToolCalls(text) {
     let acc = "";
     let last = 0;
     for (const c of calls) {
+      if (c.end <= last) continue;
       acc += s.slice(last, c.start);
       last = c.end;
     }
@@ -457,7 +526,7 @@ async function parseAndRunTools(text, allowedTools = null, options = {}) {
   const skipped = [];
   for (const found of extractToolCalls(text)) {
     const name = found.name;
-    const args = parseArgs(found.argsStr);
+    const args = found.structured ? found.args : parseArgs(found.argsStr);
     const def = TOOLS[name];
     const call = { name, args, result: null, error: null, elapsedMs: 0 };
     const signature = signatureFor(call);
@@ -494,7 +563,8 @@ function toolsSystemPrompt() {
   return [
     "## Araçlar",
     "Güncel bilgi, hesap, sayfa okuma veya hafıza gerektiğinde araç çağır.",
-    "Format (yalnızca bu): <tool>arac_adi(\"argüman\")</tool>",
+    'Tercih edilen format: {"tool":"arac_adi","args":["argüman"]}',
+    'Uyumluluk formatı: <tool>arac_adi("argüman")</tool>',
     "",
     "Kullanılabilir araçlar:",
     defs,

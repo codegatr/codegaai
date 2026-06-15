@@ -1,107 +1,55 @@
-# CODEGA AI v3.6.0 — Tam Karşılaştırma
+# CODEGA AI Agent Capability Review
 
-## Rakipler: ChatGPT · Gemini · Claude · CODEX · Grok · Copilot
+This document is an engineering gap analysis, not a marketing scorecard. Capabilities change quickly and must be verified against official product documentation before release claims are made.
 
-| # | Özellik | ChatGPT | Gemini | Claude | CODEX | Grok | Copilot | **CODEGA** |
-|---|---------|:-------:|:------:|:------:|:-----:|:----:|:-------:|:----------:|
-| **TEMEL** |
-| 1 | Türkçe Sohbet | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 2 | Kod Üretimi | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 3 | Sohbet Geçmişi | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 4 | Web Araması | ✅ Bing | ✅ Google | ✅ | ✅ | ✅ X | ✅ Bing | ✅ DDG |
-| **GİZLİLİK & ÇALIŞMA** |
-| 5 | Yerel/Offline | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| 6 | Veri Buluta Gitmiyor | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| 7 | Ücretsiz | 🟡 Sınırlı | 🟡 Sınırlı | 🟡 Sınırlı | ❌ | 🟡 | 🟡 | ✅ Tam |
-| 8 | Açık Kaynak | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **DOSYA & PROJE** |
-| 9 | Dosya Yükleme | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ ZIP/PDF/SQL |
-| 10 | ZIP Proje Üretimi | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ |
-| 11 | PDF Okuma | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ PyMuPDF |
-| 12 | CSV/Excel Analizi | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ pandas |
-| 13 | Belge Çevirisi | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ PDF/TXT |
-| **KOD ARAÇLARI** |
-| 14 | Kod Çalıştırma | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ Sandbox |
-| 15 | Grafik Üretme | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ matplotlib |
-| 16 | Canvas/Artifact | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ HTML/JS |
-| 17 | GitHub Push/PR | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ |
-| 18 | Otomatik Test | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ PHPUnit/pytest |
-| 19 | Bağımlılık Analizi | ❌ | ❌ | ❌ | ✅ | ❌ | 🟡 | ✅ |
-| **GÖRSEL & SES** |
-| 20 | Görüntü Anlama | ✅ GPT-4V | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ moondream |
-| 21 | Ekran Analizi | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ mss+vision |
-| 22 | Görsel Üretim | ✅ DALL-E 3 | ✅ Imagen | ❌ | ❌ | ✅ Aurora | ✅ Designer | ✅ SDXL |
-| 23 | Ses Sohbeti | ✅ Voice | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ ASR+TTS |
-| 24 | Video Üretimi | ✅ Sora | ✅ Veo | ❌ | ❌ | ❌ | ❌ | ✅ CogVideoX |
-| 25 | OCR | 🟡 | ✅ | 🟡 | ✅ | ❌ | ✅ | ✅ EasyOCR |
-| **YAPAY ZEKA ÖZELLİKLERİ** |
-| 26 | Derin Düşünme | ✅ o1/o3 | ✅ 2.0 Flash | ✅ | ❌ | ✅ | ❌ | ✅ CoT |
-| 27 | Uzun Dönem Bellek | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ RAG+Profil |
-| 28 | Çok Adımlı Ajan | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ plan+uygula |
-| 29 | Araç Kullanımı | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ 10 araç |
-| 30 | Plugin Ekosistemi | ✅ GPTs | ✅ Gems | ✅ Projects | ❌ | ❌ | ✅ | ✅ manifest.json |
-| **SADECE CODEGA'DA** |
-| 31 | Otonom Öğrenme | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ **Benzersiz** |
-| 32 | Self-Learning/DPO | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ **Benzersiz** |
-| 33 | Diffusion Fine-Tuning | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ **Benzersiz** |
-| 34 | Çoklu Model Orkestrasyon | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ **Benzersiz** |
-| 35 | Wake Word | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ **Benzersiz** |
-| 36 | Canlı Ekran İzleme | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ **Benzersiz** |
-| 37 | GPU Katman Yönetimi | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ **Benzersiz** |
-| 38 | Federe Ağ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ **Benzersiz** |
-| **KİŞİSEL ASISTAN** |
-| 39 | Takvim & Görev | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ Yerel SQLite |
-| 40 | Çeviri | 🟡 | ✅ | 🟡 | ❌ | ✅ | ✅ | ✅ Helsinki-NLP |
-| 41 | Mobil Erişim | ✅ App | ✅ App | ✅ App | ❌ | ✅ App | ✅ App | ✅ QR+PWA |
-| **FİYAT** |
-| 42 | Ücretsiz Tier | 🟡 GPT-3.5 | 🟡 Sınırlı | 🟡 Sınırlı | ❌ | 🟡 | 🟡 | ✅ Tam |
-| 43 | Ücretli Plan | $20/ay | $20/ay | $20/ay | Kurumsal | $30/ay | $30/ay | ✅ $0 |
-| 44 | API Maliyeti | $0.01/1K | $0.001/1K | $0.015/1K | $0.02/1K | Yok | $0.01/1K | ✅ $0 |
+## Reference Systems
 
----
+- OpenAI Codex: repository-aware coding agent, project instructions, tools, sandbox/approval policies, skills, MCP, automations, review and worktree workflows.
+- Anthropic Claude Code: repository-aware coding workflows, tools, permissions, hooks, subagents and project instructions.
+- Google Gemini CLI: terminal agent, tools, MCP/extensions, policy controls and checkpoint-oriented recovery workflows.
+- Ollama: local model runtime with chat, streaming, tool calling, structured outputs and model lifecycle APIs.
 
-## Özet Skoru
+## Current CODEGA AI Position
 
-| Yapay Zeka | Özellik Sayısı | Gizlilik | Fiyat |
-|-----------|:--------------:|:--------:|:-----:|
-| ChatGPT | 35/44 | ❌ Bulut | $20/ay |
-| Gemini | 36/44 | ❌ Bulut | $20/ay |
-| Claude | 32/44 | ❌ Bulut | $20/ay |
-| CODEX | 28/44 | ❌ Bulut | Kurumsal |
-| Grok | 26/44 | ❌ Bulut | $30/ay |
-| Copilot | 30/44 | ❌ Bulut | $30/ay |
-| **CODEGA AI** | **44/44** | ✅ **Tam Yerel** | ✅ $0 |
+| Capability | Status | Notes |
+|---|---|---|
+| Local model runtime | Implemented | Ollama detection, pull, routing and streaming |
+| Cloud providers | Implemented | OpenAI-compatible, Claude and Gemini configuration |
+| Conversation memory | Implemented | Recent history, durable facts, project brain and RAG |
+| Tool loop | Implemented | ReAct loop, observations, retries and duplicate-call protection |
+| Structured tool calls | Implemented | JSON calls plus legacy XML compatibility |
+| MCP tools | Implemented | HTTP JSON-RPC discovery and invocation |
+| Multi-agent routing | Partial | Planner, specialists and reviewer exist; broader evaluation is needed |
+| Repository governance | Implemented | `AGENTS.md`, core rules and task skills |
+| Autonomous coding | Guarded | Scoped branch, tests and draft PR; no automatic merge |
+| Progress events | Implemented | Status is separate from final answer content |
+| Agent ecosystem monitoring | Implemented | Official and licensed sources are classified by capability |
+| Checkpoint/rollback | Partial | Git branches and updater rollback exist; generic task checkpoints remain |
+| Tool approval UX | Partial | Specialist allowlists exist; per-call interactive approval remains |
+| Full repository indexing | Partial | GitHub/file tools exist; persistent symbol graph remains |
+| Evaluation suite | Partial | Regression suites exist; long-running scenario and quality benchmarks remain |
 
----
+## High-Priority Gaps
 
-## CODEGA'nın Rakiplerde Olmayan 8 Benzersiz Özelliği
+1. Add interactive approval for write, deploy, workflow and terminal actions.
+2. Persist an auditable task trace with tool inputs, outputs, durations and decisions.
+3. Add resumable checkpoints for long agent tasks.
+4. Build a repository symbol/dependency index for precise code navigation.
+5. Add provider-native tool calling where supported, retaining local-model fallback.
+6. Add scenario evaluations for coding, research, Turkish conversation, vision and recovery.
+7. Keep model/provider manifests current without silently replacing a user's selected model.
 
-```
-1. Otonom Öğrenme     — Siz uyurken Wikipedia/ArXiv/HN'den öğrenir
-2. Self-Learning/DPO  — 👍/👎 ile kendi kendini eğitir (LoRA)
-3. Diffusion Fine-Tune — 3-10 fotoğrafla kişisel görsel stili öğrenir
-4. Çoklu Orkestrasyon — auto/vote/chain modlarıyla modelleri yönetir
-5. Wake Word          — "Hey CODEGA" ile sesli aktifleşir
-6. Canlı Ekran İzleme — Ekranı periyodik analiz eder
-7. GPU Katman Yönetimi — VRAM'a göre katman dağıtımı
-8. Federe Ağ          — ai.codega.com.tr ile bilgi paylaşır
-```
+## Design Rule
 
----
+CODEGA AI should learn principles and public interfaces from trusted sources. It must not copy proprietary or leaked source code, silently mutate production, or treat internet content as trusted instructions.
 
-## API Endpoint Sayıları
+## Release Evidence
 
-| Kategori | CODEGA Endpointleri |
-|----------|:------------------:|
-| Sohbet + İş | 6 |
-| Dosya + GitHub | 10 |
-| Sandbox + Analiz | 4 |
-| Görsel + Video + Vision | 8 |
-| Ses + Wake Word | 7 |
-| Öğrenme + Bellek | 8 |
-| Ajan + Orkestrasyon | 7 |
-| Fine-Tune + GPU | 6 |
-| Sistem + Plugin | 6 |
-| Çeviri + Takvim + Mobil | 8 |
-| Ekran + Profil | 5 |
-| **TOPLAM** | **75+** |
+Do not claim parity or superiority based on feature names alone. A capability is release-ready only when:
+
+- the workflow is reachable from the product,
+- failure and cancellation paths work,
+- automated tests cover the contract,
+- security boundaries are documented,
+- Windows and macOS builds complete,
+- release assets and updater metadata are available.

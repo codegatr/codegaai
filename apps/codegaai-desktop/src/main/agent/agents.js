@@ -125,7 +125,7 @@ function buildSpecialistPrompt(specialistKey, baseTask = "") {
     "",
     "Kullanabileceğin araçlar (yalnızca bunlar):",
     toolList,
-    'Araç formatı: <tool>arac_adi("argüman")</tool>',
+    'Araç formatı: {"tool":"arac_adi","args":["argüman"]} (uyumluluk: <tool>arac_adi("argüman")</tool>)',
     "Emin olmadığın bilgiyi uydurma; gerekiyorsa araç kullan ya da 'emin değilim' de.",
     baseTask ? `\nGörev bağlamı: ${baseTask}` : "",
   ].join("\n");

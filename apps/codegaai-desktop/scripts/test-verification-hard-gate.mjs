@@ -333,13 +333,19 @@ suite("trusted_deterministic_eight_task_benchmark_fast_path", async () => {
 
 suite("watchdog_regeneration_loop_guard", async () => {
   assert.equal(modelManager._MAX_REGENERATION_ATTEMPTS, 3);
-  const tokens = [];
-  const progress = modelManager._makeVerificationProgress((token) => tokens.push(token), "test");
+  const statuses = [];
+  const heartbeats = [];
+  const progress = modelManager._makeVerificationProgress(
+    (status) => statuses.push(status),
+    "test",
+    (token) => heartbeats.push(token)
+  );
   progress.emit("verifying", { attempt: 1, reason: "unit-test" });
   progress.stop();
-  assert.ok(tokens.length >= 2, "progress heartbeat emits activity tokens");
-  assert.ok(tokens.includes(modelManager._HEARTBEAT_TOKEN), "progress still emits invisible watchdog heartbeat tokens");
-  assert.ok(tokens.some((token) => /Çalışma özeti:/.test(token)), "progress also emits visible status text");
+  assert.ok(statuses.length >= 2, "progress emits structured status events");
+  assert.ok(heartbeats.includes(modelManager._HEARTBEAT_TOKEN), "progress still emits invisible watchdog heartbeat tokens");
+  assert.ok(statuses.some((status) => /Çalışma özeti:/.test(status.text)), "status events include user-facing progress text");
+  assert.ok(heartbeats.every((token) => token === modelManager._HEARTBEAT_TOKEN), "answer stream receives no visible progress text");
 
   const started = Date.now();
   const simple = [

@@ -3,6 +3,20 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const { runReact, toolCallSignature } = require("../src/main/agent/agent-loop");
+const tools = require("../src/main/agent/tools");
+
+const structured = tools.extractToolCalls('{"tool":"calculate","args":["21*2"]}');
+assert.equal(structured.length, 1);
+assert.equal(structured[0].name, "calculate");
+assert.deepEqual(structured[0].args, ["21*2"]);
+assert.equal(tools.stripToolCalls('{"tool":"calculate","args":["21*2"]}'), "");
+
+const openAiStyle = tools.extractToolCalls(
+  '{"tool_calls":[{"function":{"name":"weather","arguments":"{\\"city\\":\\"Konya\\"}"}}]}'
+);
+assert.equal(openAiStyle.length, 1);
+assert.equal(openAiStyle[0].name, "weather");
+assert.deepEqual(openAiStyle[0].args, ["Konya"]);
 
 assert.equal(
   toolCallSignature({ name: "calculate", args: ["2+2"] }),

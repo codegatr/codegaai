@@ -10,6 +10,7 @@ const {
   ModelManager,
   extractWeatherCity,
   isSmallTalk,
+  isTechnicalDiagnostic,
   shouldRunHardValidation,
 } = modelModule.default || modelModule;
 
@@ -23,6 +24,8 @@ assert.equal(isSmallTalk("Biraz d\u00fczelmi\u015fsin sanki."), true);
 assert.equal(isSmallTalk("S\u0131navlara haz\u0131r m\u0131s\u0131n?"), true);
 assert.equal(isSmallTalk("Yar\u0131na haz\u0131r m\u0131s\u0131n?"), true);
 assert.equal(isSmallTalk("PHP ile REST API kodu yaz"), false);
+assert.equal(isTechnicalDiagnostic("POST /admin/login.php 500 Internal Server Error"), true);
+assert.equal(isTechnicalDiagnostic("Sınavlara hazır mısın?"), false);
 assert.equal(shouldRunHardValidation({
   fastConversation: true,
   taskDecomposition: { applicable: false },
@@ -36,6 +39,12 @@ assert.equal(shouldRunHardValidation({
   inputNeedsVerification: true,
   taskDecomposition: { applicable: false },
 }), true);
+assert.equal(shouldRunHardValidation({
+  fastConversation: false,
+  technicalDiagnostic: true,
+  inputNeedsVerification: true,
+  taskDecomposition: { applicable: false },
+}), false);
 assert.equal(extractWeatherCity("Bugün Konya'da hava durumu nasıl?"), "Konya");
 assert.equal(extractWeatherCity("Ankara hava nasıl?"), "Ankara");
 
@@ -58,7 +67,30 @@ const examAnswer = await casualManager.ask("S\u0131navlara haz\u0131r m\u0131s\u
 assert.equal(examAnswer.text, "Haz\u0131r\u0131m. Sorular\u0131 g\u00f6nder, birlikte \u00e7\u00f6zelim.");
 assert.doesNotMatch(examAnswer.text, /Final Answer|do\u011frulama kap\u0131s\u0131/i);
 
+const diagnosticManager = new ModelManager();
+diagnosticManager.state = {
+  provider: "ollama",
+  status: "ready",
+  model: "qwen3:4b",
+  task: "code",
+  message: "Haz\u0131r",
+};
+diagnosticManager.installedModels = async () => ["qwen3:4b"];
+diagnosticManager.generate = async () => (
+  "HTTP 500 sunucu tarafl\u0131 bir hatad\u0131r. \u00d6nce PHP hata g\u00fcnl\u00fc\u011f\u00fcn\u00fc ve login.php i\u00e7indeki veritaban\u0131 ba\u011flant\u0131s\u0131n\u0131 kontrol et."
+);
+const diagnosticAnswer = await diagnosticManager.ask(
+  "POST https://example.com/admin/login.php net::ERR_HTTP_RESPONSE_CODE_FAILURE 500 Internal Server Error"
+);
+assert.match(diagnosticAnswer.text, /HTTP 500/);
+assert.doesNotMatch(diagnosticAnswer.text, /Final Answer|do\u011frulama kap\u0131s\u0131|\u00c7al\u0131\u015fma \u00f6zeti/i);
+
 const rendererSource = fs.readFileSync(path.join(root, "src", "renderer", "renderer.js"), "utf8");
+const preloadSource = fs.readFileSync(path.join(root, "src", "main", "preload.js"), "utf8");
+const mainSource = fs.readFileSync(path.join(root, "src", "main", "main.js"), "utf8");
+assert.match(preloadSource, /onChatStatus/);
+assert.match(mainSource, /chat:status/);
+assert.doesNotMatch(rendererSource, /placeholder\.text\s*=\s*this\.progress/);
 const helperStart = rendererSource.indexOf("function foldAssistantOutput");
 const helperEnd = rendererSource.indexOf("function saveChats");
 assert.ok(helperStart >= 0 && helperEnd > helperStart, "chat history cleanup helpers exist");
