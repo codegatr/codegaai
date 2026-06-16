@@ -1,4 +1,4 @@
-"""
+﻿"""
 codegaai.api.routes.jobs
 ========================
 
@@ -26,10 +26,10 @@ router = APIRouter()
 
 def _learn_from_chat(question: str, answer: str, intent: str) -> None:
     """
-    Sohbetten öğren — yeterince uzun ve bilgi dolu yanıtları RAG'a ekle.
-    Kısa/genel yanıtları atla (belleği kirletme).
+    Sohbetten Ã¶ÄŸren â€” yeterince uzun ve bilgi dolu yanÄ±tlarÄ± RAG'a ekle.
+    KÄ±sa/genel yanÄ±tlarÄ± atla (belleÄŸi kirletme).
     """
-    if len(answer) < 150:  # Çok kısa → kaydetme
+    if len(answer) < 150:  # Ã‡ok kÄ±sa â†’ kaydetme
         return
     if intent not in ("coding", "calculation", "general"):
         return
@@ -56,43 +56,43 @@ def _learn_from_chat(question: str, answer: str, intent: str) -> None:
 _WEB_REQUIRED_PATTERNS = [
     r"https?://",
     r"\b(site|web\s*site|internet|google|duckduckgo|haber|news)\b",
-    r"\b(ara|arat|bul|bak|ziyaret et|search|find|visit|browse|araştır|arastir|gez)\b",
-    r"\b(en son|son dakika|bugün|bugun|güncel haber|latest|current|şu an|simdi)\b",
+    r"\b(ara|arat|bul|bak|ziyaret et|search|find|visit|browse|araÅŸtÄ±r|arastir|gez)\b",
+    r"\b(en son|son dakika|bugÃ¼n|bugun|gÃ¼ncel haber|latest|current|ÅŸu an|simdi)\b",
     r"\b20[2-9][0-9]\b",
 ]
 
-# Explicit web command patterns — bu varsa SELF-REF olsa bile web search yap
+# Explicit web command patterns â€” bu varsa SELF-REF olsa bile web search yap
 _WEB_EXPLICIT_PATTERNS = [
     r"\bziyaret\s+et\b",
-    r"\baraştır\b|\barastir\b",
-    r"\binternett?en\s+(ara|bul|bak|öğren)\b",
+    r"\baraÅŸtÄ±r\b|\barastir\b",
+    r"\binternett?en\s+(ara|bul|bak|Ã¶ÄŸren)\b",
     r"\bweb('?de|den)\s+(ara|bul|bak)\b",
-    r"\b(ara\s+ve|bul\s+ve|bak\s+ve|gez\s+ve)\b",  # "ara ve getir/söyle/anlat"
+    r"\b(ara\s+ve|bul\s+ve|bak\s+ve|gez\s+ve)\b",  # "ara ve getir/sÃ¶yle/anlat"
     r"\barama\s+yap\b",
     r"\bonline\s+(ara|bul|bak)\b",
-    r"\bgüncel(le|i)?\b",
-    r"\bne\s+oldu\b",   # "ne oldu" → güncel bilgi
+    r"\bgÃ¼ncel(le|i)?\b",
+    r"\bne\s+oldu\b",   # "ne oldu" â†’ gÃ¼ncel bilgi
 ]
 
-# Genel entity / "X hakkında bilgi" patterns — sıkı: en az 2 kelimeli proper noun
-# veya açık kategori (şirket/firma/holding) ile birlikte
+# Genel entity / "X hakkÄ±nda bilgi" patterns â€” sÄ±kÄ±: en az 2 kelimeli proper noun
+# veya aÃ§Ä±k kategori (ÅŸirket/firma/holding) ile birlikte
 _ENTITY_INFO_PATTERNS = [
-    # Çift büyük harfli isim + bilgi sorusu (örn: "Tekcan Metal hakkında")
-    r"\b[A-ZŞĞÜÇÖİ][a-zşğüçöı]{2,}\s+[A-ZŞĞÜÇÖİ][a-zşğüçöı]{2,}.{0,40}(hakk[ıi]nda|nedir|kimdir|nas[ıi]l)",
-    # Açık kategori + isim
-    r"\b(şirket|firma|company|fabrika|holding|grup)\s+[A-Za-zŞĞÜÇÖİşğüçöı]{3,}",
+    # Ã‡ift bÃ¼yÃ¼k harfli isim + bilgi sorusu (Ã¶rn: "Tekcan Metal hakkÄ±nda")
+    r"\b[A-ZÅÄÃœÃ‡Ã–Ä°][a-zÅŸÄŸÃ¼Ã§Ã¶Ä±]{2,}\s+[A-ZÅÄÃœÃ‡Ã–Ä°][a-zÅŸÄŸÃ¼Ã§Ã¶Ä±]{2,}.{0,40}(hakk[Ä±i]nda|nedir|kimdir|nas[Ä±i]l)",
+    # AÃ§Ä±k kategori + isim
+    r"\b(ÅŸirket|firma|company|fabrika|holding|grup)\s+[A-Za-zÅÄÃœÃ‡Ã–Ä°ÅŸÄŸÃ¼Ã§Ã¶Ä±]{3,}",
 ]
 
-# Genel "selam" ve sosyal sorular — web search YAPMA
+# Genel "selam" ve sosyal sorular â€” web search YAPMA
 _SOCIAL_PATTERNS = [
-    r"^\s*(merhaba|selam|hi|hello|hey|günaydın|iyi (akşam|akşamlar|gece|geceler)|nasılsın|naber)",
-    r"^\s*(teşekkür|sağol|sagol|tamam|ok|peki)",
+    r"^\s*(merhaba|selam|hi|hello|hey|gÃ¼naydÄ±n|iyi (akÅŸam|akÅŸamlar|gece|geceler)|nasÄ±lsÄ±n|naber)",
+    r"^\s*(teÅŸekkÃ¼r|saÄŸol|sagol|tamam|ok|peki)",
 ]
 
 _SELF_REFERENCE_PATTERNS = [
-    # CODEGA AI'nin kendisi hakkında — "sen ziyaret et" gibi komutlar HARİÇ
-    r"\b(kendin(den|i)|cevabın|cevabin|seni\s+(yapan|geliştiren|kim))\b",
-    r"\b(neler\s+yapabilirsin|özelliklerin|yeteneklerin)\b",
+    # CODEGA AI'nin kendisi hakkÄ±nda â€” "sen ziyaret et" gibi komutlar HARÄ°Ã‡
+    r"\b(kendin(den|i)|cevabÄ±n|cevabin|seni\s+(yapan|geliÅŸtiren|kim))\b",
+    r"\b(neler\s+yapabilirsin|Ã¶zelliklerin|yeteneklerin)\b",
     r"\b(codega\s+(ai|nedir|kim))\b",
     r"\b(codex|code\s*x|claude|gemini|chatgpt|gpt)\b",
 ]
@@ -114,41 +114,41 @@ def _quick_social_response(message: str) -> str:
 
     msg = message.lower().strip()
     hour = datetime.now().hour
-    if "günaydın" in msg:
-        greeting = "Günaydın"
+    if "gÃ¼naydÄ±n" in msg:
+        greeting = "GÃ¼naydÄ±n"
     elif "iyi gece" in msg:
-        greeting = "İyi geceler"
-    elif "iyi akşam" in msg:
-        greeting = "İyi akşamlar"
-    elif "teşekkür" in msg or "sağol" in msg or "sagol" in msg:
-        return "Rica ederim. Buradayım, devam edebiliriz."
-    elif "nasılsın" in msg or "naber" in msg:
-        return "İyiyim, teşekkür ederim. Senin için neyi hızla çözelim?"
+        greeting = "Ä°yi geceler"
+    elif "iyi akÅŸam" in msg:
+        greeting = "Ä°yi akÅŸamlar"
+    elif "teÅŸekkÃ¼r" in msg or "saÄŸol" in msg or "sagol" in msg:
+        return "Rica ederim. BuradayÄ±m, devam edebiliriz."
+    elif "nasÄ±lsÄ±n" in msg or "naber" in msg:
+        return "Ä°yiyim, teÅŸekkÃ¼r ederim. Senin iÃ§in neyi hÄ±zla Ã§Ã¶zelim?"
     elif 5 <= hour < 12:
-        greeting = "Günaydın"
+        greeting = "GÃ¼naydÄ±n"
     elif 18 <= hour < 23:
-        greeting = "İyi akşamlar"
+        greeting = "Ä°yi akÅŸamlar"
     elif hour >= 23 or hour < 5:
-        greeting = "İyi geceler"
+        greeting = "Ä°yi geceler"
     else:
         greeting = "Merhaba"
-    return f"{greeting}. Buradayım, nasıl yardımcı olayım?"
+    return f"{greeting}. BuradayÄ±m, nasÄ±l yardÄ±mcÄ± olayÄ±m?"
 
 
 def _quick_capability_response(message: str) -> str:
     msg = message.lower().strip()
-    if any(k in msg for k in ["internet", "web", "arama", "araştır", "arastir"]):
+    if any(k in msg for k in ["internet", "web", "arama", "araÅŸtÄ±r", "arastir"]):
         return (
-            "Evet. Güncel bilgi gerektiğinde internet aramasını otomatik kullanırım; "
-            "sen sadece neyi öğrenmek istediğini yaz."
+            "Evet. GÃ¼ncel bilgi gerektiÄŸinde internet aramasÄ±nÄ± otomatik kullanÄ±rÄ±m; "
+            "sen sadece neyi Ã¶ÄŸrenmek istediÄŸini yaz."
         )
-    if any(k in msg for k in ["resim", "görsel", "gorsel", "image", "çiz", "ciz"]):
+    if any(k in msg for k in ["resim", "gÃ¶rsel", "gorsel", "image", "Ã§iz", "ciz"]):
         return (
-            "Evet. Resim veya görsel istediğinde komutunu otomatik görsel üretim motoruna yönlendiririm."
+            "Evet. Resim veya gÃ¶rsel istediÄŸinde komutunu otomatik gÃ¶rsel Ã¼retim motoruna yÃ¶nlendiririm."
         )
-    if any(k in msg for k in ["kod", "yazılım", "yazilim", "debug", "hata"]):
+    if any(k in msg for k in ["kod", "yazÄ±lÄ±m", "yazilim", "debug", "hata"]):
         return (
-            "Evet. Kod yazma, hata çözme, repo inceleme ve test üretme işlerinde kod moduna otomatik geçerim."
+            "Evet. Kod yazma, hata Ã§Ã¶zme, repo inceleme ve test Ã¼retme iÅŸlerinde kod moduna otomatik geÃ§erim."
         )
     return ""
 
@@ -156,21 +156,21 @@ def _quick_capability_response(message: str) -> str:
 def _needs_web_search(message: str) -> bool:
     msg = message.lower()
 
-    # 0. Sosyal mesaj (selam, teşekkür) → web search asla
+    # 0. Sosyal mesaj (selam, teÅŸekkÃ¼r) â†’ web search asla
     if _is_social_chat(msg) and len(msg) < 50:
         return False
 
-    # 1. Explicit web komutları her durumda True (self-ref check'i bypass)
+    # 1. Explicit web komutlarÄ± her durumda True (self-ref check'i bypass)
     for p in _WEB_EXPLICIT_PATTERNS:
         if re.search(p, msg, re.IGNORECASE):
             return True
 
-    # 2. Entity araması (Çok kelimeli proper noun + bilgi sorusu)
+    # 2. Entity aramasÄ± (Ã‡ok kelimeli proper noun + bilgi sorusu)
     for p in _ENTITY_INFO_PATTERNS:
         if re.search(p, message):   # case-sensitive: proper noun
             return True
 
-    # 3. Self-referential ise (CODEGA AI'nin kendisi hakkında) ve explicit web yoksa → False
+    # 3. Self-referential ise (CODEGA AI'nin kendisi hakkÄ±nda) ve explicit web yoksa â†’ False
     if _looks_self_referential(msg):
         return False
 
@@ -180,7 +180,7 @@ def _needs_web_search(message: str) -> bool:
 
 async def _execute_inline_tools(content: str, job) -> str:
     """
-    <tool>tool_name(args)</tool> bloklarını çalıştır, sonucu yerine koy.
+    <tool>tool_name(args)</tool> bloklarÄ±nÄ± Ã§alÄ±ÅŸtÄ±r, sonucu yerine koy.
     Basit prompt-injection-safe pattern.
     """
     import re
@@ -190,26 +190,26 @@ async def _execute_inline_tools(content: str, job) -> str:
     def _safe_call(match):
         tool_call = match.group(1).strip()
         try:
-            # Sadece güvenli, beyaz listede olan tool'lar
+            # Sadece gÃ¼venli, beyaz listede olan tool'lar
             if tool_call.startswith("search("):
                 query = tool_call[7:-1].strip().strip('"\'')
                 from codegaai.core.web_search import web_search
                 results = web_search(query, limit=3)
-                return "\n[Arama sonuçları]\n" + "\n".join(
+                return "\n[Arama sonuÃ§larÄ±]\n" + "\n".join(
                     f"- {r.get('title', '')}: {r.get('snippet', '')[:150]}"
                     for r in results
                 ) + "\n"
             elif tool_call.startswith("calc("):
                 expr = tool_call[5:-1].strip()
-                # Sadece sayısal ifadeler
+                # Sadece sayÄ±sal ifadeler
                 if re.match(r"^[\d\s+\-*/().]+$", expr):
-                    return f" {eval(expr)} "  # noqa: S307 - kısıtlı eval
+                    return f" {eval(expr)} "  # noqa: S307 - kÄ±sÄ±tlÄ± eval
             elif tool_call.startswith("time()"):
                 from datetime import datetime
                 return f" {datetime.now().strftime('%H:%M, %d %B %Y')} "
-            return match.group(0)   # Bilinmeyen tool → olduğu gibi bırak
+            return match.group(0)   # Bilinmeyen tool â†’ olduÄŸu gibi bÄ±rak
         except Exception as e:
-            return f"[Tool hatası: {e}]"
+            return f"[Tool hatasÄ±: {e}]"
     
     try:
         return pattern.sub(_safe_call, content)
@@ -219,8 +219,8 @@ async def _execute_inline_tools(content: str, job) -> str:
 
 def _update_profile_async(messages: list[dict]) -> None:
     """
-    Kullanıcı profilini arka planda güncelle (engellemez, hata vermez).
-    Sohbetten ilgi alanları, üslup tercihleri çıkartır.
+    KullanÄ±cÄ± profilini arka planda gÃ¼ncelle (engellemez, hata vermez).
+    Sohbetten ilgi alanlarÄ±, Ã¼slup tercihleri Ã§Ä±kartÄ±r.
     """
     try:
         import threading
@@ -231,81 +231,81 @@ def _update_profile_async(messages: list[dict]) -> None:
                 profile = UserProfile.get()
                 profile.update_from_messages(messages)
             except (ImportError, AttributeError):
-                # UserProfile modülü yoksa sessizce atla
+                # UserProfile modÃ¼lÃ¼ yoksa sessizce atla
                 pass
             except Exception as e:
-                log.debug("Profil güncellemesi atlandı: %s", e)
+                log.debug("Profil gÃ¼ncellemesi atlandÄ±: %s", e)
         
         threading.Thread(target=_run, daemon=True).start()
     except Exception:
-        pass   # Hiçbir koşulda chat akışını bozma
+        pass   # HiÃ§bir koÅŸulda chat akÄ±ÅŸÄ±nÄ± bozma
 
 
 def _needs_retry(question: str, answer: str) -> bool:
     """
-    Self-eval: yanıt yetersizse True dön.
+    Self-eval: yanÄ±t yetersizse True dÃ¶n.
 
     Kriterler:
-    - Çok kısa (< 15 karakter)
-    - Belirsiz/kaçamak ifadeler ('bilmiyorum', 'üzgünüm' tek başına)
-    - Hata mesajı içeriyor
-    - Sadece soruyu tekrarlıyor
-    - YASAK kalıplar (CODEGA AI tarzı yanıt için engelleme)
+    - Ã‡ok kÄ±sa (< 15 karakter)
+    - Belirsiz/kaÃ§amak ifadeler ('bilmiyorum', 'Ã¼zgÃ¼nÃ¼m' tek baÅŸÄ±na)
+    - Hata mesajÄ± iÃ§eriyor
+    - Sadece soruyu tekrarlÄ±yor
+    - YASAK kalÄ±plar (CODEGA AI tarzÄ± yanÄ±t iÃ§in engelleme)
     """
     if not answer or not answer.strip():
         return True
 
     ans = answer.strip().lower()
 
-    # Çok kısa cevaplar (genellikle yetersiz)
+    # Ã‡ok kÄ±sa cevaplar (genellikle yetersiz)
     if len(ans) < 15:
         return True
 
-    # YASAK kalıplar — CODEGA AI tarzı için engellenir
-    # Bu kalıplardan biri varsa MUTLAKA retry
+    # YASAK kalÄ±plar â€” CODEGA AI tarzÄ± iÃ§in engellenir
+    # Bu kalÄ±plardan biri varsa MUTLAKA retry
     forbidden_patterns = [
-        "doğrudan internet üzerinde gezinem",   # gezinemem / gezinemiyorum
-        "internet üzerinde doğrudan gezinem",
-        "internete doğrudan erişim",
-        "internete erişim",                      # "yok" devamı olsa da olmasa da
-        "web'e erişim",
-        "web e erişim",
-        "internete bağlanam",
-        "ben bir yapay zeka asistanıyım",
-        "ben bir yapay zekayım",
+        "doÄŸrudan internet Ã¼zerinde gezinem",   # gezinemem / gezinemiyorum
+        "internet Ã¼zerinde doÄŸrudan gezinem",
+        "internete doÄŸrudan eriÅŸim",
+        "internete eriÅŸim",                      # "yok" devamÄ± olsa da olmasa da
+        "web'e eriÅŸim",
+        "web e eriÅŸim",
+        "internete baÄŸlanam",
+        "ben bir yapay zeka asistanÄ±yÄ±m",
+        "ben bir yapay zekayÄ±m",
         "ben bir yapay zeka modeliyim",
         "ben sadece bir yapay zeka",
-        "gerçek zamanlı veri sağla",
-        "gerçek zamanlı bilgi sağla",
+        "gerÃ§ek zamanlÄ± veri saÄŸla",
+        "gerÃ§ek zamanlÄ± bilgi saÄŸla",
         "bilgilerim 2023",
         "bilgilerim 2024",
         "bilgilerim 2025",
         "knowledge cutoff",
         "training data",
-        "öncelikle belirtmeliyim",
+        "Ã¶ncelikle belirtmeliyim",
         "maalesef, ",
         "maalesef bu konuda",
-        "üzgünüm, ancak",
-        "üzgünüm, ben bir",
-        "üzgünüm, doğrudan",
+        "Ã¼zgÃ¼nÃ¼m, ancak",
+        "Ã¼zgÃ¼nÃ¼m, ben bir",
+        "Ã¼zgÃ¼nÃ¼m, doÄŸrudan",
         "as an ai language model",
         "as an ai assistant",
         "i cannot browse",
         "i don't have access to",
         "i don't have the ability",
-        "tarayıcı kullanma yeteneğim yok",
-        "gezinme yeteneğim yok",
-        "tarayıcı yeteneğim yok",
+        "tarayÄ±cÄ± kullanma yeteneÄŸim yok",
+        "gezinme yeteneÄŸim yok",
+        "tarayÄ±cÄ± yeteneÄŸim yok",
     ]
     for pattern in forbidden_patterns:
         if pattern in ans:
             return True
 
-    # Kaçamak/yetersiz ifade kalıpları (kısa cevap + zayıf ifade)
+    # KaÃ§amak/yetersiz ifade kalÄ±plarÄ± (kÄ±sa cevap + zayÄ±f ifade)
     weak_patterns = [
         "bilmiyorum",
-        "yardımcı olamam",
-        "anlayamadım",
+        "yardÄ±mcÄ± olamam",
+        "anlayamadÄ±m",
         "hata: name",
         "hata: '",
         "is not defined",
@@ -316,12 +316,30 @@ def _needs_retry(question: str, answer: str) -> bool:
     if weak_count >= 1 and len(ans) < 100:
         return True
 
-    # Cevap soruyu aynen tekrarlıyorsa
+    # Cevap soruyu aynen tekrarlÄ±yorsa
     q = question.strip().lower()
     if q and len(q) > 10 and ans.startswith(q):
         return True
 
     return False
+
+
+def _clean_final_content(content: str) -> str:
+    try:
+        from codegaai.core.answer_sanitizer import sanitize_final_answer
+        return sanitize_final_answer(content)
+    except Exception:
+        return str(content or "").strip()
+
+
+def _fallback_empty_response(message: str, decision_intent: str = "general") -> str:
+    if decision_intent == "architecture_planning":
+        try:
+            from codegaai.core.answer_sanitizer import architecture_plan_fallback
+            return architecture_plan_fallback(message)
+        except Exception:
+            return "# Analysis\nMevcut proje dogrulanamadi.\n\n# Assumptions\nLaravel, Flutter, MySQL ve Laravel Sanctum kullanilacak."
+    return "Buradayim. Cevap uretimi bos dondu, ama sohbeti surduruyorum; son mesajina gore devam edebilirim."
 
 
 def _build_recent_focus(history: list[dict], latest: str) -> str:
@@ -331,7 +349,7 @@ def _build_recent_focus(history: list[dict], latest: str) -> str:
 
     lines = []
     for item in recent:
-        role = "Kullanıcı" if item.get("role") == "user" else "Asistan"
+        role = "KullanÄ±cÄ±" if item.get("role") == "user" else "Asistan"
         content = re.sub(r"\s+", " ", str(item.get("content", ""))).strip()
         if content:
             lines.append(f"- {role}: {content[:240]}")
@@ -339,11 +357,11 @@ def _build_recent_focus(history: list[dict], latest: str) -> str:
         return ""
 
     return (
-        "## Son Sohbet Odağı\n"
+        "## Son Sohbet OdaÄŸÄ±\n"
         + "\n".join(lines)
-        + f"\n- Kullanıcının son mesajı: {latest[:300]}\n\n"
-        "Bu son mesajı yukarıdaki bağlama göre yanıtla. Kullanıcı 'sen/senden/seni' diyorsa "
-        "CODEGA AI'yi kastettiğini varsay. Konuyu Windows, haber veya başka alana kaydırma."
+        + f"\n- KullanÄ±cÄ±nÄ±n son mesajÄ±: {latest[:300]}\n\n"
+        "Bu son mesajÄ± yukarÄ±daki baÄŸlama gÃ¶re yanÄ±tla. KullanÄ±cÄ± 'sen/senden/seni' diyorsa "
+        "CODEGA AI'yi kastettiÄŸini varsay. Konuyu Windows, haber veya baÅŸka alana kaydÄ±rma."
     )
 
 
@@ -358,17 +376,17 @@ async def _maybe_web_search(message: str) -> str:
     if url_match:
         url = url_match.group(0).rstrip(".,;")
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:    # 8→5 sn
+            async with httpx.AsyncClient(timeout=5.0) as client:    # 8â†’5 sn
                 r = await client.get(url, headers=headers, follow_redirects=True)
-                text = re.sub(r"<[^>]+>", " ", r.text[:2000])       # 3000→2000
+                text = re.sub(r"<[^>]+>", " ", r.text[:2000])       # 3000â†’2000
                 text = re.sub(r"\s+", " ", text).strip()
-                return f"[{url}]\n{text[:1500]}"                    # 2000→1500
+                return f"[{url}]\n{text[:1500]}"                    # 2000â†’1500
         except Exception as exc:
-            log.debug("URL okuma hatası: %s", exc)
+            log.debug("URL okuma hatasÄ±: %s", exc)
 
     try:
         query = message.strip()
-        async with httpx.AsyncClient(timeout=5.0) as client:        # 8→5 sn
+        async with httpx.AsyncClient(timeout=5.0) as client:        # 8â†’5 sn
             r = await client.get(
                 "https://lite.duckduckgo.com/lite/",
                 params={"q": query},
@@ -379,19 +397,19 @@ async def _maybe_web_search(message: str) -> str:
         if not snippets:
             text = re.sub(r"<[^>]+>", " ", r.text)
             text = re.sub(r"\s+", " ", text).strip()
-            return f"[Web Araması: {query}]\n{text[:1200]}"         # 1500→1200
+            return f"[Web AramasÄ±: {query}]\n{text[:1200]}"         # 1500â†’1200
 
         results = []
-        # Sadece ilk 3 sonuç (eskiden 5) — daha az context, daha hızlı LLM
+        # Sadece ilk 3 sonuÃ§ (eskiden 5) â€” daha az context, daha hÄ±zlÄ± LLM
         for i, (title, snippet) in enumerate(zip(titles, snippets)):
             title_clean = re.sub(r"<[^>]+>", "", title).strip()
             snippet_clean = re.sub(r"<[^>]+>", "", snippet).strip()
             results.append(f"{i + 1}. {title_clean}: {snippet_clean[:200]}")
-            if i >= 2:    # 0,1,2 = 3 sonuç (eski 5)
+            if i >= 2:    # 0,1,2 = 3 sonuÃ§ (eski 5)
                 break
-        return f"[Web Araması: {query}]\n" + "\n".join(results)
+        return f"[Web AramasÄ±: {query}]\n" + "\n".join(results)
     except Exception as exc:
-        log.debug("Web araması hatası: %s", exc)
+        log.debug("Web aramasÄ± hatasÄ±: %s", exc)
         return ""
 
 
@@ -438,10 +456,10 @@ class ChatJob:
         self.max_tokens = max_tokens
         self.file_context = file_context
         self.speed_mode = speed_mode
-        self.deep_think = deep_think   # o1/o3 tarzı CoT
-        self.thought = ""              # İç düşünce (kullanıcıya gösterilebilir)
+        self.deep_think = deep_think   # o1/o3 tarzÄ± CoT
+        self.thought = ""              # Ä°Ã§ dÃ¼ÅŸÃ¼nce (kullanÄ±cÄ±ya gÃ¶sterilebilir)
         self.status = "pending"
-        self.stage = ""                # Anlık aşama: searching, retrieving, generating
+        self.stage = ""                # AnlÄ±k aÅŸama: searching, retrieving, generating
         self.content = ""
         self.error = ""
         self.started_at = time.time()
@@ -449,7 +467,7 @@ class ChatJob:
         self._lock = threading.Lock()
 
     def set_stage(self, stage: str) -> None:
-        """Anlık aşama bildirimi (UI'da kullanıcıya göster)."""
+        """AnlÄ±k aÅŸama bildirimi (UI'da kullanÄ±cÄ±ya gÃ¶ster)."""
         with self._lock:
             self.stage = stage
 
@@ -472,7 +490,7 @@ class ChatJob:
                 "status": self.status,
                 "stage": self.stage,
                 "content": self.content,
-                "thought": self.thought,    # Derin düşünme içeriği
+                "thought": self.thought,    # Derin dÃ¼ÅŸÃ¼nme iÃ§eriÄŸi
                 "speed_mode": self.speed_mode,
                 "error": self.error,
                 "done": self.status in ("done", "error"),
@@ -506,15 +524,7 @@ async def _run_chat_job(job: ChatJob) -> None:
         from codegaai.core.chat_store import ChatStore
         from codegaai.core.agent_brain import decide_response, decision_guidance
 
-        # Akıllı max_tokens: kısa sorulara kısa cevap (hız için)
         msg_len = len(job.message.strip())
-        if job.speed_mode and not job.deep_think:
-            job.max_tokens = min(job.max_tokens, 384)
-        if msg_len < 30:        # "Merhaba", "Nasılsın"
-            job.max_tokens = min(job.max_tokens, 96 if job.speed_mode else 128)
-        elif msg_len < 80:       # Tek satır soru
-            job.max_tokens = min(job.max_tokens, 192 if job.speed_mode else 256)
-        # Uzun soru / açıklama isteği → orijinal max_tokens kullan
 
         engine = LLMEngine.get()
         history = []
@@ -546,7 +556,7 @@ async def _run_chat_job(job: ChatJob) -> None:
             return
 
         capability = _quick_capability_response(job.message)
-        if capability and msg_len < 120 and any(k in job.message.lower() for k in ["yapabilir", "edebilir", "mısın", "misin", "musun", "müsün"]):
+        if capability and msg_len < 120 and any(k in job.message.lower() for k in ["yapabilir", "edebilir", "mÄ±sÄ±n", "misin", "musun", "mÃ¼sÃ¼n"]):
             if job.chat_id:
                 try:
                     store = ChatStore.open()
@@ -585,6 +595,16 @@ async def _run_chat_job(job: ChatJob) -> None:
             return
 
         decision = decide_response(job.message, history=history)
+        if decision.intent == "architecture_planning":
+            job.max_tokens = max(job.max_tokens, 4096)
+            job.speed_mode = False
+        else:
+            if job.speed_mode and not job.deep_think:
+                job.max_tokens = min(job.max_tokens, 384)
+            if msg_len < 30:
+                job.max_tokens = min(job.max_tokens, 96 if job.speed_mode else 128)
+            elif msg_len < 80:
+                job.max_tokens = min(job.max_tokens, 192 if job.speed_mode else 256)
 
         try:
             from codegaai.core.model_router import ModelRouter
@@ -615,7 +635,7 @@ async def _run_chat_job(job: ChatJob) -> None:
                     ).model_id
             if target_model:
                 if engine.is_ready and engine.status.get("model_id") != target_model:
-                    log.debug("Model geçişi arka plana bırakıldı: %s", target_model)
+                    log.debug("Model geÃ§iÅŸi arka plana bÄ±rakÄ±ldÄ±: %s", target_model)
                 elif not engine.is_ready and target_model in downloaded_ids:
                     from codegaai.core.model_warmup import warm_model_async
                     warm_model_async(target_model)
@@ -625,26 +645,26 @@ async def _run_chat_job(job: ChatJob) -> None:
                     from codegaai.core.model_warmup import warm_model_async
                     warm_model_async(rec.model_id)
         except Exception as exc:
-            log.debug("Model routing atlandı: %s", exc)
+            log.debug("Model routing atlandÄ±: %s", exc)
 
         if not engine.is_ready:
-            # ─── Simülasyon Modu (Faz 57) ───
-            # LLM yok ama uygulama kullanılabilir kalsın
+            # â”€â”€â”€ SimÃ¼lasyon Modu (Faz 57) â”€â”€â”€
+            # LLM yok ama uygulama kullanÄ±labilir kalsÄ±n
             try:
                 from codegaai.core.simulation_mode import simulate_chat_response
                 sim = simulate_chat_response(job.message, history)
                 job.append(sim["content"])
                 job.finish()
-                log.info("Simülasyon modu yanıt verdi (LLM yüklü değil)")
+                log.info("SimÃ¼lasyon modu yanÄ±t verdi (LLM yÃ¼klÃ¼ deÄŸil)")
                 return
             except Exception as sim_exc:
-                log.warning("Simülasyon modu başarısız: %s", sim_exc)
-                job.finish(error="Model yüklü değil. Sistem → Otomatik Onar ile düzeltebilirsin.")
+                log.warning("SimÃ¼lasyon modu baÅŸarÄ±sÄ±z: %s", sim_exc)
+                job.finish(error="Model yÃ¼klÃ¼ deÄŸil. Sistem â†’ Otomatik Onar ile dÃ¼zeltebilirsin.")
                 return
 
         web_context = ""
         plugin_result = ""
-        # Plugin eşleşmesi — hava/hesap/takvim vb.
+        # Plugin eÅŸleÅŸmesi â€” hava/hesap/takvim vb.
         try:
             from codegaai.core.plugin_manager import PluginManager
             pm = PluginManager.get()
@@ -652,12 +672,12 @@ async def _run_chat_job(job: ChatJob) -> None:
             if match:
                 pid, meta = match
                 plugin_result = pm.execute(pid, job.message)
-                log.info("Plugin: %s → %s", meta.name, plugin_result[:60])
+                log.info("Plugin: %s â†’ %s", meta.name, plugin_result[:60])
         except Exception:
             pass
         try:
             if decision.needs_web:
-                job.set_stage("🔍 İnternette aranıyor...")
+                job.set_stage("ğŸ” Ä°nternette aranÄ±yor...")
                 web_context = await _maybe_web_search(job.message)
                 job.set_stage("")
         except Exception:
@@ -669,7 +689,7 @@ async def _run_chat_job(job: ChatJob) -> None:
             from codegaai.core.embeddings import EmbeddingService
             if EmbeddingService.get().is_ready:
                 mem = MemoryStore.open()
-                # Daha zengin RAG: son mesaj + önceki 2 mesajı birleştir
+                # Daha zengin RAG: son mesaj + Ã¶nceki 2 mesajÄ± birleÅŸtir
                 rag_query = job.message
                 if history:
                     prev = " ".join(
@@ -682,7 +702,7 @@ async def _run_chat_job(job: ChatJob) -> None:
 
                 hits = mem.search(rag_query, n_results=2 if job.speed_mode else 5)
                 if hits:
-                    # Skorla sırala, en alakalı 3'ü al
+                    # Skorla sÄ±rala, en alakalÄ± 3'Ã¼ al
                     top = sorted(hits, key=lambda h: h.get("score", 0), reverse=True)[:1 if job.speed_mode else 3]
                     rag_text = "\n---\n".join(
                         f"[{h.get('metadata', {}).get('title', 'Bellek')}]\n{h.get('text', '')[:400]}"
@@ -695,33 +715,33 @@ async def _run_chat_job(job: ChatJob) -> None:
         if plugin_result:
             full_context += f"\n\n## Plugin Sonucu\n{plugin_result}"
         if job.file_context:
-            full_context += f"\n\n## Yüklenen Dosya İçeriği\n{job.file_context[:8000]}"
+            full_context += f"\n\n## YÃ¼klenen Dosya Ä°Ã§eriÄŸi\n{job.file_context[:8000]}"
         if web_context:
-            full_context += f"\n\n## İnternet Araması Sonuçları\n{web_context}"
+            full_context += f"\n\n## Ä°nternet AramasÄ± SonuÃ§larÄ±\n{web_context}"
 
         system_prompt = build_system_prompt(
             include_tools=decision.uses_tools,
-            include_profile=True,              # ← kullanıcı profili dahil
-            rag_context=rag_text,              # ← sadece RAG, diğerleri ayrı
+            include_profile=True,              # â† kullanÄ±cÄ± profili dahil
+            rag_context=rag_text,              # â† sadece RAG, diÄŸerleri ayrÄ±
             agent_guidance=decision_guidance(decision),
-            intent=decision.intent,            # ← coding/calculation/general
+            intent=decision.intent,            # â† coding/calculation/general
             deep_think=job.deep_think,
         )
 
-        # ── Mesaj listesi oluştur + Context Sıkıştırma ───────────────
+        # â”€â”€ Mesaj listesi oluÅŸtur + Context SÄ±kÄ±ÅŸtÄ±rma â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if job.deep_think:
             think_prompt = system_prompt + """
 
-## Derin Düşünme Modu AKTİF
-Yanıt vermeden önce <think> bloğu içinde adım adım düşün:
+## Derin DÃ¼ÅŸÃ¼nme Modu AKTÄ°F
+YanÄ±t vermeden Ã¶nce <think> bloÄŸu iÃ§inde adÄ±m adÄ±m dÃ¼ÅŸÃ¼n:
 <think>
 1. Soruyu analiz et
-2. Hangi bilgilere ihtiyacım var?
-3. Çözüm yaklaşımım nedir?
-4. Olası hatalar?
-5. En iyi yanıt nasıl olmalı?
+2. Hangi bilgilere ihtiyacÄ±m var?
+3. Ã‡Ã¶zÃ¼m yaklaÅŸÄ±mÄ±m nedir?
+4. OlasÄ± hatalar?
+5. En iyi yanÄ±t nasÄ±l olmalÄ±?
 </think>
-Düşünce sonrası net ve doğrudan yanıt ver."""
+DÃ¼ÅŸÃ¼nce sonrasÄ± net ve doÄŸrudan yanÄ±t ver."""
             raw_messages = [{"role": "system", "content": think_prompt}]
         else:
             raw_messages = [{"role": "system", "content": system_prompt}]
@@ -729,14 +749,14 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
         raw_messages.extend(history)
         raw_messages.append({"role": "user", "content": job.message})
 
-        # Context sıkıştırma — token limiti aşılacaksa önceki mesajları özetle
+        # Context sÄ±kÄ±ÅŸtÄ±rma â€” token limiti aÅŸÄ±lacaksa Ã¶nceki mesajlarÄ± Ã¶zetle
         try:
             from codegaai.core.context_manager import ContextManager
             ctx = ContextManager()
             result_ctx = ctx.prepare_context(raw_messages, system_prompt)
             messages = result_ctx.messages
             if result_ctx.was_compressed:
-                log.info("Context sıkıştırıldı: %d→%d mesaj",
+                log.info("Context sÄ±kÄ±ÅŸtÄ±rÄ±ldÄ±: %dâ†’%d mesaj",
                          len(raw_messages), len(messages))
         except Exception:
             messages = raw_messages
@@ -770,26 +790,26 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
             else:
                 job.append(full_out)
 
-        # ── Tool Calling — <tool>...</tool> bloklarını çalıştır ───────
+        # â”€â”€ Tool Calling â€” <tool>...</tool> bloklarÄ±nÄ± Ã§alÄ±ÅŸtÄ±r â”€â”€â”€â”€â”€â”€â”€
         if job.content and "<tool>" in job.content:
             job.content = await _execute_inline_tools(job.content, job)
 
-        # ── Self-Evaluation — Kısa/belirsiz yanıtları yeniden yaz ────
+        # â”€â”€ Self-Evaluation â€” KÄ±sa/belirsiz yanÄ±tlarÄ± yeniden yaz â”€â”€â”€â”€
         if (not job.speed_mode) and _needs_retry(job.message, job.content):
-            log.info("Self-eval: yanıt yetersiz, yeniden üretiliyor")
-            job.set_stage("✏️ Yanıt iyileştiriliyor...")
+            log.info("Self-eval: yanÄ±t yetersiz, yeniden Ã¼retiliyor")
+            job.set_stage("âœï¸ YanÄ±t iyileÅŸtiriliyor...")
 
-            # Sert yeniden yazma talimatı — CODEGA AI tarzı
+            # Sert yeniden yazma talimatÄ± â€” CODEGA AI tarzÄ±
             retry_instruction = (
-                "Bir önceki yanıt YETERSİZ veya yasak kalıp içeriyor. Şu kuralları uygula:\n"
-                "1. 'Ben yapay zeka asistanıyım', 'internet üzerinde gezinemiyorum' "
-                "gibi kalıpları KULLANMA.\n"
-                "2. Eğer kullanıcının sorusunu cevaplayabilmek için web bilgisine "
-                "ihtiyacın varsa, bu mesaj geldikten sonra backend zaten web araması "
-                "yapacak — sen sadece sentezle.\n"
-                "3. Bilmiyorsan 'Hemen araştırıyorum' de — ASLA pes etme.\n"
-                "4. CODEGA AI gibi cevapla: doğrudan, net, yardımsever, dolgusuz.\n\n"
-                "Şimdi soruyu YENİDEN cevapla:\n\n"
+                "Bir Ã¶nceki yanÄ±t YETERSÄ°Z veya yasak kalÄ±p iÃ§eriyor. Åu kurallarÄ± uygula:\n"
+                "1. 'Ben yapay zeka asistanÄ±yÄ±m', 'internet Ã¼zerinde gezinemiyorum' "
+                "gibi kalÄ±plarÄ± KULLANMA.\n"
+                "2. EÄŸer kullanÄ±cÄ±nÄ±n sorusunu cevaplayabilmek iÃ§in web bilgisine "
+                "ihtiyacÄ±n varsa, bu mesaj geldikten sonra backend zaten web aramasÄ± "
+                "yapacak â€” sen sadece sentezle.\n"
+                "3. Bilmiyorsan 'Hemen araÅŸtÄ±rÄ±yorum' de â€” ASLA pes etme.\n"
+                "4. CODEGA AI gibi cevapla: doÄŸrudan, net, yardÄ±msever, dolgusuz.\n\n"
+                "Åimdi soruyu YENÄ°DEN cevapla:\n\n"
                 f"Soru: {job.message}"
             )
 
@@ -803,6 +823,10 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
                 job.append(token)
             job.set_stage("")
 
+        job.content = _clean_final_content(job.content)
+        if not job.content.strip():
+            job.content = _fallback_empty_response(job.message, decision.intent)
+
         if job.chat_id and job.content:
             try:
                 store = ChatStore.open()
@@ -810,10 +834,10 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
             except Exception:
                 pass
 
-        # ── Sohbetten öğren ───────────────────────────────────────────
+        # â”€â”€ Sohbetten Ã¶ÄŸren â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         _learn_from_chat(job.message, job.content, decision.intent)
 
-        # ── Kullanıcı profilini güncelle (arka planda) ─────────────────
+        # â”€â”€ KullanÄ±cÄ± profilini gÃ¼ncelle (arka planda) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         _update_profile_async(history + [
             {"role": "user", "content": job.message},
             {"role": "assistant", "content": job.content[:500]},
@@ -821,7 +845,7 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
 
         job.finish()
         log.info(
-            "ChatJob %s tamamlandı: %d token, %.1fs",
+            "ChatJob %s tamamlandÄ±: %d token, %.1fs",
             job.job_id,
             len(job.content.split()),
             time.time() - job.started_at,
@@ -834,9 +858,9 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
 class ChatJobRequest(BaseModel):
     message: str
     chat_id: Optional[int] = None
-    max_tokens: int = 384   # v4.3.0: Daha hızlı yanıt için düşürüldü (eski 512)
+    max_tokens: int = 384   # v4.3.0: Daha hÄ±zlÄ± yanÄ±t iÃ§in dÃ¼ÅŸÃ¼rÃ¼ldÃ¼ (eski 512)
     file_context: str = ""
-    deep_think: bool = False   # o1/o3 modu — yanıt vermeden önce düşün
+    deep_think: bool = False   # o1/o3 modu â€” yanÄ±t vermeden Ã¶nce dÃ¼ÅŸÃ¼n
     speed_mode: bool = True
 
 
@@ -871,5 +895,5 @@ async def start_chat_job(req: ChatJobRequest) -> dict:
 async def get_job(job_id: str) -> dict:
     job = _get_job(job_id)
     if not job:
-        return {"error": "İş bulunamadı", "done": True}
+        return {"error": "Ä°ÅŸ bulunamadÄ±", "done": True}
     return job.to_dict()
