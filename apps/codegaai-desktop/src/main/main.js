@@ -641,6 +641,15 @@ function registerIpc() {
     const sys = systemInfo.analyze(MODEL_OPTIONS);
     const modelId = (payload && payload.modelId) || (sys.recommended && sys.recommended.id) || undefined;
     const status = await modelManager.prepareModel(modelId, (progress) => send(progress));
+    if (status && status.status === "ready" && status.model) {
+      settingsStore.setSettings({ defaultModel: status.model });
+      await modelManager.detect();
+      return {
+        ...modelManager.getStatus(),
+        defaultModel: status.model,
+        message: `${status.model} varsayÄ±lan model olarak hazÄ±r.`,
+      };
+    }
     return status;
   });
 

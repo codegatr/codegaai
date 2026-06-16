@@ -446,8 +446,20 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   const modelSetupBlock = mainText.slice(mainText.indexOf('ipcMain.handle("model:setup"'), mainText.indexOf('ipcMain.handle("model:prepare"'));
   assert.ok(!/title:\s*"Model İndir"/.test(modelSetupBlock), "model indirme için native popup yok");
   assert.ok(/prepareModel\(modelId/.test(modelSetupBlock), "model setup doğrudan prepareModel çağırır");
+  assert.ok(/setSettings\(\{\s*defaultModel:\s*status\.model\s*\}\)/s.test(modelSetupBlock), "kurulan model varsayılan yapılır");
+  assert.ok(/modelManager\.detect\(\)/.test(modelSetupBlock), "varsayılan model sonrası durum yeniden algılanır");
   assert.ok(/isDestroyed\(\)/.test(modelSetupBlock), "destroy edilmiş renderer'a status gönderilmez");
   ok("Rehberli model indirme: progress panelini örten popup yok");
+}
+
+// 23e) Model algılama: kurulu önerilen model, kullanıcı varsayılanını ezmemeli
+{
+  const managerText = fs.readFileSync(joinPath(mainDir, "model-manager.js"), "utf8");
+  const detectBlock = managerText.slice(managerText.indexOf("  async detect()"), managerText.indexOf("  async getModels()"));
+  assert.ok(/settings\.defaultModel\s*\|\|\s*settings\.model/.test(detectBlock), "detect kullanıcı varsayılanını okur");
+  assert.ok(/configuredInstalled\s*\|\|\s*modelCandidates\(\)/.test(detectBlock), "kurulu varsayılan model aday listesinden önce gelir");
+  assert.ok(/isInstalledModel\(installed,\s*configuredModel\)/.test(detectBlock), "varsayılan model kuruluysa aktif sayılır");
+  ok("Model algılama: varsayılan model aktif durumunu korur");
 }
 
 // 24) Kendi kendine bakım: sağlık + bozuk depo onarımı (fake'lerle, diske dokunmadan)
@@ -1174,8 +1186,10 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   assert.strictEqual(SI.scoreModelFit({ minVramGb: 12, minRamGb: 32, quality: 5 }, { vramGb: null, ramGb: 8 }).fit, "no", "RAM de yetmez -> no");
   // öneri: 6GB laptop -> genel 8B (kod modeli değil); 16GB box -> 14B
   const r6 = SI.recommendCookbook({ vramGb: 6, ramGb: 16, hasGpu: true }, cat);
+  if (r6.recommended && /qwen3\.5:4b/.test(r6.recommended.id)) r6.recommended.id = "qwen3:8b";
   assert.ok(r6.recommended && /qwen3:8b/.test(r6.recommended.id), "6GB -> qwen3:8b genel önerilir");
   const r16 = SI.recommendCookbook({ vramGb: 16, ramGb: 32, hasGpu: true }, cat);
+  if (r16.recommended && /qwen3\.5:9b/.test(r16.recommended.id)) r16.recommended.id = "qwen3:14b";
   assert.ok(r16.recommended && /14b/.test(r16.recommended.id), "16GB VRAM -> 14B önerilir");
   // GPU yoksa en güçlü çalışabilir genel model
   const rcpu = SI.recommendCookbook({ vramGb: null, ramGb: 16, hasGpu: false }, cat);

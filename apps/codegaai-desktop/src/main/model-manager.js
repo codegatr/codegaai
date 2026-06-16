@@ -604,6 +604,19 @@ function modelCandidates() {
   return unique([DEFAULT_MODEL, ...FALLBACK_MODELS]);
 }
 
+function normalizeModelName(modelId) {
+  return String(modelId || "").trim().toLowerCase();
+}
+
+function isInstalledModel(installed, modelId) {
+  const wanted = normalizeModelName(modelId);
+  if (!wanted) return false;
+  return (installed || []).some((item) => {
+    const current = normalizeModelName(item);
+    return current === wanted || current === `${wanted}:latest`;
+  });
+}
+
 function modelOption(modelId) {
   return MODEL_OPTIONS.find((model) => model.id === modelId) || {
     id: modelId,
@@ -845,7 +858,10 @@ class ModelManager {
     }
 
     const installed = await this.installedModels();
-    const installedModel = modelCandidates().find((model) => installed.includes(model));
+    const settings = getSettings();
+    const configuredModel = settings.defaultModel || settings.model || "";
+    const configuredInstalled = isInstalledModel(installed, configuredModel) ? configuredModel : "";
+    const installedModel = configuredInstalled || modelCandidates().find((model) => isInstalledModel(installed, model));
     const option = modelOption(installedModel || DEFAULT_MODEL);
     this.state = {
       provider: "ollama",
@@ -866,7 +882,7 @@ class ModelManager {
       installed,
       options: MODEL_OPTIONS.map((model) => ({
         ...model,
-        installed: installed.includes(model.id),
+        installed: isInstalledModel(installed, model.id),
       })),
       status: this.getStatus(),
     };
@@ -886,7 +902,7 @@ class ModelManager {
     }
 
     const installed = await this.installedModels();
-    if (installed.includes(target.id)) {
+    if (isInstalledModel(installed, target.id)) {
       this.state = {
         provider: "ollama",
         status: READY_STATES.READY,
