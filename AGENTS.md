@@ -36,6 +36,19 @@ This repository is governed by CODEGA AI's agent operating system. Before changi
 - Keep UI changes polished, work-focused, responsive, and testable.
 - Keep Windows and macOS release automation reproducible.
 
+## Core Architecture Planning
+
+When a user asks for software architecture, database design, API design, Laravel, Flutter Clean Architecture, or says not to write code yet:
+
+- State whether an existing project is present before proposing implementation.
+- Put assumptions in an explicit `Assumptions` section.
+- Do domain analysis before code; do not generate code, files, ZIPs, or migrations when the user asked for planning only.
+- Use Turkish explanations, but English names for code, tables, migrations, classes, endpoints, files, and fields.
+- For Laravel + Flutter systems, use Laravel Sanctum. Do not present Sanctum and JWT as interchangeable.
+- For vehicle tracking systems, plan `users`, `vehicles`, `traffic_insurances`, `casco_policies`, `inspections`, `exhaust_emissions`, `maintenance_records`, `vehicle_documents`, `reminders`, and `notifications`.
+- For each table, include fields, data types, relations, indexes, unique rules, and soft-delete decisions.
+- Include Laravel Architecture, Flutter Architecture, Reminder & Notification System, Security Plan, Testing Plan, Deployment Plan, Risks, and First Implementation Tasks.
+
 ## Delivery Contract
 
 Every meaningful development task ends with:

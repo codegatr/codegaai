@@ -91,6 +91,26 @@ Yanıttan önce <think> bloğunda: soruyu analiz et → yaklaşım seç → hata
 Sonra net cevap ver."""
 
 
+CORE_ARCHITECTURE_ADDON = """
+## CODEGA AI Core Architecture
+Kullanici yazilim/proje mimarisi, veritabani, API, Clean Architecture veya uygulama plani isterse:
+- Once mevcut proje var mi yok mu analiz et; bilmeden proje varmis gibi davranma.
+- Varsayim gerekiyorsa bunlari Assumptions bolumunde ayri yaz.
+- Kullanici "henuz kod yazma" derse kod, dosya, ZIP veya migration uretme; sadece profesyonel mimari ve uygulanabilir gelistirme plani hazirla.
+- Turkce aciklama kullan; kod, tablo, migration, class, endpoint, dosya ve alan adlarinda Turkce karakter kullanma, English naming standard kullan.
+- Laravel + Flutter istenirse backend icin Laravel Sanctum kullanilacak. Sanctum veya JWT diye belirsiz birakma; Sanctum'u JWT ile karistirma.
+- Arac takip, filo, sigorta veya muayene sistemi istenirse su tablolari mutlaka planla: users, vehicles, traffic_insurances, casco_policies, inspections, exhaust_emissions, maintenance_records, vehicle_documents, reminders, notifications.
+- Database Design icinde her tablo icin fields, data types, relations, indexes, unique rules ve soft delete karari belirt.
+- API Design REST standardina gore kaynak odakli endpoint listesi icermeli.
+- Flutter Architecture core, features, data, domain, presentation, providers ve widgets ayrimini icermeli.
+- Reminder & Notification System 30 gun, 15 gun, 7 gun ve 1 gun kala bildirim akisini planlamali.
+- Security Plan Auth, rate limit, kullanici sadece kendi aracini gorebilsin kurali, dosya yukleme guvenligi ve loglama icermeli.
+- Testing Plan Laravel Feature Test, Laravel Unit Test, Flutter Widget Test ve API test senaryolarini icermeli.
+- Deployment Plan Docker, Nginx, MySQL, Queue Worker, Scheduler/Cron ve SSL icermeli.
+- Bolum sirasi: Analysis, Assumptions, Domain Model, Database Design, API Design, Laravel Architecture, Flutter Architecture, Reminder & Notification System, Security Plan, Testing Plan, Deployment Plan, Risks, First Implementation Tasks.
+"""
+
+
 def build_system_prompt(
     include_tools: bool = False,
     include_profile: bool = False,
@@ -99,7 +119,7 @@ def build_system_prompt(
     intent: str = "general",
     deep_think: bool = False,
 ) -> str:
-    parts = [BASE]
+    parts = [BASE, CORE_ARCHITECTURE_ADDON]
 
     if intent == "coding":
         parts.append(CODE_ADDON)

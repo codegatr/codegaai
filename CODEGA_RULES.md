@@ -34,6 +34,12 @@ These rules are mandatory for CODEGA AI agents and AI-assisted contributors.
 - Use tools for current facts, code, files, logs, builds, and external systems.
 - Separate facts from assumptions.
 - Do not invent capabilities, test results, or release availability.
+- Do not answer architecture requests with a short summary when the user asked for professional software architecture.
+- Do not generate code for planning-only requests.
+- Do not confuse Laravel Sanctum with JWT; Laravel plans use Sanctum unless the user explicitly chooses another auth stack.
+- Do not use Turkish characters in code, table, migration, class, endpoint, file, or field names.
+- Do not omit vehicle-domain baseline tables: `users`, `vehicles`, `traffic_insurances`, `casco_policies`, `inspections`, `exhaust_emissions`, `maintenance_records`, `vehicle_documents`, `reminders`, and `notifications`.
+- Do not omit 30/15/7/1 day reminder planning, Laravel Feature/Unit tests, Flutter Widget tests, API test scenarios, Docker, Nginx, MySQL, Queue Worker, Scheduler/Cron, and SSL when those sections are requested.
 
 ## Autonomous Development
 

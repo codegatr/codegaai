@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 @dataclass
 class AgentDecision:
     intent: str = "general"
+    response_style: str = "natural"
     needs_web: bool = False
     needs_memory: bool = True
     needs_tools: list[str] = field(default_factory=list)
@@ -61,6 +62,13 @@ class AgentBrain:
         r"\b(file|upload|download|project|generate)\b",
     ]
 
+    _ARCHITECTURE_PLANNING_PATTERNS = [
+        r"\b(henuz|henÃ¼z|sadece|yalnizca|yalnÄ±zca)\b.*\b(kod yazma|kodlama yapma|plan|mimari|architecture)\b",
+        r"\b(domain analizi|domain model|database design|api design|flutter architecture|clean architecture)\b",
+        r"\b(profesyonel proje mimarisi|uygulama plani|uygulama planÄ±|teknik tasarim|teknik tasarÄ±m)\b",
+        r"\b(analysis|assumptions|domain model|database design|api design|testing plan|deployment plan)\b",
+    ]
+
     def decide(self, message: str, history: list[dict] | None = None) -> AgentDecision:
         text = str(message or "")
         raw_low = text.lower()
@@ -69,6 +77,11 @@ class AgentBrain:
 
         if self._matches(low, self._CODE_PATTERNS):
             decision.intent = "coding"
+            decision.needs_careful_reasoning = True
+
+        if self._matches(low, self._ARCHITECTURE_PLANNING_PATTERNS):
+            decision.intent = "architecture_planning"
+            decision.response_style = "professional_architecture_plan"
             decision.needs_careful_reasoning = True
 
         if self._matches(low, self._VISION_PATTERNS):
@@ -84,7 +97,7 @@ class AgentBrain:
             if decision.intent == "general":
                 decision.intent = "translate"
 
-        if self._matches(low, self._FILE_PATTERNS):
+        if self._matches(low, self._FILE_PATTERNS) and decision.intent != "architecture_planning":
             decision.needs_tools.append("file_ops")
 
         if any(w in low for w in ["çalıştır", "test et", "run ", "execute", "koştur"]):
@@ -111,6 +124,7 @@ class AgentBrain:
         lines = [
             "## Ajan Çalışma Modu",
             f"- Niyet: {decision.intent}",
+            f"- Cevap stili: {decision.response_style}",
             "- Önce son sohbet bağlamını oku, sonra bellek/RAG ve araç sonuçlarını değerlendir.",
             "- Kullanıcı belirsiz konuşuyorsa önce yakın geçmişten zamirleri çöz.",
             "- Emin olmadığın noktayı açıkça söyle; uydurma bilgi verme.",
@@ -123,6 +137,21 @@ class AgentBrain:
             )
         if decision.needs_careful_reasoning:
             lines.append("- Teknik işlerde kısa plan kur, sonra uygulanabilir adımlarla cevap ver.")
+        if decision.intent == "architecture_planning":
+            lines.extend([
+                "- Kullanici henuz kod yazma diyorsa kesinlikle kod, dosya veya zip uretme; once profesyonel mimari ve uygulanabilir gelistirme plani hazirla.",
+                "- Cevap sirasini koru: Analysis, Assumptions, Domain Model, Database Design, API Design, Laravel Architecture, Flutter Architecture, Reminder & Notification System, Security Plan, Testing Plan, Deployment Plan, Risks, First Implementation Tasks.",
+                "- Once mevcut proje var mi yok mu belirt; varsayimlari ayri bolumde yaz; domain analizinden once kod onerme.",
+                "- Turkce aciklama kullan; kod, tablo, endpoint, migration, class ve alan adlarinda English naming standard kullan, Turkce karakter kullanma.",
+                "- Laravel icin Sanctum kullanilacak; Sanctum veya JWT diye belirsiz birakma ve JWT ile karistirma.",
+                "- Arac takip sistemi istenirse su tablolari mutlaka planla: users, vehicles, traffic_insurances, casco_policies, inspections, exhaust_emissions, maintenance_records, vehicle_documents, reminders, notifications.",
+                "- Her tablo icin alanlar, veri tipleri, iliskiler, indeksler, unique kurallar ve soft delete kararini belirt.",
+                "- Flutter Clean Architecture bolumunde core, features, data, domain, presentation, providers ve widgets klasorlerini ver.",
+                "- Hatirlatma sisteminde 30 gun, 15 gun, 7 gun ve 1 gun kala bildirim akisini planla.",
+                "- Test planinda Laravel Feature Test, Laravel Unit Test, Flutter Widget Test ve API test senaryolarini ayri yaz.",
+                "- Security Plan Auth, rate limit, sahiplik kontrolu, dosya yukleme guvenligi ve loglama icermeli.",
+                "- Deployment Plan Docker, Nginx, MySQL, Queue Worker, Scheduler/Cron ve SSL icermeli.",
+            ])
         return "\n".join(lines)
 
     def _matches(self, text: str, patterns: list[str]) -> bool:

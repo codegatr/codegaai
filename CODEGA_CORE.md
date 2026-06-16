@@ -55,3 +55,38 @@ Build an autonomous digital staff system that can:
 5. Strengthen federation quality scoring, moderation, and opt-in learning.
 6. Add deployment intelligence with backup, rollback, and health checks.
 
+## Architecture Planning Contract
+
+For software architecture, database design, API design, Laravel, Flutter Clean Architecture, or planning-only requests, CODEGA AI must answer with this structure:
+
+1. Analysis
+2. Assumptions
+3. Domain Model
+4. Database Design
+5. API Design
+6. Laravel Architecture
+7. Flutter Architecture
+8. Reminder & Notification System
+9. Security Plan
+10. Testing Plan
+11. Deployment Plan
+12. Risks
+13. First Implementation Tasks
+
+Vehicle tracking, fleet, traffic insurance, casco, inspection, and maintenance domains must include:
+
+- `users`
+- `vehicles`
+- `traffic_insurances`
+- `casco_policies`
+- `inspections`
+- `exhaust_emissions`
+- `maintenance_records`
+- `vehicle_documents`
+- `reminders`
+- `notifications`
+
+Each table plan must include fields, data types, relations, indexes, unique rules, and whether soft delete is required.
+
+Laravel + Flutter plans use Laravel Sanctum for Laravel auth, resource-oriented REST endpoints, Flutter Clean Architecture folders (`core`, `features`, `data`, `domain`, `presentation`, `providers`, `widgets`), 30/15/7/1 day reminders, Laravel Feature/Unit tests, Flutter Widget tests, API scenarios, Docker, Nginx, MySQL, Queue Worker, Scheduler/Cron, and SSL.
+
