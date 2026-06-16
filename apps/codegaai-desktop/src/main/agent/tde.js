@@ -161,7 +161,7 @@ function questionTasks(text) {
   const mergedQuestionParts = [];
   for (const part of questionParts) {
     const wordCount = part.split(/\s+/).filter(Boolean).length;
-    const looksLikeTaskStart = /^(?:test|soru|task|gorev|gÃ¶rev)\s*\d+\b/i.test(part) || /^\d+[.)]\s+/.test(part);
+    const looksLikeTaskStart = /^(?:test|soru|task|gorev|görev)\s*\d+\b/i.test(part) || /^\d+[.)]\s+/.test(part);
     if (mergedQuestionParts.length && wordCount < 3 && !looksLikeTaskStart) {
       mergedQuestionParts[mergedQuestionParts.length - 1] = `${mergedQuestionParts[mergedQuestionParts.length - 1]} ${part}`.trim();
     } else {

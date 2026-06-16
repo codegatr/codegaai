@@ -29,7 +29,10 @@ class TestApiServer(unittest.TestCase):
 
     def test_routes_registered(self) -> None:
         from codegaai.api.server import app
-        paths = {route.path for route in app.routes}
+        # Starlette 1.x app.routes içinde alt router'ları .path'siz
+        # _IncludedRouter nesnesi olarak tutuyor; gerçek HTTP yollarını
+        # sürümden bağımsız biçimde OpenAPI şemasından okuyoruz.
+        paths = set(app.openapi().get("paths", {}).keys())
 
         expected = [
             "/api/system/info",

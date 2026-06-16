@@ -647,7 +647,7 @@ function registerIpc() {
       return {
         ...modelManager.getStatus(),
         defaultModel: status.model,
-        message: `${status.model} varsayÄ±lan model olarak hazÄ±r.`,
+        message: `${status.model} varsayılan model olarak hazır.`,
       };
     }
     return status;

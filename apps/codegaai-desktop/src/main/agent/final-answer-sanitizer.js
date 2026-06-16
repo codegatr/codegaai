@@ -309,7 +309,7 @@ function cleanPhantomOutput(answer, question, taskReport = null) {
   }
   cleaned = keptLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
   cleaned = cleaned
-    .replace(/^\s*(?:\*\*)?\s*(?:soru|g[Ã¶o]rev|task)\s+1\s*(?:\*\*)?\s*[:\-]?\s*/i, "")
+    .replace(/^\s*(?:\*\*)?\s*(?:soru|g[öo]rev|task)\s+1\s*(?:\*\*)?\s*[:\-]?\s*/i, "")
     .trim();
 
   if (!/Final Answer:/i.test(cleaned)) {

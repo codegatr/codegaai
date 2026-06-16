@@ -20,13 +20,13 @@ function trFold(text) {
     .replace(/\u00e7/g, "c")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[Ä±Ä°]/g, "i")
-    .replace(/ÄŸ/g, "g")
-    .replace(/Ã¼/g, "u")
-    .replace(/ÅŸ/g, "s")
-    .replace(/Ã¶/g, "o")
-    .replace(/Ã§/g, "c")
-    .replace(/â€™/g, "'");
+    .replace(/[ıİ]/g, "i")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .replace(/’/g, "'");
 }
 
 function extractJson(text) {

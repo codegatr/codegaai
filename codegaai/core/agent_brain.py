@@ -63,9 +63,9 @@ class AgentBrain:
     ]
 
     _ARCHITECTURE_PLANNING_PATTERNS = [
-        r"\b(henuz|henÃ¼z|sadece|yalnizca|yalnÄ±zca)\b.*\b(kod yazma|kodlama yapma|plan|mimari|architecture)\b",
+        r"\b(henuz|henüz|sadece|yalnizca|yalnızca)\b.*\b(kod yazma|kodlama yapma|plan|mimari|architecture)\b",
         r"\b(domain analizi|domain model|database design|api design|flutter architecture|clean architecture)\b",
-        r"\b(profesyonel proje mimarisi|uygulama plani|uygulama planÄ±|teknik tasarim|teknik tasarÄ±m)\b",
+        r"\b(profesyonel proje mimarisi|uygulama plani|uygulama planı|teknik tasarim|teknik tasarım)\b",
         r"\b(analysis|assumptions|domain model|database design|api design|testing plan|deployment plan)\b",
     ]
 
@@ -103,7 +103,7 @@ class AgentBrain:
         if any(w in low for w in ["çalıştır", "test et", "run ", "execute", "koştur"]):
             if decision.intent == "coding":
                 decision.needs_tools.append("run_python")
-        elif decision.intent == "coding" and any(w in raw_low for w in ["Ã§al", "çalıştır", "calistir"]):
+        elif decision.intent == "coding" and any(w in raw_low for w in ["çal", "çalıştır", "calistir"]):
             decision.needs_tools.append("run_python")
 
         self_ref = self._matches(low, self._SELF_PATTERNS)

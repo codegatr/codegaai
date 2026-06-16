@@ -299,6 +299,18 @@
       <div class="msg" id="disk-msg"></div>
     </div>
 
+    <div class="card">
+      <div class="card-title">📂 Uygulama Verileri Nereye Kaydedilsin?</div>
+      <p class="card-desc">
+        Sohbet geçmişi, bellek ve günlükler bu klasörde tutulur. Boş bırakırsanız
+        model klasörünün yanında <strong>CODEGA_App</strong> olarak oluşturulur.
+      </p>
+      <div class="custom-path-row">
+        <input type="text" class="input" id="app-path"
+               placeholder="Özel yol: D:\CODEGA_App (boş bırakılabilir)">
+      </div>
+    </div>
+
     <div class="actions">
       <button class="btn btn-ghost" onclick="goStep(1)">← Geri</button>
       <button class="btn btn-primary" id="btn-next-2" onclick="doSetup()" disabled>
@@ -408,6 +420,11 @@ function selectDisk(el, path) {
   el.classList.add("selected");
   selectedPath = path;
   document.getElementById("custom-path").value = path;
+  // Uygulama klasörünü kullanıcı elle değiştirmediyse, aynı diskte öner
+  const appInp = document.getElementById("app-path");
+  if (appInp && !appInp.dataset.touched) {
+    appInp.value = path.replace(/CODEGA_Models$/, "CODEGA_App");
+  }
   document.getElementById("btn-next-2").disabled = false;
 }
 
@@ -421,6 +438,10 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("btn-next-2").disabled = false;
     }
   });
+  const appInp = document.getElementById("app-path");
+  if (appInp) {
+    appInp.addEventListener("input", () => { appInp.dataset.touched = "1"; });
+  }
 });
 
 // Kurulumu tamamla
@@ -435,11 +456,13 @@ async function doSetup() {
   btn.disabled = true;
   btn.textContent = "Kaydediliyor...";
 
+  const appPath = (document.getElementById("app-path").value || "").trim();
+
   try {
     const r = await fetch("/api/setup/complete", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ models_dir: path, download_default: true }),
+      body: JSON.stringify({ models_dir: path, app_dir: appPath, download_default: true }),
     });
     const d = await r.json();
 

@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import unittest
 
 
@@ -20,7 +21,9 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn('"nsis"', package)
         self.assertIn("Build CODEGA AI Windows installer", workflow)
         self.assertIn("apps/codegaai-desktop", workflow)
-        self.assertIn('"version": "0.1.9"', package)
+        # Sürüm build workflow'unda `npm version` ile bumplanıyor; sabit bir sürüme
+        # bağlanmak her release'te testi kırar. Geçerli semver olması yeterli.
+        self.assertRegex(package, r'"version":\s*"\d+\.\d+\.\d+"')
         self.assertNotIn('"publisherName": "CODEGA"', package)
         self.assertIn("workflow_dispatch:", workflow)
         self.assertIn("npm version $version --no-git-tag-version --allow-same-version", workflow)
@@ -76,12 +79,17 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn("detectTask", model_manager)
         self.assertIn("TASK_MODELS", model_manager)
         self.assertIn("candidateModelsForTask", model_manager)
-        self.assertIn("attemptModels.slice(0, 4)", model_manager)
-        self.assertIn('"qwen2.5-coder:3b-instruct", "qwen2.5-coder:7b-instruct"', model_manager)
+        # generate() en fazla 3 yedek modeli dener (eski sürümde 4'tü).
+        self.assertIn(".slice(0, 3)", model_manager)
+        self.assertIn("qwen2.5-coder:7b-instruct", model_manager)
+        self.assertIn("qwen2.5-coder:3b-instruct", model_manager)
         self.assertIn("runOllama", model_manager)
         self.assertIn("child.kill()", model_manager)
         self.assertIn("timedOut", model_manager)
-        self.assertIn("codega-timeout", model_manager)
+        # Zaman aşımı artık runCommand içinde timedOut + zaman aşımı mesajıyla,
+        # üretim hatası ise codega-error zarif düşüşüyle ele alınıyor.
+        self.assertIn("zaman aşımına uğradı", model_manager)
+        self.assertIn('"codega-error"', model_manager)
         self.assertIn('action: "install_ollama"', model_manager)
         self.assertIn("shell.openExternal(status.actionUrl)", main)
         self.assertIn('ipcMain.handle("models:list"', main)
@@ -98,13 +106,15 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn("scrollIntoView", renderer)
         self.assertIn("window.codega.sendMessage", renderer)
         self.assertIn('event.key === "Enter"', renderer)
-        self.assertIn("els.form.requestSubmit()", renderer)
+        # Enter artık requestSubmit yerine doğrudan handleSubmit() çağırıyor
+        # (tüm platformlarda — Mac dahil — güvenilir çalışsın diye).
+        self.assertIn("handleSubmit()", renderer)
 
     def test_minimal_ui_keeps_history_settings_and_prompt(self):
         html = read("apps/codegaai-desktop/src/renderer/index.html")
         css = read("apps/codegaai-desktop/src/renderer/styles.css")
 
-        self.assertIn("Sohbet Geçmişi", html)
+        self.assertIn("Sohbetler", html)
         self.assertIn("settings-button", html)
         self.assertIn("Ne yapmak istiyorsun?", html)
         self.assertIn("grid-template-columns: 286px 1fr", css)
@@ -139,7 +149,9 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn("FEDERATION_BASE_URL", constants)
         self.assertIn("https://ai.codega.com.tr/api/federation", constants)
         self.assertIn('ipcMain.handle("chat:share"', main)
-        self.assertIn('`${FEDERATION_BASE_URL}/share`', main)
+        # Koddaki bilinçli düzeltme: sondaki "/" 301 redirect'in POST'u GET'e
+        # çevirmesini önlüyor (main.js'deki açıklamaya bakın).
+        self.assertIn('`${FEDERATION_BASE_URL}/share/`', main)
         self.assertIn("shareChat", preload)
 
 

@@ -24,7 +24,7 @@ function splitAnswerUnits(text) {
 
 function stripTaskPrefix(text) {
   return String(text || "")
-    .replace(/^\s*(?:test|soru|g[oÃ¶]rev|task)?\s*\d+\s*[:).\-â€“]\s*/i, "")
+    .replace(/^\s*(?:test|soru|g[oö]rev|task)?\s*\d+\s*[:).\-–]\s*/i, "")
     .trim();
 }
 
@@ -32,9 +32,9 @@ function extractUnitFamilies(text) {
   const raw = String(text || "");
   const units = new Set();
   if (/\b-?\d+(?:[.,]\d+)?\s*tl\b/i.test(raw)) units.add("TL");
-  if (/\b-?\d+(?:[.,]\d+)?\s*(?:gun|gÃ¼n|day|days)\b/i.test(raw)) units.add("g\u00fcn");
+  if (/\b-?\d+(?:[.,]\d+)?\s*(?:gun|gün|day|days)\b/i.test(raw)) units.add("g\u00fcn");
   if (/\b-?\d+(?:[.,]\d+)?\s*(?:ay|month|months)\b/i.test(raw)) units.add("ay");
-  if (/\b-?\d+(?:[.,]\d+)?\s*(?:yil|yÄ±l|year|years)\b/i.test(raw)) units.add("y\u0131l");
+  if (/\b-?\d+(?:[.,]\d+)?\s*(?:yil|yıl|year|years)\b/i.test(raw)) units.add("y\u0131l");
   if (/%\s*-?\d+(?:[.,]\d+)?|-?\d+(?:[.,]\d+)?\s*%/.test(raw)) units.add("%");
   if (!units.size && /\b-?\d+(?:[.,]\d+)?\b/.test(raw)) units.add("quantity");
   return [...units];

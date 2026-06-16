@@ -1,16 +1,16 @@
-﻿"""
-Sohbet uÃ§ noktasÄ± â€” gerÃ§ek LLM + RAG bellek + kalÄ±cÄ± saklama.
+"""
+Sohbet uç noktası — gerçek LLM + RAG bellek + kalıcı saklama.
 
-AkÄ±ÅŸ:
-  1. chat_id verildiyse: kullanÄ±cÄ± mesajÄ±nÄ± chat_store'a yaz
-  2. RAG: arÅŸivde sorguya yakÄ±n geÃ§miÅŸ mesajlarÄ± bul
-  3. Ã‡ekirdek bellekten ilgili olgularÄ± bul
-  4. Sistem mesajÄ± + RAG baÄŸlamÄ± + sohbet geÃ§miÅŸi + yeni mesaj â†’ motor
-  5. Asistan yanÄ±tÄ±nÄ± chat_store'a yaz
-  6. Yeni kullanÄ±cÄ± mesajÄ± + asistan yanÄ±tÄ±nÄ± arÅŸive gÃ¶m (vektÃ¶r)
+Akış:
+  1. chat_id verildiyse: kullanıcı mesajını chat_store'a yaz
+  2. RAG: arşivde sorguya yakın geçmiş mesajları bul
+  3. Çekirdek bellekten ilgili olguları bul
+  4. Sistem mesajı + RAG bağlamı + sohbet geçmişi + yeni mesaj → motor
+  5. Asistan yanıtını chat_store'a yaz
+  6. Yeni kullanıcı mesajı + asistan yanıtını arşive göm (vektör)
 
-Motor yÃ¼klÃ¼ deÄŸilse: 200 OK + "model yÃ¼klÃ¼ deÄŸil" notu dÃ¶ner
-(stub yanÄ±t). UI bu notu gÃ¶rÃ¼p model indirme akÄ±ÅŸÄ±nÄ± baÅŸlatabilir.
+Motor yüklü değilse: 200 OK + "model yüklü değil" notu döner
+(stub yanıt). UI bu notu görüp model indirme akışını başlatabilir.
 """
 
 from __future__ import annotations
@@ -50,12 +50,12 @@ class ChatRequest(BaseModel):
     temperature: float = Field(0.35, ge=0.0, le=2.0)
     max_tokens: int = Field(2048, ge=1, le=32768)
     use_rag: bool = True
-    stream: bool = False         # Faz 3.1'de gerÃ§ek streaming
+    stream: bool = False         # Faz 3.1'de gerçek streaming
 
 
 class ChatResponse(BaseModel):
     message: Message
-    message_id: Optional[int] = None      # asistan mesaj ID'si (Faz 7 feedback iÃ§in)
+    message_id: Optional[int] = None      # asistan mesaj ID'si (Faz 7 feedback için)
     model: str
     finish_reason: str
     timing_ms: int
@@ -67,14 +67,14 @@ class ChatResponse(BaseModel):
 
 
 # ============================================================
-# RAG baÄŸlam Ã¼retimi
+# RAG bağlam üretimi
 # ============================================================
 
 def _build_rag_context(query: str, exclude_chat_id: int | None = None,
                       k: int = 4) -> tuple[str, list[dict]]:
     """
-    ArÅŸiv + Ã§ekirdek bellekten ilgili parÃ§alarÄ± topla, sistem
-    mesajÄ±na eklenecek kÄ±sa bir baÄŸlam metni dÃ¶ndÃ¼r.
+    Arşiv + çekirdek bellekten ilgili parçaları topla, sistem
+    mesajına eklenecek kısa bir bağlam metni döndür.
 
     Returns: (context_text, hits_for_response)
     """
@@ -84,75 +84,75 @@ def _build_rag_context(query: str, exclude_chat_id: int | None = None,
         from codegaai.core.memory import MemoryStore
         mem = MemoryStore.open()
     except Exception as exc:
-        log.warning("Bellek devre dÄ±ÅŸÄ±: %s", exc)
+        log.warning("Bellek devre dışı: %s", exc)
         return "", []
 
     parts: list[str] = []
     all_hits: list[dict] = []
 
-    # Ã‡ekirdek olgular
+    # Çekirdek olgular
     try:
         core_hits = mem.search_core_facts(query, k=3)
         if core_hits:
             facts = "\n".join(f"- {h['content']}" for h in core_hits)
-            parts.append(f"KullanÄ±cÄ± hakkÄ±nda bilinenler:\n{facts}")
+            parts.append(f"Kullanıcı hakkında bilinenler:\n{facts}")
             all_hits.extend([{"source": "core", **h} for h in core_hits])
     except Exception as exc:
-        log.warning("Ã‡ekirdek arama hatasÄ±: %s", exc)
+        log.warning("Çekirdek arama hatası: %s", exc)
 
-    # GeÃ§miÅŸ mesajlar (mevcut sohbet hariÃ§)
+    # Geçmiş mesajlar (mevcut sohbet hariç)
     try:
         archive_hits = mem.search_archive(
             query, k=k, exclude_chat_id=exclude_chat_id,
         )
-        # Mesafe filtresi â€” gerÃ§ekten alakalÄ±lar
+        # Mesafe filtresi — gerçekten alakalılar
         relevant = [h for h in archive_hits if h.get("distance", 99) < 0.75]
         if relevant:
             snippets = "\n".join(
                 f"- ({h['metadata'].get('role', '?')}) {h['content']}"
                 for h in relevant[:3]
             )
-            parts.append(f"Ä°lgili geÃ§miÅŸ konuÅŸmalar:\n{snippets}")
+            parts.append(f"İlgili geçmiş konuşmalar:\n{snippets}")
             all_hits.extend([{"source": "archive", **h} for h in relevant])
     except Exception as exc:
-        log.warning("ArÅŸiv arama hatasÄ±: %s", exc)
+        log.warning("Arşiv arama hatası: %s", exc)
 
     return "\n\n".join(parts), all_hits
 
 
 # ============================================================
-# Stub fallback (motor yÃ¼klÃ¼ deÄŸilse)
+# Stub fallback (motor yüklü değilse)
 # ============================================================
 
 _STUB_NOT_LOADED = (
-    "LLM motoru henÃ¼z yÃ¼klÃ¼ deÄŸil. Ãœst menÃ¼den **Sistem** sekmesine git, "
-    "Qwen3 4B modelini indir (~2.6 GB), sonra yÃ¼kle. Tek seferlik bir "
-    "iÅŸlem; sonraki aÃ§Ä±lÄ±ÅŸlarda otomatik yÃ¼klenecek.\n\n"
-    "Ä°ndirme tamamlandÄ±ktan sonra bu sohbete devam edebilirsin."
+    "LLM motoru henüz yüklü değil. Üst menüden **Sistem** sekmesine git, "
+    "Qwen3 4B modelini indir (~2.6 GB), sonra yükle. Tek seferlik bir "
+    "işlem; sonraki açılışlarda otomatik yüklenecek.\n\n"
+    "İndirme tamamlandıktan sonra bu sohbete devam edebilirsin."
 )
 
 
 @router.post("", response_model=ChatResponse)
 async def chat(req: ChatRequest) -> ChatResponse:
     if not req.messages:
-        raise HTTPException(400, "messages boÅŸ olamaz")
+        raise HTTPException(400, "messages boş olamaz")
 
     store = ChatStore.open()
     engine = LLMEngine.get()
 
-    # chat_id verildiyse doÄŸrula + son kullanÄ±cÄ± mesajÄ±nÄ± DB'ye yaz
+    # chat_id verildiyse doğrula + son kullanıcı mesajını DB'ye yaz
     if req.chat_id is not None:
         chat_obj = store.get_chat(req.chat_id)
         if chat_obj is None:
-            raise HTTPException(404, f"Sohbet bulunamadÄ±: id={req.chat_id}")
+            raise HTTPException(404, f"Sohbet bulunamadı: id={req.chat_id}")
 
         last = req.messages[-1]
         if last.role == "user":
             user_msg_id = store.add_message(
                 req.chat_id, "user", last.content,
             )
-            # MesajÄ± arÅŸive gÃ¶m (asenkron yapÄ±lsa daha iyi olur ama
-            # ÅŸimdilik blocking â€” Faz 3.1'de optimize edilecek)
+            # Mesajı arşive göm (asenkron yapılsa daha iyi olur ama
+            # şimdilik blocking — Faz 3.1'de optimize edilecek)
             try:
                 from codegaai.core.memory import MemoryStore
                 mem = MemoryStore.open()
@@ -160,11 +160,11 @@ async def chat(req: ChatRequest) -> ChatResponse:
                     req.chat_id, user_msg_id, "user", last.content
                 )
             except Exception as exc:
-                log.warning("ArÅŸive yazma baÅŸarÄ±sÄ±z: %s", exc)
+                log.warning("Arşive yazma başarısız: %s", exc)
 
-    # â”€â”€ MODEL HAZIRLIK / OTOMATÄ°K YÃ–NLENDÄ°RME â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    # KullanÄ±cÄ± model seÃ§mez; talimatÄ±n niyetine gÃ¶re indirilen en uygun
-    # model tercih edilir. Uygun model yoksa mevcut hazÄ±r model korunur.
+    # ── MODEL HAZIRLIK / OTOMATİK YÖNLENDİRME ────────────────────
+    # Kullanıcı model seçmez; talimatın niyetine göre indirilen en uygun
+    # model tercih edilir. Uygun model yoksa mevcut hazır model korunur.
     last_user_for_routing = next(
         (m.content for m in reversed(req.messages) if m.role == "user"),
         "",
@@ -181,10 +181,10 @@ async def chat(req: ChatRequest) -> ChatResponse:
             force_model_id=req.model,
         )
         if routed_model and routed_model != engine.status.get("model_id"):
-            log.info("Otomatik model geÃ§iÅŸi (chat): %s", routed_model)
+            log.info("Otomatik model geçişi (chat): %s", routed_model)
             engine.load(routed_model)
     except Exception as e:
-        log.warning("Otomatik model yÃ¶nlendirme baÅŸarÄ±sÄ±z: %s", e)
+        log.warning("Otomatik model yönlendirme başarısız: %s", e)
 
     if not engine.is_ready:
         try:
@@ -192,11 +192,11 @@ async def chat(req: ChatRequest) -> ChatResponse:
             reg = ModelRegistry.get()
             for m in reg.list_llm_models():
                 if reg.is_llm_downloaded(m["id"]):
-                    log.info("Otomatik model yÃ¼kleme (chat): %s", m["id"])
+                    log.info("Otomatik model yükleme (chat): %s", m["id"])
                     engine.load(m["id"])
                     break
         except Exception as e:
-            log.warning("Otomatik model yÃ¼kleme baÅŸarÄ±sÄ±z: %s", e)
+            log.warning("Otomatik model yükleme başarısız: %s", e)
     if not engine.is_ready:
         response_msg = Message(role="assistant", content=_STUB_NOT_LOADED)
         stub_msg_id: Optional[int] = None
@@ -212,23 +212,23 @@ async def chat(req: ChatRequest) -> ChatResponse:
             finish_reason="stop",
             timing_ms=0,
             chat_id=req.chat_id,
-            note="LLM motoru yÃ¼klÃ¼ deÄŸil. /api/models Ã¼zerinden bir model yÃ¼kleyin.",
+            note="LLM motoru yüklü değil. /api/models üzerinden bir model yükleyin.",
         )
 
-    # BaÄŸlam oluÅŸtur
+    # Bağlam oluştur
     last_user = next(
         (m.content for m in reversed(req.messages) if m.role == "user"),
         "",
     )
 
-    # KullanÄ±cÄ± aktif â€” otonom Ã¶ÄŸrenmeyi duraklat
+    # Kullanıcı aktif — otonom öğrenmeyi duraklat
     try:
         from codegaai.core.autonomous_learner import AutonomousLearner
         AutonomousLearner.get().mark_activity()
     except Exception:
         pass
 
-    # â”€â”€ GÃœVENLÄ°K KONTROLÃœ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── GÜVENLİK KONTROLÜ ──────────────────────────────────────
     try:
         from codegaai.core.safety import SafetyEngine
         safety = SafetyEngine.get()
@@ -258,11 +258,11 @@ async def chat(req: ChatRequest) -> ChatResponse:
                 last_user, exclude_chat_id=req.chat_id, k=4,
             )
         except Exception as rag_err:
-            log.warning("RAG hatasÄ±, kendini onarÄ±yor: %s", rag_err)
+            log.warning("RAG hatası, kendini onarıyor: %s", rag_err)
             from codegaai.core.self_healing import SelfHealing
             SelfHealing.get().report_error("memory", str(rag_err))
 
-    # â”€â”€ DÄ°NAMÄ°K SÄ°STEM PROMPTU â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── DİNAMİK SİSTEM PROMPTU ──────────────────────────────────
     decision = None
     try:
         from codegaai.core.system_prompt import build_system_prompt
@@ -282,23 +282,23 @@ async def chat(req: ChatRequest) -> ChatResponse:
     except Exception:
         sys_prompt = DEFAULT_SYSTEM_PROMPT
         if rag_text:
-            sys_prompt = f"{sys_prompt}\n\n## BaÄŸlam\n{rag_text}"
+            sys_prompt = f"{sys_prompt}\n\n## Bağlam\n{rag_text}"
 
-    # â”€â”€ CHAIN OF THOUGHT + BAÄLAM YÃ–NETÄ°MÄ° â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── CHAIN OF THOUGHT + BAĞLAM YÖNETİMİ ─────────────────────
     history_dicts = [{"role": m.role, "content": m.content}
-                     for m in req.messages[:-1]]  # son mesaj hariÃ§
+                     for m in req.messages[:-1]]  # son mesaj hariç
 
     try:
         from codegaai.core.reasoning import ReasoningEngine
         from codegaai.core.context_manager import ContextManager
 
-        # Uzun baÄŸlamÄ± sÄ±kÄ±ÅŸtÄ±r
+        # Uzun bağlamı sıkıştır
         ctx_result = ContextManager.get().prepare_context(
             history_dicts, system_prompt=sys_prompt,
         )
         compressed_history = ctx_result.messages
 
-        # CoT + mesaj listesi oluÅŸtur
+        # CoT + mesaj listesi oluştur
         final_messages, reasoning = ReasoningEngine.get().build_messages(
             question=last_user,
             history=compressed_history,
@@ -326,10 +326,10 @@ async def chat(req: ChatRequest) -> ChatResponse:
     except RuntimeError as exc:
         raise HTTPException(409, str(exc))
     except Exception as exc:
-        log.exception("Ãœretim hatasÄ±: %s", exc)
-        raise HTTPException(500, f"Ãœretim hatasÄ±: {exc}")
+        log.exception("Üretim hatası: %s", exc)
+        raise HTTPException(500, f"Üretim hatası: {exc}")
 
-    # â”€â”€ Ã‡IKTI GÃœVENLÄ°K KONTROLÃœ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── ÇIKTI GÜVENLİK KONTROLÜ ─────────────────────────────────
     try:
         from codegaai.core.safety import SafetyEngine
         from codegaai.core.reasoning import ReasoningEngine
@@ -339,7 +339,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
     except Exception:
         pass
 
-    # <thinking> bloÄŸunu ayÄ±r (UI'da gizli gÃ¶ster)
+    # <thinking> bloğunu ayır (UI'da gizli göster)
     try:
         from codegaai.core.reasoning import ReasoningEngine
         thought, clean_content = ReasoningEngine.get().extract_thought(
@@ -363,7 +363,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
 
     response_msg = Message(role="assistant", content=result["content"])
 
-    # Asistan yanÄ±tÄ±nÄ± DB'ye + arÅŸive yaz
+    # Asistan yanıtını DB'ye + arşive yaz
     asst_msg_id: Optional[int] = None
     if req.chat_id is not None:
         asst_msg_id = store.add_message(
@@ -377,7 +377,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
                 req.chat_id, asst_msg_id, "assistant", result["content"]
             )
         except Exception as exc:
-            log.warning("Asistan arÅŸivleme hatasÄ±: %s", exc)
+            log.warning("Asistan arşivleme hatası: %s", exc)
 
     resp = ChatResponse(
         message=response_msg,
@@ -391,24 +391,24 @@ async def chat(req: ChatRequest) -> ChatResponse:
         rag_hits=rag_hits,
     )
 
-    # Faz 10: Her baÅŸarÄ±lÄ± yanÄ±t sonrasÄ± arka planda web Ã¶ÄŸrenmesi
-    # (state=idle ise â€” aktif Ã¶ÄŸrenme varsa atla)
+    # Faz 10: Her başarılı yanıt sonrası arka planda web öğrenmesi
+    # (state=idle ise — aktif öğrenme varsa atla)
     if req.chat_id:
         def _bg_learn():
             try:
-                # KullanÄ±cÄ± profili Ã§Ä±karÄ±mÄ±. Eski sÃ¼rÃ¼mde burada undefined
-                # history/req.message kullanÄ±ldÄ±ÄŸÄ± iÃ§in arka plan Ã¶ÄŸrenmesi sessizce
-                # Ã§Ã¶kÃ¼yordu.
+                # Kullanıcı profili çıkarımı. Eski sürümde burada undefined
+                # history/req.message kullanıldığı için arka plan öğrenmesi sessizce
+                # çöküyordu.
                 history_dicts = [{"role": m.role, "content": m.content} for m in req.messages]
                 history_dicts.append({"role": "assistant", "content": result.get("content", "")})
 
                 from codegaai.core.user_profile import ProfileManager
                 ProfileManager.get().extract_async(history_dicts)
 
-                # Otomatik web Ã¶ÄŸrenmesi varsayÄ±lan olarak kapalÄ±; kontrolsÃ¼z RAG
-                # kirlenmesini engeller. UI'dan explicit baÅŸlatÄ±lmalÄ±.
+                # Otomatik web öğrenmesi varsayılan olarak kapalı; kontrolsüz RAG
+                # kirlenmesini engeller. UI'dan explicit başlatılmalı.
             except Exception as exc:
-                log.debug("Arka plan profil Ã§Ä±karÄ±mÄ± atlandÄ±: %s", exc)
+                log.debug("Arka plan profil çıkarımı atlandı: %s", exc)
 
         import threading as _th
         _th.Thread(target=_bg_learn, daemon=True,
@@ -419,7 +419,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
 
 @router.get("/models")
 async def list_models() -> dict:
-    """Geriye uyum iÃ§in â€” gerÃ§ek katalog /api/models'de."""
+    """Geriye uyum için — gerçek katalog /api/models'de."""
     from codegaai.core.models_registry import ModelRegistry
     registry = ModelRegistry.get()
     engine = LLMEngine.get()
