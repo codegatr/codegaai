@@ -153,6 +153,21 @@ def _quick_capability_response(message: str) -> str:
     return ""
 
 
+def _finish_job_immediately(job: "ChatJob", answer: str, intent: str = "instant") -> None:
+    """Persist and finish a deterministic instant answer."""
+    if job.chat_id:
+        try:
+            from codegaai.core.chat_store import ChatStore
+            store = ChatStore.open()
+            store.add_message(job.chat_id, "user", job.message)
+            store.add_message(job.chat_id, "assistant", answer)
+        except Exception:
+            pass
+    job.append(answer)
+    _learn_from_chat(job.message, answer, intent)
+    job.finish()
+
+
 def _needs_web_search(message: str) -> bool:
     msg = message.lower()
 
@@ -186,6 +201,13 @@ async def _execute_inline_tools(content: str, job) -> str:
     import re
     
     pattern = re.compile(r"<tool>(.*?)</tool>", re.DOTALL)
+    try:
+        from codegaai.core.answer_sanitizer import sanitize_final_answer
+        sanitized = sanitize_final_answer(content)
+        if sanitized and "<tool>" not in sanitized and sanitized != content:
+            return sanitized
+    except Exception:
+        pass
     
     def _safe_call(match):
         tool_call = match.group(1).strip()
@@ -523,8 +545,15 @@ async def _run_chat_job(job: ChatJob) -> None:
         from codegaai.core.system_prompt import build_system_prompt
         from codegaai.core.chat_store import ChatStore
         from codegaai.core.agent_brain import decide_response, decision_guidance
+        from codegaai.core.instant_answers import instant_answer_for
 
         msg_len = len(job.message.strip())
+
+        instant = instant_answer_for(job.message)
+        if instant and not job.deep_think and not job.file_context:
+            _finish_job_immediately(job, instant.content, instant.intent)
+            log.info("ChatJob %s instant answer: %s", job.job_id, instant.intent)
+            return
 
         engine = LLMEngine.get()
         history = []
