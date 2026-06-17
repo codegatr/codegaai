@@ -63,6 +63,16 @@ class AnswerSanitizerContractTest(unittest.TestCase):
         self.assertIn('decision.intent == "architecture_planning"', jobs)
         self.assertIn("max(job.max_tokens, 4096)", jobs)
 
+    def test_chat_keeps_agent_decision_for_architecture_fallback(self) -> None:
+        chat = (ROOT / "codegaai/api/routes/chat.py").read_text(encoding="utf-8")
+        generation_section = chat[
+            chat.index("effective_max_tokens = req.max_tokens"):
+            chat.index("cfg = GenerationConfig")
+        ]
+
+        self.assertNotIn("decision = None", generation_section)
+        self.assertIn('decision.intent == "architecture_planning"', generation_section)
+
 
 if __name__ == "__main__":
     unittest.main()

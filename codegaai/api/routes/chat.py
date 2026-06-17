@@ -78,8 +78,6 @@ def _build_rag_context(query: str, exclude_chat_id: int | None = None,
 
     Returns: (context_text, hits_for_response)
     """
-    decision = None
-    decision = None
     try:
         from codegaai.core.memory import MemoryStore
         mem = MemoryStore.open()
