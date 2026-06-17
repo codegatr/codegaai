@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "4.5.7"
-__phase__ = "v4.5.7 - Action-First Delivery Guard + Core Architecture Cleanup"
+__version__ = "4.5.8"
+__phase__ = "v4.5.8 - Action-First Delivery Guard + Instant Answer Guard"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

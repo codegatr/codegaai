@@ -16,6 +16,22 @@ _INTERNAL_LABEL_RE = re.compile(
     r")\s*:\s*"
 )
 
+_CALCULATE_TOOL_RE = re.compile(
+    r"<tool>\s*calculate\((?P<quote>[\"']?)(?P<expr>.*?)(?P=quote)\)\s*</tool>",
+    re.IGNORECASE | re.DOTALL,
+)
+
+_ANY_TOOL_RE = re.compile(r"<tool>.*?</tool>", re.IGNORECASE | re.DOTALL)
+
+
+def _replace_calculate_tool(match: re.Match[str]) -> str:
+    try:
+        from codegaai.core.instant_answers import calculate_expression
+        result = calculate_expression(match.group("expr"))
+        return f"{result} " if result else ""
+    except Exception:
+        return ""
+
 
 def _normalize_for_dedupe(text: str) -> str:
     cleaned = _INTERNAL_LABEL_RE.sub("", str(text or ""))
@@ -42,6 +58,14 @@ def sanitize_final_answer(text: str) -> str:
         value,
         flags=re.DOTALL | re.IGNORECASE,
     ).strip()
+    value = _CALCULATE_TOOL_RE.sub(_replace_calculate_tool, value)
+    value = _ANY_TOOL_RE.sub("", value)
+    value = re.sub(
+        r"^\s*(?P<result>-?\d+(?:\.\d+)?)\s+Sonu[cç]:\s*(?P=result)\s*$",
+        r"\g<result>",
+        value,
+        flags=re.IGNORECASE,
+    )
     value = _INTERNAL_LABEL_RE.sub("", value)
 
     if "|" in value:

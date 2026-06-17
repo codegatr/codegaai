@@ -1582,7 +1582,7 @@ button[onclick*="newChat"] {
   }
 }
 
-/* CODEGA Core Architecture Publish Cleanup (v4.5.7) */
+/* CODEGA Instant Answer Guard (v4.5.8) */
 body {
   grid-template-columns: 286px 1fr !important;
   grid-template-rows: 1fr !important;

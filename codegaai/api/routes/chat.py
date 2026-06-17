@@ -168,6 +168,27 @@ async def chat(req: ChatRequest) -> ChatResponse:
         "",
     )
     try:
+        from codegaai.core.instant_answers import instant_answer_for
+        instant = instant_answer_for(last_user_for_routing)
+        if instant:
+            response_msg = Message(role="assistant", content=instant.content)
+            msg_id: Optional[int] = None
+            if req.chat_id is not None:
+                msg_id = store.add_message(
+                    req.chat_id, "assistant", response_msg.content,
+                    model="instant",
+                )
+            return ChatResponse(
+                message=response_msg,
+                message_id=msg_id,
+                model="instant",
+                finish_reason="stop",
+                timing_ms=0,
+                chat_id=req.chat_id,
+            )
+    except Exception as exc:
+        log.debug("Instant answer skipped: %s", exc)
+    try:
         from codegaai.core.model_router import ModelRouter
         history_for_routing = [
             {"role": m.role, "content": m.content}

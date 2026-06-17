@@ -75,7 +75,8 @@ jobs:
       - name: Verification-first test suite
         run: npm run test:ci
 
-      - name: Require Apple release credentials
+      - name: Detect Apple release credentials
+        id: apple_credentials
         shell: bash
         run: |
           missing=()
@@ -86,14 +87,25 @@ jobs:
           [[ -n "$APPLE_TEAM_ID" ]] || missing+=("APPLE_NOTARIZATION_TEAM_ID")
           if (( ${#missing[@]} > 0 )); then
             printf 'Missing required GitHub Actions secrets: %s\n' "${missing[*]}"
-            echo "Refusing to publish an unsigned macOS application."
-            exit 1
+            echo "Apple signing/notarization will be skipped; building unsigned fallback artifacts."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Apple signing/notarization credentials are available."
+            echo "available=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build and sign macOS app
+      - name: Build signed macOS app
+        if: steps.apple_credentials.outputs.available == 'true'
+        run: npm run dist:mac
+
+      - name: Build unsigned macOS app
+        if: steps.apple_credentials.outputs.available != 'true'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: npm run dist:mac
 
       - name: Verify Developer ID signature
+        if: steps.apple_credentials.outputs.available == 'true'
         shell: bash
         run: |
           found=0
@@ -112,6 +124,7 @@ jobs:
           fi
 
       - name: Notarize and staple macOS disk images
+        if: steps.apple_credentials.outputs.available == 'true'
         shell: bash
         run: |
           shopt -s nullglob
@@ -132,12 +145,25 @@ jobs:
           done
 
       - name: Verify Gatekeeper acceptance
+        if: steps.apple_credentials.outputs.available == 'true'
         shell: bash
         run: |
           shopt -s nullglob
           for dmg in release/*.dmg; do
             spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
           done
+
+      - name: Verify unsigned macOS artifact
+        if: steps.apple_credentials.outputs.available != 'true'
+        shell: bash
+        run: |
+          shopt -s nullglob
+          artifacts=(release/*.dmg release/*.zip)
+          if (( ${#artifacts[@]} == 0 )); then
+            echo "No unsigned macOS artifacts were produced."
+            exit 1
+          fi
+          printf 'Unsigned macOS artifact produced: %s\n' "${artifacts[@]}"
 
       - name: Verify updater metadata
         shell: bash
