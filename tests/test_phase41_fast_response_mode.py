@@ -46,5 +46,5 @@ class FastResponseModeTests(unittest.TestCase):
     def test_version_bumped_to_454(self):
         init = read("codegaai/__init__.py")
 
-        self.assertIn('__version__ = "4.5.9"', init)
+        self.assertIn('__version__ = "4.5.10"', init)
         self.assertIn("Action-First Delivery Guard", init)
