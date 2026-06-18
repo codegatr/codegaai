@@ -1,7 +1,7 @@
 {
   "name": "codega-ai-desktop",
   "productName": "CODEGA AI",
-  "version": "2.3.32",
+  "version": "0.1.10",
   "description": "CODEGA AI clean Windows-first desktop app.",
   "author": "CODEGA",
   "private": true,
@@ -11,28 +11,14 @@
     "dev": "electron .",
     "start": "electron .",
     "check": "node scripts/check.mjs",
-    "test:reasoning": "node scripts/test-reasoning-guard.mjs",
-    "test:verification": "node scripts/test-verification-hard-gate.mjs",
-    "test:reasoning:regression": "node scripts/run-reasoning-regression.mjs",
-    "test:model-updates": "node scripts/test-model-updates.mjs",
-    "test:model-storage": "node scripts/test-model-storage.mjs",
-    "test:chat-watchdog": "node scripts/test-chat-watchdog.mjs",
-    "test:autonomous-development": "node scripts/test-autonomous-development.mjs",
-    "test:agent-watch": "node scripts/test-agent-watch.mjs",
-    "test:agent-loop": "node scripts/test-agent-loop-resilience.mjs",
-    "test:runtime-policy": "node scripts/test-runtime-policy.mjs",
-    "test:ci": "npm run check && npm run test:runtime-policy && npm run test:model-updates && npm run test:model-storage && npm run test:chat-watchdog && npm run test:autonomous-development && npm run test:agent-watch && npm run test:agent-loop && npm run test:reasoning && npm run test:verification && npm run test:reasoning:regression",
     "pack": "electron-builder --dir",
     "dist:win": "electron-builder --win nsis --x64 --publish never",
-    "release:win": "electron-builder --win nsis --x64 --publish always",
-    "dist:mac": "electron-builder --mac --publish never",
-    "release:mac": "electron-builder --mac --publish always"
+    "release:win": "electron-builder --win nsis --x64 --publish always"
   },
   "dependencies": {
     "electron-updater": "^6.3.9"
   },
   "devDependencies": {
-    "@electron/notarize": "^2.5.0",
     "electron": "^33.4.11",
     "electron-builder": "^25.1.8"
   },
@@ -42,11 +28,15 @@
     "directories": {
       "output": "release"
     },
+    "asar": true,
     "files": [
       "src/**/*",
-      "package.json"
+      "package.json",
+      "!**/*.map",
+      "!**/*.log",
+      "!**/__pycache__/**",
+      "!**/*.pyc"
     ],
-    "afterSign": "scripts/notarize-macos.cjs",
     "win": {
       "target": [
         {
@@ -56,33 +46,8 @@
           ]
         }
       ],
-      "requestedExecutionLevel": "asInvoker"
-    },
-    "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        },
-        {
-          "target": "zip",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ],
-      "category": "public.app-category.developer-tools",
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.inherit.plist"
-    },
-    "dmg": {
-      "title": "CODEGA AI ${version} ${arch}"
+      "requestedExecutionLevel": "asInvoker",
+      "signAndEditExecutable": true
     },
     "nsis": {
       "oneClick": false,
