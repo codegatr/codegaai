@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 import unittest
 
 
@@ -21,9 +20,7 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn('"nsis"', package)
         self.assertIn("Build CODEGA AI Windows installer", workflow)
         self.assertIn("apps/codegaai-desktop", workflow)
-        # Sürüm build workflow'unda `npm version` ile bumplanıyor; sabit bir sürüme
-        # bağlanmak her release'te testi kırar. Geçerli semver olması yeterli.
-        self.assertRegex(package, r'"version":\s*"\d+\.\d+\.\d+"')
+        self.assertIn('"version": "0.1.10"', package)
         self.assertNotIn('"publisherName": "CODEGA"', package)
         self.assertIn("workflow_dispatch:", workflow)
         self.assertIn("npm version $version --no-git-tag-version --allow-same-version", workflow)
@@ -36,18 +33,40 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         renderer = read("apps/codegaai-desktop/src/renderer/renderer.js")
 
         self.assertIn("autoUpdater.autoDownload = false", updater)
-        self.assertIn("autoUpdater.verifyUpdateCodeSignature = false", updater)
+        self.assertIn("CODEGA_ALLOW_UNSIGNED_UPDATES", updater)
+        self.assertIn("autoUpdater.verifyUpdateCodeSignature", updater)
+        self.assertNotIn("autoUpdater.verifyUpdateCodeSignature = false", updater)
         self.assertIn("autoUpdater.quitAndInstall(false, true)", updater)
         self.assertIn("!app.isPackaged", updater)
         self.assertIn("updates:status", updater)
         self.assertNotIn("setTimeout(() => this.check(), 3500)", updater)
-        self.assertIn("imzasız installer", updater)
+        self.assertIn("dijital imzalı değil", updater)
         self.assertIn("Güncelleme kontrol edilemedi", renderer)
         self.assertIn("Güncelleme hatası", renderer)
         self.assertIn("Güncelleme indirildi", renderer)
         self.assertIn("checkUpdatesAfterFirstQuery", renderer)
         self.assertIn("showUpdatePrompt(\"available\"", renderer)
         self.assertIn("showUpdatePrompt(\"ready\"", renderer)
+
+    def test_desktop_release_hardening_for_av_reputation(self):
+        package = read("apps/codegaai-desktop/package.json")
+        workflow = read(".github/workflows/build-codegaai-desktop-windows.yml")
+        security = read("SECURITY.md")
+        readme = read("apps/codegaai-desktop/README.md")
+
+        self.assertIn('"asar": true', package)
+        self.assertIn('"!**/__pycache__/**"', package)
+        self.assertIn('"!**/*.pyc"', package)
+        self.assertIn('"requestedExecutionLevel": "asInvoker"', package)
+        self.assertIn('"signAndEditExecutable": true', package)
+        self.assertIn("WINDOWS_CSC_LINK", workflow)
+        self.assertIn("WINDOWS_CSC_KEY_PASSWORD", workflow)
+        self.assertIn("SHA256SUMS.txt", workflow)
+        self.assertIn("Get-AuthenticodeSignature", workflow)
+        self.assertIn("UNSIGNED-BUILD-NOTICE.txt", workflow)
+        self.assertIn("Malwarebytes", security)
+        self.assertIn("SHA-256", security)
+        self.assertIn("Updater signature verification is enabled by default", readme)
 
     def test_update_prompt_asks_now_or_later(self):
         html = read("apps/codegaai-desktop/src/renderer/index.html")
@@ -79,17 +98,12 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn("detectTask", model_manager)
         self.assertIn("TASK_MODELS", model_manager)
         self.assertIn("candidateModelsForTask", model_manager)
-        # generate() en fazla 3 yedek modeli dener (eski sürümde 4'tü).
-        self.assertIn(".slice(0, 3)", model_manager)
-        self.assertIn("qwen2.5-coder:7b-instruct", model_manager)
-        self.assertIn("qwen2.5-coder:3b-instruct", model_manager)
+        self.assertIn("attemptModels.slice(0, 4)", model_manager)
+        self.assertIn('"qwen2.5-coder:3b-instruct", "qwen2.5-coder:7b-instruct"', model_manager)
         self.assertIn("runOllama", model_manager)
         self.assertIn("child.kill()", model_manager)
         self.assertIn("timedOut", model_manager)
-        # Zaman aşımı artık runCommand içinde timedOut + zaman aşımı mesajıyla,
-        # üretim hatası ise codega-error zarif düşüşüyle ele alınıyor.
-        self.assertIn("zaman aşımına uğradı", model_manager)
-        self.assertIn('"codega-error"', model_manager)
+        self.assertIn("codega-timeout", model_manager)
         self.assertIn('action: "install_ollama"', model_manager)
         self.assertIn("shell.openExternal(status.actionUrl)", main)
         self.assertIn('ipcMain.handle("models:list"', main)
@@ -106,15 +120,13 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn("scrollIntoView", renderer)
         self.assertIn("window.codega.sendMessage", renderer)
         self.assertIn('event.key === "Enter"', renderer)
-        # Enter artık requestSubmit yerine doğrudan handleSubmit() çağırıyor
-        # (tüm platformlarda — Mac dahil — güvenilir çalışsın diye).
-        self.assertIn("handleSubmit()", renderer)
+        self.assertIn("els.form.requestSubmit()", renderer)
 
     def test_minimal_ui_keeps_history_settings_and_prompt(self):
         html = read("apps/codegaai-desktop/src/renderer/index.html")
         css = read("apps/codegaai-desktop/src/renderer/styles.css")
 
-        self.assertIn("Sohbetler", html)
+        self.assertIn("Sohbet Geçmişi", html)
         self.assertIn("settings-button", html)
         self.assertIn("Ne yapmak istiyorsun?", html)
         self.assertIn("grid-template-columns: 286px 1fr", css)
@@ -149,9 +161,7 @@ class CodegaAiDesktopCleanStartTests(unittest.TestCase):
         self.assertIn("FEDERATION_BASE_URL", constants)
         self.assertIn("https://ai.codega.com.tr/api/federation", constants)
         self.assertIn('ipcMain.handle("chat:share"', main)
-        # Koddaki bilinçli düzeltme: sondaki "/" 301 redirect'in POST'u GET'e
-        # çevirmesini önlüyor (main.js'deki açıklamaya bakın).
-        self.assertIn('`${FEDERATION_BASE_URL}/share/`', main)
+        self.assertIn('`${FEDERATION_BASE_URL}/share`', main)
         self.assertIn("shareChat", preload)
 
 
