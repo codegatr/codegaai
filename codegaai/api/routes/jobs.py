@@ -9,6 +9,8 @@ is more reliable with polling than long-lived SSE connections.
 from __future__ import annotations
 
 import asyncio
+import ast
+import operator
 import re
 import threading
 import time
@@ -22,6 +24,33 @@ from codegaai.utils.logger import get_logger
 
 log = get_logger(__name__)
 router = APIRouter()
+
+_CALC_OPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+    ast.USub: operator.neg,
+    ast.UAdd: operator.pos,
+}
+
+
+def _safe_calc(expr: str):
+    def visit(node: ast.AST):
+        if isinstance(node, ast.Expression):
+            return visit(node.body)
+        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+            return node.value
+        if isinstance(node, ast.BinOp) and type(node.op) in _CALC_OPS:
+            return _CALC_OPS[type(node.op)](visit(node.left), visit(node.right))
+        if isinstance(node, ast.UnaryOp) and type(node.op) in _CALC_OPS:
+            return _CALC_OPS[type(node.op)](visit(node.operand))
+        raise ValueError("Invalid calculation")
+
+    return visit(ast.parse(expr, mode="eval"))
 
 
 def _learn_from_chat(question: str, answer: str, intent: str) -> None:
@@ -153,21 +182,6 @@ def _quick_capability_response(message: str) -> str:
     return ""
 
 
-def _finish_job_immediately(job: "ChatJob", answer: str, intent: str = "instant") -> None:
-    """Persist and finish a deterministic instant answer."""
-    if job.chat_id:
-        try:
-            from codegaai.core.chat_store import ChatStore
-            store = ChatStore.open()
-            store.add_message(job.chat_id, "user", job.message)
-            store.add_message(job.chat_id, "assistant", answer)
-        except Exception:
-            pass
-    job.append(answer)
-    _learn_from_chat(job.message, answer, intent)
-    job.finish()
-
-
 def _needs_web_search(message: str) -> bool:
     msg = message.lower()
 
@@ -201,13 +215,6 @@ async def _execute_inline_tools(content: str, job) -> str:
     import re
     
     pattern = re.compile(r"<tool>(.*?)</tool>", re.DOTALL)
-    try:
-        from codegaai.core.answer_sanitizer import sanitize_final_answer
-        sanitized = sanitize_final_answer(content)
-        if sanitized and "<tool>" not in sanitized and sanitized != content:
-            return sanitized
-    except Exception:
-        pass
     
     def _safe_call(match):
         tool_call = match.group(1).strip()
@@ -225,7 +232,7 @@ async def _execute_inline_tools(content: str, job) -> str:
                 expr = tool_call[5:-1].strip()
                 # Sadece sayısal ifadeler
                 if re.match(r"^[\d\s+\-*/().]+$", expr):
-                    return f" {eval(expr)} "  # noqa: S307 - kısıtlı eval
+                    return f" {_safe_calc(expr)} "
             elif tool_call.startswith("time()"):
                 from datetime import datetime
                 return f" {datetime.now().strftime('%H:%M, %d %B %Y')} "
@@ -346,24 +353,6 @@ def _needs_retry(question: str, answer: str) -> bool:
     return False
 
 
-def _clean_final_content(content: str) -> str:
-    try:
-        from codegaai.core.answer_sanitizer import sanitize_final_answer
-        return sanitize_final_answer(content)
-    except Exception:
-        return str(content or "").strip()
-
-
-def _fallback_empty_response(message: str, decision_intent: str = "general") -> str:
-    if decision_intent == "architecture_planning":
-        try:
-            from codegaai.core.answer_sanitizer import architecture_plan_fallback
-            return architecture_plan_fallback(message)
-        except Exception:
-            return "# Analysis\nMevcut proje dogrulanamadi.\n\n# Assumptions\nLaravel, Flutter, MySQL ve Laravel Sanctum kullanilacak."
-    return "Buradayim. Cevap uretimi bos dondu, ama sohbeti surduruyorum; son mesajina gore devam edebilirim."
-
-
 def _build_recent_focus(history: list[dict], latest: str) -> str:
     recent = history[-6:]
     if not recent:
@@ -433,39 +422,6 @@ async def _maybe_web_search(message: str) -> str:
     except Exception as exc:
         log.debug("Web araması hatası: %s", exc)
         return ""
-
-
-def _maybe_deliver_artifact(message: str, history: list[dict]) -> Optional[str]:
-    """
-    Acik proje/dosya/ZIP taleplerinde modeli beklemeden somut teslim uret.
-
-    Bu katman, yerel LLM'in "plan anlatma" veya "ZIP olusturamam" gibi eski
-    chatbot davranisina kacmasini engeller. Once calisan dosyalar, sonra cevap.
-    """
-    try:
-        from codegaai.core.action_delivery import build_delivery_artifact
-        artifact = build_delivery_artifact(message, history)
-        if not artifact:
-            return None
-
-        from codegaai.api.routes.files import _make_zip, _zip_store, _cleanup
-
-        data = _make_zip(artifact.project_name, artifact.files)
-        zid = str(uuid.uuid4())[:8]
-        filename = f"{artifact.project_name}.zip"
-        _zip_store[zid] = {"data": data, "filename": filename, "ts": time.time()}
-        _cleanup(_zip_store)
-
-        files = "\n".join(f"- `{name}`" for name in artifact.files.keys())
-        return (
-            f"{artifact.title} hazir.\n\n"
-            f"ZIP: [**{filename} indir**](/api/files/download/{zid}?filename={filename})\n\n"
-            f"Icerik:\n{files}\n\n"
-            "Icinde veritabani semasi, PHP dosyalari, stil dosyasi ve kurulum notlari var."
-        )
-    except Exception as exc:
-        log.warning("Teslim uretimi atlandi: %s", exc)
-        return None
 
 
 class ChatJob:
@@ -545,15 +501,16 @@ async def _run_chat_job(job: ChatJob) -> None:
         from codegaai.core.system_prompt import build_system_prompt
         from codegaai.core.chat_store import ChatStore
         from codegaai.core.agent_brain import decide_response, decision_guidance
-        from codegaai.core.instant_answers import instant_answer_for
 
+        # Akıllı max_tokens: kısa sorulara kısa cevap (hız için)
         msg_len = len(job.message.strip())
-
-        instant = instant_answer_for(job.message)
-        if instant and not job.deep_think and not job.file_context:
-            _finish_job_immediately(job, instant.content, instant.intent)
-            log.info("ChatJob %s instant answer: %s", job.job_id, instant.intent)
-            return
+        if job.speed_mode and not job.deep_think:
+            job.max_tokens = min(job.max_tokens, 384)
+        if msg_len < 30:        # "Merhaba", "Nasılsın"
+            job.max_tokens = min(job.max_tokens, 96 if job.speed_mode else 128)
+        elif msg_len < 80:       # Tek satır soru
+            job.max_tokens = min(job.max_tokens, 192 if job.speed_mode else 256)
+        # Uzun soru / açıklama isteği → orijinal max_tokens kullan
 
         engine = LLMEngine.get()
         history = []
@@ -602,38 +559,7 @@ async def _run_chat_job(job: ChatJob) -> None:
             job.finish()
             return
 
-        job.set_stage("Dosya hazirligi kontrol ediliyor...")
-        delivery = _maybe_deliver_artifact(job.message, history)
-        job.set_stage("")
-        if delivery:
-            if job.chat_id:
-                try:
-                    store = ChatStore.open()
-                    store.add_message(job.chat_id, "user", job.message)
-                except Exception:
-                    pass
-            job.append(delivery)
-            if job.chat_id:
-                try:
-                    store = ChatStore.open()
-                    store.add_message(job.chat_id, "assistant", delivery)
-                except Exception:
-                    pass
-            job.finish()
-            log.info("ChatJob %s artifact teslim etti", job.job_id)
-            return
-
         decision = decide_response(job.message, history=history)
-        if decision.intent == "architecture_planning":
-            job.max_tokens = max(job.max_tokens, 4096)
-            job.speed_mode = False
-        else:
-            if job.speed_mode and not job.deep_think:
-                job.max_tokens = min(job.max_tokens, 384)
-            if msg_len < 30:
-                job.max_tokens = min(job.max_tokens, 96 if job.speed_mode else 128)
-            elif msg_len < 80:
-                job.max_tokens = min(job.max_tokens, 192 if job.speed_mode else 256)
 
         try:
             from codegaai.core.model_router import ModelRouter
@@ -803,7 +729,7 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
                 for token in engine.stream(messages, cfg=cfg):
                     job.append(token)
             else:
-                result = engine.generate_agentic(messages, cfg=cfg, max_iters=3)
+                result = engine.generate(messages, cfg=cfg, use_tools=True)
                 job.append(result.get("content", ""))
         else:
             full_out = ""
@@ -851,10 +777,6 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
                     max_tokens=job.max_tokens, temperature=0.4)):
                 job.append(token)
             job.set_stage("")
-
-        job.content = _clean_final_content(job.content)
-        if not job.content.strip():
-            job.content = _fallback_empty_response(job.message, decision.intent)
 
         if job.chat_id and job.content:
             try:
