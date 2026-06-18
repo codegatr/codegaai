@@ -34,6 +34,8 @@ from __future__ import annotations
 
 import ast
 import io
+import math
+import operator
 import re
 import sys
 import threading
@@ -82,6 +84,41 @@ class ToolDef:
 # ============================================================
 # Sandbox yardımcısı
 # ============================================================
+
+SAFE_MATH_OPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+    ast.USub: operator.neg,
+    ast.UAdd: operator.pos,
+}
+
+SAFE_MATH_NAMES = {"pi": math.pi, "e": math.e}
+SAFE_MATH_FUNCS = {"sqrt": math.sqrt, "abs": abs}
+
+
+def _safe_math_eval(expr: str) -> Any:
+    def visit(node: ast.AST) -> Any:
+        if isinstance(node, ast.Expression):
+            return visit(node.body)
+        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+            return node.value
+        if isinstance(node, ast.BinOp) and type(node.op) in SAFE_MATH_OPS:
+            return SAFE_MATH_OPS[type(node.op)](visit(node.left), visit(node.right))
+        if isinstance(node, ast.UnaryOp) and type(node.op) in SAFE_MATH_OPS:
+            return SAFE_MATH_OPS[type(node.op)](visit(node.operand))
+        if isinstance(node, ast.Name) and node.id in SAFE_MATH_NAMES:
+            return SAFE_MATH_NAMES[node.id]
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in SAFE_MATH_FUNCS:
+            return SAFE_MATH_FUNCS[node.func.id](*[visit(arg) for arg in node.args])
+        raise ValueError("Invalid math expression")
+
+    return visit(ast.parse(expr, mode="eval"))
+
 
 PYTHON_SANDBOX_GLOBALS = {
     "__builtins__": {
@@ -197,12 +234,7 @@ def _tool_calculate(expr: str) -> str:
 
     try:
         # Güvenli eval: sadece sayısal
-        safe_globals = {"__builtins__": None}
-        safe_locals = {
-            "pi": 3.141592653589793, "e": 2.718281828459045,
-            "sqrt": lambda x: x ** 0.5, "abs": abs,
-        }
-        result = eval(str(expr), safe_globals, safe_locals)  # noqa: S307
+        result = _safe_math_eval(str(expr))
         return f"🧮 {expr} = {result}"
     except Exception as exc:
         return f"⚠️ Hesaplama hatası: {exc}"
