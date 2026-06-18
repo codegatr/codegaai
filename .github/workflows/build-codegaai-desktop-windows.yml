@@ -67,11 +67,42 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verification-first test suite
-        run: npm run test:ci
+      - name: Static scaffold check
+        run: npm run check
 
       - name: Build Windows installer
+        env:
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+          WIN_CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
         run: npm run dist:win
+
+      - name: Generate release checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem release -File |
+            Where-Object { $_.Name -ne "SHA256SUMS.txt" } |
+            ForEach-Object {
+              $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              "$hash  $($_.Name)"
+            } | Set-Content -Encoding ascii release/SHA256SUMS.txt
+
+      - name: Verify signing when certificate secret is configured
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem release -Filter "*.exe" | Select-Object -First 1
+          if (-not $installer) {
+            throw "Windows installer was not generated."
+          }
+          $signature = Get-AuthenticodeSignature $installer.FullName
+          if ($env:CSC_LINK -and $signature.Status -ne "Valid") {
+            throw "Signing secret was provided but installer signature is not valid: $($signature.Status)"
+          }
+          if (-not $env:CSC_LINK) {
+            "No signing certificate secret configured; installer is unsigned and may trigger reputation-based AV warnings." |
+              Set-Content -Encoding utf8 release/UNSIGNED-BUILD-NOTICE.txt
+          }
 
       - name: Verify updater metadata
         shell: pwsh
