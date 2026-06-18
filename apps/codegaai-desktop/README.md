@@ -24,6 +24,8 @@ npm run dist:win
 - Existing `qwen2.5:3b` fallback detection
 - GitHub release based updater wiring through `electron-updater`
 - NSIS Windows installer configuration
+- Signed Windows release path through `WINDOWS_CSC_LINK` / `WINDOWS_CSC_KEY_PASSWORD`
+- SHA-256 checksum generation for release verification
 
 ## Update Flow
 
@@ -31,6 +33,11 @@ npm run dist:win
 2. Renderer receives update state through `updates:status`.
 3. User can download the update.
 4. Once downloaded, the app calls `quitAndInstall(false, true)` to close and install.
+
+Updater signature verification is enabled by default. Unsigned updates are
+blocked unless `CODEGA_ALLOW_UNSIGNED_UPDATES=1` is set for emergency
+diagnostics. Public releases should be signed to reduce Malwarebytes and
+SmartScreen reputation warnings.
 
 ## AI Runtime
 
