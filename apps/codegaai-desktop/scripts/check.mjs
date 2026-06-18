@@ -30,6 +30,12 @@ if (pkg.build?.asar !== true) {
 if (!pkg.build?.files?.some((entry) => String(entry).includes("!**/__pycache__/**"))) {
   throw new Error("Desktop package must exclude Python cache artifacts");
 }
+if (!pkg.scripts?.["dist:mac"] || !pkg.build?.mac) {
+  throw new Error("macOS packaging script/configuration is missing");
+}
+if (!pkg.scripts?.["dist:win"] || !pkg.build?.win) {
+  throw new Error("Windows packaging script/configuration is missing");
+}
 
 const repoRoot = root;
 const forbidden = [];
