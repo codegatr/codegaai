@@ -11,6 +11,7 @@
     "dev": "electron .",
     "start": "electron .",
     "check": "node scripts/check.mjs",
+    "test:ci": "npm run check",
     "pack": "electron-builder --dir",
     "dist:win": "electron-builder --win nsis --x64 --publish never",
     "release:win": "electron-builder --win nsis --x64 --publish always"
