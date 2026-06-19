@@ -1290,7 +1290,7 @@ els.input.addEventListener("keydown", (event) => {
   const isEnter = event.key === "Enter" || event.keyCode === 13;
   if (isEnter && !event.shiftKey && !event.isComposing && event.keyCode !== 229) {
     event.preventDefault();
-    handleSubmit();
+    els.form.requestSubmit();
   }
 });
 

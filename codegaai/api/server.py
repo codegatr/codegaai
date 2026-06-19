@@ -280,10 +280,10 @@ def create_app() -> FastAPI:
     app.include_router(knowledge_routes.router, prefix="/api/knowledge", tags=["knowledge"])
     log.info("Bilgi Tabanı (Faz 51) yüklendi")
 
-    # Faz 52: Kod→Diyagram
+    # Faz 52: Kod->Diyagram
     from codegaai.api.routes import diagrams as diagrams_routes
     app.include_router(diagrams_routes.router, prefix="/api/diagrams", tags=["diagrams"])
-    log.info("Kod→Diyagram (Faz 52) yüklendi")
+    log.info("Kod->Diyagram (Faz 52) yuklendi")
 
     # Faz 55: Akıllı Arama
     from codegaai.api.routes import search as search_routes
@@ -379,8 +379,8 @@ def create_app() -> FastAPI:
                     downloaded = []
                     for m in all_models:
                         is_dl = reg.is_llm_downloaded(m["id"])
-                        log.info("  Model kontrol: %s → %s",
-                                 m["id"], "✓ indirilmiş" if is_dl else "✗ yok")
+                        log.info("  Model kontrol: %s -> %s",
+                                 m["id"], "downloaded" if is_dl else "missing")
                         if is_dl:
                             downloaded.append(m)
 

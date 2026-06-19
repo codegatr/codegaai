@@ -460,7 +460,7 @@ function makeVerificationProgress(onProgress, scope = "answer", onHeartbeat = nu
 }
 
 const TASK_MODELS = {
-  code: ["qwen3.5:9b", "qwen2.5-coder:7b", "qwen2.5-coder:3b", "qwen2.5-coder:7b-instruct", "qwen2.5-coder:3b-instruct", "qwen3.5:4b", "qwen3:8b", DEFAULT_MODEL],
+  code: ["qwen3.5:9b", "qwen2.5-coder:7b", "qwen2.5-coder:3b", "qwen2.5-coder:3b-instruct", "qwen2.5-coder:7b-instruct", "qwen3.5:4b", "qwen3:8b", DEFAULT_MODEL],
   image: ["qwen3.5:4b", "gemma3:4b", "qwen3.5:9b", "qwen3:4b", DEFAULT_MODEL],
   writing: ["qwen3.5:9b", "qwen3.5:4b", "qwen3.6:27b", "qwen3:8b", "qwen3:14b", "mistral:7b", DEFAULT_MODEL],
   chat: [DEFAULT_MODEL, "qwen3.5:2b", "qwen3.5:0.8b", "qwen3.5:9b", "qwen3:4b", "qwen3:1.7b", "llama3.2:3b"],
@@ -1194,6 +1194,7 @@ class ModelManager {
         const isInst = installed.some((x) => nrm(x) === nrm(userDefault) || nrm(x) === `${nrm(userDefault)}:latest`);
         if (isInst) attemptModels = [userDefault, ...attemptModels.filter((m) => nrm(m) !== nrm(userDefault))];
       }
+      attemptModels = attemptModels.slice(0, 4);
       selectedModel = attemptModels[0] || chooseModelForTask(task, installed);
       if (!attemptModels.length) {
         const started = this.prepareModelInBackground(selectedModel);
@@ -1516,6 +1517,14 @@ class ModelManager {
           provider: this.state.provider || "ollama",
           model: selectedModel,
           text: "⏹️ Üretim durduruldu.",
+        };
+      }
+      if (e && e.name === "TimeoutError") {
+        this.state = { ...this.state, status: READY_STATES.READY, message: "Zaman asimi" };
+        return {
+          provider: "instant",
+          model: "codega-timeout",
+          text: "Yanit suresi asildi. Daha hafif model secebilir, Hizli modu acabilir veya tekrar deneyebilirsin.",
         };
       }
       this.state = {
@@ -1994,7 +2003,7 @@ class ModelManager {
       throw aborted;
     }
     const prompt = flattenMessages(messages);
-    const models = [model, ...fallbackModels.filter((m) => m !== model)].slice(0, 3);
+    const models = [model, ...fallbackModels.filter((m) => m !== model)].slice(0, 4);
     for (const m of models) {
       if (sig && sig.aborted) {
         const aborted = new Error("Ollama isteği durduruldu.");

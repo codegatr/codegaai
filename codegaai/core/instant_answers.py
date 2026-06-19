@@ -34,6 +34,18 @@ _ALLOWED_UNARY = {
     ast.USub: operator.neg,
 }
 
+_ACKS = {"tamam", "ok", "peki", "olur", "anladim", "anladım"}
+_GREETINGS = {
+    "merhaba": "Merhaba. Buradayim, nasil yardimci olayim?",
+    "selam": "Selam. Buradayim, nasil yardimci olayim?",
+    "gunaydin": "Gunaydin. Buradayim, nasil yardimci olayim?",
+    "günaydın": "Gunaydin. Buradayim, nasil yardimci olayim?",
+    "iyi aksamlar": "Iyi aksamlar. Buradayim, nasil yardimci olayim?",
+    "iyi akşamlar": "Iyi aksamlar. Buradayim, nasil yardimci olayim?",
+    "iyi geceler": "Iyi geceler. Buradayim, nasil yardimci olayim?",
+}
+_THANKS = {"tesekkur", "tesekkurler", "teşekkür", "teşekkürler", "sagol", "sağol", "eyvallah"}
+
 
 @dataclass(frozen=True)
 class InstantAnswer:
@@ -76,7 +88,11 @@ def instant_answer_for(message: str) -> InstantAnswer | None:
         return None
 
     match = _MATH_EXPR_RE.search(text)
-    if match and re.search(r"(kac|ka\u00e7|eder|sonuc|sonu\u00e7|hesapla|=|\?)", text, re.IGNORECASE):
+    stripped_math = bool(match and match.group("expr").strip() == text.rstrip(" ?"))
+    if match and (
+        stripped_math
+        or re.search(r"(kac|ka\u00e7|eder|sonuc|sonu\u00e7|hesapla|=|\?)", text, re.IGNORECASE)
+    ):
         result = calculate_expression(match.group("expr"))
         if result is not None:
             only_result = re.search(
@@ -87,7 +103,12 @@ def instant_answer_for(message: str) -> InstantAnswer | None:
             return InstantAnswer(result if only_result else f"Sonuc: {result}", intent="calculation")
 
     lowered = text.casefold()
-    if lowered in {"tamam", "ok", "peki"}:
+    compact = re.sub(r"\s+", " ", lowered).strip(" .!?")
+    if compact in _ACKS:
         return InstantAnswer("Tamam.", intent="ack")
+    if compact in _GREETINGS:
+        return InstantAnswer(_GREETINGS[compact], intent="social")
+    if compact in _THANKS:
+        return InstantAnswer("Rica ederim. Buradayim, devam edebiliriz.", intent="social")
 
     return None
