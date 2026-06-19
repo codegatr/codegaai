@@ -436,7 +436,7 @@ function registerIpc() {
     // Cloudflare bağlantıyı askıya alırsa istek sonsuza dek beklemesin (yazma kilidi olmasın)
     const timer = setTimeout(() => controller.abort(), 12000);
     try {
-      const response = await fetch(`${FEDERATION_BASE_URL}/share/`, {
+      const response = await fetch(`${FEDERATION_BASE_URL}/share`, {
         method: "POST",
         redirect: "follow",
         signal: controller.signal,

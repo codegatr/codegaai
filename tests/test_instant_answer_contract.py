@@ -28,6 +28,15 @@ class InstantAnswerContractTest(unittest.TestCase):
 
         self.assertEqual(out.strip(), "4")
 
+    def test_background_jobs_use_instant_answer_before_model(self) -> None:
+        from pathlib import Path
+
+        root = Path(__file__).resolve().parents[1]
+        jobs = (root / "codegaai/api/routes/jobs.py").read_text(encoding="utf-8")
+
+        self.assertIn("instant_answer_for(job.message)", jobs)
+        self.assertLess(jobs.index("instant_answer_for(job.message)"), jobs.index("LLMEngine.get()"))
+
 
 if __name__ == "__main__":
     unittest.main()

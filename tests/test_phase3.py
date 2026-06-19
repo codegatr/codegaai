@@ -175,8 +175,8 @@ class TestApiContracts(unittest.TestCase):
         })
         self.assertEqual(r.status_code, 200)
         data = r.json()
-        self.assertEqual(data["model"], "not-loaded")
-        self.assertIn("yüklü değil", data["message"]["content"].lower())
+        self.assertEqual(data["model"], "instant")
+        self.assertIn("merhaba", data["message"]["content"].lower())
 
     def test_chat_status(self) -> None:
         r = self.client.get("/api/chat/status")

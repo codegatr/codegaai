@@ -17,7 +17,7 @@ _INTERNAL_LABEL_RE = re.compile(
 )
 
 _CALCULATE_TOOL_RE = re.compile(
-    r"<tool>\s*calculate\((?P<quote>[\"']?)(?P<expr>.*?)(?P=quote)\)\s*</tool>",
+    r"<tool>\s*(?:calculate|calc)\((?P<quote>[\"']?)(?P<expr>.*?)(?P=quote)\)\s*</tool>",
     re.IGNORECASE | re.DOTALL,
 )
 
@@ -60,6 +60,7 @@ def sanitize_final_answer(text: str) -> str:
     ).strip()
     value = _CALCULATE_TOOL_RE.sub(_replace_calculate_tool, value)
     value = _ANY_TOOL_RE.sub("", value)
+    value = re.sub(r"</?tool[^>]*>", "", value, flags=re.IGNORECASE)
     value = re.sub(
         r"^\s*(?P<result>-?\d+(?:\.\d+)?)\s+Sonu[cç]:\s*(?P=result)\s*$",
         r"\g<result>",

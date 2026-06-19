@@ -228,15 +228,16 @@ async def _execute_inline_tools(content: str, job) -> str:
                     f"- {r.get('title', '')}: {r.get('snippet', '')[:150]}"
                     for r in results
                 ) + "\n"
-            elif tool_call.startswith("calc("):
-                expr = tool_call[5:-1].strip()
+            elif tool_call.startswith("calc(") or tool_call.startswith("calculate("):
+                start = tool_call.find("(") + 1
+                expr = tool_call[start:-1].strip().strip('"\'')
                 # Sadece sayısal ifadeler
                 if re.match(r"^[\d\s+\-*/().]+$", expr):
                     return f" {_safe_calc(expr)} "
             elif tool_call.startswith("time()"):
                 from datetime import datetime
                 return f" {datetime.now().strftime('%H:%M, %d %B %Y')} "
-            return match.group(0)   # Bilinmeyen tool → olduğu gibi bırak
+            return ""
         except Exception as e:
             return f"[Tool hatası: {e}]"
     
@@ -244,6 +245,37 @@ async def _execute_inline_tools(content: str, job) -> str:
         return pattern.sub(_safe_call, content)
     except Exception:
         return content
+
+
+def _maybe_deliver_artifact(message: str, history: list[dict] | None = None) -> str:
+    """Return a ready artifact message when the user asks for files/project delivery."""
+    try:
+        from codegaai.core.action_delivery import build_delivery_artifact
+        from codegaai.api.routes.files import _cleanup, _make_zip, _zip_store
+
+        artifact = build_delivery_artifact(message, history)
+        if not artifact:
+            return ""
+
+        data = _make_zip(artifact.project_name, artifact.files)
+        zip_id = str(uuid.uuid4())[:8]
+        filename = f"{artifact.project_name}.zip"
+        _zip_store[zip_id] = {
+            "data": data,
+            "filename": filename,
+            "ts": time.time(),
+        }
+        _cleanup(_zip_store)
+
+        file_list = "\n".join(f"- `{path}`" for path in artifact.files.keys())
+        return (
+            f"{artifact.title} hazir.\n\n"
+            f"ZIP: `/api/files/download/{zip_id}?filename={filename}`\n\n"
+            f"Dosyalar:\n{file_list}"
+        )
+    except Exception as exc:
+        log.warning("Artifact delivery skipped: %s", exc)
+        return ""
 
 
 def _update_profile_async(messages: list[dict]) -> None:
@@ -512,7 +544,6 @@ async def _run_chat_job(job: ChatJob) -> None:
             job.max_tokens = min(job.max_tokens, 192 if job.speed_mode else 256)
         # Uzun soru / açıklama isteği → orijinal max_tokens kullan
 
-        engine = LLMEngine.get()
         history = []
         if job.chat_id:
             try:
@@ -522,6 +553,50 @@ async def _run_chat_job(job: ChatJob) -> None:
                     history.append({"role": m["role"], "content": m["content"]})
             except Exception:
                 pass
+
+        delivery = _maybe_deliver_artifact(job.message, history)
+        if delivery:
+            if job.chat_id:
+                try:
+                    store = ChatStore.open()
+                    store.add_message(job.chat_id, "user", job.message)
+                except Exception:
+                    pass
+            job.append(delivery)
+            if job.chat_id:
+                try:
+                    store = ChatStore.open()
+                    store.add_message(job.chat_id, "assistant", delivery)
+                except Exception:
+                    pass
+            job.finish()
+            log.info("ChatJob %s delivered artifact before model", job.job_id)
+            return
+
+        try:
+            from codegaai.core.instant_answers import instant_answer_for
+
+            instant = instant_answer_for(job.message)
+        except Exception:
+            instant = None
+        if instant and not job.deep_think and not job.file_context:
+            if job.chat_id:
+                try:
+                    store = ChatStore.open()
+                    store.add_message(job.chat_id, "user", job.message)
+                except Exception:
+                    pass
+            answer = instant.content
+            job.append(answer)
+            if job.chat_id:
+                try:
+                    store = ChatStore.open()
+                    store.add_message(job.chat_id, "assistant", answer)
+                except Exception:
+                    pass
+            job.finish()
+            log.info("ChatJob %s instant answer: %s", job.job_id, instant.intent)
+            return
 
         if _is_social_chat(job.message) and msg_len < 60:
             if job.chat_id:
@@ -559,7 +634,10 @@ async def _run_chat_job(job: ChatJob) -> None:
             job.finish()
             return
 
+        engine = LLMEngine.get()
         decision = decide_response(job.message, history=history)
+        if decision.intent == "architecture_planning":
+            job.max_tokens = max(job.max_tokens, 4096)
 
         try:
             from codegaai.core.model_router import ModelRouter
@@ -728,6 +806,9 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
             if decision.should_stream:
                 for token in engine.stream(messages, cfg=cfg):
                     job.append(token)
+            elif decision.uses_tools:
+                result = engine.generate_agentic(messages, cfg=cfg, max_iters=3)
+                job.append(result.get("content", ""))
             else:
                 result = engine.generate(messages, cfg=cfg, use_tools=True)
                 job.append(result.get("content", ""))
@@ -777,6 +858,26 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
                     max_tokens=job.max_tokens, temperature=0.4)):
                 job.append(token)
             job.set_stage("")
+
+        if job.content:
+            try:
+                from codegaai.core.answer_sanitizer import (
+                    architecture_plan_fallback,
+                    sanitize_final_answer,
+                )
+
+                job.content = sanitize_final_answer(job.content)
+                if not job.content.strip() and decision.intent == "architecture_planning":
+                    job.content = architecture_plan_fallback(job.message)
+            except Exception:
+                pass
+        elif decision.intent == "architecture_planning":
+            try:
+                from codegaai.core.answer_sanitizer import architecture_plan_fallback
+
+                job.content = architecture_plan_fallback(job.message)
+            except Exception:
+                pass
 
         if job.chat_id and job.content:
             try:
@@ -848,3 +949,4 @@ async def get_job(job_id: str) -> dict:
     if not job:
         return {"error": "İş bulunamadı", "done": True}
     return job.to_dict()
+
