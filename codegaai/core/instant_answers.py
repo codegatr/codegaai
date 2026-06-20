@@ -47,6 +47,24 @@ _GREETINGS = {
 _THANKS = {"tesekkur", "tesekkurler", "teşekkür", "teşekkürler", "sagol", "sağol", "eyvallah"}
 
 
+_DIRECT_OUTPUT_RE = re.compile(
+    r"(?:^|\b)(?:sadece|yaln[ıi]zca|yalnizca|only)\s+"
+    r"[\"'“”‘’]?(?P<value>[A-Za-z0-9_.!? -]{1,40}?)[\"'“”‘’]?\s+"
+    r"(?:yaz|soyle|söyle|cevapla|write|say|reply)\b",
+    re.IGNORECASE,
+)
+_DIRECT_OUTPUT_PLACEHOLDERS = {
+    "cevap",
+    "cevabi",
+    "cevabı",
+    "sonuc",
+    "sonuç",
+    "sonucu",
+    "yanit",
+    "yanıt",
+}
+
+
 @dataclass(frozen=True)
 class InstantAnswer:
     content: str
@@ -101,6 +119,12 @@ def instant_answer_for(message: str) -> InstantAnswer | None:
                 re.IGNORECASE,
             )
             return InstantAnswer(result if only_result else f"Sonuc: {result}", intent="calculation")
+
+    direct = _DIRECT_OUTPUT_RE.search(text)
+    if direct:
+        value = re.sub(r"\s+", " ", direct.group("value")).strip(" .")
+        if value and value.casefold() not in _DIRECT_OUTPUT_PLACEHOLDERS:
+            return InstantAnswer(value, intent="direct_output")
 
     lowered = text.casefold()
     compact = re.sub(r"\s+", " ", lowered).strip(" .!?")

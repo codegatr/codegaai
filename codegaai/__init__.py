@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "4.5.12"
-__phase__ = "v4.5.12 - Agent Reliability Core + Fast Answer Guard"
+__version__ = "4.5.13"
+__phase__ = "v4.5.13 - Direct Command Fast Path"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

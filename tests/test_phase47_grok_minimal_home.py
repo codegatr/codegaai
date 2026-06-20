@@ -16,7 +16,7 @@ class MinimalHomeNavigationTests(unittest.TestCase):
 
         self.assertIn("<h2 class=\"welcome__codex-title\">CODEGA AI</h2>", html)
         self.assertIn("Ne yapmak istiyorsun?", html)
-        self.assertIn("CODEGA Instant Answer Guard (v4.5.10)", css)
+        self.assertIn("CODEGA Instant Answer Guard (v4.5.13)", css)
         self.assertIn("minimal-settings-btn", html)
         self.assertIn("grid-template-columns: 286px 1fr !important", css)
         self.assertIn("grid-template-areas: \"sidebar main\" !important", css)
@@ -54,5 +54,5 @@ class MinimalHomeNavigationTests(unittest.TestCase):
     def test_version_bumped_to_455(self):
         init = read("codegaai/__init__.py")
 
-        self.assertIn('__version__ = "4.5.10"', init)
-        self.assertIn("Action-First Delivery Guard", init)
+        self.assertIn('__version__ = "4.5.13"', init)
+        self.assertIn("Direct Command Fast Path", init)
