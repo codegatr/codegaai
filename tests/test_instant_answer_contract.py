@@ -14,6 +14,15 @@ class InstantAnswerContractTest(unittest.TestCase):
         self.assertEqual(answer.content, "4")
         self.assertEqual(answer.intent, "calculation")
 
+    def test_direct_output_command_returns_exact_text_without_model(self) -> None:
+        from codegaai.core.instant_answers import instant_answer_for
+
+        answer = instant_answer_for("Sadece OK yaz. Başka hiçbir şey yazma.")
+
+        self.assertIsNotNone(answer)
+        self.assertEqual(answer.content, "OK")
+        self.assertEqual(answer.intent, "direct_output")
+
     def test_sanitizer_removes_leaked_calculate_tool(self) -> None:
         from codegaai.core.answer_sanitizer import sanitize_final_answer
 

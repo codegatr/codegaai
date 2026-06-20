@@ -467,8 +467,15 @@ const TASK_MODELS = {
 };
 
 function instantAnswer(input) {
-  const text = String(input || "").trim().toLowerCase();
+  const raw = String(input || "").trim();
+  const text = raw.toLowerCase();
   if (!text) return "";
+
+  const direct = raw.match(/(?:^|\b)(?:sadece|yaln[ıi]zca|yalnizca|only)\s+["'“”‘’]?([A-Za-z0-9_.!? -]{1,40}?)["'“”‘’]?\s+(?:yaz|soyle|söyle|cevapla|write|say|reply)\b/i);
+  if (direct) {
+    const value = String(direct[1] || "").replace(/\s+/g, " ").replace(/[ .]+$/g, "").trim();
+    if (value && !/^(cevap|cevabi|cevabı|sonuc|sonuç|sonucu|yanit|yanıt)$/i.test(value)) return value;
+  }
 
   if (/^(merhaba|selam|hi|hello|hey|günaydın|iyi\s+(akşam|akşamlar|gece|geceler)|nasılsın|naber)\b/.test(text)) {
     if (text.includes("günaydın")) return "Günaydın. Buradayım, nasıl yardımcı olayım?";
