@@ -423,6 +423,8 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
   const M = mm.default || mm;
   assert.strictEqual(M.instantAnswer("Sadece OK yaz. Başka hiçbir şey yazma."), "OK");
   assert.strictEqual(M.instantAnswer("Only YES write. Do not add anything else."), "YES");
+  assert.strictEqual(M.instantAnswer("2 + 2 kaç eder? Sadece sonucu yaz."), "4");
+  assert.strictEqual(M.instantAnswer("2+2? sadece sonucu yaz"), "4");
   const text = M.missingModelReply("code", "qwen2.5-coder:3b-instruct", true);
   assert.ok(/arka planda hazırlamaya başladım/.test(text), "otomatik hazırlama söylenir");
   assert.ok(/Ayarlar'a gitmene gerek yok/.test(text), "kullanıcı ayarlara itilmez");

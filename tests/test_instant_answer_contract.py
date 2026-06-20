@@ -14,6 +14,15 @@ class InstantAnswerContractTest(unittest.TestCase):
         self.assertEqual(answer.content, "4")
         self.assertEqual(answer.intent, "calculation")
 
+    def test_simple_math_with_turkish_chars_returns_without_model(self) -> None:
+        from codegaai.core.instant_answers import instant_answer_for
+
+        answer = instant_answer_for("2 + 2 kaç eder? Sadece sonucu yaz.")
+
+        self.assertIsNotNone(answer)
+        self.assertEqual(answer.content, "4")
+        self.assertEqual(answer.intent, "calculation")
+
     def test_direct_output_command_returns_exact_text_without_model(self) -> None:
         from codegaai.core.instant_answers import instant_answer_for
 

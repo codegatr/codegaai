@@ -144,7 +144,7 @@ assert.match(mainSource, /chat:status/);
 assert.match(mainSource, /chatId:\s*\(opts && opts\.chatId\)/);
 assert.match(rendererSource, /onChatStatus\(\(status\) => \{[\s\S]*?_kickWatchdog\(\)/);
 assert.match(rendererSource, /kind === "ignored"[\s\S]*?_kickWatchdog\(\)/);
-assert.match(rendererSource, /idleMs = 135000, hardMs = 300000/);
+assert.match(rendererSource, /idleMs = 30000, hardMs = 30000/);
 assert.match(rendererSource, /chatId:\s*currentChat\(\)\.id/);
 assert.doesNotMatch(
   modelManagerSource,

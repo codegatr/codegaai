@@ -463,13 +463,40 @@ const TASK_MODELS = {
   code: ["qwen3.5:9b", "qwen2.5-coder:7b", "qwen2.5-coder:3b", "qwen2.5-coder:3b-instruct", "qwen2.5-coder:7b-instruct", "qwen3.5:4b", "qwen3:8b", DEFAULT_MODEL],
   image: ["qwen3.5:4b", "gemma3:4b", "qwen3.5:9b", "qwen3:4b", DEFAULT_MODEL],
   writing: ["qwen3.5:9b", "qwen3.5:4b", "qwen3.6:27b", "qwen3:8b", "qwen3:14b", "mistral:7b", DEFAULT_MODEL],
-  chat: [DEFAULT_MODEL, "qwen3.5:2b", "qwen3.5:0.8b", "qwen3.5:9b", "qwen3:4b", "qwen3:1.7b", "llama3.2:3b"],
+  chat: ["qwen3.5:0.8b", "qwen3.5:2b", DEFAULT_MODEL, "qwen3:1.7b", "qwen3:4b", "llama3.2:3b", "qwen3.5:9b"],
 };
+
+function safeArithmeticAnswer(input) {
+  const raw = String(input || "").trim();
+  if (!raw) return "";
+  const folded = _foldTr(raw);
+  const match = raw.match(/-?\d+(?:[.,]\d+)?(?:\s*(?:\+|-|\*|\/|x|X|×|÷)\s*-?\d+(?:[.,]\d+)?)+/);
+  if (!match) return "";
+  if (!/(?:kac|eder|hesap|sonuc|cevap|result|answer|sadece|only|=|\?)/i.test(folded)) return "";
+  const expr = match[0]
+    .replace(/[xX×]/g, "*")
+    .replace(/÷/g, "/")
+    .replace(/,/g, ".")
+    .replace(/\s+/g, "");
+  if (!/^-?(?:\d+(?:\.\d+)?|\.\d+)(?:[+\-*/]-?(?:\d+(?:\.\d+)?|\.\d+))+$/.test(expr)) return "";
+  if (/\/0(?:\.0+)?(?:$|[+\-*/])/.test(expr)) return "Tanimsiz";
+  try {
+    const value = Function(`"use strict"; return (${expr});`)();
+    if (!Number.isFinite(value)) return "";
+    if (Math.abs(value - Math.round(value)) < 1e-10) return String(Math.round(value));
+    return String(Number(value.toFixed(10)));
+  } catch (_e) {
+    return "";
+  }
+}
 
 function instantAnswer(input) {
   const raw = String(input || "").trim();
   const text = raw.toLowerCase();
   if (!text) return "";
+
+  const math = safeArithmeticAnswer(raw);
+  if (math) return math;
 
   const direct = raw.match(/(?:^|\b)(?:sadece|yaln[ıi]zca|yalnizca|only)\s+["'“”‘’]?([A-Za-z0-9_.!? -]{1,40}?)["'“”‘’]?\s+(?:yaz|soyle|söyle|cevapla|write|say|reply)\b/i);
   if (direct) {
@@ -1527,11 +1554,12 @@ class ModelManager {
         };
       }
       if (e && e.name === "TimeoutError") {
+        this._abort = null;
         this.state = { ...this.state, status: READY_STATES.READY, message: "Zaman asimi" };
         return {
           provider: "instant",
           model: "codega-timeout",
-          text: "Yanit suresi asildi. Daha hafif model secebilir, Hizli modu acabilir veya tekrar deneyebilirsin.",
+          text: "Yanit 30 saniye icinde gelmedi; istegi guvenli sekilde durdurdum. Daha hafif model secebilir veya tekrar deneyebilirsin.",
         };
       }
       this.state = {
@@ -1990,6 +2018,10 @@ class ModelManager {
     }
     if (providers.includes("ollama") && await ollamaReachable()) {
       try {
+        try {
+          const lastUser = [...messages].reverse().find((m) => m && m.role === "user");
+          logs.info("model_generate", `provider=ollama model=${model} stream=${Boolean(onToken)} timeout=${Math.round(OLLAMA_CHAT_TIMEOUT_MS / 1000)}s prompt=${String(lastUser?.content || "").slice(0, 240).replace(/\s+/g, " ")}`);
+        } catch (_logError) {}
         const content = onToken
           ? await ollamaChatStream(model, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS, onToken, signal: sig })
           : await ollamaChat(model, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS, signal: sig });
