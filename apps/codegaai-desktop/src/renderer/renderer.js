@@ -1314,7 +1314,7 @@ let _kickWatchdog = null; // akışta her gerçek token geldiğinde idle watchdo
 
 // İki katmanlı koruma: cevap tokenları ile motorun ilerleme/heartbeat sinyalleri idle
 // sayacını sıfırlar. hardMs ise takılan bir işi her durumda sonlandıran kesin üst sınırdır.
-function sendMessageWithWatchdog(text, options = {}, idleMs = 135000, hardMs = 300000) {
+function sendMessageWithWatchdog(text, options = {}, idleMs = 30000, hardMs = 30000) {
   let timer = null;
   let hardTimer = null;
   let rejectFn = null;

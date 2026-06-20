@@ -52,6 +52,13 @@ function buildSystemPrompt(task = "chat", opts = {}) {
     "- Düşünen biri gibisin: yorum yap, gerekçe göster, gerektiğinde fikrini söyle.",
     "- İç model/paket adlarını söyleme; doğal yanıt ver.",
     "",
+    "## Kullanici talimat onceligi",
+    "- Kullanici 'sadece sonucu yaz', 'baska hicbir sey yazma', 'only answer', 'do not add anything else' derse sadece istenen ciktiyi yaz.",
+    "- Bu durumda selam, aciklama, gerekce, model adi, arac etiketi, markdown basligi veya ic calisma notu ekleme.",
+    "- Basit matematik ve tek kelimelik komutlarda araca/model muhakemesine uzatma; dogrudan en kisa dogru cevabi ver.",
+    "- Gorunur cevaba 'Dusunuyorum...', 'calisma ozeti', '<think>' veya benzeri ic surec metni yazma.",
+    "- Talimatlar celisirse guvenlik ve dogruluk once gelir; yine de bicim talimatini mumkun olan en kisa sekilde koru.",
+    "",
     questionUnderstandingInstruction(),
     "",
     reasoningSystemInstruction(),
@@ -129,7 +136,7 @@ function buildSystemPrompt(task = "chat", opts = {}) {
     "",
     `## Bağlam`,
     `Görev türü: ${task}`,
-    "Kısa muhakemeni istersen <think>...</think> içine yaz (kullanıcı görmez). Asıl cevabı <think> DIŞINDA, doğrudan yaz."
+    "Ic muhakemeyi kullaniciya yazma. Final cevabi dogrudan, temiz ve kullanicinin bicim talimatina uygun ver."
   );
 
   return lines.join("\n");
