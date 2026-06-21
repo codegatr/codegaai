@@ -52,6 +52,8 @@ class AgentBrain:
         r"\b(hesapla|calculate|integral|türev|matris|istatistik)\b",
     ]
     _SHORT_QA_PATTERNS = [
+        r"\b[\w\+\#\.\-]{1,40}\s+(nedir|ne demek)\b",
+        r"\b(nedir|ne demek)\s+[\w\+\#\.\-]{1,40}\b",
         r"\b(nedir|ne demek)\b.{0,80}\b(tek c.mle|kisa|kisaca)\b",
         r"\b(sadece|yalnizca|only)\b.{0,40}\b(yaz|soyle|cevapla|write|say)\b",
         r"\b(kisa cevap|short answer)\b",

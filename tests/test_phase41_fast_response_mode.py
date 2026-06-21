@@ -27,6 +27,15 @@ class FastResponseModeTests(unittest.TestCase):
         self.assertIn("detect_device_profile", jobs)
         self.assertIn("downloaded_ids", jobs)
 
+    def test_chat_route_diagnostics_include_prompt_length_and_timeout(self):
+        jobs = read("codegaai/api/routes/jobs.py")
+
+        self.assertIn("system_prompt_length", jobs)
+        self.assertIn("System Prompt Length", jobs)
+        self.assertIn("CHAT_ROUTE%s", jobs)
+        self.assertIn("First Token", jobs)
+        self.assertIn("Timeout", jobs)
+
     def test_fast_mode_ui_toggle_and_payload(self):
         index = read("codegaai/ui/web/index.html")
         chat = read("codegaai/ui/web/js/chat.js")
@@ -43,8 +52,8 @@ class FastResponseModeTests(unittest.TestCase):
         self.assertIn("cpu_count = os.cpu_count() or 4", engine)
         self.assertIn("n_threads = 2 if low_end else max(2, min(cpu_count - 1, 8))", engine)
 
-    def test_version_bumped_to_4516(self):
+    def test_version_bumped_to_4517(self):
         init = read("codegaai/__init__.py")
 
-        self.assertIn('__version__ = "4.5.16"', init)
-        self.assertIn("Fast 4B Router", init)
+        self.assertIn('__version__ = "4.5.17"', init)
+        self.assertIn("Chat Route Diagnostics", init)

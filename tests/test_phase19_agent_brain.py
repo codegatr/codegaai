@@ -31,6 +31,16 @@ class TestAgentBrain(unittest.TestCase):
         self.assertIn("run_python", decision.needs_tools)
         self.assertIn("calculate", decision.needs_tools)
 
+    def test_short_definition_questions_do_not_become_coding_tasks(self) -> None:
+        from codegaai.core.agent_brain import decide_response
+
+        for question in ["PHP nedir?", "Laravel nedir?"]:
+            decision = decide_response(question)
+
+            self.assertEqual(decision.intent, "short_qa")
+            self.assertFalse(decision.needs_careful_reasoning)
+            self.assertFalse(decision.needs_web)
+
     def test_system_prompt_really_includes_tools(self) -> None:
         from codegaai.core.system_prompt import build_system_prompt
 

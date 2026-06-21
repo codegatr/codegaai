@@ -533,6 +533,7 @@ class ChatJob:
         self.finished_at: Optional[float] = None
         self.task_class = ""
         self.selected_model = ""
+        self.system_prompt_length = 0
         self.first_token_at: Optional[float] = None
         self.timeout = False
         self.timeout_seconds = DIAG_TIMEOUT_SECONDS
@@ -605,6 +606,7 @@ class ChatJob:
                     "message": self.message,
                     "task": self.task_class or "-",
                     "selected_model": self.selected_model or "-",
+                    "system_prompt_length": self.system_prompt_length,
                     "first_token_ms": first_token_ms,
                     "total_ms": int(elapsed * 1000),
                     "timeout": self.timeout,
@@ -628,6 +630,7 @@ def _format_diag_block(job: ChatJob) -> str:
         f"Message:\n{job.message}\n\n"
         f"Task:\n{job.task_class or '-'}\n\n"
         f"Selected Model:\n{job.selected_model or '-'}\n\n"
+        f"System Prompt Length:\n{job.system_prompt_length}\n\n"
         f"First Token:\n{first}\n\n"
         f"Total:\n{total}\n\n"
         f"Timeout:\n{'YES' if job.timeout else 'NO'}"
@@ -962,6 +965,9 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
             raw_messages = [{"role": "system", "content": think_prompt}]
         else:
             raw_messages = [{"role": "system", "content": system_prompt}]
+
+        job.system_prompt_length = len(system_prompt)
+        log.info("CHAT_ROUTE%s", _format_diag_block(job))
 
         raw_messages.extend(history)
         raw_messages.append({"role": "user", "content": job.message})
