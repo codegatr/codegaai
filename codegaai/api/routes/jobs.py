@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import ast
 import operator
+import queue
 import re
 import threading
 import time
@@ -462,7 +463,6 @@ FAST_RESPONSE_TASKS = {
     "fast_response",
     "short_qa",
     "chat",
-    "general",
     "calculation",
     "translate",
     "social",
@@ -537,6 +537,9 @@ class ChatJob:
         self.first_token_at: Optional[float] = None
         self.timeout = False
         self.timeout_seconds = DIAG_TIMEOUT_SECONDS
+        self.finish_reason = ""
+        self.stream_closed = False
+        self.response_completed = False
         self._timeout_logged = False
         self._lock = threading.Lock()
 
@@ -563,6 +566,7 @@ class ChatJob:
             self.finished_at = time.time()
             if error and ("timeout" in error.lower() or "zaman" in error.lower()):
                 self.timeout = True
+            self.response_completed = not bool(error)
 
     def mark_timeout_if_waiting(self) -> None:
         with self._lock:
@@ -611,6 +615,9 @@ class ChatJob:
                     "total_ms": int(elapsed * 1000),
                     "timeout": self.timeout,
                     "timeout_seconds": self.timeout_seconds,
+                    "finish_reason": self.finish_reason or "-",
+                    "stream_closed": self.stream_closed,
+                    "response_completed": self.response_completed,
                 },
             }
 
@@ -635,6 +642,53 @@ def _format_diag_block(job: ChatJob) -> str:
         f"Total:\n{total}\n\n"
         f"Timeout:\n{'YES' if job.timeout else 'NO'}"
     )
+
+
+def _stream_with_watchdog(job: ChatJob, engine, messages, cfg) -> None:
+    """Consume a model stream without letting the UI worker hang forever."""
+    items: "queue.Queue[object]" = queue.Queue()
+    sentinel = object()
+
+    def _produce() -> None:
+        try:
+            for token in engine.stream(messages, cfg=cfg):
+                items.put(token)
+        except BaseException as exc:  # forwarded to the chat worker
+            items.put(exc)
+        finally:
+            items.put(sentinel)
+
+    threading.Thread(
+        target=_produce,
+        daemon=True,
+        name=f"chat-stream-{job.job_id}",
+    ).start()
+
+    idle_timeout = 12.0
+    while True:
+        wait_for = job.timeout_seconds if job.first_token_at is None else idle_timeout
+        try:
+            item = items.get(timeout=wait_for)
+        except queue.Empty:
+            if job.first_token_at is None:
+                job.timeout = True
+                raise TimeoutError(
+                    f"Ilk token {int(job.timeout_seconds)} saniyede gelmedi; istek iptal edildi."
+                )
+            job.timeout = True
+            job.finish_reason = "idle_timeout_after_content"
+            job.stream_closed = False
+            log.warning("ChatJob %s stream idle timeout; eldeki cevap tamamlandi", job.job_id)
+            return
+
+        if item is sentinel:
+            job.finish_reason = job.finish_reason or "stop"
+            job.stream_closed = True
+            return
+        if isinstance(item, BaseException):
+            raise item
+        if isinstance(item, str) and item:
+            job.append(item)
 
 
 def _store_job(job: ChatJob) -> None:
@@ -994,19 +1048,31 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
         if not job.deep_think:
             cfg = GenerationConfig(max_tokens=job.max_tokens, temperature=0.55)
             if decision.should_stream:
-                for token in engine.stream(messages, cfg=cfg):
-                    job.append(token)
+                _stream_with_watchdog(job, engine, messages, cfg)
             elif decision.uses_tools:
                 result = engine.generate_agentic(messages, cfg=cfg, max_iters=3)
                 job.append(result.get("content", ""))
+                job.finish_reason = result.get("finish_reason", "stop")
             else:
                 result = engine.generate(messages, cfg=cfg, use_tools=True)
                 job.append(result.get("content", ""))
+                job.finish_reason = result.get("finish_reason", "stop")
         else:
             full_out = ""
-            for token in engine.stream(messages, cfg=GenerationConfig(
-                    max_tokens=job.max_tokens + 512, temperature=0.4)):
+            original_append = job.append
+
+            def _capture(token: str) -> None:
+                nonlocal full_out
                 full_out += token
+                original_append(token)
+
+            job.append = _capture  # type: ignore[method-assign]
+            try:
+                _stream_with_watchdog(job, engine, messages, GenerationConfig(
+                    max_tokens=job.max_tokens + 512, temperature=0.4))
+            finally:
+                job.append = original_append  # type: ignore[method-assign]
+                job.content = ""
             import re as _re
             think_match = _re.search(r'<think>(.*?)</think>', full_out, _re.DOTALL)
             if think_match:
@@ -1044,9 +1110,8 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
                 {"role": "user", "content": retry_instruction},
             ]
             job.content = ""
-            for token in engine.stream(retry_msgs, cfg=GenerationConfig(
-                    max_tokens=job.max_tokens, temperature=0.4)):
-                job.append(token)
+            _stream_with_watchdog(job, engine, retry_msgs, GenerationConfig(
+                max_tokens=job.max_tokens, temperature=0.4))
             job.set_stage("")
 
         if job.content:

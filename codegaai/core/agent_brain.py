@@ -86,7 +86,7 @@ class AgentBrain:
             decision.intent = "short_qa"
             decision.response_style = "short_direct"
             decision.needs_memory = False
-            decision.should_stream = True
+            decision.should_stream = False
 
         if decision.intent == "general" and self._matches(low, self._CODE_PATTERNS):
             decision.intent = "coding"
@@ -130,7 +130,10 @@ class AgentBrain:
         # not stream when tool use is likely. This trades typing animation for
         # correctness.
         decision.needs_tools = sorted(set(decision.needs_tools))
-        decision.should_stream = not decision.needs_tools
+        if decision.intent == "short_qa":
+            decision.should_stream = False
+        else:
+            decision.should_stream = not decision.needs_tools
         return decision
 
     def guidance(self, decision: AgentDecision) -> str:

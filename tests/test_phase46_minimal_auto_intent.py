@@ -35,5 +35,5 @@ class MinimalAutoIntentTests(unittest.TestCase):
     def test_version_bumped_to_454(self):
         init = read("codegaai/__init__.py")
 
-        self.assertIn('__version__ = "4.5.17"', init)
-        self.assertIn("Chat Route Diagnostics", init)
+        self.assertIn('__version__ = "4.5.18"', init)
+        self.assertIn("Fast Router Watchdog", init)
