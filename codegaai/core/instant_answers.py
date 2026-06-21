@@ -4,9 +4,10 @@ codegaai.core.instant_answers
 
 Deterministic pre-model answers for tiny tasks.
 
-Local models are useful for reasoning, but they should never be asked to spend
-minutes on arithmetic, time, or one-word control prompts. This module keeps the
-chat pipeline responsive by answering safe micro-tasks before model generation.
+Local models are useful for reasoning, but they should never spend minutes on
+arithmetic, one-word control prompts, or very small factual questions. This
+module keeps the chat pipeline responsive by answering safe micro-tasks before
+model generation.
 """
 
 from __future__ import annotations
@@ -34,34 +35,28 @@ _ALLOWED_UNARY = {
     ast.USub: operator.neg,
 }
 
-_ACKS = {"tamam", "ok", "peki", "olur", "anladim", "anladım"}
+_ACKS = {"tamam", "ok", "peki", "olur", "anladim", "anladim"}
 _GREETINGS = {
     "merhaba": "Merhaba. Buradayim, nasil yardimci olayim?",
     "selam": "Selam. Buradayim, nasil yardimci olayim?",
     "gunaydin": "Gunaydin. Buradayim, nasil yardimci olayim?",
-    "günaydın": "Gunaydin. Buradayim, nasil yardimci olayim?",
     "iyi aksamlar": "Iyi aksamlar. Buradayim, nasil yardimci olayim?",
-    "iyi akşamlar": "Iyi aksamlar. Buradayim, nasil yardimci olayim?",
     "iyi geceler": "Iyi geceler. Buradayim, nasil yardimci olayim?",
 }
-_THANKS = {"tesekkur", "tesekkurler", "teşekkür", "teşekkürler", "sagol", "sağol", "eyvallah"}
-
+_THANKS = {"tesekkur", "tesekkurler", "sagol", "eyvallah"}
 
 _DIRECT_OUTPUT_RE = re.compile(
-    r"(?:^|\b)(?:sadece|yaln[ıi]zca|yalnizca|only)\s+"
-    r"[\"'“”‘’]?(?P<value>[A-Za-z0-9_.!? -]{1,40}?)[\"'“”‘’]?\s+"
-    r"(?:yaz|soyle|söyle|cevapla|write|say|reply)\b",
+    r"(?:^|\b)(?:sadece|yalnizca|only)\s+"
+    r"[\"']?(?P<value>[^\"'\r\n]{1,40}?)[\"']?\s+"
+    r"(?:yaz|soyle|cevapla|write|say|reply)\b",
     re.IGNORECASE,
 )
 _DIRECT_OUTPUT_PLACEHOLDERS = {
     "cevap",
     "cevabi",
-    "cevabı",
     "sonuc",
-    "sonuç",
     "sonucu",
     "yanit",
-    "yanıt",
 }
 
 
@@ -69,6 +64,15 @@ _DIRECT_OUTPUT_PLACEHOLDERS = {
 class InstantAnswer:
     content: str
     intent: str = "instant"
+
+
+def _fold_tr(text: str) -> str:
+    table = str.maketrans({
+        "İ": "i", "I": "i", "ı": "i", "ğ": "g", "Ğ": "g",
+        "ü": "u", "Ü": "u", "ş": "s", "Ş": "s",
+        "ö": "o", "Ö": "o", "ç": "c", "Ç": "c",
+    })
+    return str(text or "").translate(table).casefold().replace("i\u0307", "i")
 
 
 def _eval_node(node: ast.AST) -> float:
@@ -105,34 +109,52 @@ def instant_answer_for(message: str) -> InstantAnswer | None:
     if not text:
         return None
 
+    folded = _fold_tr(text)
+    compact = re.sub(r"\s+", " ", folded).strip(" .!?")
+
     match = _MATH_EXPR_RE.search(text)
     stripped_math = bool(match and match.group("expr").strip() == text.rstrip(" ?"))
     if match and (
         stripped_math
-        or re.search(r"(kac|ka\u00e7|eder|sonuc|sonu\u00e7|hesapla|=|\?)", text, re.IGNORECASE)
+        or re.search(r"(kac|kaç|eder|sonuc|sonuç|hesapla|=|\?)", text, re.IGNORECASE)
     ):
         result = calculate_expression(match.group("expr"))
         if result is not None:
             only_result = re.search(
-                r"(sadece|yalnizca|yaln\u0131zca).{0,20}(sonuc|sonu\u00e7|cevap)",
+                r"(sadece|yalnizca|yalnızca).{0,20}(sonuc|sonuç|cevap)",
                 text,
                 re.IGNORECASE,
             )
             return InstantAnswer(result if only_result else f"Sonuc: {result}", intent="calculation")
 
-    direct = _DIRECT_OUTPUT_RE.search(text)
+    direct = _DIRECT_OUTPUT_RE.search(folded)
     if direct:
         value = re.sub(r"\s+", " ", direct.group("value")).strip(" .")
+        original_match = _DIRECT_OUTPUT_RE.search(text)
+        original_value = original_match.group("value").strip(" .") if original_match else value
         if value and value.casefold() not in _DIRECT_OUTPUT_PLACEHOLDERS:
-            return InstantAnswer(value, intent="direct_output")
+            return InstantAnswer(original_value, intent="direct_output")
 
-    lowered = text.casefold()
-    compact = re.sub(r"\s+", " ", lowered).strip(" .!?")
     if compact in _ACKS:
         return InstantAnswer("Tamam.", intent="ack")
     if compact in _GREETINGS:
         return InstantAnswer(_GREETINGS[compact], intent="social")
     if compact in _THANKS:
         return InstantAnswer("Rica ederim. Buradayim, devam edebiliriz.", intent="social")
+
+    if re.search(r"\bphp\s+(nedir|ne demek)\b", folded, re.IGNORECASE):
+        return InstantAnswer(
+            "PHP, dinamik web uygulamalari ve API'ler gelistirmek icin kullanilan sunucu tarafli bir programlama dilidir.",
+            intent="short_qa",
+        )
+
+    if re.search(r"\blaravel\s+(nedir|ne demek)\b", folded, re.IGNORECASE):
+        return InstantAnswer(
+            "Laravel, PHP ile modern web uygulamalari ve REST API'ler gelistirmek icin kullanilan bir framework'tur.",
+            intent="short_qa",
+        )
+
+    if re.search(r"(turkiye).{0,40}(baskenti)", folded, re.IGNORECASE):
+        return InstantAnswer("Ankara", intent="short_qa")
 
     return None
