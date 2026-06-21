@@ -52,6 +52,29 @@ const Chat = (() => {
     return `<p>${html}</p>`;
   }
 
+  function renderDiagnostics(diag) {
+    if (!diag) return "";
+    const first = diag.first_token_ms == null ? "-" : `${(diag.first_token_ms / 1000).toFixed(1)}s`;
+    const total = diag.total_ms == null ? "-" : `${(diag.total_ms / 1000).toFixed(1)}s`;
+    return `<pre class="agent-diagnostics">Message:
+${escapeHTML(diag.message || "")}
+
+Task:
+${escapeHTML(diag.task || "-")}
+
+Selected Model:
+${escapeHTML(diag.selected_model || "-")}
+
+First Token:
+${escapeHTML(first)}
+
+Total:
+${escapeHTML(total)}
+
+Timeout:
+${diag.timeout ? "YES" : "NO"}</pre>`;
+  }
+
   // ---------- Render ----------
 
   function renderMessage(msg) {
@@ -62,7 +85,7 @@ const Chat = (() => {
         el("div", { class: "message__role" }, isUser ? "Sen" : "CODEGA AI"),
         el("div", {
           class: "message__content",
-          html: renderMarkdown(msg.content),
+          html: renderMarkdown(msg.content) + (!isUser ? renderDiagnostics(msg.diagnostics) : ""),
         }),
         // Faz 7: asistan mesajlarına 👍/👎
         !isUser && msg.id && state.chatId
@@ -699,6 +722,9 @@ const Chat = (() => {
 
   // ── Job Polling ile Chat (SSE yerine, her yerde çalışır) ─────────────
   async function sendWithPolling(text) {
+    function diagnosticsHTML(d) {
+      return renderDiagnostics((d && d.diagnostics) || assistantMsg.diagnostics);
+    }
     // Yanıt balonunu oluştur
     const assistantMsg = { role: "assistant", content: "", id: null, rating: 0 };
     state.messages.push(assistantMsg);
@@ -740,11 +766,12 @@ const Chat = (() => {
 
           // Stage göster (web aramada, RAG'da, vs.) — content yokken durum bildirici
           if (!d.content && d.stage && contentEl) {
+            assistantMsg.diagnostics = d.diagnostics || assistantMsg.diagnostics;
             setAIState("thinking", d.stage.replace(/[🔍✏️]/g, "").trim() || "CODEGA AI çalışıyor", "Sonuç hazır olunca burada akmaya başlayacak.");
             contentEl.innerHTML = `<div style="color:var(--color-text-muted);font-size:13px;font-style:italic;display:flex;align-items:center;gap:8px">
               <span style="display:inline-block;width:12px;height:12px;border:2px solid var(--color-accent);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></span>
               ${d.stage}
-            </div>`;
+            </div>` + diagnosticsHTML(d);
           }
 
           // Yeni token'lar varsa göster
@@ -752,10 +779,12 @@ const Chat = (() => {
             const shouldStick = isNearBottom();
             lastLen = d.content.length;
             assistantMsg.content = d.content;
+            assistantMsg.diagnostics = d.diagnostics || assistantMsg.diagnostics;
             setAIState("writing", "Yanıt yazılıyor", `${lastLen} karakter üretildi; istersen okumaya başlayabilirsin.`);
             if (contentEl) {
               let thoughtHtml = d.thought ? `<details style="margin-bottom:8px;opacity:.7"><summary style="cursor:pointer;font-size:12px;color:var(--color-accent)">💭 Düşünce (${d.thought.split(' ').length} kelime)</summary><pre style="font-size:11px;padding:8px;background:var(--color-surface-2);border-radius:6px;white-space:pre-wrap">${d.thought}</pre></details>` : '';
               contentEl.innerHTML = thoughtHtml + renderMarkdown(d.content) + (d.done ? "" : '<span class="stream-cursor">▊</span>');
+              contentEl.insertAdjacentHTML("beforeend", diagnosticsHTML(d));
               keepBottomIfNeeded(shouldStick);
             }
           }
@@ -763,6 +792,12 @@ const Chat = (() => {
           if (d.done) {
             clearInterval(poll);
             assistantMsg.streaming = false;
+            assistantMsg.diagnostics = d.diagnostics || assistantMsg.diagnostics;
+            if (contentEl) {
+              const body = d.content || assistantMsg.content || (d.error ? `Bir aksama oldu: ${d.error}` : "");
+              if (body) assistantMsg.content = body;
+              contentEl.innerHTML = (body ? renderMarkdown(body) : "") + diagnosticsHTML(d);
+            }
             // Timing
             const timeLbl = document.getElementById("status-time-elapsed");
             if (timeLbl) timeLbl.textContent = `${d.elapsed_ms}ms`;

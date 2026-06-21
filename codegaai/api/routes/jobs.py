@@ -456,6 +456,9 @@ async def _maybe_web_search(message: str) -> str:
         return ""
 
 
+DIAG_TIMEOUT_SECONDS = 30.0
+
+
 class ChatJob:
     def __init__(self, job_id: str, message: str, chat_id: Optional[int],
                  max_tokens: int, file_context: str = "", deep_think: bool = False,
@@ -474,6 +477,12 @@ class ChatJob:
         self.error = ""
         self.started_at = time.time()
         self.finished_at: Optional[float] = None
+        self.task_class = ""
+        self.selected_model = ""
+        self.first_token_at: Optional[float] = None
+        self.timeout = False
+        self.timeout_seconds = DIAG_TIMEOUT_SECONDS
+        self._timeout_logged = False
         self._lock = threading.Lock()
 
     def set_stage(self, stage: str) -> None:
@@ -483,6 +492,8 @@ class ChatJob:
 
     def append(self, token: str) -> None:
         with self._lock:
+            if token and self.first_token_at is None:
+                self.first_token_at = time.time()
             self.content += token
 
     def finish(self, error: str = "") -> None:
@@ -491,10 +502,26 @@ class ChatJob:
             self.error = error
             self.stage = ""
             self.finished_at = time.time()
+            if error and ("timeout" in error.lower() or "zaman" in error.lower()):
+                self.timeout = True
+
+    def mark_timeout_if_waiting(self) -> None:
+        with self._lock:
+            if self.status not in ("pending", "running"):
+                return
+            if self.first_token_at is not None:
+                return
+            self.timeout = True
+            if not self._timeout_logged:
+                self._timeout_logged = True
+                self.stage = f"Ilk token {int(self.timeout_seconds)} saniyeyi asti"
 
     def to_dict(self) -> dict:
         with self._lock:
             elapsed = (self.finished_at or time.time()) - self.started_at
+            first_token_ms = None
+            if self.first_token_at is not None:
+                first_token_ms = int((self.first_token_at - self.started_at) * 1000)
             return {
                 "job_id": self.job_id,
                 "status": self.status,
@@ -505,11 +532,37 @@ class ChatJob:
                 "error": self.error,
                 "done": self.status in ("done", "error"),
                 "elapsed_ms": int(elapsed * 1000),
+                "diagnostics": {
+                    "message": self.message,
+                    "task": self.task_class or "-",
+                    "selected_model": self.selected_model or "-",
+                    "first_token_ms": first_token_ms,
+                    "total_ms": int(elapsed * 1000),
+                    "timeout": self.timeout,
+                    "timeout_seconds": self.timeout_seconds,
+                },
             }
 
 
 _jobs: dict[str, ChatJob] = {}
 _jobs_lock = threading.Lock()
+
+
+def _format_diag_block(job: ChatJob) -> str:
+    first = "-"
+    if job.first_token_at:
+        first = f"{job.first_token_at - job.started_at:.1f}s"
+    end = job.finished_at or time.time()
+    total = f"{end - job.started_at:.1f}s"
+    return (
+        "\n"
+        f"Message:\n{job.message}\n\n"
+        f"Task:\n{job.task_class or '-'}\n\n"
+        f"Selected Model:\n{job.selected_model or '-'}\n\n"
+        f"First Token:\n{first}\n\n"
+        f"Total:\n{total}\n\n"
+        f"Timeout:\n{'YES' if job.timeout else 'NO'}"
+    )
 
 
 def _store_job(job: ChatJob) -> None:
@@ -528,6 +581,18 @@ def _get_job(job_id: str) -> Optional[ChatJob]:
 
 async def _run_chat_job(job: ChatJob) -> None:
     job.status = "running"
+    def _diag_timeout_watch() -> None:
+        time.sleep(job.timeout_seconds)
+        job.mark_timeout_if_waiting()
+        if job.timeout and job.first_token_at is None:
+            log.warning("CHAT_DIAG%s", _format_diag_block(job))
+
+    threading.Thread(
+        target=_diag_timeout_watch,
+        daemon=True,
+        name=f"chat-diag-{job.job_id}",
+    ).start()
+
     try:
         from codegaai.core.engine import LLMEngine, GenerationConfig
         from codegaai.core.system_prompt import build_system_prompt
@@ -571,6 +636,7 @@ async def _run_chat_job(job: ChatJob) -> None:
                     pass
             job.finish()
             log.info("ChatJob %s delivered artifact before model", job.job_id)
+            log.info("CHAT_DIAG%s", _format_diag_block(job))
             return
 
         try:
@@ -594,8 +660,11 @@ async def _run_chat_job(job: ChatJob) -> None:
                     store.add_message(job.chat_id, "assistant", answer)
                 except Exception:
                     pass
+            job.task_class = str(instant.intent or "instant").upper()
+            job.selected_model = "codega-instant"
             job.finish()
             log.info("ChatJob %s instant answer: %s", job.job_id, instant.intent)
+            log.info("CHAT_DIAG%s", _format_diag_block(job))
             return
 
         if _is_social_chat(job.message) and msg_len < 60:
@@ -613,7 +682,10 @@ async def _run_chat_job(job: ChatJob) -> None:
                     store.add_message(job.chat_id, "assistant", answer)
                 except Exception:
                     pass
+            job.task_class = "SOCIAL"
+            job.selected_model = "codega-instant"
             job.finish()
+            log.info("CHAT_DIAG%s", _format_diag_block(job))
             return
 
         capability = _quick_capability_response(job.message)
@@ -631,11 +703,15 @@ async def _run_chat_job(job: ChatJob) -> None:
                     store.add_message(job.chat_id, "assistant", capability)
                 except Exception:
                     pass
+            job.task_class = "CAPABILITY"
+            job.selected_model = "codega-instant"
             job.finish()
+            log.info("CHAT_DIAG%s", _format_diag_block(job))
             return
 
         engine = LLMEngine.get()
         decision = decide_response(job.message, history=history)
+        job.task_class = str(decision.intent or "general").upper()
         if decision.intent == "architecture_planning":
             job.max_tokens = max(job.max_tokens, 4096)
 
@@ -667,6 +743,7 @@ async def _run_chat_job(job: ChatJob) -> None:
                         task=decision.intent,
                     ).model_id
             if target_model:
+                job.selected_model = target_model
                 if engine.is_ready and engine.status.get("model_id") != target_model:
                     log.debug("Model geçişi arka plana bırakıldı: %s", target_model)
                 elif not engine.is_ready and target_model in downloaded_ids:
@@ -675,10 +752,14 @@ async def _run_chat_job(job: ChatJob) -> None:
             elif not engine.is_ready:
                 rec = recommend_llm_model(detect_device_profile(), downloaded_ids, task=decision.intent)
                 if rec.model_id in downloaded_ids:
+                    job.selected_model = rec.model_id
                     from codegaai.core.model_warmup import warm_model_async
                     warm_model_async(rec.model_id)
         except Exception as exc:
             log.debug("Model routing atlandı: %s", exc)
+
+        if not job.selected_model:
+            job.selected_model = engine.status.get("model_id") or "-"
 
         if not engine.is_ready:
             # ─── Simülasyon Modu (Faz 57) ───
@@ -686,13 +767,16 @@ async def _run_chat_job(job: ChatJob) -> None:
             try:
                 from codegaai.core.simulation_mode import simulate_chat_response
                 sim = simulate_chat_response(job.message, history)
+                job.selected_model = job.selected_model or "simulation"
                 job.append(sim["content"])
                 job.finish()
                 log.info("Simülasyon modu yanıt verdi (LLM yüklü değil)")
+                log.info("CHAT_DIAG%s", _format_diag_block(job))
                 return
             except Exception as sim_exc:
                 log.warning("Simülasyon modu başarısız: %s", sim_exc)
                 job.finish(error="Model yüklü değil. Sistem → Otomatik Onar ile düzeltebilirsin.")
+                log.info("CHAT_DIAG%s", _format_diag_block(job))
                 return
 
         web_context = ""
@@ -896,6 +980,7 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
         ])
 
         job.finish()
+        log.info("CHAT_DIAG%s", _format_diag_block(job))
         log.info(
             "ChatJob %s tamamlandı: %d token, %.1fs",
             job.job_id,
@@ -905,6 +990,7 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
     except Exception as exc:
         log.error("ChatJob %s hata: %s", job.job_id, exc)
         job.finish(error=str(exc)[:200])
+        log.info("CHAT_DIAG%s", _format_diag_block(job))
 
 
 class ChatJobRequest(BaseModel):

@@ -1693,6 +1693,20 @@ body.modal-open { overflow: hidden; }
   font-weight: normal;
   margin-left: 1px;
 }
+
+.agent-diagnostics {
+  display: block;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-accent) 7%, var(--color-bg-elevated));
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
 @keyframes blink-cursor {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0; }
