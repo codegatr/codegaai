@@ -51,6 +51,11 @@ class AgentBrain:
         r"\d+\s*[\+\-\*/\^]\s*\d+",
         r"\b(hesapla|calculate|integral|türev|matris|istatistik)\b",
     ]
+    _SHORT_QA_PATTERNS = [
+        r"\b(nedir|ne demek)\b.{0,80}\b(tek c.mle|kisa|kisaca)\b",
+        r"\b(sadece|yalnizca|only)\b.{0,40}\b(yaz|soyle|cevapla|write|say)\b",
+        r"\b(kisa cevap|short answer)\b",
+    ]
     _VISION_PATTERNS = [
         r"\b(görsel|resim|foto|image|screenshot|ekran|fotoğraf)\b",
     ]
@@ -75,7 +80,13 @@ class AgentBrain:
         low = self._fold_tr(text)
         decision = AgentDecision()
 
-        if self._matches(low, self._CODE_PATTERNS):
+        if self._matches(low, self._SHORT_QA_PATTERNS):
+            decision.intent = "short_qa"
+            decision.response_style = "short_direct"
+            decision.needs_memory = False
+            decision.should_stream = True
+
+        if decision.intent == "general" and self._matches(low, self._CODE_PATTERNS):
             decision.intent = "coding"
             decision.needs_careful_reasoning = True
 

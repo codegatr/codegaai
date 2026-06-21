@@ -43,8 +43,8 @@ class FastResponseModeTests(unittest.TestCase):
         self.assertIn("cpu_count = os.cpu_count() or 4", engine)
         self.assertIn("n_threads = 2 if low_end else max(2, min(cpu_count - 1, 8))", engine)
 
-    def test_version_bumped_to_454(self):
+    def test_version_bumped_to_4516(self):
         init = read("codegaai/__init__.py")
 
-        self.assertIn('__version__ = "4.5.14"', init)
-        self.assertIn("Direct Command Fast Path", init)
+        self.assertIn('__version__ = "4.5.16"', init)
+        self.assertIn("Fast 4B Router", init)

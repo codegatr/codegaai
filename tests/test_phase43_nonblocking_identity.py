@@ -10,13 +10,16 @@ def read(path: str) -> str:
 
 
 class NonBlockingIdentityTests(unittest.TestCase):
-    def test_chat_jobs_warm_models_without_blocking_response(self):
+    def test_chat_jobs_switch_to_fast_model_before_short_responses(self):
         jobs = read("codegaai/api/routes/jobs.py")
 
         self.assertIn("warm_model_async(target_model)", jobs)
         self.assertIn("warm_model_async(rec.model_id)", jobs)
-        self.assertIn("Model geçişi arka plana bırakıldı", jobs)
-        self.assertNotIn("router.switch_model_if_needed(target_model)", jobs)
+        self.assertIn("fast_task = _is_fast_response_task", jobs)
+        self.assertIn('task="fast_response"', jobs)
+        self.assertIn("router.switch_model_if_needed(target_model)", jobs)
+        self.assertIn("FAST_MODEL_CANDIDATES", jobs)
+        self.assertNotIn("Model gecisi arka plana birakildi", jobs)
         self.assertNotIn("engine.load(rec.model_id)", jobs)
 
     def test_recommended_warmup_endpoint_is_non_blocking(self):
@@ -38,8 +41,8 @@ class NonBlockingIdentityTests(unittest.TestCase):
         self.assertIn("CODEX", prompt)
         self.assertIn("Claude", prompt)
         self.assertIn("Gemini", prompt)
-        self.assertIn("CODEGA AI'ye yöneltilmiş takma ad", prompt)
-        self.assertIn("ben Claude değilim", prompt)
+        self.assertIn("CODEGA AI'ye y", prompt)
+        self.assertIn("ben Claude", prompt)
         self.assertIn("codex|code\\s*x|claude|gemini|chatgpt|gpt", jobs)
         self.assertIn("CODEGA AI gibi cevapla", jobs)
         self.assertNotIn("Claude gibi cevapla", jobs)

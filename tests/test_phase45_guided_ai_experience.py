@@ -44,5 +44,5 @@ class GuidedAIExperienceTests(unittest.TestCase):
     def test_version_bumped_to_454(self):
         init = read("codegaai/__init__.py")
 
-        self.assertIn('__version__ = "4.5.14"', init)
-        self.assertIn("Direct Command Fast Path", init)
+        self.assertIn('__version__ = "4.5.16"', init)
+        self.assertIn("Fast 4B Router", init)

@@ -458,6 +458,60 @@ async def _maybe_web_search(message: str) -> str:
 
 DIAG_TIMEOUT_SECONDS = 30.0
 
+FAST_RESPONSE_TASKS = {
+    "fast_response",
+    "short_qa",
+    "chat",
+    "general",
+    "calculation",
+    "translate",
+    "social",
+    "ack",
+    "direct_output",
+    "capability",
+}
+
+FAST_MODEL_CANDIDATES = (
+    "qwen3-4b-q4_k_m",
+    "qwen2.5-3b-instruct-q4_k_m",
+)
+
+
+def _task_slug(value: str) -> str:
+    return str(value or "general").strip().lower()
+
+
+def _is_fast_response_task(intent: str, message: str) -> bool:
+    task = _task_slug(intent)
+    if task in FAST_RESPONSE_TASKS:
+        return True
+    text = str(message or "").casefold()
+    return bool(re.search(
+        r"(sadece|yalnizca|yaln\u0131zca|only|tek c[üu]mle|kisa cevap|k\u0131sa cevap|nedir|ne demek)",
+        text,
+        re.IGNORECASE,
+    ))
+
+
+def _user_allows_large_model(message: str) -> bool:
+    text = str(message or "").casefold()
+    return bool(re.search(
+        r"(9b|8b|buyuk model|büyük model|guclu model|güçlü model|derin analiz|detayli analiz|detayl\u0131 analiz)",
+        text,
+        re.IGNORECASE,
+    ))
+
+
+def _first_downloaded(downloaded_ids: set[str], candidates: tuple[str, ...]) -> str:
+    for model_id in candidates:
+        if model_id in downloaded_ids:
+            return model_id
+    return ""
+
+
+def _is_heavy_local_model(model_id: str) -> bool:
+    return bool(re.search(r"(?:8b|9b|30b|80b|coder)", str(model_id or ""), re.IGNORECASE))
+
 
 class ChatJob:
     def __init__(self, job_id: str, message: str, chat_id: Optional[int],
@@ -492,12 +546,16 @@ class ChatJob:
 
     def append(self, token: str) -> None:
         with self._lock:
+            if self.finished_at is not None:
+                return
             if token and self.first_token_at is None:
                 self.first_token_at = time.time()
             self.content += token
 
     def finish(self, error: str = "") -> None:
         with self._lock:
+            if self.finished_at is not None:
+                return
             self.status = "error" if error else "done"
             self.error = error
             self.stage = ""
@@ -514,7 +572,18 @@ class ChatJob:
             self.timeout = True
             if not self._timeout_logged:
                 self._timeout_logged = True
-                self.stage = f"Ilk token {int(self.timeout_seconds)} saniyeyi asti"
+                self.stage = ""
+                self.status = "error"
+                self.error = (
+                    f"Ilk token {int(self.timeout_seconds)} saniyede gelmedi. "
+                    "Istek iptal edildi; daha hizli 4B modelle tekrar deneyebilirsin."
+                )
+                if not self.content:
+                    self.content = (
+                        "Bir aksama oldu: Model 30 saniye icinde cevap baslatamadi. "
+                        "CODEGA AI istegi iptal etti; 4B hizli modelle tekrar deneyebilirsin."
+                    )
+                self.finished_at = time.time()
 
     def to_dict(self) -> dict:
         with self._lock:
@@ -728,29 +797,60 @@ async def _run_chat_job(job: ChatJob) -> None:
                 m["id"] for m in registry.list_llm_models()
                 if registry.is_llm_downloaded(m["id"])
             }
-            if job.speed_mode and not job.deep_think:
+            profile = detect_device_profile()
+            fast_task = _is_fast_response_task(decision.intent, job.message)
+            allow_large = _user_allows_large_model(job.message)
+            if fast_task:
                 target_model = recommend_llm_model(
-                    detect_device_profile(),
+                    profile,
+                    downloaded_ids,
+                    task="fast_response",
+                    allow_large=False,
+                ).model_id
+            elif job.speed_mode and not job.deep_think:
+                target_model = recommend_llm_model(
+                    profile,
                     downloaded_ids,
                     task=decision.intent,
+                    allow_large=allow_large,
                 ).model_id
             else:
                 target_model = router.select_model(job.message, history=history)
-                if not target_model and downloaded_ids:
+                if target_model and _is_heavy_local_model(target_model) and not allow_large:
                     target_model = recommend_llm_model(
-                        detect_device_profile(),
+                        profile,
                         downloaded_ids,
                         task=decision.intent,
+                        allow_large=False,
+                    ).model_id
+                if not target_model and downloaded_ids:
+                    target_model = recommend_llm_model(
+                        profile,
+                        downloaded_ids,
+                        task=decision.intent,
+                        allow_large=allow_large,
                     ).model_id
             if target_model:
                 job.selected_model = target_model
                 if engine.is_ready and engine.status.get("model_id") != target_model:
-                    log.debug("Model geçişi arka plana bırakıldı: %s", target_model)
+                    if target_model in downloaded_ids:
+                        job.set_stage(f"Model degistiriliyor: {target_model}")
+                        switched = router.switch_model_if_needed(target_model)
+                        job.set_stage("")
+                        if not switched:
+                            fallback = _first_downloaded(downloaded_ids, FAST_MODEL_CANDIDATES)
+                            if fallback and fallback != target_model:
+                                job.selected_model = fallback
+                                router.switch_model_if_needed(fallback)
+                            else:
+                                log.warning("Model gecisi basarisiz: %s", target_model)
+                    else:
+                        log.debug("Hedef model indirilmemis, gecis atlandi: %s", target_model)
                 elif not engine.is_ready and target_model in downloaded_ids:
                     from codegaai.core.model_warmup import warm_model_async
                     warm_model_async(target_model)
             elif not engine.is_ready:
-                rec = recommend_llm_model(detect_device_profile(), downloaded_ids, task=decision.intent)
+                rec = recommend_llm_model(profile, downloaded_ids, task=decision.intent, allow_large=allow_large)
                 if rec.model_id in downloaded_ids:
                     job.selected_model = rec.model_id
                     from codegaai.core.model_warmup import warm_model_async

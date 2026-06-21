@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "4.5.15"
-__phase__ = "v4.5.15 - Chat Diagnostics and Model Selection Visibility"
+__version__ = "4.5.16"
+__phase__ = "v4.5.16 - Fast 4B Router and Timeout Fallback"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

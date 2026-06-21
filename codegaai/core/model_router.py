@@ -57,6 +57,9 @@ TURKISH_HEAVY = [
 ]
 
 QUICK_PATTERNS = [
+    r"\b(nedir|ne demek)\b.{0,40}\b(tek c[Ã¼u]mle|kisa|kÄ±sa)\b",
+    r"\b(sadece|yaln[Ä±i]zca|yalnizca)\b.{0,30}\b(yaz|soyle|sÃ¶yle|cevapla)\b",
+    r"^\s*\d+\s*[\+\-\*/xX]\s*\d+",
     r"^(merhaba|selam|hey|hi|hello)\b",
     r"^nasılsın", r"^ne haber", r"^iyi misin",
     r"^teşekkür", r"^tamam\b", r"^anladım",
@@ -78,7 +81,7 @@ RULES: list[ModelRule] = [
     ModelRule(
         model_id="qwen3-8b-q4_k_m",
         priority=100,
-        min_vram_gb=5.5,
+        min_vram_gb=10.0,
         keywords=["php", "laravel", "wordpress", "mysql", "nginx",
                   "apache", "cpanel", "directadmin", "htaccess",
                   "javascript", "typescript", "css", "html", "react",
@@ -95,7 +98,7 @@ RULES: list[ModelRule] = [
     ),
     ModelRule(
         model_id="qwen3-4b-q4_k_m",
-        priority=90,
+        priority=110,
         min_vram_gb=2.5,
         keywords=[],
         patterns=QUICK_PATTERNS,
@@ -124,7 +127,7 @@ RULES: list[ModelRule] = [
     ModelRule(
         model_id="qwen3-8b-q4_k_m",
         priority=50,
-        min_vram_gb=5.5,
+        min_vram_gb=10.0,
         keywords=[],
         patterns=[],
         task_types=["reasoning", "general"],
@@ -180,6 +183,11 @@ class ModelRouter:
             ).lower()
             text_for_analysis = f"{recent} {text_for_analysis}"
 
+        quick_model = self._select_quick_model(text_for_analysis)
+        if quick_model and quick_model != current:
+            log.info("Model router fast path: '%s...' -> %s", query[:40], quick_model)
+            return quick_model
+
         best_model = None
         best_priority = -1
         for rule in RULES:
@@ -207,6 +215,17 @@ class ModelRouter:
             if re.search(pattern, text, re.IGNORECASE):
                 score += 3
         return score
+
+    def _select_quick_model(self, text: str) -> Optional[str]:
+        if not any(re.search(pattern, text, re.IGNORECASE) for pattern in QUICK_PATTERNS):
+            return None
+        from codegaai.core.models_registry import ModelRegistry
+
+        reg = ModelRegistry.get()
+        for model_id in ("qwen3-4b-q4_k_m", "qwen2.5-3b-instruct-q4_k_m"):
+            if reg.is_llm_downloaded(model_id):
+                return model_id
+        return None
 
     def _get_free_vram(self) -> Optional[float]:
         try:

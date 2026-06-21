@@ -101,5 +101,5 @@ def test_chat_toolbar_uses_readable_tool_chips():
 
 def test_version_marks_codex_shell_release():
     init = read(INIT)
-    assert '__version__ = "4.5.10"' in init
-    assert "Action-First Delivery Guard" in init
+    assert '__version__ = "4.5.16"' in init
+    assert "Fast 4B Router" in init
