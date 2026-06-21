@@ -15,6 +15,7 @@ from __future__ import annotations
 import ast
 import operator
 import re
+import unicodedata
 from dataclasses import dataclass
 
 
@@ -35,7 +36,7 @@ _ALLOWED_UNARY = {
     ast.USub: operator.neg,
 }
 
-_ACKS = {"tamam", "ok", "peki", "olur", "anladim", "anladim"}
+_ACKS = {"tamam", "ok", "peki", "olur", "anladim"}
 _GREETINGS = {
     "merhaba": "Merhaba. Buradayim, nasil yardimci olayim?",
     "selam": "Selam. Buradayim, nasil yardimci olayim?",
@@ -67,12 +68,18 @@ class InstantAnswer:
 
 
 def _fold_tr(text: str) -> str:
-    table = str.maketrans({
-        "İ": "i", "I": "i", "ı": "i", "ğ": "g", "Ğ": "g",
-        "ü": "u", "Ü": "u", "ş": "s", "Ş": "s",
-        "ö": "o", "Ö": "o", "ç": "c", "Ç": "c",
-    })
-    return str(text or "").translate(table).casefold().replace("i\u0307", "i")
+    folded = str(text or "")
+    for src, dst in (
+        ("İ", "i"), ("I", "i"), ("ı", "i"), ("ğ", "g"), ("Ğ", "g"),
+        ("ü", "u"), ("Ü", "u"), ("ş", "s"), ("Ş", "s"),
+        ("ö", "o"), ("Ö", "o"), ("ç", "c"), ("Ç", "c"),
+    ):
+        folded = folded.replace(src, dst)
+    folded = folded.casefold().replace("i\u0307", "i")
+    return "".join(
+        ch for ch in unicodedata.normalize("NFKD", folded)
+        if not unicodedata.combining(ch)
+    )
 
 
 def _eval_node(node: ast.AST) -> float:
@@ -135,6 +142,15 @@ def instant_answer_for(message: str) -> InstantAnswer | None:
         if value and value.casefold() not in _DIRECT_OUTPUT_PLACEHOLDERS:
             return InstantAnswer(original_value, intent="direct_output")
 
+    direct_command = re.fullmatch(
+        r"\s*(?P<value>[A-Za-z0-9ÇĞİÖŞÜçğıöşü_.-]{1,24})\s+"
+        r"(?:yaz|soyle|söyle|cevapla|write|say|reply)\s*[.!?]?\s*",
+        text,
+        re.IGNORECASE,
+    )
+    if direct_command:
+        return InstantAnswer(direct_command.group("value"), intent="direct_output")
+
     if compact in _ACKS:
         return InstantAnswer("Tamam.", intent="ack")
     if compact in _GREETINGS:
@@ -157,4 +173,11 @@ def instant_answer_for(message: str) -> InstantAnswer | None:
     if re.search(r"(turkiye).{0,40}(baskenti)", folded, re.IGNORECASE):
         return InstantAnswer("Ankara", intent="short_qa")
 
+    if re.search(r"\bpython\s+(nedir|ne demek)\b", folded, re.IGNORECASE):
+        return InstantAnswer(
+            "Python, okunabilir soz dizimiyle otomasyon, web, veri analizi ve yapay zeka gelistirmede kullanilan genel amacli bir programlama dilidir.",
+            intent="short_qa",
+        )
+
     return None
+

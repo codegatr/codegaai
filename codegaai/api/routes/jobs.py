@@ -457,7 +457,9 @@ async def _maybe_web_search(message: str) -> str:
         return ""
 
 
-DIAG_TIMEOUT_SECONDS = 30.0
+FIRST_TOKEN_TIMEOUT_SECONDS = 15.0
+TOTAL_RESPONSE_TIMEOUT_SECONDS = 60.0
+STREAM_IDLE_TIMEOUT_SECONDS = 12.0
 
 FAST_RESPONSE_TASKS = {
     "fast_response",
@@ -536,7 +538,7 @@ class ChatJob:
         self.system_prompt_length = 0
         self.first_token_at: Optional[float] = None
         self.timeout = False
-        self.timeout_seconds = DIAG_TIMEOUT_SECONDS
+        self.timeout_seconds = FIRST_TOKEN_TIMEOUT_SECONDS
         self.finish_reason = ""
         self.stream_closed = False
         self.response_completed = False
@@ -585,8 +587,9 @@ class ChatJob:
                 )
                 if not self.content:
                     self.content = (
-                        "Bir aksama oldu: Model 30 saniye icinde cevap baslatamadi. "
-                        "CODEGA AI istegi iptal etti; 4B hizli modelle tekrar deneyebilirsin."
+                        f"Bir aksama oldu: Model {int(self.timeout_seconds)} saniye icinde "
+                        "cevap baslatamadi. CODEGA AI istegi iptal etti; "
+                        "4B hizli modelle tekrar deneyebilirsin."
                     )
                 self.finished_at = time.time()
 
@@ -640,7 +643,10 @@ def _format_diag_block(job: ChatJob) -> str:
         f"System Prompt Length:\n{job.system_prompt_length}\n\n"
         f"First Token:\n{first}\n\n"
         f"Total:\n{total}\n\n"
-        f"Timeout:\n{'YES' if job.timeout else 'NO'}"
+        f"Timeout:\n{'YES' if job.timeout else 'NO'}\n\n"
+        f"Finish Reason:\n{job.finish_reason or '-'}\n\n"
+        f"Stream Closed:\n{'YES' if job.stream_closed else 'NO'}\n\n"
+        f"Response Completed:\n{'YES' if job.response_completed else 'NO'}"
     )
 
 
@@ -664,12 +670,25 @@ def _stream_with_watchdog(job: ChatJob, engine, messages, cfg) -> None:
         name=f"chat-stream-{job.job_id}",
     ).start()
 
-    idle_timeout = 12.0
+    started = time.time()
     while True:
-        wait_for = job.timeout_seconds if job.first_token_at is None else idle_timeout
+        elapsed = time.time() - started
+        remaining_total = max(0.1, TOTAL_RESPONSE_TIMEOUT_SECONDS - elapsed)
+        wait_for = job.timeout_seconds if job.first_token_at is None else STREAM_IDLE_TIMEOUT_SECONDS
+        wait_for = min(wait_for, remaining_total)
         try:
             item = items.get(timeout=wait_for)
         except queue.Empty:
+            if time.time() - started >= TOTAL_RESPONSE_TIMEOUT_SECONDS:
+                job.timeout = True
+                job.finish_reason = "total_timeout"
+                job.stream_closed = False
+                if job.content.strip():
+                    log.warning("ChatJob %s total timeout; eldeki cevap tamamlandi", job.job_id)
+                    return
+                raise TimeoutError(
+                    f"Yanit {int(TOTAL_RESPONSE_TIMEOUT_SECONDS)} saniyelik ust sureyi asti."
+                )
             if job.first_token_at is None:
                 job.timeout = True
                 raise TimeoutError(
@@ -689,6 +708,43 @@ def _stream_with_watchdog(job: ChatJob, engine, messages, cfg) -> None:
             raise item
         if isinstance(item, str) and item:
             job.append(item)
+
+
+def _generate_agentic_with_timeout(job: ChatJob, engine, messages, cfg) -> dict:
+    """Run slower agentic generation behind a hard UI-facing timeout."""
+    items: "queue.Queue[object]" = queue.Queue(maxsize=1)
+
+    def _produce() -> None:
+        try:
+            items.put(engine.generate_agentic(messages, cfg=cfg, max_iters=3))
+        except BaseException as exc:
+            items.put(exc)
+
+    threading.Thread(
+        target=_produce,
+        daemon=True,
+        name=f"chat-agentic-{job.job_id}",
+    ).start()
+    try:
+        item = items.get(timeout=TOTAL_RESPONSE_TIMEOUT_SECONDS)
+    except queue.Empty:
+        job.timeout = True
+        job.finish_reason = "total_timeout"
+        raise TimeoutError(
+            f"Yanit {int(TOTAL_RESPONSE_TIMEOUT_SECONDS)} saniyelik ust sureyi asti."
+        )
+    if isinstance(item, BaseException):
+        raise item
+    return item if isinstance(item, dict) else {"content": str(item), "finish_reason": "stop"}
+
+
+def _fast_system_prompt() -> str:
+    return (
+        "You are CODEGA AI. Follow the user's latest instruction exactly. "
+        "For FAST_RESPONSE and SHORT_QA tasks, answer directly and briefly. "
+        "If the user says 'sadece', 'yalnizca', or 'only', output only the requested text. "
+        "Do not expose internal labels, tool tags, reasoning, or verification text."
+    )
 
 
 def _store_job(job: ChatJob) -> None:
@@ -918,6 +974,10 @@ async def _run_chat_job(job: ChatJob) -> None:
         if not job.selected_model:
             job.selected_model = engine.status.get("model_id") or "-"
 
+        if job.finished_at is not None:
+            log.warning("ChatJob %s timeout sonrasi model hazirlik asamasinda durduruldu", job.job_id)
+            return
+
         if not engine.is_ready:
             # ─── Simülasyon Modu (Faz 57) ───
             # LLM yok ama uygulama kullanılabilir kalsın
@@ -961,7 +1021,7 @@ async def _run_chat_job(job: ChatJob) -> None:
         try:
             from codegaai.core.memory import MemoryStore
             from codegaai.core.embeddings import EmbeddingService
-            if EmbeddingService.get().is_ready:
+            if decision.needs_memory and not _is_fast_response_task(decision.intent, job.message) and EmbeddingService.get().is_ready:
                 mem = MemoryStore.open()
                 # Daha zengin RAG: son mesaj + önceki 2 mesajı birleştir
                 rag_query = job.message
@@ -1001,6 +1061,9 @@ async def _run_chat_job(job: ChatJob) -> None:
             intent=decision.intent,            # ← coding/calculation/general
             deep_think=job.deep_think,
         )
+        fast_task = _is_fast_response_task(decision.intent, job.message)
+        if fast_task and not decision.uses_tools and not job.deep_think:
+            system_prompt = _fast_system_prompt()
 
         # ── Mesaj listesi oluştur + Context Sıkıştırma ───────────────
         if job.deep_think:
@@ -1045,18 +1108,20 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
             except Exception:
                 pass
 
+        if job.finished_at is not None:
+            log.warning("ChatJob %s timeout sonrasi uretim oncesi durduruldu", job.job_id)
+            return
+
         if not job.deep_think:
             cfg = GenerationConfig(max_tokens=job.max_tokens, temperature=0.55)
-            if decision.should_stream:
-                _stream_with_watchdog(job, engine, messages, cfg)
-            elif decision.uses_tools:
-                result = engine.generate_agentic(messages, cfg=cfg, max_iters=3)
+            if decision.uses_tools:
+                result = _generate_agentic_with_timeout(job, engine, messages, cfg)
                 job.append(result.get("content", ""))
                 job.finish_reason = result.get("finish_reason", "stop")
             else:
-                result = engine.generate(messages, cfg=cfg, use_tools=True)
-                job.append(result.get("content", ""))
-                job.finish_reason = result.get("finish_reason", "stop")
+                # Short/simple tasks also use the stream watchdog so the
+                # backend can observe first-token and total response time.
+                _stream_with_watchdog(job, engine, messages, cfg)
         else:
             full_out = ""
             original_append = job.append

@@ -101,5 +101,5 @@ def test_chat_toolbar_uses_readable_tool_chips():
 
 def test_version_marks_codex_shell_release():
     init = read(INIT)
-    assert '__version__ = "4.5.18"' in init
-    assert "Fast Router Watchdog" in init
+    assert '__version__ = "4.5.19"' in init
+    assert "Chat Pipeline Reliability" in init

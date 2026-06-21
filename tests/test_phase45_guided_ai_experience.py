@@ -44,5 +44,5 @@ class GuidedAIExperienceTests(unittest.TestCase):
     def test_version_bumped_to_454(self):
         init = read("codegaai/__init__.py")
 
-        self.assertIn('__version__ = "4.5.18"', init)
-        self.assertIn("Fast Router Watchdog", init)
+        self.assertIn('__version__ = "4.5.19"', init)
+        self.assertIn("Chat Pipeline Reliability", init)

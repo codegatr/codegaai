@@ -86,7 +86,7 @@ class AgentBrain:
             decision.intent = "short_qa"
             decision.response_style = "short_direct"
             decision.needs_memory = False
-            decision.should_stream = False
+            decision.should_stream = True
 
         if decision.intent == "general" and self._matches(low, self._CODE_PATTERNS):
             decision.intent = "coding"
@@ -131,7 +131,7 @@ class AgentBrain:
         # correctness.
         decision.needs_tools = sorted(set(decision.needs_tools))
         if decision.intent == "short_qa":
-            decision.should_stream = False
+            decision.should_stream = True
         else:
             decision.should_stream = not decision.needs_tools
         return decision

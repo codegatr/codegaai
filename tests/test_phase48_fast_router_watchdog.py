@@ -16,6 +16,7 @@ def test_short_qa_examples_use_instant_answers() -> None:
     php = instant_answer_for("PHP nedir? Tek cumle.")
     laravel = instant_answer_for("Laravel nedir?")
     capital = instant_answer_for("Turkiye'nin baskenti?")
+    capital_tr = instant_answer_for("Türkiye'nin başkenti?")
 
     assert php is not None
     assert php.intent == "short_qa"
@@ -25,25 +26,31 @@ def test_short_qa_examples_use_instant_answers() -> None:
     assert "Laravel" in laravel.content
     assert capital is not None
     assert capital.content == "Ankara"
+    assert capital_tr is not None
+    assert capital_tr.content == "Ankara"
 
 
 def test_direct_output_preserves_requested_value() -> None:
     from codegaai.core.instant_answers import instant_answer_for
 
     answer = instant_answer_for("Sadece MAVI yaz. Baska hicbir sey yazma.")
+    ok_answer = instant_answer_for("OK yaz")
 
     assert answer is not None
     assert answer.intent == "direct_output"
     assert answer.content == "MAVI"
+    assert ok_answer is not None
+    assert ok_answer.intent == "direct_output"
+    assert ok_answer.content == "OK"
 
 
-def test_short_qa_does_not_stream() -> None:
+def test_short_qa_uses_stream_watchdog_without_memory() -> None:
     from codegaai.core.agent_brain import decide_response
 
     decision = decide_response("PHP nedir?")
 
     assert decision.intent == "short_qa"
-    assert decision.should_stream is False
+    assert decision.should_stream is True
     assert decision.needs_memory is False
 
 
@@ -60,12 +67,13 @@ def test_chat_jobs_use_stream_watchdog() -> None:
     assert "import queue" in jobs
     assert "def _stream_with_watchdog" in jobs
     assert "_stream_with_watchdog(job, engine, messages, cfg)" in jobs
+    assert "engine.generate(messages" not in jobs
     assert "stream_closed" in jobs
     assert "response_completed" in jobs
 
 
-def test_version_bumped_to_4518() -> None:
+def test_version_bumped_to_4519() -> None:
     init = read("codegaai/__init__.py")
 
-    assert '__version__ = "4.5.18"' in init
-    assert "Fast Router Watchdog" in init
+    assert '__version__ = "4.5.19"' in init
+    assert "Chat Pipeline Reliability" in init

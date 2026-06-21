@@ -40,6 +40,7 @@ class TestAgentBrain(unittest.TestCase):
             self.assertEqual(decision.intent, "short_qa")
             self.assertFalse(decision.needs_careful_reasoning)
             self.assertFalse(decision.needs_web)
+            self.assertTrue(decision.should_stream)
 
     def test_system_prompt_really_includes_tools(self) -> None:
         from codegaai.core.system_prompt import build_system_prompt
@@ -54,8 +55,8 @@ class TestAgentBrain(unittest.TestCase):
         src = Path("codegaai/api/routes/jobs.py").read_text(encoding="utf-8")
 
         self.assertIn("decide_response", src)
-        self.assertIn("decision.should_stream", src)
-        self.assertIn("engine.generate_agentic(messages, cfg=cfg, max_iters=3)", src)
+        self.assertIn("_stream_with_watchdog(job, engine, messages, cfg)", src)
+        self.assertIn("_generate_agentic_with_timeout", src)
 
 
 if __name__ == "__main__":
