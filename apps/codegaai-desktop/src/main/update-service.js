@@ -80,10 +80,14 @@ async function findDesktopUpdateRelease() {
     .sort((a, b) => compareVersions(b.version, a.version))[0]?.release || null;
 }
 
+function rawUpdateError(error) {
+  return error && error.message ? error.message : String(error || "");
+}
+
 function updateErrorMessage(error) {
-  const message = error && error.message ? error.message : String(error || "");
+  const message = rawUpdateError(error);
   if (/not digitally signed|not signed by the application owner/i.test(message)) {
-    return "Bu kurulu surum imzasiz installer dogrulamasina takildi. Yeni updater duzeltmesi icin bu surumu bir kez installer ile manuel kurman gerekiyor.";
+    return "Guncelleme installer'i imzasiz. CODEGA AI unsigned build kullandigi icin imza dogrulamasi kapali olmali; bu surumde otomatik olarak kapatildi.";
   }
   if (/status code 502|HttpError:\s*502|Unicorn|This page is taking too long to load|github\.com/i.test(message)) {
     return "GitHub guncelleme dosyasina su an ulasilamadi. Baglanti veya GitHub gecici olarak yogun olabilir; birazdan tekrar dene.";
@@ -97,6 +101,11 @@ function updateErrorMessage(error) {
   return message.replace(/\s*Data:\s*<!DOCTYPE html>[\s\S]*/i, "").slice(0, 240);
 }
 
+function updateErrorDetail(error) {
+  const raw = rawUpdateError(error).replace(/\s*Data:\s*<!DOCTYPE html>[\s\S]*/i, "").slice(0, 1000);
+  return { message: updateErrorMessage(error), raw };
+}
+
 class UpdateService {
   constructor() {
     this.mainWindow = null;
@@ -108,7 +117,7 @@ class UpdateService {
     this.mainWindow = mainWindow;
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = false;
-    autoUpdater.verifyUpdateCodeSignature = process.env.CODEGA_ALLOW_UNSIGNED_UPDATES === "1" ? false : true;
+    autoUpdater.verifyUpdateCodeSignature = false;
 
     autoUpdater.on("checking-for-update", () => this.emit("checking"));
     autoUpdater.on("update-available", (info) => this.emit("available", info));
@@ -119,7 +128,7 @@ class UpdateService {
       this.emit("ready", info);
     });
     autoUpdater.on("error", (error) => {
-      this.emit("error", { message: updateErrorMessage(error) });
+      this.emit("error", updateErrorDetail(error));
     });
   }
 
@@ -155,21 +164,21 @@ class UpdateService {
       await this.prepareFeed();
       return await autoUpdater.checkForUpdates();
     } catch (error) {
-      const raw = error && error.message ? error.message : String(error);
+      const raw = rawUpdateError(error);
       if (/status code 502|HttpError:\s*502|Unicorn|github\.com/i.test(raw)) {
         await sleep(1500);
         try {
           await this.prepareFeed();
           return await autoUpdater.checkForUpdates();
         } catch (retryError) {
-          const message = updateErrorMessage(retryError);
-          this.emit("error", { message });
-          return { ok: false, message };
+          const detail = updateErrorDetail(retryError);
+          this.emit("error", detail);
+          return { ok: false, ...detail };
         }
       }
-      const message = updateErrorMessage(error);
-      this.emit("error", { message });
-      return { ok: false, message };
+      const detail = updateErrorDetail(error);
+      this.emit("error", detail);
+      return { ok: false, ...detail };
     }
   }
 
@@ -178,9 +187,9 @@ class UpdateService {
       await this.prepareFeed();
       return await autoUpdater.downloadUpdate();
     } catch (error) {
-      const message = updateErrorMessage(error);
-      this.emit("error", { message });
-      return { ok: false, message };
+      const detail = updateErrorDetail(error);
+      this.emit("error", detail);
+      return { ok: false, ...detail };
     }
   }
 
