@@ -1,5 +1,6 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 
@@ -72,8 +73,37 @@ def test_chat_jobs_use_stream_watchdog() -> None:
     assert "response_completed" in jobs
 
 
-def test_version_bumped_to_4519() -> None:
+def test_micro_tasks_finish_before_engine(monkeypatch) -> None:
+    import codegaai.core.engine as engine_mod
+    from codegaai.api.routes.jobs import ChatJob, _run_chat_job
+
+    def fail_get():
+        raise AssertionError("LLMEngine.get must not run for micro tasks")
+
+    monkeypatch.setattr(engine_mod.LLMEngine, "get", staticmethod(fail_get))
+
+    cases = {
+        "Merhaba": "Merhaba",
+        "OK yaz": "OK",
+        "2+2": "Sonuc: 4",
+        "PHP nedir?": "PHP",
+    }
+    for idx, (message, expected) in enumerate(cases.items(), start=1):
+        job = ChatJob(f"fast-{idx}", message, None, 128)
+        asyncio.run(_run_chat_job(job))
+        data = job.to_dict()
+
+        assert data["done"] is True
+        assert data["diagnostics"]["fast_path_used"] is True
+        assert data["diagnostics"]["planner_enabled"] is False
+        assert data["diagnostics"]["verifier_enabled"] is False
+        assert data["diagnostics"]["timeout_seconds"] == 3.0
+        assert data["diagnostics"]["timeout"] is False
+        assert expected in data["content"]
+
+
+def test_version_bumped_to_4520() -> None:
     init = read("codegaai/__init__.py")
 
-    assert '__version__ = "4.5.19"' in init
-    assert "Chat Pipeline Reliability" in init
+    assert '__version__ = "4.5.20"' in init
+    assert "Fast Path Recovery" in init

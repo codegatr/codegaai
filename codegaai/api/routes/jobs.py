@@ -460,6 +460,7 @@ async def _maybe_web_search(message: str) -> str:
 FIRST_TOKEN_TIMEOUT_SECONDS = 15.0
 TOTAL_RESPONSE_TIMEOUT_SECONDS = 60.0
 STREAM_IDLE_TIMEOUT_SECONDS = 12.0
+FAST_PATH_TIMEOUT_SECONDS = 3.0
 
 FAST_RESPONSE_TASKS = {
     "fast_response",
@@ -542,6 +543,9 @@ class ChatJob:
         self.finish_reason = ""
         self.stream_closed = False
         self.response_completed = False
+        self.fast_path_used = False
+        self.planner_enabled = False
+        self.verifier_enabled = False
         self._timeout_logged = False
         self._lock = threading.Lock()
 
@@ -621,6 +625,9 @@ class ChatJob:
                     "finish_reason": self.finish_reason or "-",
                     "stream_closed": self.stream_closed,
                     "response_completed": self.response_completed,
+                    "fast_path_used": self.fast_path_used,
+                    "planner_enabled": self.planner_enabled,
+                    "verifier_enabled": self.verifier_enabled,
                 },
             }
 
@@ -644,6 +651,9 @@ def _format_diag_block(job: ChatJob) -> str:
         f"First Token:\n{first}\n\n"
         f"Total:\n{total}\n\n"
         f"Timeout:\n{'YES' if job.timeout else 'NO'}\n\n"
+        f"Fast Path Used:\n{'YES' if job.fast_path_used else 'NO'}\n\n"
+        f"Planner Enabled:\n{'YES' if job.planner_enabled else 'NO'}\n\n"
+        f"Verifier Enabled:\n{'YES' if job.verifier_enabled else 'NO'}\n\n"
         f"Finish Reason:\n{job.finish_reason or '-'}\n\n"
         f"Stream Closed:\n{'YES' if job.stream_closed else 'NO'}\n\n"
         f"Response Completed:\n{'YES' if job.response_completed else 'NO'}"
@@ -761,8 +771,60 @@ def _get_job(job_id: str) -> Optional[ChatJob]:
         return _jobs.get(job_id)
 
 
+def _persist_fast_answer(chat_id: Optional[int], message: str, answer: str) -> None:
+    if not chat_id:
+        return
+    try:
+        from codegaai.core.chat_store import ChatStore
+
+        store = ChatStore.open()
+        store.add_message(chat_id, "user", message)
+        store.add_message(chat_id, "assistant", answer)
+    except Exception as exc:
+        log.warning("Fast answer persistence skipped: %s", exc)
+
+
+def _try_finish_fast_path(job: ChatJob) -> bool:
+    """Finish deterministic micro-tasks before engine/router/planner setup."""
+    if job.deep_think or job.file_context:
+        return False
+    try:
+        from codegaai.core.instant_answers import instant_answer_for
+
+        instant = instant_answer_for(job.message)
+    except Exception as exc:
+        log.warning("Instant answer failed: %s", exc)
+        instant = None
+    if not instant:
+        return False
+
+    job.status = "running"
+    job.timeout_seconds = FAST_PATH_TIMEOUT_SECONDS
+    job.task_class = str(instant.intent or "fast_response").upper()
+    job.selected_model = "codega-instant"
+    job.fast_path_used = True
+    job.planner_enabled = False
+    job.verifier_enabled = False
+    job.finish_reason = "instant"
+    job.stream_closed = True
+    job.append(instant.content)
+    job.finish()
+    threading.Thread(
+        target=_persist_fast_answer,
+        args=(job.chat_id, job.message, instant.content),
+        daemon=True,
+        name=f"chat-fast-persist-{job.job_id}",
+    ).start()
+    log.info("ChatJob %s fast-path answer: %s", job.job_id, instant.intent)
+    log.info("CHAT_DIAG%s", _format_diag_block(job))
+    return True
+
+
 async def _run_chat_job(job: ChatJob) -> None:
     job.status = "running"
+    if _try_finish_fast_path(job):
+        return
+
     def _diag_timeout_watch() -> None:
         time.sleep(job.timeout_seconds)
         job.mark_timeout_if_waiting()
@@ -894,6 +956,8 @@ async def _run_chat_job(job: ChatJob) -> None:
         engine = LLMEngine.get()
         decision = decide_response(job.message, history=history)
         job.task_class = str(decision.intent or "general").upper()
+        job.planner_enabled = bool(decision.uses_tools or decision.needs_web or job.deep_think)
+        job.verifier_enabled = bool(decision.intent in {"coding", "architecture_planning"} or job.deep_think)
         if decision.intent == "architecture_planning":
             job.max_tokens = max(job.max_tokens, 4096)
 

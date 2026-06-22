@@ -54,5 +54,5 @@ class MinimalHomeNavigationTests(unittest.TestCase):
     def test_version_bumped_to_455(self):
         init = read("codegaai/__init__.py")
 
-        self.assertIn('__version__ = "4.5.19"', init)
-        self.assertIn("Chat Pipeline Reliability", init)
+        self.assertIn('__version__ = "4.5.20"', init)
+        self.assertIn("Fast Path Recovery", init)
