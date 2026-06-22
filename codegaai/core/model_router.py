@@ -87,6 +87,14 @@ QUICK_PATTERNS = [
 ]
 
 RULES: list[ModelRule] = [
+    ModelRule(
+        model_id="qwen3.5-9b-q4_k_m",
+        priority=105,
+        min_vram_gb=7.0,
+        keywords=["architecture", "mimari", "analiz", "analysis", "debugging", "refactor", "planner"],
+        patterns=CODE_PATTERNS,
+        task_types=["reasoning", "code"],
+    ),
     # PHP/Web/Kod → Coder 7B (en yüksek öncelik)
     ModelRule(
         model_id="qwen2.5-coder-7b-instruct-q4_k_m",
@@ -108,9 +116,9 @@ RULES: list[ModelRule] = [
     ),
     # Kısa/hızlı sohbet → Qwen 3B (az VRAM, hızlı)
     ModelRule(
-        model_id="qwen2.5-3b-instruct-q4_k_m",
+        model_id="qwen3.5-4b-q4_k_m",
         priority=90,
-        min_vram_gb=2.5,
+        min_vram_gb=4.0,
         keywords=[],
         patterns=QUICK_PATTERNS,
         task_types=["factual"],
@@ -128,9 +136,9 @@ RULES: list[ModelRule] = [
     ),
     # Genel/zor → Qwen 7B (varsayılan fallback)
     ModelRule(
-        model_id="qwen2.5-7b-instruct-q4_k_m",
+        model_id="qwen3.5-4b-q4_k_m",
         priority=50,
-        min_vram_gb=5.5,
+        min_vram_gb=4.0,
         keywords=[],
         patterns=[],
         task_types=["reasoning", "general"],
@@ -175,6 +183,19 @@ class ModelRouter:
 
         if not self._enabled:
             return None
+
+        try:
+            from codegaai.core.fast_answers import (
+                CHAT,
+                DIRECT_INSTRUCTION,
+                FAST_RESPONSE,
+                SHORT_QA,
+                classify_task,
+            )
+            if classify_task(query) in {FAST_RESPONSE, DIRECT_INSTRUCTION, SHORT_QA, CHAT}:
+                return None
+        except Exception:
+            pass
 
         from codegaai.core.models_registry import ModelRegistry
         from codegaai.core.engine import LLMEngine

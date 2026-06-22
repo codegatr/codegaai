@@ -175,7 +175,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "auto_open_ui": True,
         "auto_load_model": False,     # Guvenli acilis: model ilk sohbette/yuklemede acilir
         "auto_load_embedding": False, # Guvenli acilis: embedding ilk RAG/istekte acilir
-        "auto_download_embedding": False, # Eksikse kullanici baslatir
+        "auto_download_embedding": True,  # Eksikse arka planda otomatik hazirlanir
         "auto_repair_llama": True,    # AVX2/llama-cpp uyumsuzluğunu açılışta onarmayı dene
         # Server modu (Linux sunucu, headless): UI başlatmaz, public bind
         # CODEGAAI_SERVER__MODE=true env veya --server flag ile aktif
@@ -196,7 +196,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "models": {
         # Faz 2+ ile aktive olacak; isimler manifest.json ile senkron
-        "llm": "qwen2.5-7b-instruct-q4_k_m",
+        "llm": "qwen3.5-4b-q4_k_m",
         "embedding": "bge-m3",
         "image": "stable-diffusion-xl-base-1.0",
         "video": "cogvideox-2b",

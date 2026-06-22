@@ -466,7 +466,7 @@ async function startDownloadPoll() {
   if (wrap) wrap.style.display = "block";
   _pollTimer = setInterval(async () => {
     try {
-      const r = await fetch("/api/models/qwen2.5-7b-instruct-q4_k_m/status");
+      const r = await fetch("/api/models/qwen3.5-4b-q4_k_m/status");
       const d = await r.json();
       const dl = d.download || {};
       const pct = Math.round(dl.percent || 0);

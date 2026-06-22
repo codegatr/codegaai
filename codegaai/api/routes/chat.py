@@ -135,6 +135,47 @@ async def chat(req: ChatRequest) -> ChatResponse:
     if not req.messages:
         raise HTTPException(400, "messages boş olamaz")
 
+    last_user = next(
+        (m.content for m in reversed(req.messages) if m.role == "user"),
+        "",
+    )
+
+    try:
+        from codegaai.core.fast_answers import SHORT_QA, classify_task, fast_answer_for
+        task_class = classify_task(last_user)
+        direct_answer = fast_answer_for(last_user)
+        if direct_answer is not None:
+            asst_msg_id: Optional[int] = None
+            selected_model = "hafif_model" if task_class == SHORT_QA else "rule_based"
+            if req.chat_id is not None:
+                store = ChatStore.open()
+                chat_obj = store.get_chat(req.chat_id)
+                if chat_obj is None:
+                    raise HTTPException(404, f"Sohbet bulunamadi: id={req.chat_id}")
+                last = req.messages[-1]
+                if last.role == "user":
+                    store.add_message(req.chat_id, "user", last.content)
+                asst_msg_id = store.add_message(
+                    req.chat_id, "assistant", direct_answer, model=selected_model
+                )
+            return ChatResponse(
+                message=Message(role="assistant", content=direct_answer),
+                message_id=asst_msg_id,
+                model=selected_model,
+                finish_reason="fast_path",
+                timing_ms=0,
+                chat_id=req.chat_id,
+                note=(
+                    f"task_class={task_class}; fast_path_used=true; "
+                    "adversarial_review_enabled=false; verifier_enabled=false; "
+                    "response_completed=true; timeout=false"
+                ),
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log.debug("Fast chat path skipped: %s", exc)
+
     store = ChatStore.open()
     engine = LLMEngine.get()
 
@@ -240,6 +281,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
             SelfHealing.get().report_error("memory", str(rag_err))
 
     # ── DİNAMİK SİSTEM PROMPTU ──────────────────────────────────
+    decision = None
     try:
         from codegaai.core.system_prompt import build_system_prompt
         from codegaai.core.safety import SafetyEngine
@@ -285,9 +327,16 @@ async def chat(req: ChatRequest) -> ChatResponse:
         for m in req.messages:
             final_messages.append({"role": m.role, "content": m.content})
 
+    effective_max_tokens = req.max_tokens
+    try:
+        if decision and decision.intent == "architecture_planning":
+            effective_max_tokens = max(effective_max_tokens, 4096)
+    except Exception:
+        pass
+
     cfg = GenerationConfig(
         temperature=req.temperature,
-        max_tokens=req.max_tokens,
+        max_tokens=effective_max_tokens,
     )
 
     try:
@@ -316,6 +365,18 @@ async def chat(req: ChatRequest) -> ChatResponse:
         )
         if clean_content:
             result["content"] = clean_content
+    except Exception:
+        pass
+
+    try:
+        from codegaai.core.answer_sanitizer import (
+            architecture_plan_fallback,
+            sanitize_final_answer,
+        )
+        result["content"] = sanitize_final_answer(result.get("content", ""))
+        if not result["content"].strip():
+            if decision and decision.intent == "architecture_planning":
+                result["content"] = architecture_plan_fallback(last_user)
     except Exception:
         pass
 

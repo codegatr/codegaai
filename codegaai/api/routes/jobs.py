@@ -9,6 +9,7 @@ is more reliable with polling than long-lived SSE connections.
 from __future__ import annotations
 
 import asyncio
+import queue
 import re
 import threading
 import time
@@ -75,6 +76,11 @@ def _clean_visible_answer(text: str) -> tuple[str, str]:
         flags=re.DOTALL | re.IGNORECASE,
     )
     cleaned = cleaned.strip()
+    try:
+        from codegaai.core.answer_sanitizer import sanitize_final_answer
+        cleaned = sanitize_final_answer(cleaned)
+    except Exception:
+        pass
     return cleaned, "\n\n".join(p for p in thought_parts if p)
 
 
@@ -99,6 +105,16 @@ def _fallback_empty_response(message: str, decision_intent: str = "general") -> 
             "Anladim. Burada dogrudan soru sorulmuyor; benden baglami ve imayi yakalamam bekleniyor. "
             "Bu yuzden cevabi onceki konusmaya gore kurmam gerekiyor."
         )
+    if decision_intent == "architecture_planning":
+        try:
+            from codegaai.core.answer_sanitizer import architecture_plan_fallback
+            return architecture_plan_fallback(message)
+        except Exception:
+            return (
+                "# Analysis\nMevcut proje bu mesajdan dogrulanamiyor.\n\n"
+                "# Assumptions\nLaravel, Flutter, MySQL ve Laravel Sanctum kullanilacak.\n\n"
+                "# First Implementation Tasks\n1. Mevcut proje yapisini analiz et.\n2. Domain modelini cikar.\n3. Veritabani ve API planini hazirla."
+            )
     return "Buradayim. Cevap uretimi bos dondu, ama sohbeti surduruyorum; son mesajina gore devam edebilirim."
 
 
@@ -273,6 +289,27 @@ class ChatJob:
         self.deep_think = deep_think   # o1/o3 tarzı CoT
         self.thought = ""              # İç düşünce (kullanıcıya gösterilebilir)
         self.message_id: Optional[int] = None
+        self.task_class = ""
+        self.selected_model = ""
+        self.prompt_length = 0
+        self.memory_tokens = 0
+        self.finish_reason = ""
+        self.stream_closed = False
+        self.verifier_passed = False
+        self.fast_path_used = False
+        self.planner_enabled = True
+        self.executor_enabled = True
+        self.verifier_enabled = True
+        self.adversarial_review_enabled = True
+        self.rag_enabled = True
+        self.memory_enabled = True
+        self.federation_enabled = True
+        self.tool_selection_enabled = True
+        self.response_completed = False
+        self.first_token_at: Optional[float] = None
+        self.timeout = False
+        self.timeout_seconds = DIAG_TIMEOUT_SECONDS
+        self._timeout_logged = False
         self.status = "pending"
         self.content = ""
         self.error = ""
@@ -290,6 +327,8 @@ class ChatJob:
 
     def append(self, token: str) -> None:
         with self._lock:
+            if token and self.first_token_at is None:
+                self.first_token_at = time.time()
             self.content += token
 
     def finish(self, error: str = "") -> None:
@@ -297,10 +336,28 @@ class ChatJob:
             self.status = "error" if error else "done"
             self.error = error
             self.finished_at = time.time()
+            if error and "timeout" in error.lower():
+                self.timeout = True
+
+    def mark_timeout_if_waiting(self) -> None:
+        with self._lock:
+            if self.status not in ("pending", "running"):
+                return
+            if self.first_token_at is not None:
+                return
+            self.timeout = True
+            if not self._timeout_logged:
+                self._timeout_logged = True
+                self.progress = f"Ilk token {int(self.timeout_seconds)} saniyeyi asti"
+                self.progress_log.append(self.progress)
+                self.progress_log = self.progress_log[-8:]
 
     def to_dict(self) -> dict:
         with self._lock:
             elapsed = (self.finished_at or time.time()) - self.started_at
+            first_token_ms = None
+            if self.first_token_at is not None:
+                first_token_ms = int((self.first_token_at - self.started_at) * 1000)
             return {
                 "job_id": self.job_id,
                 "status": self.status,
@@ -312,11 +369,128 @@ class ChatJob:
                 "error": self.error,
                 "done": self.status in ("done", "error"),
                 "elapsed_ms": int(elapsed * 1000),
+                "diagnostics": {
+                    "message": self.message,
+                    "task": self.task_class,
+                    "selected_model": self.selected_model,
+                    "prompt_length": self.prompt_length,
+                    "memory_tokens": self.memory_tokens,
+                    "first_token_ms": first_token_ms,
+                    "total_ms": int(elapsed * 1000),
+                    "timeout": self.timeout,
+                    "timeout_seconds": self.timeout_seconds,
+                    "finish_reason": self.finish_reason,
+                    "stream_closed": self.stream_closed,
+                    "verifier_passed": self.verifier_passed,
+                    "fast_path_used": self.fast_path_used,
+                    "planner_enabled": self.planner_enabled,
+                    "executor_enabled": self.executor_enabled,
+                    "verifier_enabled": self.verifier_enabled,
+                    "adversarial_review_enabled": self.adversarial_review_enabled,
+                    "rag_enabled": self.rag_enabled,
+                    "memory_enabled": self.memory_enabled,
+                    "federation_enabled": self.federation_enabled,
+                    "tool_selection_enabled": self.tool_selection_enabled,
+                    "response_completed": self.response_completed,
+                },
             }
 
 
 _jobs: dict[str, ChatJob] = {}
 _jobs_lock = threading.Lock()
+DIAG_TIMEOUT_SECONDS = 30.0
+
+
+def _format_diag_block(job: ChatJob) -> str:
+    first = "-"
+    if job.first_token_at:
+        first = f"{job.first_token_at - job.started_at:.1f}s"
+    total = "-"
+    end = job.finished_at or time.time()
+    if job.started_at:
+        total = f"{end - job.started_at:.1f}s"
+    return (
+        "\n"
+        f"Message:\n{job.message}\n\n"
+        f"Task:\n{job.task_class or '-'}\n\n"
+        f"Selected Model:\n{job.selected_model or '-'}\n\n"
+        f"Prompt Length:\n{job.prompt_length}\n\n"
+        f"Memory Tokens:\n{job.memory_tokens}\n\n"
+        f"First Token:\n{first}\n\n"
+        f"Total:\n{total}\n\n"
+        f"Timeout:\n{'YES' if job.timeout else 'NO'}\n\n"
+        f"Fast Path Used:\n{'YES' if job.fast_path_used else 'NO'}\n\n"
+        f"Adversarial Review Enabled:\n{'YES' if job.adversarial_review_enabled else 'NO'}\n\n"
+        f"Verifier Enabled:\n{'YES' if job.verifier_enabled else 'NO'}\n\n"
+        f"Finish Reason:\n{job.finish_reason or '-'}\n\n"
+        f"Stream Closed:\n{'YES' if job.stream_closed else 'NO'}\n\n"
+        f"Response Completed:\n{'YES' if job.response_completed else 'NO'}"
+    )
+
+
+def _stream_with_watchdog(
+    job: ChatJob,
+    engine,
+    messages: list[dict],
+    cfg,
+    first_token_timeout: float = 30.0,
+    idle_timeout: float = 12.0,
+    total_timeout: float = 120.0,
+) -> None:
+    """Consume a model stream without letting the UI job hang forever."""
+    items: queue.Queue = queue.Queue()
+    sentinel = object()
+
+    def _producer() -> None:
+        try:
+            for token in engine.stream(messages, cfg=cfg):
+                items.put(token)
+            items.put(sentinel)
+        except Exception as exc:
+            items.put(exc)
+
+    threading.Thread(target=_producer, daemon=True, name=f"stream-{job.job_id}").start()
+
+    started = time.time()
+    saw_token = False
+    while True:
+        remaining_total = max(0.1, total_timeout - (time.time() - started))
+        wait_for = min(remaining_total, idle_timeout if saw_token else first_token_timeout)
+        try:
+            item = items.get(timeout=wait_for)
+        except queue.Empty:
+            job.timeout = True
+            if saw_token and job.content.strip():
+                job.finish_reason = "idle_timeout_after_content"
+                job.stream_closed = False
+                job.set_progress("Akis durdu; eldeki cevap tamamlandi")
+                return
+            raise TimeoutError(f"Model {int(first_token_timeout)} saniye icinde cevap baslatmadi.")
+
+        if item is sentinel:
+            job.stream_closed = True
+            job.finish_reason = getattr(engine, "_last_finish_reason", None) or "stop"
+            return
+        if isinstance(item, Exception):
+            if saw_token and job.content.strip():
+                job.finish_reason = "stream_error_after_content"
+                job.stream_closed = False
+                job.set_progress("Akis hata verdi; eldeki cevap tamamlandi")
+                return
+            raise item
+
+        token = str(item or "")
+        if token:
+            saw_token = True
+            job.append(token)
+
+        if time.time() - started >= total_timeout:
+            job.timeout = True
+            if job.content.strip():
+                job.finish_reason = "total_timeout_after_content"
+                job.set_progress("Sure siniri doldu; eldeki cevap tamamlandi")
+                return
+            raise TimeoutError(f"Yanit {int(total_timeout)} saniyelik ust sureyi asti.")
 
 
 def _store_job(job: ChatJob) -> None:
@@ -336,7 +510,70 @@ def _get_job(job_id: str) -> Optional[ChatJob]:
 async def _run_chat_job(job: ChatJob) -> None:
     job.status = "running"
     job.set_progress("Talimat analiz ediliyor")
+    def _diag_timeout_watch() -> None:
+        time.sleep(job.timeout_seconds)
+        job.mark_timeout_if_waiting()
+        if job.timeout and not job.first_token_at:
+            log.warning("CHAT_DIAG%s", _format_diag_block(job))
+
+    threading.Thread(
+        target=_diag_timeout_watch,
+        daemon=True,
+        name=f"chat-diag-{job.job_id}",
+    ).start()
     try:
+        from codegaai.core.fast_answers import (
+            CHAT,
+            DIRECT_INSTRUCTION,
+            FAST_RESPONSE,
+            SHORT_QA,
+            bypass_heavy_pipeline,
+            classify_task,
+            fast_answer_for,
+        )
+
+        job.task_class = classify_task(job.message)
+        direct_answer = fast_answer_for(job.message)
+        if direct_answer is not None:
+            job.fast_path_used = True
+            job.planner_enabled = False
+            job.executor_enabled = False
+            job.verifier_enabled = False
+            job.adversarial_review_enabled = False
+            job.rag_enabled = False
+            job.memory_enabled = False
+            job.federation_enabled = False
+            job.tool_selection_enabled = False
+            job.selected_model = "hafif_model" if job.task_class == SHORT_QA else "rule_based"
+            job.prompt_length = 0
+            job.memory_tokens = 0
+            job.finish_reason = "fast_path"
+            job.stream_closed = True
+            job.verifier_passed = False
+            job.response_completed = True
+            job.append(direct_answer)
+            if job.chat_id:
+                try:
+                    from codegaai.core.chat_store import ChatStore
+                    store = ChatStore.open()
+                    store.add_message(job.chat_id, "user", job.message)
+                    job.message_id = store.add_message(job.chat_id, "assistant", job.content)
+                except Exception:
+                    pass
+            job.finish()
+            log.info("CHAT_DIAG%s", _format_diag_block(job))
+            return
+
+        if job.task_class in {FAST_RESPONSE, DIRECT_INSTRUCTION, SHORT_QA, CHAT}:
+            job.planner_enabled = False
+            job.executor_enabled = False
+            job.verifier_enabled = False
+            job.adversarial_review_enabled = False
+            job.rag_enabled = False
+            job.memory_enabled = False
+            job.federation_enabled = False
+            job.tool_selection_enabled = False
+
         from codegaai.core.engine import LLMEngine, GenerationConfig
         from codegaai.core.system_prompt import build_system_prompt
         from codegaai.core.chat_store import ChatStore
@@ -360,6 +597,9 @@ async def _run_chat_job(job: ChatJob) -> None:
 
         action_request = _build_action_request(history, job.message)
         decision = decide_response(job.message, history=history)
+        if not job.task_class:
+            job.task_class = str(decision.intent or "general").upper()
+        light_context = bypass_heavy_pipeline(job.task_class)
         job.set_progress(f"Niyet algilandi: {decision.intent}")
 
         if "generate_project" in decision.needs_tools or is_delivery_request(action_request):
@@ -375,6 +615,7 @@ async def _run_chat_job(job: ChatJob) -> None:
                         pass
                 job.finish()
                 log.info("ChatJob %s proje zip hazirlandi: %s", job.job_id, outcome.artifact_name)
+                log.info("CHAT_DIAG%s", _format_diag_block(job))
                 return
 
         try:
@@ -385,20 +626,28 @@ async def _run_chat_job(job: ChatJob) -> None:
             router = ModelRouter.get()
             target_model = router.select_model(job.message, history=history)
             if target_model:
+                job.selected_model = target_model
                 job.set_progress(f"Model hazirlaniyor: {target_model}")
                 router.switch_model_if_needed(target_model)
             elif not engine.is_ready:
                 registry = ModelRegistry.get()
                 for model in registry.list_llm_models():
                     if registry.is_llm_downloaded(model["id"]):
+                        job.selected_model = model["id"]
                         job.set_progress(f"Model yukleniyor: {model['id']}")
                         engine.load(model["id"])
                         break
+            if not job.selected_model:
+                job.selected_model = engine.status.get("model_id") or "-"
         except Exception as exc:
             log.debug("Model routing atlandı: %s", exc)
 
+        if not job.selected_model:
+            job.selected_model = engine.status.get("model_id") or "-"
+
         if not engine.is_ready:
             job.finish(error="Model yüklü değil. Sistem -> model yükle.")
+            log.info("CHAT_DIAG%s", _format_diag_block(job))
             return
 
         web_context = ""
@@ -508,15 +757,21 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
                 pass
 
         if not job.deep_think:  # deep_think zaten yukarıda üretildi
-            cfg = GenerationConfig(max_tokens=job.max_tokens, temperature=0.55)
+            max_tokens = job.max_tokens
+            if decision.intent == "architecture_planning":
+                max_tokens = max(max_tokens, 4096)
+            cfg = GenerationConfig(max_tokens=max_tokens, temperature=0.55)
+            job.prompt_length = sum(len(str(m.get("content", ""))) for m in messages)
+            job.memory_tokens = len(rag_text.split()) if rag_text else 0
             if decision.should_stream:
                 job.set_progress("Cevap akisi basladi")
-                for token in engine.stream(messages, cfg=cfg):
-                    job.append(token)
+                _stream_with_watchdog(job, engine, messages, cfg)
             else:
                 job.set_progress("Aracli cevap uretiliyor")
                 result = engine.generate(messages, cfg=cfg, use_tools=True)
                 job.append(result.get("content", ""))
+                job.finish_reason = result.get("finish_reason", "stop")
+                job.stream_closed = True
 
         # Local modeller bazen talimata ragmen dusunce etiketlerini sizdirir.
         # Kullaniciya ic analiz degil, temiz final cevap gosterilir.
@@ -553,7 +808,12 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
             except Exception:
                 pass
 
+        job.response_completed = bool(job.content.strip())
+        job.verifier_passed = True
+        if not job.finish_reason:
+            job.finish_reason = "stop" if job.stream_closed else "completed"
         job.finish()
+        log.info("CHAT_DIAG%s", _format_diag_block(job))
         log.info(
             "ChatJob %s tamamlandı: %d token, %.1fs",
             job.job_id,
@@ -563,6 +823,7 @@ Düşünce sonrası net ve doğrudan yanıt ver."""
     except Exception as exc:
         log.error("ChatJob %s hata: %s", job.job_id, exc)
         job.finish(error=str(exc)[:200])
+        log.info("CHAT_DIAG%s", _format_diag_block(job))
 
 
 class ChatJobRequest(BaseModel):

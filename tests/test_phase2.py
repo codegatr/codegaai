@@ -96,16 +96,17 @@ class TestApiClient(unittest.TestCase):
             self.assertIn(k, data)
             self.assertIn("active", data[k])
 
-    def test_chat_stub(self) -> None:
+    def test_chat_fast_path(self) -> None:
         r = self.client.post("/api/chat", json={
             "messages": [{"role": "user", "content": "Merhaba"}]
         })
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertEqual(data["message"]["role"], "assistant")
-        # Faz 3'te artık "LLM motoru yüklü değil" döner (motor yüklenmediği sürece)
-        content = data["message"]["content"].lower()
-        self.assertTrue("yüklü değil" in content or "faz" in content)
+        self.assertEqual(data["message"]["content"], "Merhaba, nasıl yardımcı olabilirim?")
+        self.assertEqual(data["model"], "rule_based")
+        self.assertEqual(data["finish_reason"], "fast_path")
+        self.assertIn("fast_path_used=true", data.get("note", ""))
 
     def test_chat_models(self) -> None:
         r = self.client.get("/api/chat/models")

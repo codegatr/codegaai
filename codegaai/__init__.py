@@ -5,8 +5,8 @@ Telif: 2026 CODEGA - Yunus Aksoy
 Lisans: MIT
 """
 
-__version__ = "3.8.7"
-__phase__ = "v3.8.7 - Stable No-AVX Llama Preflight"
+__version__ = "4.5.21"
+__phase__ = "v4.5.21 - Direct Fast Response Guard"
 __author__ = "CODEGA"
 __license__ = "MIT"
 __repo__ = "codegatr/codegaai"

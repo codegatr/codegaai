@@ -55,6 +55,12 @@ class AgentBrain:
         r"\b(zip|dosyalari|dosyaları|veritabani|veritabanı|schema|sql)\b.*\b(ver|hazirla|hazırla|olustur|oluştur)\b",
         r"\b(php\s*8\.?3|php)\b.*\b(veritabani|veritabanı|sql|zip)\b",
     ]
+    _ARCHITECTURE_PLANNING_PATTERNS = [
+        r"\b(henuz|henüz|sadece|yalnizca|yalnızca)\b.*\b(kod yazma|kodlama yapma|plan|mimari|architecture)\b",
+        r"\b(domain analizi|domain model|database design|api design|flutter architecture|clean architecture)\b",
+        r"\b(profesyonel proje mimarisi|uygulama plani|uygulama planı|teknik tasarim|teknik tasarım)\b",
+        r"\b(analysis|assumptions|domain model|database design|api design|testing plan|deployment plan)\b",
+    ]
     _MATH_PATTERNS = [r"\d+\s*[\+\-\*/\^]\s*\d+", r"\b(hesapla|calculate)\b"]
     _VISION_PATTERNS = [r"\b(gorsel|görsel|resim|foto|image|screenshot|ekran)\b"]
     _IMPLICIT_REASONING_PATTERNS = [
@@ -73,11 +79,39 @@ class AgentBrain:
         low = self._fold_tr(text)
         decision = AgentDecision()
 
+        try:
+            from codegaai.core.fast_answers import (
+                CHAT,
+                DIRECT_INSTRUCTION,
+                FAST_RESPONSE,
+                SHORT_QA,
+                classify_task,
+            )
+            fast_task = classify_task(text)
+        except Exception:
+            fast_task = ""
+
+        if fast_task in {FAST_RESPONSE, DIRECT_INSTRUCTION, SHORT_QA, CHAT}:
+            decision.intent = fast_task.lower()
+            decision.needs_memory = False
+            decision.needs_careful_reasoning = False
+            decision.should_stream = False
+            if fast_task == CHAT:
+                decision.response_style = "warm_conversation"
+            else:
+                decision.response_style = "direct_short"
+            return decision
+
         if self._matches(low, self._CODE_PATTERNS):
             decision.intent = "coding"
             decision.needs_careful_reasoning = True
 
-        if self._matches(low, self._PROJECT_GENERATION_PATTERNS):
+        if self._matches(low, self._ARCHITECTURE_PLANNING_PATTERNS):
+            decision.intent = "architecture_planning"
+            decision.response_style = "professional_architecture_plan"
+            decision.needs_careful_reasoning = True
+
+        if self._matches(low, self._PROJECT_GENERATION_PATTERNS) and decision.intent != "architecture_planning":
             decision.intent = "project_generation"
             decision.response_style = "action_first"
             decision.needs_careful_reasoning = True
@@ -92,7 +126,7 @@ class AgentBrain:
                 decision.intent = "calculation"
             decision.needs_tools.append("calculate")
 
-        if self._matches(low, self._IMPLICIT_REASONING_PATTERNS) and decision.intent != "project_generation":
+        if self._matches(low, self._IMPLICIT_REASONING_PATTERNS) and decision.intent not in {"project_generation", "architecture_planning"}:
             decision.intent = "implicit_context"
             decision.response_style = "human_inference"
             decision.needs_careful_reasoning = True
@@ -145,6 +179,21 @@ class AgentBrain:
                 "- Kullanici proje/dosya/zip istiyorsa plan anlatmakla yetinme; "
                 "dosya uretme aksiyonunu baslat ve indirme linki ver."
             )
+        if decision.intent == "architecture_planning":
+            lines.extend([
+                "- Kullanici henuz kod yazma diyorsa kesinlikle kod, dosya veya zip uretme; once profesyonel mimari ve uygulama plani hazirla.",
+                "- Cevap sirasini koru: Analysis, Assumptions, Domain Model, Database Design, API Design, Laravel Architecture, Flutter Architecture, Reminder & Notification System, Security Plan, Testing Plan, Deployment Plan, Risks, First Implementation Tasks.",
+                "- Once mevcut proje var mi yok mu belirt; varsayimlari ayri bolumde yaz; domain analizinden once kod onerme.",
+                "- Turkce aciklama kullan; kod, tablo, endpoint, migration, class ve alan adlarinda Ingilizce standart kullan, Turkce karakter kullanma.",
+                "- Laravel icin Sanctum kullanilacak; Sanctum veya JWT diye belirsiz birakma ve JWT ile karistirma.",
+                "- Arac takip sistemi istenirse su tablolari mutlaka planla: users, vehicles, traffic_insurances, casco_policies, inspections, exhaust_emissions, maintenance_records, vehicle_documents, reminders, notifications.",
+                "- Her tablo icin alanlar, veri tipleri, iliskiler, indeksler, unique kurallar ve soft delete kararini belirt.",
+                "- Flutter Clean Architecture bolumunde core, features, data, domain, presentation, providers ve widgets klasorlerini ver.",
+                "- Hatirlatma sisteminde 30 gun, 15 gun, 7 gun ve 1 gun kala bildirim akisini planla.",
+                "- Test planinda Laravel Feature Test, Laravel Unit Test, Flutter Widget Test ve API test senaryolarini ayri yaz.",
+                "- Security Plan Auth, rate limit, sahiplik kontrolu, dosya yukleme guvenligi ve loglama icermeli.",
+                "- Deployment Plan Docker, Nginx, MySQL, Queue Worker, Scheduler/Cron ve SSL icermeli.",
+            ])
         if decision.needs_careful_reasoning:
             lines.append(
                 "- Cevaptan once icinden kisa analiz yap; analizini kullaniciya acma. "

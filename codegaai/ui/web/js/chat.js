@@ -60,6 +60,59 @@ const Chat = (() => {
     </div>`;
   }
 
+  function renderDiagnostics(diag) {
+    if (!diag) return "";
+    const first = diag.first_token_ms == null ? "-" : `${(diag.first_token_ms / 1000).toFixed(1)}s`;
+    const total = diag.total_ms == null ? "-" : `${(diag.total_ms / 1000).toFixed(1)}s`;
+    const timeout = diag.timeout ? "YES" : "NO";
+    const completed = diag.response_completed ? "YES" : "NO";
+    const streamClosed = diag.stream_closed ? "YES" : "NO";
+    const fastPath = diag.fast_path_used ? "YES" : "NO";
+    const adversarial = diag.adversarial_review_enabled ? "YES" : "NO";
+    const verifier = diag.verifier_enabled ? "YES" : "NO";
+    return `<pre class="agent-diagnostics">Message:
+${escapeHTML(diag.message || "")}
+
+Task:
+${escapeHTML(diag.task || "-")}
+
+Selected Model:
+${escapeHTML(diag.selected_model || "-")}
+
+Fast Path Used:
+${fastPath}
+
+Adversarial Review Enabled:
+${adversarial}
+
+Verifier Enabled:
+${verifier}
+
+First Token:
+${escapeHTML(first)}
+
+Prompt Length:
+${escapeHTML(String(diag.prompt_length ?? "-"))}
+
+Memory Tokens:
+${escapeHTML(String(diag.memory_tokens ?? "-"))}
+
+Total:
+${escapeHTML(total)}
+
+Timeout:
+${timeout}
+
+Finish Reason:
+${escapeHTML(diag.finish_reason || "-")}
+
+Stream Closed:
+${streamClosed}
+
+Response Completed:
+${completed}</pre>`;
+  }
+
   // ---------- Render ----------
 
   function renderMessage(msg) {
@@ -70,7 +123,7 @@ const Chat = (() => {
         el("div", { class: "message__role" }, isUser ? "Sen" : "CODEGA AI"),
         el("div", {
           class: "message__content",
-          html: (!isUser ? renderAgentProgress(msg.progress, msg.progress_log) : "") + renderMarkdown(msg.content),
+          html: (!isUser ? renderAgentProgress(msg.progress, msg.progress_log) : "") + renderMarkdown(msg.content) + (!isUser ? renderDiagnostics(msg.diagnostics) : ""),
         }),
         // Faz 7: asistan mesajlarına 👍/👎
         !isUser && msg.id && state.chatId
@@ -370,14 +423,57 @@ const Chat = (() => {
     return window._chatAttachedImage || null;
   }
 
+  function setAttachedImage(file) {
+    if (!file || !String(file.type || "").startsWith("image/")) return false;
+    const previewDiv = document.getElementById("chat-image-preview");
+    const imgInput = document.getElementById("chat-image-input");
+    const thumb = document.getElementById("chat-image-thumb");
+    if (window._chatAttachedImageUrl) {
+      URL.revokeObjectURL(window._chatAttachedImageUrl);
+      window._chatAttachedImageUrl = null;
+    }
+    const url = URL.createObjectURL(file);
+    window._chatAttachedImageUrl = url;
+    window._chatAttachedImage = file;
+    if (thumb) {
+      thumb.src = url;
+      thumb.title = file.name || "Yapıştırılan görsel";
+    }
+    if (previewDiv) previewDiv.style.display = "flex";
+    if (imgInput) imgInput.value = "";
+    return true;
+  }
+
   function clearAttachedImage() {
     window._chatAttachedImage = null;
+    if (window._chatAttachedImageUrl) {
+      URL.revokeObjectURL(window._chatAttachedImageUrl);
+      window._chatAttachedImageUrl = null;
+    }
     const previewDiv = document.getElementById("chat-image-preview");
     const imgInput = document.getElementById("chat-image-input");
     const thumb = document.getElementById("chat-image-thumb");
     if (previewDiv) previewDiv.style.display = "none";
     if (imgInput) imgInput.value = "";
     if (thumb) thumb.removeAttribute("src");
+  }
+
+  function handleClipboardImagePaste(e) {
+    const items = Array.from(e.clipboardData?.items || []);
+    const imageItem = items.find(item => String(item.type || "").startsWith("image/"));
+    if (!imageItem) return;
+    const rawFile = imageItem.getAsFile();
+    if (!rawFile) return;
+    const ext = rawFile.type === "image/jpeg" ? "jpg" : rawFile.type === "image/webp" ? "webp" : "png";
+    const file = new File(
+      [rawFile],
+      rawFile.name || `clipboard-screenshot-${Date.now()}.${ext}`,
+      { type: rawFile.type || "image/png" },
+    );
+    if (setAttachedImage(file)) {
+      e.preventDefault();
+      elInput?.focus();
+    }
   }
 
   function makePayload(input) {
@@ -507,7 +603,11 @@ const Chat = (() => {
   // ── Job Polling ile Chat (SSE yerine, her yerde çalışır) ─────────────
   async function sendWithPolling(text) {
     function progressHTML(d) {
+      if (d && d.done && d.diagnostics && d.diagnostics.fast_path_used) return "";
       return renderAgentProgress(d.progress, d.progress_log);
+    }
+    function diagnosticsHTML(d) {
+      return renderDiagnostics((d && d.diagnostics) || assistantMsg.diagnostics);
     }
     // Yanıt balonunu oluştur
     const assistantMsg = { role: "assistant", content: "", id: null, rating: 0 };
@@ -551,9 +651,11 @@ const Chat = (() => {
             lastProgress = d.progress;
             assistantMsg.progress = d.progress;
             assistantMsg.progress_log = d.progress_log || [];
+            assistantMsg.diagnostics = d.diagnostics || assistantMsg.diagnostics;
             const shouldStick = isNearBottom();
             if (!d.content || d.content.length <= lastLen) {
               contentEl.innerHTML = progressHTML(d) + (d.done ? "" : '<span class="stream-cursor">▊</span>');
+              contentEl.insertAdjacentHTML("beforeend", diagnosticsHTML(d));
               keepBottomIfNeeded(shouldStick);
             }
           }
@@ -565,9 +667,11 @@ const Chat = (() => {
             assistantMsg.content = d.content;
             assistantMsg.progress = d.progress;
             assistantMsg.progress_log = d.progress_log || [];
+            assistantMsg.diagnostics = d.diagnostics || assistantMsg.diagnostics;
             if (contentEl) {
               let thoughtHtml = d.thought ? `<details style="margin-bottom:8px;opacity:.7"><summary style="cursor:pointer;font-size:12px;color:var(--color-accent)">💭 Düşünce (${d.thought.split(' ').length} kelime)</summary><pre style="font-size:11px;padding:8px;background:var(--color-surface-2);border-radius:6px;white-space:pre-wrap">${d.thought}</pre></details>` : '';
               contentEl.innerHTML = progressHTML(d) + thoughtHtml + renderMarkdown(d.content) + (d.done ? "" : '<span class="stream-cursor">▊</span>');
+              contentEl.insertAdjacentHTML("beforeend", diagnosticsHTML(d));
               keepBottomIfNeeded(shouldStick);
             }
           }
@@ -582,7 +686,14 @@ const Chat = (() => {
               assistantMsg.content = d.content;
               assistantMsg.progress = d.progress;
               assistantMsg.progress_log = d.progress_log || [];
-              if (contentEl) contentEl.innerHTML = progressHTML(d) + renderMarkdown(d.content);
+              assistantMsg.diagnostics = d.diagnostics || assistantMsg.diagnostics;
+              if (contentEl) contentEl.innerHTML = progressHTML(d) + renderMarkdown(d.content) + diagnosticsHTML(d);
+            } else if (d.error) {
+              assistantMsg.content = `Bir aksama oldu: ${d.error}`;
+              assistantMsg.progress = d.progress;
+              assistantMsg.progress_log = d.progress_log || [];
+              assistantMsg.diagnostics = d.diagnostics || assistantMsg.diagnostics;
+              if (contentEl) contentEl.innerHTML = progressHTML(d) + renderMarkdown(assistantMsg.content) + diagnosticsHTML(d);
             }
             if (d.message_id) {
               assistantMsg.id = d.message_id;
@@ -860,6 +971,13 @@ const Chat = (() => {
     });
 
     elInput.addEventListener("input", autoResize);
+    elInput.addEventListener("paste", handleClipboardImagePaste);
+
+    document.addEventListener("paste", (e) => {
+      if (document.activeElement === elInput) return;
+      const activeView = typeof Views !== "undefined" ? Views.current?.() : "chat";
+      if (activeView === "chat") handleClipboardImagePaste(e);
+    });
 
     // Header butonları
     elDelete?.addEventListener("click", deleteCurrent);
@@ -902,10 +1020,11 @@ const Chat = (() => {
     updateQueueStatus();
   }
 
-  return { init, send, rename, deleteCurrent };
+  return { init, send, rename, deleteCurrent, attachImage: setAttachedImage };
 })();
 
 window.Chat = Chat;
+window.attachChatImage = (file) => Chat.attachImage(file);
 
 // Alt çubuktan embedding yükleme
 window.loadEmbedding = async function() {

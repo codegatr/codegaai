@@ -374,8 +374,11 @@ def create_app() -> FastAPI:
                                 log.info("BGE-M3 indirilmemiş — arka planda indiriliyor")
                                 def _dl_and_load_emb():
                                     try:
-                                        t = reg.download_snapshot_async("bge-m3", spec_kind="embedding")
-                                        t.join()
+                                        thread = reg.download_snapshot_async(
+                                        "bge-m3",
+                                        spec_kind="embedding",
+                                        )
+                                        thread.join()
                                         progress = reg.get_progress("bge-m3")
                                         if progress.status == "completed":
                                             log.info("BGE-M3 indirildi, yükleniyor...")

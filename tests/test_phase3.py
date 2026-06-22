@@ -27,6 +27,8 @@ class TestModelRegistry(unittest.TestCase):
         self.assertGreater(len(models), 0)
 
         ids = {m["id"] for m in models}
+        self.assertIn("qwen3.5-4b-q4_k_m", ids)
+        self.assertIn("qwen3.5-9b-q4_k_m", ids)
         self.assertIn("qwen2.5-7b-instruct-q4_k_m", ids)
         self.assertIn("llama-3.1-8b-instruct-q4_k_m", ids)
         self.assertIn("aya-expanse-8b-q4_k_m", ids)
@@ -44,7 +46,7 @@ class TestModelRegistry(unittest.TestCase):
         reg = ModelRegistry.get()
         defaults = [m for m in reg.list_llm_models() if m.get("default")]
         self.assertEqual(len(defaults), 1)
-        self.assertEqual(defaults[0]["id"], "qwen2.5-7b-instruct-q4_k_m")
+        self.assertEqual(defaults[0]["id"], "qwen3.5-4b-q4_k_m")
 
     def test_get_llm_spec(self) -> None:
         from codegaai.core.models_registry import ModelRegistry
@@ -156,7 +158,7 @@ class TestApiContracts(unittest.TestCase):
         self.assertGreater(len(r.json()["models"]), 0)
 
     def test_model_status(self) -> None:
-        r = self.client.get("/api/models/qwen2.5-7b-instruct-q4_k_m/status")
+        r = self.client.get("/api/models/qwen3.5-4b-q4_k_m/status")
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertFalse(data["downloaded"])
@@ -166,10 +168,21 @@ class TestApiContracts(unittest.TestCase):
         r = self.client.get("/api/models/ghost/status")
         self.assertEqual(r.status_code, 404)
 
-    def test_chat_falls_back_to_stub_when_no_model(self) -> None:
-        """Motor yüklü olmadığında 200 + 'model yüklü değil' notu."""
+    def test_chat_uses_fast_path_before_model_stub(self) -> None:
+        """Basit mesajlar motor yüklü değilken bile ağır pipeline'a girmez."""
         r = self.client.post("/api/chat", json={
             "messages": [{"role": "user", "content": "merhaba"}]
+        })
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["model"], "rule_based")
+        self.assertEqual(data["message"]["content"], "Merhaba, nasıl yardımcı olabilirim?")
+        self.assertEqual(data["finish_reason"], "fast_path")
+
+    def test_chat_falls_back_to_stub_when_no_model_for_heavy_task(self) -> None:
+        """Ağır görevlerde motor yoksa model yükleme notu döner."""
+        r = self.client.post("/api/chat", json={
+            "messages": [{"role": "user", "content": "Laravel migration oluştur"}]
         })
         self.assertEqual(r.status_code, 200)
         data = r.json()

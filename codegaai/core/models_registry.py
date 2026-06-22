@@ -151,6 +151,29 @@ class VideoModelSpec:
 # ============================================================
 
 LLM_MODELS: tuple[LLMModelSpec, ...] = (
+    LLMModelSpec(
+        id="qwen3.5-4b-q4_k_m",
+        name="Qwen3.5 4B (Q4_K_M)",
+        default=True,
+        hf_repo="bartowski/Qwen_Qwen3.5-4B-GGUF",
+        hf_file="Qwen_Qwen3.5-4B-Q4_K_M.gguf",
+        size_gb=3.0,
+        vram_gb=4.0,
+        languages=("tr", "en", "zh", "ar", "fr", "de", "es"),
+        context_length=32768,
+        description="6 GB VRAM icin varsayilan hizli sohbet, kisa QA ve gunluk kullanim modeli.",
+    ),
+    LLMModelSpec(
+        id="qwen3.5-9b-q4_k_m",
+        name="Qwen3.5 9B (Q4_K_M)",
+        hf_repo="bartowski/Qwen_Qwen3.5-9B-GGUF",
+        hf_file="Qwen_Qwen3.5-9B-Q4_K_M.gguf",
+        size_gb=6.2,
+        vram_gb=7.0,
+        languages=("tr", "en", "zh", "ar", "fr", "de", "es"),
+        context_length=32768,
+        description="Guclu analiz ve kodlama modeli; 6 GB VRAM cihazlarda varsayilan degildir.",
+    ),
     # === 6 GB VRAM (RTX 3060 Laptop) için önerilen ===
     LLMModelSpec(
         id="qwen2.5-3b-instruct-q4_k_m",
@@ -166,7 +189,6 @@ LLM_MODELS: tuple[LLMModelSpec, ...] = (
     LLMModelSpec(
         id="qwen2.5-7b-instruct-q4_k_m",
         name="Qwen 2.5 7B Instruct (Q4_K_M)",
-        default=True,
         hf_repo="bartowski/Qwen2.5-7B-Instruct-GGUF",
         hf_file="Qwen2.5-7B-Instruct-Q4_K_M.gguf",
         size_gb=4.68,

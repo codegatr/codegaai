@@ -334,6 +334,10 @@ const Vision = (() => {
       const file = imgInput.files?.[0];
       if (!file) return;
 
+      if (window.attachChatImage) {
+        window.attachChatImage(file);
+        return;
+      }
       const url = URL.createObjectURL(file);
       if (thumb) thumb.src = url;
       if (previewDiv) previewDiv.style.display = "flex";

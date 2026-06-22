@@ -109,6 +109,8 @@ class LLMEngine:
         self._native_blocked_models: set[str] = set()
         self._gen_lock = threading.Lock()  # tek seferde bir üretim
 
+        self._last_finish_reason: Optional[str] = None
+
     @classmethod
     def get(cls) -> "LLMEngine":
         if cls._instance is None:
@@ -539,7 +541,10 @@ class LLMEngine:
 
         cfg = cfg or GenerationConfig()
 
-        with self._gen_lock:
+        lock_timeout = float(os.environ.get("CODEGA_GENERATION_LOCK_TIMEOUT", "2.0"))
+        if not self._gen_lock.acquire(timeout=lock_timeout):
+            raise RuntimeError("Model onceki yaniti tamamliyor; lutfen birazdan tekrar deneyin.")
+        try:
             t0 = time.time()
             result = self._llm.create_chat_completion(
                 messages=messages,
@@ -552,8 +557,11 @@ class LLMEngine:
                 stream=False,
             )
             elapsed_ms = int((time.time() - t0) * 1000)
+        finally:
+            self._gen_lock.release()
 
         choice = result["choices"][0]
+        self._last_finish_reason = choice.get("finish_reason", "stop")
         msg = choice["message"]
         content = msg.get("content", "")
 
@@ -595,7 +603,9 @@ class LLMEngine:
         cfg = cfg or GenerationConfig()
 
         # Manuel lock — finally'de bırak
-        self._gen_lock.acquire()
+        lock_timeout = float(os.environ.get("CODEGA_GENERATION_LOCK_TIMEOUT", "2.0"))
+        if not self._gen_lock.acquire(timeout=lock_timeout):
+            raise RuntimeError("Model onceki yaniti tamamliyor; lutfen birazdan tekrar deneyin.")
         try:
             iterator = self._llm.create_chat_completion(
                 messages=messages,
@@ -608,7 +618,11 @@ class LLMEngine:
                 stream=True,
             )
             for chunk in iterator:
-                delta = chunk["choices"][0].get("delta", {})
+                choice = chunk["choices"][0]
+                finish_reason = choice.get("finish_reason")
+                if finish_reason:
+                    self._last_finish_reason = finish_reason
+                delta = choice.get("delta", {})
                 content = delta.get("content")
                 if content:
                     yield content
