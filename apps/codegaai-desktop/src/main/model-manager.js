@@ -490,10 +490,38 @@ function safeArithmeticAnswer(input) {
   }
 }
 
+function literalOnlyAnswer(input) {
+  const original = String(input || "").trim();
+  if (!original) return "";
+  const normalized = original.replace(/\s+/g, " ").trim();
+  const patterns = [
+    /^(?:sadece|yaln[\u0131i]zca|yalnizca)\s+["'`“”‘’]?(.+?)["'`“”‘’]?\s+(?:yaz|de|s[öo]yle|cevapla)(?:[.!?]|$)/iu,
+    /^(?:only|just)\s+(?:write|say|print|reply)\s+["'`“”‘’]?(.+?)["'`“”‘’]?(?:[.!?]|$)/iu,
+    /^(?:tek\s+kelime|single\s+word)\s*[:：-]\s*["'`“”‘’]?(.+?)["'`“”‘’]?(?:[.!?]|$)/iu,
+  ];
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (!match) continue;
+    let answer = String(match[1] || "").trim();
+    answer = answer
+      .replace(/\s*(?:ba[şs]ka|baska)\s+hi[çc]bir\s+[şs]ey\s+yazma\.?$/iu, "")
+      .replace(/\s*(?:nothing\s+else|do\s+not\s+write\s+anything\s+else|do\s+not\s+add\s+anything\s+else)\.?$/iu, "")
+      .trim();
+    answer = answer.replace(/^["'`“”‘’]+|["'`“”‘’]+$/g, "").trim();
+    if (!answer) continue;
+    const words = answer.split(/\s+/).filter(Boolean);
+    if (answer.length <= 120 && words.length <= 12) return answer;
+  }
+  return "";
+}
+
 function instantAnswer(input) {
   const raw = String(input || "").trim();
   const text = raw.toLowerCase();
   if (!text) return "";
+
+  const literal = literalOnlyAnswer(raw);
+  if (literal) return literal;
 
   const math = safeArithmeticAnswer(raw);
   if (math) return math;
@@ -827,6 +855,7 @@ class ModelManager {
     this._abort = null; // mevcut üretimi durdurmak için
     this._aborted = false;
     this._queue = Promise.resolve(); // ask() serileştirme kuyruğu
+    this._activeForeground = 0;
     this._preparingModels = new Set(); // arka planda aynı modeli iki kez indirme
     this.state = {
       provider: "instant",
@@ -853,6 +882,10 @@ class ModelManager {
 
   getStatus() {
     return { ...this.state };
+  }
+
+  isBusy() {
+    return this._activeForeground > 0;
   }
 
   async installedModels() {
@@ -1057,11 +1090,16 @@ class ModelManager {
 
   ask(input, opts = {}) {
     const run = async () => {
-      const result = await this._ask(input, opts);
-      if (!result || typeof result.text !== "string") return result;
-      const taskReport = tde.decomposeTasks(input);
-      const cleaned = finalAnswerSanitizer.cleanUserFacingOutput(result.text, input, taskReport);
-      return cleaned.changed ? { ...result, text: cleaned.answer } : result;
+      this._activeForeground += 1;
+      try {
+        const result = await this._ask(input, opts);
+        if (!result || typeof result.text !== "string") return result;
+        const taskReport = tde.decomposeTasks(input);
+        const cleaned = finalAnswerSanitizer.cleanUserFacingOutput(result.text, input, taskReport);
+        return cleaned.changed ? { ...result, text: cleaned.answer } : result;
+      } finally {
+        this._activeForeground = Math.max(0, this._activeForeground - 1);
+      }
     };
     const result = this._queue.then(run, run);
     this._queue = result.then(
@@ -2016,24 +2054,27 @@ class ModelManager {
         if (content) return content;
       }
     }
+    const models = [model, ...fallbackModels.filter((m) => m !== model)].slice(0, 4);
     if (providers.includes("ollama") && await ollamaReachable()) {
+      for (const m of models) {
       try {
         try {
           const lastUser = [...messages].reverse().find((m) => m && m.role === "user");
-          logs.info("model_generate", `provider=ollama model=${model} stream=${Boolean(onToken)} timeout=${Math.round(OLLAMA_CHAT_TIMEOUT_MS / 1000)}s prompt=${String(lastUser?.content || "").slice(0, 240).replace(/\s+/g, " ")}`);
+          logs.info("model_generate", `provider=ollama model=${m} stream=${Boolean(onToken && m === model)} timeout=${Math.round(OLLAMA_CHAT_TIMEOUT_MS / 1000)}s prompt=${String(lastUser?.content || "").slice(0, 240).replace(/\s+/g, " ")}`);
         } catch (_logError) {}
-        const content = onToken
-          ? await ollamaChatStream(model, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS, onToken, signal: sig })
-          : await ollamaChat(model, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS, signal: sig });
+        const content = onToken && m === model
+          ? await ollamaChatStream(m, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS, onToken, signal: sig })
+          : await ollamaChat(m, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS, signal: sig });
         if (content && content.trim()) return content;
+        try { logs.warn("model_generate", `empty_response provider=ollama model=${m}`); } catch (_e) {}
       } catch (_e) {
         if (sig && sig.aborted) {
           const aborted = new Error("Ollama isteği durduruldu.");
           aborted.name = "AbortError";
           throw aborted;
         }
-        if (_e && _e.name === "TimeoutError") throw _e;
-        // HTTP başarısız -> CLI fallback (akışsız)
+        try { logs.warn("model_generate", `http_failed provider=ollama model=${m} error=${_e && (_e.message || _e)}`); } catch (_logError) {}
+      }
       }
     }
     if (sig && sig.aborted) {
@@ -2042,7 +2083,6 @@ class ModelManager {
       throw aborted;
     }
     const prompt = flattenMessages(messages);
-    const models = [model, ...fallbackModels.filter((m) => m !== model)].slice(0, 4);
     for (const m of models) {
       if (sig && sig.aborted) {
         const aborted = new Error("Ollama isteği durduruldu.");
@@ -2070,6 +2110,7 @@ class ModelManager {
 module.exports = {
   ModelManager,
   READY_STATES,
+  literalOnlyAnswer,
   instantAnswer,
   detectTask,
   repairTaskBoundaryLeak,
