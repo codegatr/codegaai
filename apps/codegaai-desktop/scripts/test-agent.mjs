@@ -421,6 +421,9 @@ function ok(name) { console.log(`  ✓ ${name}`); passed += 1; }
 {
   const mm = await import(path.join(mainDir, "model-manager.js"));
   const M = mm.default || mm;
+  assert.strictEqual(M.literalOnlyAnswer("Sadece MAVİ yaz. Başka hiçbir şey yazma."), "MAVİ");
+  assert.strictEqual(M.instantAnswer("Yalnızca TAMAM yaz."), "TAMAM");
+  assert.strictEqual(M.literalOnlyAnswer("Only write BLUE."), "BLUE");
   assert.strictEqual(M.instantAnswer("Sadece OK yaz. Başka hiçbir şey yazma."), "OK");
   assert.strictEqual(M.instantAnswer("Only YES write. Do not add anything else."), "YES");
   assert.strictEqual(M.instantAnswer("2 + 2 kaç eder? Sadece sonucu yaz."), "4");

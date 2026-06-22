@@ -132,12 +132,16 @@ async function learnOnce(manualTopic) {
   // #5 Damıtım (opt-in): ham notları modelle kısa kalıcı özete indir
   if (settingsStore.getSettings().distillLearning && notes.length) {
     try {
-      const notesText = notes.map((n) => `[${n.source}] ${n.text}`).join("\n");
-      const st = modelManager.getStatus ? modelManager.getStatus() : {};
-      const model = (st && st.model) || DEFAULT_MODEL;
-      const summary = await modelManager.generate(model, learning.buildDistillMessages(topic, notesText));
-      const clean = String(summary || "").trim();
-      if (clean) learningStore.addNotes([{ source: "özet", topic, text: clean.slice(0, 700), url: "", at: Date.now() }]);
+      if (modelManager.isBusy && modelManager.isBusy()) {
+        try { logs.info("learning", "Damıtım ertelendi: kullanıcı sohbeti aktif"); } catch (_e) {}
+      } else {
+        const notesText = notes.map((n) => `[${n.source}] ${n.text}`).join("\n");
+        const st = modelManager.getStatus ? modelManager.getStatus() : {};
+        const model = (st && st.model) || DEFAULT_MODEL;
+        const summary = await modelManager.generate(model, learning.buildDistillMessages(topic, notesText));
+        const clean = String(summary || "").trim();
+        if (clean) learningStore.addNotes([{ source: "özet", topic, text: clean.slice(0, 700), url: "", at: Date.now() }]);
+      }
     } catch (_e) { /* damıtım başarısızsa ham notlar kalır */ }
   }
   lastLearn = { at: Date.now(), topic, found: notes.length, added, total: learningStore.count() };

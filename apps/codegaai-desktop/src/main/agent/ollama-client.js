@@ -27,6 +27,8 @@ async function ollamaChat(model, messages, opts = {}) {
     timeoutMs = 90000,
     host = OLLAMA_HOST,
     numCtx = 8192,
+    numPredict = null,
+    think = false,
   } = opts;
 
   const controller = new AbortController();
@@ -48,7 +50,12 @@ async function ollamaChat(model, messages, opts = {}) {
         model,
         messages,
         stream: false,
-        options: { temperature, num_ctx: numCtx },
+        think,
+        options: {
+          temperature,
+          num_ctx: numCtx,
+          ...(Number.isFinite(Number(numPredict)) ? { num_predict: Number(numPredict) } : {}),
+        },
       }),
       signal: controller.signal,
     });
@@ -81,6 +88,8 @@ async function ollamaChatStream(model, messages, opts = {}) {
     timeoutMs = 120000,
     host = OLLAMA_HOST,
     numCtx = 8192,
+    numPredict = null,
+    think = false,
     onToken = null,
   } = opts;
 
@@ -104,7 +113,12 @@ async function ollamaChatStream(model, messages, opts = {}) {
         model,
         messages,
         stream: true,
-        options: { temperature, num_ctx: numCtx },
+        think,
+        options: {
+          temperature,
+          num_ctx: numCtx,
+          ...(Number.isFinite(Number(numPredict)) ? { num_predict: Number(numPredict) } : {}),
+        },
       }),
       signal: controller.signal,
     });
