@@ -195,3 +195,4 @@ jobs:
             apps/codegaai-desktop/release/*.dmg
             apps/codegaai-desktop/release/*.zip
             apps/codegaai-desktop/release/latest-mac.yml
+          make_latest: true

@@ -13,7 +13,7 @@ on:
         required: false
         default: ""
 
-# ── Concurrency: Aynı tag/branch'e yeni push gelince öncekini iptal et ──
+# Concurrency: Aynı tag/branch'e yeni push gelince öncekini iptal et
 concurrency:
   group: windows-build-${{ github.ref }}
   cancel-in-progress: true
@@ -25,12 +25,12 @@ jobs:
   build-windows:
     name: Build Windows portable
     runs-on: windows-latest
-    timeout-minutes: 75   # Artırıldı — tüm ML paketleri için yeterli
+    timeout-minutes: 75
 
     env:
-      PYTHONIOENCODING: "utf-8"        # Türkçe karakter cp1252 hatasını önler
-      PYTHONUTF8: "1"                  # Python 3.7+ UTF-8 modu
-      PYTHONLEGACYWINDOWSSTDIO: "0"    # Legacy Windows stdio devre dışı
+      PYTHONIOENCODING: "utf-8"
+      PYTHONUTF8: "1"
+      PYTHONLEGACYWINDOWSSTDIO: "0"
 
     steps:
       - name: Checkout
@@ -48,23 +48,18 @@ jobs:
           python -m pip install --upgrade pip wheel setuptools
           python -m pip install pyinstaller pyinstaller-hooks-contrib
 
-      # ── Adım 1: Temel paketler (kritik, hata = build durur) ──────────
       - name: Install core deps
         shell: pwsh
         run: |
           python -m pip install fastapi "uvicorn[standard]" pydantic python-multipart psutil rich httpx packaging
           python -m pip install pywebview
 
-      # ── Adım 2: PyTorch CPU ──────────────────────────────────────────
       - name: Install PyTorch (CPU)
         shell: pwsh
         run: |
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
           python -c "import torch; print('PyTorch', torch.__version__, '| CUDA:', torch.cuda.is_available())"
 
-      # ── Adım 3: llama-cpp-python — KAYNAKTAN AVX'SİZ derleme ──────────
-      # KRITIK: abetlen'in CPU wheel'i AVX2 icerir, eski CPU'larda crash verir
-      # Bu yuzden ZORUNLU olarak kaynaktan derliyoruz (15-25 dk surer)
       - name: Install llama-cpp-python (AVX-free source build)
         shell: pwsh
         run: |
@@ -74,15 +69,10 @@ jobs:
           Write-Host "Hedef: AVX2 olmayan CPU'larda calismasi"
           Write-Host "============================================="
 
-          # CMAKE AVX'i tamamen kapat.
-          # GGML_* yeni llama.cpp, LLAMA_* eski sürümler için tutulur.
           $env:CMAKE_ARGS = "-DGGML_NATIVE=OFF -DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_AVX512=OFF -DGGML_F16C=OFF -DGGML_FMA=OFF -DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_AVX512=OFF -DLLAMA_F16C=OFF -DLLAMA_FMA=OFF -DLLAMA_BLAS=OFF"
           $env:FORCE_CMAKE = "1"
 
-          # CMake/Build araclarini kur
           python -m pip install --upgrade pip setuptools wheel scikit-build-core cmake ninja
-
-          # --no-binary ile ZORUNLU kaynaktan derleme
           python -m pip install llama-cpp-python `
             --no-binary llama-cpp-python `
             --no-cache-dir `
@@ -91,11 +81,9 @@ jobs:
             throw "AVX'siz llama-cpp-python kaynak derlemesi basarisiz; AVX2'li wheel ile devam edilmeyecek."
           }
 
-          # Dogrula
           python -c "from llama_cpp import Llama; print('llama-cpp OK (AVX-free build)')"
           python -c "import llama_cpp; print('Version:', llama_cpp.__version__)"
 
-      # ── Adım 4: Temel ML kütüphaneleri ───────────────────────────────
       - name: Install ML core
         shell: pwsh
         run: |
@@ -105,17 +93,14 @@ jobs:
           python -m pip install faster-whisper soundfile
           python -m pip install imageio imageio-ffmpeg
 
-      # ── Adım 5: Faz 7 — DPO/LoRA (opsiyonel) ────────────────────────
       - name: Install Faz7 deps (peft, trl, datasets)
         shell: pwsh
-        continue-on-error: true   # Windows'ta trl bazen başarısız
+        continue-on-error: true
         run: |
           python -m pip install peft datasets
-          # trl ayrı — bağımlılık çakışması riski var
           python -m pip install trl --no-deps
           python -c "import peft; import datasets; print('Faz7 OK')"
 
-      # ── Adım 6: Vision (einops, torchvision) ─────────────────────────
       - name: Install Vision deps
         shell: pwsh
         continue-on-error: true
@@ -123,26 +108,21 @@ jobs:
           python -m pip install einops torchvision
           python -c "import einops; import torchvision; print('Vision deps OK')"
 
-      # ── Adım 7: Web, OCR, PDF ────────────────────────────────────────
       - name: Install Web/OCR/PDF deps
         shell: pwsh
         continue-on-error: true
         run: |
           python -m pip install duckduckgo-search beautifulsoup4 feedparser lxml
           python -m pip install pymupdf pdfplumber
-          python -m pip install sounddevice   # Wake word için
-          python -m pip install mss           # Faz 31: Ekran yakalama
-          python -m pip install "qrcode[pil]" # Faz 30: Mobil QR kod
-          # easyocr ayrı — büyük bağımlılık, zaman alır
+          python -m pip install sounddevice
+          python -m pip install mss
+          python -m pip install "qrcode[pil]"
           python -m pip install easyocr opencv-python-headless
 
-      # ── Adım 8: TTS — piper-tts (Python 3.12 destekli) ──────────────────
       - name: Install TTS (piper-tts)
         shell: pwsh
         continue-on-error: true
         run: |
-          # Coqui TTS max Python 3.11 — 3.12'de yok
-          # piper-tts: Mozilla/Rhasspy fork, 3.12 OK, offline, Türkçe model var
           python -m pip install piper-tts 2>&1
           if ($LASTEXITCODE -eq 0) {
             Write-Host "piper-tts OK"
@@ -152,13 +132,11 @@ jobs:
           }
           exit 0
 
-      # ── Yüklü paket özeti ─────────────────────────────────────────────
       - name: List installed packages
         shell: pwsh
         run: |
           pip list | Select-String -Pattern "torch|peft|trl|llama|einops|chromadb|diffusers|faster.whisper|easyocr|pymupdf"
 
-      # ── Import testi — yeni modüller hata veriyor mu? ─────────────────
       - name: Test imports
         shell: pwsh
         continue-on-error: true
@@ -176,13 +154,11 @@ jobs:
           python -c "import codegaai.core.reasoning; print('reasoning OK')"
           Write-Host "Import testleri tamamlandi"
 
-      # ── Unit testler ──────────────────────────────────────────────────
       - name: Run unit tests
         shell: pwsh
         continue-on-error: true
         run: python -m unittest tests.test_phase2 tests.test_phase8 2>&1
 
-      # ── PyInstaller build ──────────────────────────────────────────────
       - name: Build with PyInstaller
         shell: pwsh
         run: |
@@ -197,7 +173,6 @@ jobs:
           $size = (Get-ChildItem -Path "dist/codegaai" -Recurse | Measure-Object Length -Sum).Sum / 1MB
           Write-Host "Toplam boyut: $([math]::Round($size, 1)) MB"
 
-      # ── Versiyon tespiti ───────────────────────────────────────────────
       - name: Determine version tag
         id: version
         shell: pwsh
@@ -212,7 +187,6 @@ jobs:
           Write-Host "Tag: $tag"
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-      # ── ZIP oluştur ───────────────────────────────────────────────────
       - name: Create portable ZIP
         id: zip
         shell: pwsh
@@ -225,7 +199,6 @@ jobs:
           Write-Host "ZIP: $zipName ($([math]::Round($zipSize, 1)) MB)"
           "zip_name=$zipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-      # ── Artifact (manual/build branch) ─────────────────────────────────
       - name: Upload artifact
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
@@ -234,7 +207,6 @@ jobs:
           path: ${{ steps.zip.outputs.zip_name }}
           retention-days: 30
 
-      # ── GitHub Release (tag push veya manuel release_tag) ──────────────
       - name: Attach to GitHub Release
         if: ${{ startsWith(github.ref, 'refs/tags/') || github.event.inputs.release_tag != '' }}
         uses: softprops/action-gh-release@v2
@@ -244,5 +216,6 @@ jobs:
           files: ${{ steps.zip.outputs.zip_name }}
           fail_on_unmatched_files: true
           generate_release_notes: true
+          make_latest: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

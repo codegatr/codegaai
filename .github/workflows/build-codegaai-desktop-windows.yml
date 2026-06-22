@@ -124,3 +124,4 @@ jobs:
           tag_name: ${{ steps.release.outputs.tag }}
           name: CODEGA AI Desktop ${{ steps.release.outputs.version }}
           files: apps/codegaai-desktop/release/*
+          make_latest: true
