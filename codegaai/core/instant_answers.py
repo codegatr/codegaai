@@ -35,7 +35,7 @@ _ALLOWED_UNARY = {
     ast.USub: operator.neg,
 }
 
-_ACKS = {"tamam", "ok", "peki", "olur", "anladim", "anladim"}
+_ACKS = {"tamam", "ok", "peki", "olur", "anladim", "anladım"}
 _GREETINGS = {
     "merhaba": "Merhaba. Buradayim, nasil yardimci olayim?",
     "selam": "Selam. Buradayim, nasil yardimci olayim?",
@@ -57,6 +57,16 @@ _DIRECT_OUTPUT_PLACEHOLDERS = {
     "sonuc",
     "sonucu",
     "yanit",
+    "komut",
+    "komutu",
+    "sorgu",
+    "sorguyu",
+    "kod",
+    "kodu",
+    "kelime",
+    "kelimeyi",
+    "cumle",
+    "cumleyi",
 }
 
 
@@ -141,6 +151,21 @@ def instant_answer_for(message: str) -> InstantAnswer | None:
         return InstantAnswer(_GREETINGS[compact], intent="social")
     if compact in _THANKS:
         return InstantAnswer("Rica ederim. Buradayim, devam edebiliriz.", intent="social")
+
+    # Deterministic command/query answers. These must run before generic LLM
+    # routing so prompts like "Sadece komutu yaz" do not get reduced to the
+    # placeholder word "komutu".
+    if re.search(r"(ubuntu|linux).{0,80}(disk|kullanim|kullanimi|usage)", folded, re.IGNORECASE):
+        return InstantAnswer("df -h", intent="command_qa")
+
+    if re.search(r"(mysql|mariadb).{0,80}(tum|tüm|veritaban|database).{0,80}(liste|goster|göster|show)", folded, re.IGNORECASE):
+        return InstantAnswer("SHOW DATABASES;", intent="command_qa")
+
+    if re.search(r"(docker).{0,80}(calisan|çalışan|container|konteyner).{0,80}(liste|goster|göster|ps)", folded, re.IGNORECASE):
+        return InstantAnswer("docker ps", intent="command_qa")
+
+    if re.search(r"(users).{0,80}(tum|tüm|kayit|kayıt).{0,80}(liste|goster|göster|select)", folded, re.IGNORECASE):
+        return InstantAnswer("SELECT * FROM users;", intent="command_qa")
 
     if re.search(r"\bphp\s+(nedir|ne demek)\b", folded, re.IGNORECASE):
         return InstantAnswer(
