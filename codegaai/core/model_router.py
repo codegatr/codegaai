@@ -57,8 +57,12 @@ TURKISH_HEAVY = [
 ]
 
 QUICK_PATTERNS = [
-    r"\b(nedir|ne demek)\b.{0,40}\b(tek c[Ã¼u]mle|kisa|kÄ±sa)\b",
-    r"\b(sadece|yaln[Ä±i]zca|yalnizca)\b.{0,30}\b(yaz|soyle|sÃ¶yle|cevapla)\b",
+    # Short factual questions must use the light model before code rules run.
+    r"\b(nedir|ne demek)\b.{0,80}\b(tek cümle|tek cumle|kısa|kisa|açıkla|acikla)\b",
+    r"\b(php|laravel|mysql|ubuntu|docker)\b.{0,40}\b(nedir|ne demek)\b",
+    r"\b(türkiye|turkiye).{0,40}\bbaşkenti|\bbaskenti\b",
+    r"\b(sadece|yalnızca|yalnizca|only)\b.{0,30}\b(yaz|söyle|soyle|cevapla|write|say|reply)\b",
+    r"\b(sadece|yalnızca|yalnizca)\b.{0,30}\b(komutu|komut|sorguyu|sorgu|sonucu|sonuç|cevabı|cevap)\b",
     r"^\s*\d+\s*[\+\-\*/xX]\s*\d+",
     r"^(merhaba|selam|hey|hi|hello)\b",
     r"^nasılsın", r"^ne haber", r"^iyi misin",
@@ -176,11 +180,12 @@ class ModelRouter:
         current = engine._status.model_id if engine.is_ready else None
         available_vram = self._get_free_vram()
 
-        text_for_analysis = (query or "").lower()
+        text_for_analysis = self._normalize_text(query or "")
         if history:
             recent = " ".join(
                 m.get("content", "")[:200] for m in history[-3:]
-            ).lower()
+            )
+            recent = self._normalize_text(recent)
             text_for_analysis = f"{recent} {text_for_analysis}"
 
         quick_model = self._select_quick_model(text_for_analysis)
@@ -206,6 +211,14 @@ class ModelRouter:
             return best_model
         return None
 
+    def _normalize_text(self, text: str) -> str:
+        table = str.maketrans({
+            "İ": "i", "I": "i", "ı": "i", "ğ": "g", "Ğ": "g",
+            "ü": "u", "Ü": "u", "ş": "s", "Ş": "s",
+            "ö": "o", "Ö": "o", "ç": "c", "Ç": "c",
+        })
+        return str(text or "").translate(table).casefold().replace("i\u0307", "i")
+
     def _score_rule(self, text: str, rule: ModelRule) -> int:
         score = 0
         for kw in rule.keywords:
@@ -217,7 +230,8 @@ class ModelRouter:
         return score
 
     def _select_quick_model(self, text: str) -> Optional[str]:
-        if not any(re.search(pattern, text, re.IGNORECASE) for pattern in QUICK_PATTERNS):
+        normalized = self._normalize_text(text)
+        if not any(re.search(pattern, normalized, re.IGNORECASE) for pattern in QUICK_PATTERNS):
             return None
         from codegaai.core.models_registry import ModelRegistry
 
