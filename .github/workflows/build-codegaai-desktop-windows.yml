@@ -48,18 +48,24 @@ jobs:
         id: release
         shell: pwsh
         run: |
-          $version = "${{ inputs.version }}"
-          if (-not $version -and $env:GITHUB_REF -like "refs/tags/desktop-v*") {
-            $version = $env:GITHUB_REF -replace "^refs/tags/desktop-v", ""
+          $versionInput = "${{ inputs.version }}".Trim()
+          if (-not $versionInput -and $env:GITHUB_REF -like "refs/tags/desktop-v*") {
+            $versionInput = $env:GITHUB_REF -replace "^refs/tags/desktop-v", ""
           }
-          if ($version) {
-            if ($version -notmatch "^\d+\.\d+\.\d+([-.][0-9A-Za-z.-]+)?$") {
-              throw "Invalid desktop version: $version"
+          if ($versionInput) {
+            $match = [regex]::Match($versionInput, "\d+\.\d+\.\d+([-.][0-9A-Za-z.-]+)?")
+            if (-not $match.Success) {
+              throw "Invalid desktop version: $versionInput"
             }
+            $version = $match.Value
           } else {
             $pkg = Get-Content package.json -Raw | ConvertFrom-Json
-            $version = $pkg.version
+            $version = "$($pkg.version)".Trim()
           }
+          if ($version -notmatch "^\d+\.\d+\.\d+([-.][0-9A-Za-z.-]+)?$") {
+            throw "Invalid desktop version: $version"
+          }
+          Write-Host "Resolved desktop version: $version"
           npm version $version --no-git-tag-version --allow-same-version
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "tag=desktop-v$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
