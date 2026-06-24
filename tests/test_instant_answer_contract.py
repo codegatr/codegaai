@@ -56,5 +56,39 @@ class InstantAnswerContractTest(unittest.TestCase):
         self.assertLess(jobs.index("instant_answer_for(job.message)"), jobs.index("LLMEngine.get()"))
 
 
+class InstantAnswerCommandQATest(unittest.TestCase):
+    def test_ubuntu_disk_command_returns_df_h(self) -> None:
+        from codegaai.core.instant_answers import instant_answer_for
+
+        answer = instant_answer_for("Ubuntu'da disk kullanımını gösteren komut nedir? Sadece komutu yaz.")
+
+        self.assertIsNotNone(answer)
+        self.assertEqual(answer.content, "df -h")
+        self.assertEqual(answer.intent, "command_qa")
+
+    def test_mysql_show_databases_command(self) -> None:
+        from codegaai.core.instant_answers import instant_answer_for
+
+        answer = instant_answer_for("MySQL'de tüm veritabanlarını listeleyen komut nedir? Sadece komutu yaz.")
+
+        self.assertIsNotNone(answer)
+        self.assertEqual(answer.content, "SHOW DATABASES;")
+        self.assertEqual(answer.intent, "command_qa")
+
+    def test_docker_ps_command(self) -> None:
+        from codegaai.core.instant_answers import instant_answer_for
+
+        answer = instant_answer_for("Docker'da çalışan containerları listeleyen komutu yaz. Sadece komutu yaz.")
+
+        self.assertIsNotNone(answer)
+        self.assertEqual(answer.content, "docker ps")
+        self.assertEqual(answer.intent, "command_qa")
+
+    def test_direct_output_does_not_return_placeholder_words(self) -> None:
+        from codegaai.core.instant_answers import instant_answer_for
+
+        self.assertIsNone(instant_answer_for("Sadece komutu yaz."))
+
+
 if __name__ == "__main__":
     unittest.main()
