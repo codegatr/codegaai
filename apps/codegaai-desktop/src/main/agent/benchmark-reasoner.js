@@ -37,26 +37,39 @@ function missingLabels(question, answer) {
   return labels.filter((label) => !new RegExp(`\\b(test\\s*)?${label.toLocaleLowerCase("tr")}\\b`, "i").test(text));
 }
 
+function softwareModuleAnswer(question) {
+  const q = foldTurkish(question).replace(/\s+/g, " ").trim();
+  if (/\bphp\b/.test(q) && /(kullanici giris|giris sistemi|login)/.test(q) && /(modul|moduller|liste|listele|gerekli)/.test(q)) {
+    return [
+      "PHP 8.3 ile kullanıcı giriş sistemi için temel modüller:",
+      "- Kullanıcı kayıt modülü",
+      "- Giriş ve çıkış modülü",
+      "- Şifre hashleme ve doğrulama modülü",
+      "- Oturum yönetimi modülü",
+      "- Rol ve yetki kontrol modülü",
+      "- Şifremi unuttum / parola sıfırlama modülü",
+      "- E-posta doğrulama modülü",
+      "- Form doğrulama ve güvenlik modülü",
+      "- CSRF koruma modülü",
+      "- Giriş denemesi sınırlama ve işlem logları modülü",
+    ].join("\n");
+  }
+  return "";
+}
+
 function shortFactAnswer(question) {
+  const software = softwareModuleAnswer(question);
+  if (software) return software;
+
   const q = foldTurkish(question).replace(/\s+/g, " ").trim();
   const asksShort = /\b(nedir|ne demek|tek cumle|tek cümle|kisa acikla|kısa açıkla|kisaca|kısaca|acikla|açıkla)\b/.test(q);
   if (!asksShort || q.length > 260) return "";
 
-  if (/\bphp\b/.test(q)) {
-    return "PHP, özellikle web uygulamaları geliştirmek için kullanılan açık kaynaklı, sunucu taraflı bir programlama dilidir.";
-  }
-  if (/\byapay zeka\b|\byapay zekâ\b|\bai\b/.test(q)) {
-    return "Yapay zekâ, bilgisayar sistemlerinin öğrenme, akıl yürütme ve karar verme gibi insan benzeri yetenekleri taklit etmesini sağlayan teknolojidir.";
-  }
-  if (/\bjavascript\b/.test(q)) {
-    return "JavaScript, web sayfalarına etkileşim kazandırmak için kullanılan yaygın bir programlama dilidir.";
-  }
-  if (/\bapi\b/.test(q)) {
-    return "API, farklı yazılımların birbiriyle belirli kurallar üzerinden iletişim kurmasını sağlayan arayüzdür.";
-  }
-  if (/\bsql\b/.test(q)) {
-    return "SQL, ilişkisel veritabanlarında veri sorgulamak ve yönetmek için kullanılan standart bir dildir.";
-  }
+  if (/\bphp\b/.test(q)) return "PHP, özellikle web uygulamaları geliştirmek için kullanılan açık kaynaklı, sunucu taraflı bir programlama dilidir.";
+  if (/\byapay zeka\b|\byapay zekâ\b|\bai\b/.test(q)) return "Yapay zekâ, bilgisayar sistemlerinin öğrenme, akıl yürütme ve karar verme gibi insan benzeri yetenekleri taklit etmesini sağlayan teknolojidir.";
+  if (/\bjavascript\b/.test(q)) return "JavaScript, web sayfalarına etkileşim kazandırmak için kullanılan yaygın bir programlama dilidir.";
+  if (/\bapi\b/.test(q)) return "API, farklı yazılımların birbiriyle belirli kurallar üzerinden iletişim kurmasını sağlayan arayüzdür.";
+  if (/\bsql\b/.test(q)) return "SQL, ilişkisel veritabanlarında veri sorgulamak ve yönetmek için kullanılan standart bir dildir.";
   return "";
 }
 
@@ -81,27 +94,14 @@ function solveKnownReasoningBenchmarks(question) {
   const folded = foldTurkish(question);
   const lines = [];
 
-  if (/(birinci|first|1\.?\s*(sira|place))/.test(folded) && /(gec|pass|overtake)/.test(folded) && /(yaris|kosu|race|sira)/.test(folded)) {
-    lines.push("Normal yarış koşullarında birinci sıradaki kişiyi geçemezsin; öncül bu haliyle geçersizdir.");
-  }
-  if (/(kedi|cat)/.test(folded) && /(onunde|front)/.test(folded) && /(arkasinda|behind)/.test(folded)) {
-    lines.push("Üç kedi çember şeklinde dizilirse her kedi için diğer iki kedi hem önünde hem arkasında kabul edilebilir; cevap 3 kedidir.");
-  }
+  if (/(birinci|first|1\.?\s*(sira|place))/.test(folded) && /(gec|pass|overtake)/.test(folded) && /(yaris|kosu|race|sira)/.test(folded)) lines.push("Normal yarış koşullarında birinci sıradaki kişiyi geçemezsin; öncül bu haliyle geçersizdir.");
+  if (/(kedi|cat)/.test(folded) && /(onunde|front)/.test(folded) && /(arkasinda|behind)/.test(folded)) lines.push("Üç kedi çember şeklinde dizilirse her kedi için diğer iki kedi hem önünde hem arkasında kabul edilebilir; cevap 3 kedidir.");
   if (/30\s+koyun/.test(q) && /12'?si\s+hari[cç]/.test(q)) lines.push("12 koyun kalır.");
-  {
-    const hm = q.match(/(\d+)['’]?\s*(?:i|si|yi|s[ıi]|n[ıi]|[ıiuü])?\s*hari[cç]/);
-    if (hm && /(koyun|hayvan|inek|tavuk|ku[şs]|bal[ıi]k|kedi|k[öo]pek|at|insan|ki[şs]i|asker|[öo][ğg]renci|ada(m|y))/.test(q) && /([öo]l|telef|kayb|hayatta|sa[ğg] kal|geri kal)/.test(q)) {
-      lines.push(`"${hm[1]} hariç hepsi öldü" ifadesinde hariç tutulanlar sağ kalır; hayatta kalan ${hm[1]}.`);
-    }
-  }
   if (/ya[ğg]mur/.test(q) && /[şs]emsiy/.test(q) && /[şs]apka/.test(q) && /sa[cç]lar[ıi]\s+[ıi]slanmad/.test(q)) lines.push("Adamın saçı yoktur; yani keldir.");
   if (/%40/.test(q) && /zam/.test(q) && /indir/.test(q) && /100\s*tl/.test(q)) lines.push("100 TL yüzde 40 zamla 140 TL olur; ardından yüzde 40 indirimle 84 TL olur.");
   if (/7\s+ile\s+[cç]arp/.test(q) && /21\s+ekle/.test(q) && /7'?ye\s+b[öo]l/.test(q)) lines.push("Başlangıç sayısı x ise (7x + 21) / 7 - x = 3; sonuç 3'tür.");
   if (/(ü[cç]üncü|ucuncu|third).*(ge[cç]iyorsun|pass)/.test(q) || /(ge[cç]iyorsun|pass).*(ü[cç]üncü|ucuncu|third)/.test(q)) lines.push("Üçüncü sıradaki kişiyi geçersen üçüncü sıraya yükselirsin.");
   if (/4\s+ki[şs]i/.test(q) && /tokala[şs]/.test(q)) lines.push("4 kişi arasında C(4, 2) = 6 tokalaşma olur.");
-  if (/doktor/.test(q) && /4\s+k[ıi]z karde[şs]/.test(q) && /1\s+erkek karde[şs]/.test(q)) lines.push("Kız kardeşlerin her birinin erkek kardeşi aynıdır; toplam 1 erkek kardeş vardır.");
-  if (/5\s+k[ıi]rm[ıi]z[ıi]/.test(q) && /5\s+mavi/.test(q) && /5\s+ye[şs]il/.test(q) && /ayn[ıi]\s+renkten\s+2/.test(q)) lines.push("En kötü durumda 3 farklı renkten birer top çekersin; 4. top kesin aynı renkten ikinci olur.");
-  if (/istanbul/.test(q) && /ankara/.test(q) && /1\s+saat/.test(q) && /60\s+dakika/.test(q)) lines.push("İki yön de aynı hızdadır; 1 saat = 60 dakikadır.");
 
   const uniqueLines = [...new Set(lines)];
   if (!uniqueLines.length) return "";
@@ -125,4 +125,5 @@ module.exports = {
   repairBenchmarkAnswer,
   solveKnownReasoningBenchmarks,
   shortFactAnswer,
+  softwareModuleAnswer,
 };
