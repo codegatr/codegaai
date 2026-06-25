@@ -74,11 +74,64 @@ function pdoLoginExampleAnswer() {
   ].join("\n");
 }
 
+function serviceAutomationBlueprintAnswer() {
+  return [
+    "Phoenix Görev Planı: PHP 8.3 ile Ateş Fiat Servis Otomasyonu",
+    "",
+    "Amaç: Araç kabulden iş emri, parça, fatura, müşteri bildirimi ve rapora kadar servis sürecini tek panelde yönetmek.",
+    "",
+    "Modüller:",
+    "- Kullanıcı, rol ve yetki yönetimi",
+    "- Müşteri yönetimi",
+    "- Araç kayıtları ve servis geçmişi",
+    "- İş emri açma / takip / kapatma",
+    "- Parça ve stok yönetimi",
+    "- Randevu ve servis takvimi",
+    "- Fatura / tahsilat / cari takip",
+    "- SMS ve e-posta bildirimleri",
+    "- Raporlama ve yönetim paneli",
+    "- Sistem ayarları ve log merkezi",
+    "",
+    "Önerilen klasör yapısı:",
+    "```text",
+    "config/",
+    "database/",
+    "public/",
+    "app/Core/",
+    "app/Modules/Auth/",
+    "app/Modules/Customers/",
+    "app/Modules/Vehicles/",
+    "app/Modules/WorkOrders/",
+    "app/Modules/Stock/",
+    "app/Modules/Invoices/",
+    "app/Modules/Reports/",
+    "storage/logs/",
+    "```",
+    "",
+    "İlk üretilecek dosyalar:",
+    "- database/schema.sql",
+    "- config/database.php",
+    "- public/index.php",
+    "- app/Core/Router.php",
+    "- app/Core/Controller.php",
+    "- app/Modules/Auth/AuthController.php",
+    "- app/Modules/Customers/CustomerController.php",
+    "- app/Modules/Vehicles/VehicleController.php",
+    "- app/Modules/WorkOrders/WorkOrderController.php",
+    "- README.md",
+    "",
+    "Sonraki adım: Phoenix Project Builder bu plana göre dosya üretimine başlamalı.",
+  ].join("\n");
+}
+
 function softwareModuleAnswer(question) {
   const cmd = commandOnlyAnswer(question);
   if (cmd) return cmd;
 
   const q = foldTurkish(question).replace(/\s+/g, " ").trim();
+  if (/\bphp\b/.test(q) && /(ates fiat|ateş fiat|servis otomasyon|servis sistemi|is emri|iş emri)/.test(q) && /(gelistir|geliştir|olustur|oluştur|yaz|kur|hazirla|hazırla)/.test(q)) {
+    return serviceAutomationBlueprintAnswer();
+  }
   if (/\bphp\b/.test(q) && /\bpdo\b/.test(q) && /(giris sistemi|login|kullanici giris)/.test(q) && /(ornek|örnek|yaz|kod)/.test(q)) {
     return pdoLoginExampleAnswer();
   }
@@ -118,7 +171,7 @@ function shortFactAnswer(question) {
 
 function isAnswerableReasoningPrompt(question) {
   const q = lower(question);
-  return /\b(test\s+[a-z])\b/i.test(question) || /\b(hari[cç]|except|ya[ğg]mur|[şs]emsiye|zam|indir|7'?ye böl|tokala[şs]|ayn[ıi] renkten|ü[cç]üncü|ucuncu|third|60 dakika|1 saatte)/.test(q);
+  return /\b(test\s+[a-z])\b/i.test(question) || /\b(hari[cç]|except|ya[ğg]mur|[şs]emsiye|zam|indir|7'?ye böl|tokala[şs]|ayn[ıi] renkten|ü[cç]üncü|ucuncu|third|60 dakika|1 saatte)\b/.test(q);
 }
 
 function contradictsCanonical() { return false; }
@@ -171,4 +224,5 @@ module.exports = {
   softwareModuleAnswer,
   pdoLoginExampleAnswer,
   commandOnlyAnswer,
+  serviceAutomationBlueprintAnswer,
 };
