@@ -16,8 +16,12 @@ function trFold(text) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+const INTERNAL_SECTION_RE = /(?:^|\n)\s*(?:Anlama|İşlem|Islem|Dogrulama|Doğrulama|Yorum|Reasoning|Thinking|Analysis|Verification|Kontrol|Sonuc|Sonuç)\s*:\s*/i;
+const INTERNAL_LINE_RE = /^\s*(?:Anlama|İşlem|Islem|Dogrulama|Doğrulama|Yorum|Reasoning|Thinking|Analysis|Verification|Kontrol|Sonuc|Sonuç)\s*:/i;
+const TEST_REPORT_RE = /^\s*Test\s+\d+\s*:\s*(?:geldi|gelmedi)\s*\/\s*(?:geldi|gelmedi)\s*-\s*kaç\s+saniye\s*$/gim;
+
 function finalAnswerText(answer) {
-  const matches = [...String(answer || "").matchAll(/Final Answer:\s*([\s\S]*?)(?=\n\s*(?:Anlama:|Islem:|İşlem:|Dogrulama:|Doğrulama:|Yorum:|Final Answer:)|$)/gi)];
+  const matches = [...String(answer || "").matchAll(/Final Answer:\s*([\s\S]*?)(?=\n\s*(?:Anlama:|Islem:|İşlem:|Dogrulama:|Doğrulama:|Yorum:|Reasoning:|Thinking:|Analysis:|Verification:|Final Answer:)|$)/gi)];
   return matches.length ? matches[matches.length - 1][1].trim() : "";
 }
 
@@ -28,11 +32,43 @@ function stripInternalLabel(text) {
     .trim();
 }
 
+function stripInternalSections(answer) {
+  let text = String(answer || "").trim();
+  if (!text) return text;
+
+  text = text.replace(TEST_REPORT_RE, "").trim();
+  const final = finalAnswerText(text);
+  if (final) return stripInternalLabel(final);
+
+  if (INTERNAL_SECTION_RE.test(text)) {
+    const lines = text.split(/\r?\n/);
+    const kept = [];
+    let skipping = false;
+    for (const line of lines) {
+      if (INTERNAL_LINE_RE.test(line)) {
+        skipping = true;
+        continue;
+      }
+      if (/^\s*Final Answer\s*:/i.test(line)) {
+        skipping = false;
+        kept.push(line.replace(/^\s*Final Answer\s*:\s*/i, ""));
+        continue;
+      }
+      if (!skipping) kept.push(line);
+    }
+    const cleaned = kept.join("\n").trim();
+    if (cleaned) text = cleaned;
+  }
+
+  text = text.replace(/^\s*Final Answer\s*:\s*/i, "").trim();
+  return text;
+}
+
 function deduplicateAnswerCandidates(candidates) {
   const seen = new Set();
   const out = [];
   for (const candidate of candidates || []) {
-    const clean = stripInternalLabel(candidate);
+    const clean = stripInternalLabel(stripInternalSections(candidate));
     const key = trFold(clean).replace(/\s+/g, " ").trim();
     if (!clean || seen.has(key)) continue;
     seen.add(key);
@@ -41,24 +77,46 @@ function deduplicateAnswerCandidates(candidates) {
   return out;
 }
 
+function looksLikePureTestReport(question) {
+  const q = String(question || "").trim();
+  return Boolean(q && q.replace(TEST_REPORT_RE, "").trim() === "");
+}
+
 function cleanUserFacingOutput(answer, question = "", taskReport = null) {
   const original = String(answer || "").trim();
   if (!original) return { changed: false, answer: original, candidates: [] };
 
+  if (looksLikePureTestReport(question)) {
+    return {
+      changed: true,
+      answer: "Test sonuçlarını aldım. Takılan veya yavaş kalan test varsa Log Merkezi ekran görüntüsünü gönder; ona göre sonraki düzeltmeyi yapalım.",
+      candidates: [],
+    };
+  }
+
   const multiFix = maybeReplacePartialAnswer(original, question);
-  if (multiFix.changed) return { changed: true, answer: multiFix.answer, candidates: [multiFix.answer] };
+  if (multiFix.changed) return { changed: true, answer: stripInternalSections(multiFix.answer), candidates: [multiFix.answer] };
 
   const placeholderFix = sanitizePlaceholderCommandAnswer(original, question);
-  if (placeholderFix.changed) return { changed: true, answer: placeholderFix.answer, candidates: [placeholderFix.answer] };
+  if (placeholderFix.changed) return { changed: true, answer: stripInternalSections(placeholderFix.answer), candidates: [placeholderFix.answer] };
 
   const final = finalAnswerText(original);
-  const hasInternal = /(?:^|[\n|])\s*(?:TEST(?:\s+[A-Z])?|MLVC|ARL|SSV|SACV|İnsan Yorumu|Human Comment)\s*:/im.test(original);
+  const hasInternal = INTERNAL_SECTION_RE.test(original) || /(?:^|[\n|])\s*(?:TEST(?:\s+[A-Z])?|MLVC|ARL|SSV|SACV|İnsan Yorumu|Human Comment)\s*:/im.test(original);
   const hasPipeDump = Boolean(final && final.includes("|"));
+
+  if (final && !hasPipeDump) {
+    const cleanedFinal = stripInternalSections(final);
+    return { changed: cleanedFinal !== original, answer: cleanedFinal, candidates: [cleanedFinal] };
+  }
+
   if (!hasInternal && !hasPipeDump) return { changed: false, answer: original, candidates: [] };
 
   const source = hasPipeDump ? final : original;
   const candidates = deduplicateAnswerCandidates(source.split(hasPipeDump ? /\s*\|\s*/ : /\r?\n+/).filter(Boolean));
-  if (!candidates.length) return { changed: false, answer: original, candidates: [] };
+  if (!candidates.length) {
+    const cleaned = stripInternalSections(original);
+    return { changed: cleaned !== original, answer: cleaned, candidates: [] };
+  }
 
   const expectedCount = taskReport && taskReport.applicable ? Number(taskReport.count || taskReport.tasks?.length || 0) : 0;
   const cleaned = (expectedCount > 1 || candidates.length > 1)
@@ -86,7 +144,8 @@ function countAnswerSections(answer) {
 
 function cleanPhantomOutput(answer, question, taskReport = null) {
   const original = String(answer || "").trim();
-  return { changed: false, answer: original, removed: [], providedTaskCount: countProvidedTasks(question, taskReport), answerSectionCount: countAnswerSections(answer) };
+  const cleaned = stripInternalSections(original);
+  return { changed: cleaned !== original, answer: cleaned, removed: [], providedTaskCount: countProvidedTasks(question, taskReport), answerSectionCount: countAnswerSections(cleaned) };
 }
 
 function phantomTaskDetector() { return { ok: true, errors: [] }; }
@@ -101,7 +160,7 @@ function unrelatedSectionDetector() { return { ok: true, errors: [] }; }
 function validateFinalAnswer(answer, question, taskReport = null) {
   const cleaned = cleanPhantomOutput(answer, question, taskReport);
   const candidate = cleaned.changed ? cleaned.answer : answer;
-  const finalText = finalAnswerText(candidate);
+  const finalText = finalAnswerText(candidate) || stripInternalSections(candidate);
   const errors = [];
   if (!finalText) errors.push("Final Answer section is missing.");
   const leak = questionLeakEvidence(question, finalText);
@@ -111,7 +170,7 @@ function validateFinalAnswer(answer, question, taskReport = null) {
 
 function buildFinalAnswerRepairMessages(question, answer, taskReport, validation) {
   return [
-    { role: "system", content: "Rewrite only the final answer. Do not repeat the question. End with Final Answer." },
+    { role: "system", content: "Rewrite only the final user-facing answer. Do not reveal reasoning, analysis, verification, or Final Answer labels. Do not repeat the question." },
     { role: "user", content: `Errors:\n${(validation.errors || []).join("\n")}\n\nQuestion:\n${question}\n\nAnswer:\n${answer}` },
   ];
 }
@@ -121,6 +180,7 @@ module.exports = {
   cleanUserFacingOutput,
   deduplicateAnswerCandidates,
   stripInternalLabel,
+  stripInternalSections,
   validateFinalAnswer,
   buildFinalAnswerRepairMessages,
   questionLeakEvidence,
