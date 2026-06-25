@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
+const repoRoot = join(root, "..", "..");
 const required = [
   "src/main/main.js",
   "src/main/preload.js",
@@ -36,8 +37,23 @@ if (!pkg.scripts?.["dist:mac"] || !pkg.build?.mac) {
 if (!pkg.scripts?.["dist:win"] || !pkg.build?.win) {
   throw new Error("Windows packaging script/configuration is missing");
 }
+if (!pkg.scripts?.["release:prepare"]) {
+  throw new Error("Phoenix release preparation script is missing");
+}
 
-const repoRoot = root;
+const phoenixPlan = readFileSync(join(repoRoot, "docs", "PHOENIX_SPRINT_1.md"), "utf8");
+if (!phoenixPlan.includes("Target version: `4.5.27`")) {
+  throw new Error("Phoenix Sprint 1 release target is not documented");
+}
+if (pkg.version !== "4.5.27") {
+  throw new Error(`Desktop package version must be 4.5.27 for Phoenix Sprint 1, got ${pkg.version}`);
+}
+
+const constants = readFileSync(join(root, "src", "shared", "constants.js"), "utf8");
+if (!constants.includes("const OLLAMA_CHAT_TIMEOUT_MS = 45 * 1000")) {
+  throw new Error("Phoenix model timeout baseline is missing");
+}
+
 const forbidden = [];
 function scan(dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
