@@ -13,11 +13,13 @@ const required = [
   "src/renderer/renderer.js",
   "src/renderer/styles.css",
   "src/main/agent/model-router-ai.js",
+  "src/main/ai/engine.js",
+  "src/main/ai/router/prompt-router.js",
+  "src/main/ai/router/fallback.js",
+  "src/main/ai/runtime/executor.js",
 ];
 
-for (const file of required) {
-  readFileSync(join(root, file), "utf8");
-}
+for (const file of required) readFileSync(join(root, file), "utf8");
 
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 if (!pkg.build?.nsis || !pkg.dependencies?.["electron-updater"]) throw new Error("Installer/updater configuration is missing");
@@ -28,21 +30,22 @@ if (!pkg.scripts?.["dist:mac"] || !pkg.build?.mac) throw new Error("macOS packag
 if (!pkg.scripts?.["dist:win"] || !pkg.build?.win) throw new Error("Windows packaging script/configuration is missing");
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
 
-if (pkg.version !== "4.5.30") {
-  throw new Error(`Desktop package version must be 4.5.30 for Phoenix Sprint 4, got ${pkg.version}`);
-}
+if (pkg.version !== "5.0.0-alpha.1") throw new Error(`Desktop package version must be 5.0.0-alpha.1, got ${pkg.version}`);
 
-const constants = readFileSync(join(root, "src", "shared", "constants.js"), "utf8");
-if (!constants.includes("const OLLAMA_CHAT_TIMEOUT_MS = 35 * 1000")) throw new Error("Phoenix model timeout baseline is missing");
-if (!constants.includes("qwen3.5:0.8b") || constants.indexOf("qwen3.5:0.8b") > constants.indexOf("qwen3.5:9b")) throw new Error("Phoenix lightweight fallback priority is missing");
+const engine = readFileSync(join(root, "src", "main", "ai", "engine.js"), "utf8");
+if (!engine.includes("planExecution") || !engine.includes("runPlanned")) throw new Error("v5 AI engine facade is missing");
+
+const promptRouter = readFileSync(join(root, "src", "main", "ai", "router", "prompt-router.js"), "utf8");
+if (!promptRouter.includes("analyzePrompt") || !promptRouter.includes("short_fact") || !promptRouter.includes("code")) throw new Error("v5 prompt router is incomplete");
+
+const fallback = readFileSync(join(root, "src", "main", "ai", "router", "fallback.js"), "utf8");
+if (!fallback.includes("buildChain") || !fallback.includes("qwen2.5-coder:3b")) throw new Error("v5 fallback chain builder is incomplete");
+
+const executor = readFileSync(join(root, "src", "main", "ai", "runtime", "executor.js"), "utf8");
+if (!executor.includes("executeChain")) throw new Error("v5 runtime executor is missing");
 
 const sanitizer = readFileSync(join(root, "src", "main", "agent", "final-answer-sanitizer.js"), "utf8");
-if (!sanitizer.includes("stripInternalSections") || !sanitizer.includes("Final Answer")) throw new Error("Phoenix output firewall is missing");
-if (!sanitizer.includes("looksLikePureTestReport")) throw new Error("Phoenix test-report guard is missing");
-
-const router = readFileSync(join(root, "src", "main", "agent", "model-router-ai.js"), "utf8");
-if (!router.includes("classifyPrompt") || !router.includes("routeModels")) throw new Error("Phoenix Sprint 4 model router policy is missing");
-if (!router.includes("qwen2.5-coder:3b") || !router.includes("short_fact")) throw new Error("Phoenix Sprint 4 routing buckets are missing");
+if (!sanitizer.includes("stripInternalSections") || !sanitizer.includes("looksLikePureTestReport")) throw new Error("Phoenix output firewall is missing");
 
 const forbidden = [];
 function scan(dir) {
@@ -53,9 +56,7 @@ function scan(dir) {
     if (entry.isDirectory()) {
       if (entry.name === "__pycache__") forbidden.push(rel);
       scan(full);
-    } else if (entry.name.endsWith(".pyc") || entry.name.endsWith(".log")) {
-      forbidden.push(rel);
-    }
+    } else if (entry.name.endsWith(".pyc") || entry.name.endsWith(".log")) forbidden.push(rel);
   }
 }
 scan(repoRoot);
