@@ -37,8 +37,31 @@ function missingLabels(question, answer) {
   return labels.filter((label) => !new RegExp(`\\b(test\\s*)?${label.toLocaleLowerCase("tr")}\\b`, "i").test(text));
 }
 
+function pdoLoginExampleAnswer() {
+  return [
+    "PHP 8.3 + PDO ile güvenli kullanıcı giriş örneği için temel akış:",
+    "",
+    "1. Veritabanında `users` tablosu oluştur: `id`, `email`, `password_hash`, `created_at`.",
+    "2. Kullanıcı kaydında parolayı `password_hash($password, PASSWORD_DEFAULT)` ile sakla.",
+    "3. Girişte e-postayı PDO prepared statement ile sorgula.",
+    "4. Parolayı `password_verify($password, $user['password_hash'])` ile doğrula.",
+    "5. Başarılı girişte `session_regenerate_id(true)` çalıştır ve `$_SESSION['user_id']` ata.",
+    "6. Her korumalı sayfada `isset($_SESSION['user_id'])` kontrolü yap.",
+    "7. Çıkışta `session_unset()`, `session_destroy()` ve güvenli yönlendirme kullan.",
+    "",
+    "Kısa örnek akış:",
+    "- PDO bağlantısı: hata modu exception olmalı.",
+    "- Sorgu: `SELECT id, password_hash FROM users WHERE email = ? LIMIT 1`.",
+    "- Doğrulama: `password_verify` başarısızsa genel hata mesajı dön.",
+    "- Başarılıysa session yenile ve kullanıcıyı panele gönder.",
+  ].join("\n");
+}
+
 function softwareModuleAnswer(question) {
   const q = foldTurkish(question).replace(/\s+/g, " ").trim();
+  if (/\bphp\b/.test(q) && /\bpdo\b/.test(q) && /(giris sistemi|login|kullanici giris)/.test(q) && /(ornek|örnek|yaz|kod)/.test(q)) {
+    return pdoLoginExampleAnswer();
+  }
   if (/\bphp\b/.test(q) && /(kullanici giris|giris sistemi|login)/.test(q) && /(modul|moduller|liste|listele|gerekli)/.test(q)) {
     return [
       "PHP 8.3 ile kullanıcı giriş sistemi için temel modüller:",
@@ -126,4 +149,5 @@ module.exports = {
   solveKnownReasoningBenchmarks,
   shortFactAnswer,
   softwareModuleAnswer,
+  pdoLoginExampleAnswer,
 };
