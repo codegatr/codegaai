@@ -1,7 +1,7 @@
 {
   "name": "codega-ai-desktop",
   "productName": "CODEGA AI",
-  "version": "4.5.30",
+  "version": "5.0.0-alpha.1",
   "description": "CODEGA AI clean Windows-first desktop app.",
   "author": "CODEGA",
   "private": true,
@@ -27,65 +27,12 @@
   "build": {
     "appId": "tr.com.codega.codegaai",
     "artifactName": "CODEGA-AI-${version}-${os}-${arch}.${ext}",
-    "directories": {
-      "output": "release"
-    },
+    "directories": { "output": "release" },
     "asar": true,
-    "files": [
-      "src/**/*",
-      "package.json",
-      "!**/*.map",
-      "!**/*.log",
-      "!**/__pycache__/**",
-      "!**/*.pyc"
-    ],
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "requestedExecutionLevel": "asInvoker",
-      "signAndEditExecutable": true
-    },
-    "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        },
-        {
-          "target": "zip",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ],
-      "category": "public.app-category.productivity",
-      "gatekeeperAssess": false
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "CODEGA AI",
-      "deleteAppDataOnUninstall": false
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "codegatr",
-        "repo": "codegaai",
-        "releaseType": "release"
-      }
-    ]
+    "files": ["src/**/*", "package.json", "!**/*.map", "!**/*.log", "!**/__pycache__/**", "!**/*.pyc"],
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "requestedExecutionLevel": "asInvoker", "signAndEditExecutable": true },
+    "mac": { "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }, { "target": "zip", "arch": ["x64", "arm64"] }], "category": "public.app-category.productivity", "gatekeeperAssess": false },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "CODEGA AI", "deleteAppDataOnUninstall": false },
+    "publish": [{ "provider": "github", "owner": "codegatr", "repo": "codegaai", "releaseType": "release" }]
   }
 }
