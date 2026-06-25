@@ -18,6 +18,12 @@ const required = [
   "src/main/ai/router/fallback.js",
   "src/main/ai/runtime/executor.js",
   "src/main/ai/models/provisioning.js",
+  "src/main/phoenix/kernel/phoenix-kernel.js",
+  "src/main/phoenix/router/intent-router.js",
+  "src/main/phoenix/agents/agent-registry.js",
+  "src/main/phoenix/runtime/execution-engine.js",
+  "src/renderer/phoenix-theme.css",
+  "src/renderer/phoenix-splash.js"
 ];
 
 for (const file of required) readFileSync(join(root, file), "utf8");
@@ -28,8 +34,9 @@ if (pkg.build?.win?.requestedExecutionLevel !== "asInvoker") throw new Error("Wi
 if (pkg.build?.asar !== true) throw new Error("Electron app should be packed with asar");
 if (!pkg.build?.files?.some((entry) => String(entry).includes("!**/__pycache__/**"))) throw new Error("Desktop package must exclude Python cache artifacts");
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
+if (!pkg.scripts?.["release:win"]) throw new Error("Windows release script is missing");
 
-if (pkg.version !== "5.0.0-alpha.1") throw new Error(`Desktop package version must be 5.0.0-alpha.1, got ${pkg.version}`);
+if (pkg.version !== "5.0.2") throw new Error(`Desktop package version must be 5.0.2, got ${pkg.version}`);
 
 const engine = readFileSync(join(root, "src", "main", "ai", "engine.js"), "utf8");
 if (!engine.includes("planExecution") || !engine.includes("runPlanned")) throw new Error("v5 AI engine facade is missing");
@@ -42,6 +49,9 @@ if (!fallback.includes("buildChain") || !fallback.includes("qwen2.5-coder:3b")) 
 
 const provisioning = readFileSync(join(root, "src", "main", "ai", "models", "provisioning.js"), "utf8");
 if (!provisioning.includes("CORE_CHAT_MODEL") || !provisioning.includes("shouldAutoPrepare")) throw new Error("v5 auto provisioning policy is missing");
+
+const phoenixKernel = readFileSync(join(root, "src", "main", "phoenix", "kernel", "phoenix-kernel.js"), "utf8");
+if (!phoenixKernel.includes("createPhoenixContext")) throw new Error("Phoenix kernel facade is missing");
 
 const forbidden = [];
 function scan(dir) {
