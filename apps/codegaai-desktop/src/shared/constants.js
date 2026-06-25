@@ -113,8 +113,8 @@ const MODEL_OPTIONS = [
 ];
 const FALLBACK_MODELS = MODEL_OPTIONS.map((model) => model.id).filter((id) => id !== DEFAULT_MODEL);
 const OLLAMA_DOWNLOAD_URL = "https://ollama.com/download/windows";
-const OLLAMA_COMMAND_TIMEOUT_MS = 10 * 1000;
-const OLLAMA_CHAT_TIMEOUT_MS = 30 * 1000;
+const OLLAMA_COMMAND_TIMEOUT_MS = 15 * 1000;
+const OLLAMA_CHAT_TIMEOUT_MS = 45 * 1000;
 const OLLAMA_PULL_TIMEOUT_MS = 30 * 60 * 1000;
 const UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
