@@ -41,20 +41,28 @@ if (!pkg.scripts?.["release:prepare"]) {
   throw new Error("Phoenix release preparation script is missing");
 }
 
-const phoenixPlan = readFileSync(join(repoRoot, "docs", "PHOENIX_SPRINT_2.md"), "utf8");
-if (!phoenixPlan.includes("v4.5.28")) {
-  throw new Error("Phoenix Sprint 2 release target is not documented");
+const phoenixPlan = readFileSync(join(repoRoot, "docs", "PHOENIX_SPRINT_3.md"), "utf8");
+if (!phoenixPlan.includes("Clean") && !phoenixPlan.includes("clean")) {
+  throw new Error("Phoenix Sprint 3 clean output target is not documented");
 }
-if (pkg.version !== "4.5.28") {
-  throw new Error(`Desktop package version must be 4.5.28 for Phoenix Sprint 2, got ${pkg.version}`);
+if (pkg.version !== "4.5.29") {
+  throw new Error(`Desktop package version must be 4.5.29 for Phoenix Sprint 3, got ${pkg.version}`);
 }
 
 const constants = readFileSync(join(root, "src", "shared", "constants.js"), "utf8");
 if (!constants.includes("const OLLAMA_CHAT_TIMEOUT_MS = 35 * 1000")) {
-  throw new Error("Phoenix Sprint 2 model timeout baseline is missing");
+  throw new Error("Phoenix model timeout baseline is missing");
 }
 if (!constants.includes("qwen3.5:0.8b") || constants.indexOf("qwen3.5:0.8b") > constants.indexOf("qwen3.5:9b")) {
-  throw new Error("Phoenix Sprint 2 lightweight fallback priority is missing");
+  throw new Error("Phoenix lightweight fallback priority is missing");
+}
+
+const sanitizer = readFileSync(join(root, "src", "main", "agent", "final-answer-sanitizer.js"), "utf8");
+if (!sanitizer.includes("stripInternalSections") || !sanitizer.includes("Final Answer")) {
+  throw new Error("Phoenix Sprint 3 output firewall is missing");
+}
+if (!sanitizer.includes("looksLikePureTestReport")) {
+  throw new Error("Phoenix Sprint 3 test-report guard is missing");
 }
 
 const forbidden = [];
