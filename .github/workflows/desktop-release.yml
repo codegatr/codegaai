@@ -1,0 +1,40 @@
+name: Desktop Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build_windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/codegaai-desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install
+        run: npm install
+
+      - name: Check
+        run: npm run check
+
+      - name: Build
+        run: npm run release:win
+
+      - name: Upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            apps/codegaai-desktop/release/*.exe
+            apps/codegaai-desktop/release/*.blockmap
+            apps/codegaai-desktop/release/latest.yml
