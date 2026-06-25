@@ -1,0 +1,173 @@
+:root {
+  --phoenix-bg: #030303;
+  --phoenix-panel: rgba(18, 10, 4, 0.72);
+  --phoenix-panel-strong: rgba(32, 14, 2, 0.86);
+  --phoenix-line: rgba(255, 128, 0, 0.24);
+  --phoenix-line-strong: rgba(255, 164, 28, 0.42);
+  --phoenix-orange: #ff8a00;
+  --phoenix-gold: #ffd166;
+  --phoenix-red: #ff3d00;
+  --phoenix-green: #2cff73;
+  --phoenix-text: #fff7ed;
+  --phoenix-muted: rgba(255, 245, 230, 0.62);
+  --phoenix-glow: 0 0 36px rgba(255, 122, 0, 0.34), 0 0 90px rgba(255, 70, 0, 0.18);
+}
+
+body.phoenix-mode,
+body.empty-chat.phoenix-mode {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 128, 0, 0.17), transparent 34%),
+    radial-gradient(circle at 75% 30%, rgba(255, 61, 0, 0.10), transparent 32%),
+    linear-gradient(135deg, #020202, #080401 62%, #000);
+}
+
+.phoenix-hero {
+  position: relative;
+  min-height: 58vh;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  overflow: hidden;
+}
+
+.phoenix-hero::before {
+  content: "";
+  position: absolute;
+  width: min(540px, 76vw);
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 138, 0, 0.25);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(255, 169, 48, 0.22), transparent 12%),
+    repeating-conic-gradient(from 0deg, rgba(255, 138, 0, 0.20) 0deg 2deg, transparent 2deg 12deg);
+  filter: blur(0.2px);
+  animation: phoenix-spin 16s linear infinite;
+  opacity: 0.58;
+}
+
+.phoenix-mark {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 22px;
+  border-radius: 36px;
+  color: #111;
+  background: radial-gradient(circle at 35% 25%, #fff3b0, #ff9d00 38%, #ff3d00 75%, #220600);
+  box-shadow: var(--phoenix-glow);
+  font-size: 72px;
+  font-weight: 900;
+  transform: rotate(-3deg);
+}
+
+.phoenix-mark::after {
+  content: "PHX";
+  position: absolute;
+  bottom: -22px;
+  color: var(--phoenix-gold);
+  font-size: 11px;
+  letter-spacing: 0.42em;
+  text-shadow: 0 0 18px rgba(255, 138, 0, 0.72);
+}
+
+.phoenix-title {
+  position: relative;
+  margin: 0;
+  font-size: clamp(42px, 6vw, 86px);
+  line-height: 0.94;
+  letter-spacing: -0.06em;
+  text-transform: uppercase;
+}
+
+.phoenix-title span {
+  color: var(--phoenix-orange);
+  text-shadow: var(--phoenix-glow);
+}
+
+.phoenix-subtitle {
+  position: relative;
+  margin: 18px auto 0;
+  max-width: 760px;
+  color: var(--phoenix-muted);
+  font-size: clamp(16px, 1.6vw, 22px);
+}
+
+.phoenix-agent-strip {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.phoenix-agent-chip {
+  border: 1px solid var(--phoenix-line);
+  border-radius: 999px;
+  padding: 10px 14px;
+  color: var(--phoenix-text);
+  background: linear-gradient(180deg, rgba(255, 138, 0, 0.12), rgba(0, 0, 0, 0.38));
+  box-shadow: inset 0 0 18px rgba(255, 128, 0, 0.08);
+}
+
+.phoenix-agent-chip strong {
+  color: var(--phoenix-green);
+  font-size: 11px;
+  margin-left: 8px;
+}
+
+.phoenix-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 128, 0, 0.22), transparent 28%),
+    #020202;
+  color: var(--phoenix-text);
+  transition: opacity 420ms ease, visibility 420ms ease;
+}
+
+.phoenix-splash.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.phoenix-splash-card {
+  width: min(720px, 90vw);
+  padding: 44px;
+  border: 1px solid var(--phoenix-line-strong);
+  border-radius: 34px;
+  background: linear-gradient(180deg, rgba(20, 8, 2, 0.9), rgba(0, 0, 0, 0.82));
+  box-shadow: var(--phoenix-glow);
+  text-align: center;
+}
+
+.phoenix-loader {
+  height: 6px;
+  margin-top: 28px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.phoenix-loader span {
+  display: block;
+  width: 38%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--phoenix-red), var(--phoenix-orange), var(--phoenix-gold));
+  animation: phoenix-loader 1.7s ease-in-out infinite;
+}
+
+@keyframes phoenix-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes phoenix-loader {
+  0% { transform: translateX(-105%); }
+  55% { transform: translateX(115%); }
+  100% { transform: translateX(260%); }
+}
