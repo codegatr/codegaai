@@ -37,6 +37,23 @@ function missingLabels(question, answer) {
   return labels.filter((label) => !new RegExp(`\\b(test\\s*)?${label.toLocaleLowerCase("tr")}\\b`, "i").test(text));
 }
 
+function commandOnlyAnswer(question) {
+  const q = foldTurkish(question).replace(/\s+/g, " ").trim();
+  const wantsOnlyCommand = /(sadece komut|yalniz komut|yalnız komut|komutu ver|tek komut|sadece kod|hicbir sey yazma|hiçbir şey yazma)/.test(q);
+  if (!wantsOnlyCommand) return "";
+
+  if (/(ubuntu|linux|debian)/.test(q) && /(disk|alan|boyut|doluluk|kullanim|kullanım)/.test(q)) return "df -h";
+  if (/(ubuntu|linux|debian)/.test(q) && /(ram|bellek|memory)/.test(q)) return "free -h";
+  if (/(ubuntu|linux|debian)/.test(q) && /(cpu|islemci|işlemci)/.test(q)) return "lscpu";
+  if (/(ubuntu|linux|debian)/.test(q) && /(ip adres|ip|ag|ağ)/.test(q)) return "ip addr";
+  if (/(ubuntu|linux|debian)/.test(q) && /(servis|service|durum)/.test(q)) return "systemctl status";
+  if (/(docker)/.test(q) && /(container|konteyner|liste)/.test(q)) return "docker ps -a";
+  if (/(docker)/.test(q) && /(log|logs)/.test(q)) return "docker logs -f <container>";
+  if (/(git)/.test(q) && /(durum|status)/.test(q)) return "git status";
+  if (/(git)/.test(q) && /(guncelle|güncelle|pull)/.test(q)) return "git pull origin main";
+  return "";
+}
+
 function pdoLoginExampleAnswer() {
   return [
     "PHP 8.3 + PDO ile güvenli kullanıcı giriş örneği için temel akış:",
@@ -58,6 +75,9 @@ function pdoLoginExampleAnswer() {
 }
 
 function softwareModuleAnswer(question) {
+  const cmd = commandOnlyAnswer(question);
+  if (cmd) return cmd;
+
   const q = foldTurkish(question).replace(/\s+/g, " ").trim();
   if (/\bphp\b/.test(q) && /\bpdo\b/.test(q) && /(giris sistemi|login|kullanici giris)/.test(q) && /(ornek|örnek|yaz|kod)/.test(q)) {
     return pdoLoginExampleAnswer();
@@ -98,7 +118,7 @@ function shortFactAnswer(question) {
 
 function isAnswerableReasoningPrompt(question) {
   const q = lower(question);
-  return /\b(test\s+[a-z])\b/i.test(question) || /\b(hari[cç]|except|ya[ğg]mur|[şs]emsiye|zam|indir|7'?ye böl|tokala[şs]|ayn[ıi] renkten|ü[cç]üncü|ucuncu|third|60 dakika|1 saatte)\b/.test(q);
+  return /\b(test\s+[a-z])\b/i.test(question) || /\b(hari[cç]|except|ya[ğg]mur|[şs]emsiye|zam|indir|7'?ye böl|tokala[şs]|ayn[ıi] renkten|ü[cç]üncü|ucuncu|third|60 dakika|1 saatte)/.test(q);
 }
 
 function contradictsCanonical() { return false; }
@@ -150,4 +170,5 @@ module.exports = {
   shortFactAnswer,
   softwareModuleAnswer,
   pdoLoginExampleAnswer,
+  commandOnlyAnswer,
 };
