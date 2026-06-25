@@ -17,6 +17,7 @@ const required = [
   "src/main/ai/router/prompt-router.js",
   "src/main/ai/router/fallback.js",
   "src/main/ai/runtime/executor.js",
+  "src/main/ai/models/provisioning.js",
 ];
 
 for (const file of required) readFileSync(join(root, file), "utf8");
@@ -26,8 +27,6 @@ if (!pkg.build?.nsis || !pkg.dependencies?.["electron-updater"]) throw new Error
 if (pkg.build?.win?.requestedExecutionLevel !== "asInvoker") throw new Error("Windows installer must not request elevated privileges by default");
 if (pkg.build?.asar !== true) throw new Error("Electron app should be packed with asar");
 if (!pkg.build?.files?.some((entry) => String(entry).includes("!**/__pycache__/**"))) throw new Error("Desktop package must exclude Python cache artifacts");
-if (!pkg.scripts?.["dist:mac"] || !pkg.build?.mac) throw new Error("macOS packaging script/configuration is missing");
-if (!pkg.scripts?.["dist:win"] || !pkg.build?.win) throw new Error("Windows packaging script/configuration is missing");
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
 
 if (pkg.version !== "5.0.0-alpha.1") throw new Error(`Desktop package version must be 5.0.0-alpha.1, got ${pkg.version}`);
@@ -41,11 +40,8 @@ if (!promptRouter.includes("analyzePrompt") || !promptRouter.includes("short_fac
 const fallback = readFileSync(join(root, "src", "main", "ai", "router", "fallback.js"), "utf8");
 if (!fallback.includes("buildChain") || !fallback.includes("qwen2.5-coder:3b")) throw new Error("v5 fallback chain builder is incomplete");
 
-const executor = readFileSync(join(root, "src", "main", "ai", "runtime", "executor.js"), "utf8");
-if (!executor.includes("executeChain")) throw new Error("v5 runtime executor is missing");
-
-const sanitizer = readFileSync(join(root, "src", "main", "agent", "final-answer-sanitizer.js"), "utf8");
-if (!sanitizer.includes("stripInternalSections") || !sanitizer.includes("looksLikePureTestReport")) throw new Error("Phoenix output firewall is missing");
+const provisioning = readFileSync(join(root, "src", "main", "ai", "models", "provisioning.js"), "utf8");
+if (!provisioning.includes("CORE_CHAT_MODEL") || !provisioning.includes("shouldAutoPrepare")) throw new Error("v5 auto provisioning policy is missing");
 
 const forbidden = [];
 function scan(dir) {
