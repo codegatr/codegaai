@@ -1,6 +1,7 @@
 "use strict";
 
 const { sanitizePlaceholderCommandAnswer } = require("./placeholder-command-sanitizer");
+const { maybeReplacePartialAnswer } = require("./multi-task-aggregator");
 
 function trFold(text) {
   return String(text || "")
@@ -44,10 +45,11 @@ function cleanUserFacingOutput(answer, question = "", taskReport = null) {
   const original = String(answer || "").trim();
   if (!original) return { changed: false, answer: original, candidates: [] };
 
+  const multiFix = maybeReplacePartialAnswer(original, question);
+  if (multiFix.changed) return { changed: true, answer: multiFix.answer, candidates: [multiFix.answer] };
+
   const placeholderFix = sanitizePlaceholderCommandAnswer(original, question);
-  if (placeholderFix.changed) {
-    return { changed: true, answer: placeholderFix.answer, candidates: [placeholderFix.answer] };
-  }
+  if (placeholderFix.changed) return { changed: true, answer: placeholderFix.answer, candidates: [placeholderFix.answer] };
 
   const final = finalAnswerText(original);
   const hasInternal = /(?:^|[\n|])\s*(?:TEST(?:\s+[A-Z])?|MLVC|ARL|SSV|SACV|İnsan Yorumu|Human Comment)\s*:/im.test(original);
@@ -55,9 +57,7 @@ function cleanUserFacingOutput(answer, question = "", taskReport = null) {
   if (!hasInternal && !hasPipeDump) return { changed: false, answer: original, candidates: [] };
 
   const source = hasPipeDump ? final : original;
-  const candidates = deduplicateAnswerCandidates(
-    source.split(hasPipeDump ? /\s*\|\s*/ : /\r?\n+/).filter(Boolean)
-  );
+  const candidates = deduplicateAnswerCandidates(source.split(hasPipeDump ? /\s*\|\s*/ : /\r?\n+/).filter(Boolean));
   if (!candidates.length) return { changed: false, answer: original, candidates: [] };
 
   const expectedCount = taskReport && taskReport.applicable ? Number(taskReport.count || taskReport.tasks?.length || 0) : 0;
