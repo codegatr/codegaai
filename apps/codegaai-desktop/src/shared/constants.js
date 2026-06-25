@@ -111,10 +111,28 @@ const MODEL_OPTIONS = [
     task: "image",
   },
 ];
-const FALLBACK_MODELS = MODEL_OPTIONS.map((model) => model.id).filter((id) => id !== DEFAULT_MODEL);
+const FALLBACK_MODELS = [
+  "qwen3.5:0.8b",
+  "qwen2.5:1.5b",
+  "qwen3:1.7b",
+  "qwen3.5:2b",
+  "llama3.2:3b",
+  "qwen2.5:3b",
+  "qwen2.5-coder:3b",
+  "qwen2.5-coder:3b-instruct",
+  "gemma3:4b",
+  "qwen3:4b",
+  "mistral:7b",
+  "qwen2.5-coder:7b",
+  "qwen2.5-coder:7b-instruct",
+  "qwen3:8b",
+  "qwen3.5:9b",
+  "qwen3:14b",
+  "qwen3.6:27b",
+].filter((id) => id !== DEFAULT_MODEL);
 const OLLAMA_DOWNLOAD_URL = "https://ollama.com/download/windows";
 const OLLAMA_COMMAND_TIMEOUT_MS = 15 * 1000;
-const OLLAMA_CHAT_TIMEOUT_MS = 45 * 1000;
+const OLLAMA_CHAT_TIMEOUT_MS = 35 * 1000;
 const OLLAMA_PULL_TIMEOUT_MS = 30 * 60 * 1000;
 const UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
