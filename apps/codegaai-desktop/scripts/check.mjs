@@ -40,6 +40,9 @@ const required = [
   "src/main/phoenix/voice-agent/index.js",
   "src/main/phoenix/voice-agent/voice-router.js",
   "src/main/phoenix/voice-agent/wake-word.js",
+  "src/main/phoenix/builder/file-manifest.js",
+  "src/main/phoenix/builder/service-automation-project.js",
+  "src/main/phoenix/builder/index.js",
   "src/renderer/phoenix-theme.css",
   "src/renderer/phoenix-splash.js"
 ];
@@ -72,7 +75,7 @@ if (!pkg.build?.files?.some((entry) => String(entry).includes("!**/__pycache__/*
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
 if (!pkg.scripts?.["release:win"]) throw new Error("Windows release script is missing");
 
-if (pkg.version !== "5.4.1") throw new Error(`Desktop package version must be 5.4.1, got ${pkg.version}`);
+if (pkg.version !== "5.4.3") throw new Error(`Desktop package version must be 5.4.3, got ${pkg.version}`);
 
 const phoenixCore = readText(join(repoRoot, "packages", "phoenix-core", "index.js"));
 if (!phoenixCore.includes("runPhoenix") || !phoenixCore.includes("createTask") || !phoenixCore.includes("createModelStore")) throw new Error("Phoenix core entrypoint is incomplete");
@@ -84,13 +87,19 @@ const desktopTaskEngine = readText(join(root, "src", "main", "phoenix", "kernel"
 if (!desktopTaskEngine.includes("createTask") || !desktopTaskEngine.includes("classifyIntent") || !desktopTaskEngine.includes("agentsForIntent")) throw new Error("Desktop Phoenix Task Engine is incomplete");
 
 const plannerAgent = readText(join(root, "src", "main", "phoenix", "agents", "planner", "planner-agent.js"));
-if (!plannerAgent.includes("planTask") || !plannerAgent.includes("TASK-001") || !plannerAgent.includes("VeritabanÃƒÆ’Ã¢â‚¬ÂÃƒâ€šÃ‚Â± ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚ÂemasÃƒÆ’Ã¢â‚¬ÂÃƒâ€šÃ‚Â±")) throw new Error("Desktop Phoenix Planner Agent is incomplete");
+if (!plannerAgent.includes("planTask") || !plannerAgent.includes("TASK-001") || !plannerAgent.includes("TASK-010") || !plannerAgent.includes("database")) throw new Error("Desktop Phoenix Planner Agent is incomplete");
 
 const progressBus = readText(join(root, "src", "main", "phoenix", "kernel", "progress-bus.js"));
 if (!progressBus.includes("createProgressBus") || !progressBus.includes("completed")) throw new Error("Phoenix Progress Bus is incomplete");
 
 const backgroundJobs = readText(join(root, "src", "main", "phoenix", "kernel", "background-job-manager.js"));
 if (!backgroundJobs.includes("createBackgroundJobManager") || !backgroundJobs.includes("startJob")) throw new Error("Phoenix Background Job Manager is incomplete");
+
+const builderManifest = readText(join(root, "src", "main", "phoenix", "builder", "file-manifest.js"));
+if (!builderManifest.includes("createManifest") || !builderManifest.includes("renderManifestSummary")) throw new Error("Phoenix Builder manifest is incomplete");
+
+const serviceBuilder = readText(join(root, "src", "main", "phoenix", "builder", "service-automation-project.js"));
+if (!serviceBuilder.includes("buildServiceAutomationProject") || !serviceBuilder.includes("database/schema.sql") || !serviceBuilder.includes("WorkOrderController")) throw new Error("Phoenix service automation builder is incomplete");
 
 const taskEngine = readText(join(repoRoot, "packages", "phoenix-core", "task-engine", "create-task.js"));
 if (!taskEngine.includes("createTask") || !taskEngine.includes("service_automation")) throw new Error("Phoenix task engine is incomplete");
@@ -116,4 +125,4 @@ function scan(dir) {
 scan(repoRoot);
 if (forbidden.length) throw new Error(`Runtime artifacts must not be shipped in repository: ${forbidden.slice(0, 8).join(", ")}`);
 
-console.log("CODEGA AI Phoenix Kernel foundation OK");
+console.log("CODEGA AI Phoenix Kernel + Builder foundation OK");
