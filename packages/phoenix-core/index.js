@@ -3,6 +3,8 @@
 const { createTask } = require("./task-engine/create-task");
 const { planTask } = require("./planner/plan-task");
 const { orchestrateTask } = require("./orchestrator/orchestrate-task");
+const { createModelStore } = require("./model-store");
+const { syncRoleToRuntime } = require("./model-store/runtime-sync");
 
 function runPhoenix(input, options = {}) {
   const task = createTask(input, options);
@@ -20,5 +22,7 @@ module.exports = {
   createTask,
   planTask,
   orchestrateTask,
+  createModelStore,
+  syncRoleToRuntime,
   runPhoenix,
 };
