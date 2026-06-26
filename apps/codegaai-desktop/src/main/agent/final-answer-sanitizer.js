@@ -2,6 +2,7 @@
 
 const { sanitizePlaceholderCommandAnswer } = require("./placeholder-command-sanitizer");
 const { maybeReplacePartialAnswer } = require("./multi-task-aggregator");
+const { repairMojibake } = require("./mojibake");
 
 function trFold(text) {
   return String(text || "")
@@ -68,7 +69,7 @@ function deduplicateAnswerCandidates(candidates) {
   const seen = new Set();
   const out = [];
   for (const candidate of candidates || []) {
-    const clean = stripInternalLabel(stripInternalSections(candidate));
+    const clean = repairMojibake(stripInternalLabel(stripInternalSections(candidate)));
     const key = trFold(clean).replace(/\s+/g, " ").trim();
     if (!clean || seen.has(key)) continue;
     seen.add(key);
@@ -83,7 +84,7 @@ function looksLikePureTestReport(question) {
 }
 
 function cleanUserFacingOutput(answer, question = "", taskReport = null) {
-  const original = String(answer || "").trim();
+  const original = repairMojibake(String(answer || "").trim());
   if (!original) return { changed: false, answer: original, candidates: [] };
 
   if (looksLikePureTestReport(question)) {
@@ -95,26 +96,28 @@ function cleanUserFacingOutput(answer, question = "", taskReport = null) {
   }
 
   const multiFix = maybeReplacePartialAnswer(original, question);
-  if (multiFix.changed) return { changed: true, answer: stripInternalSections(multiFix.answer), candidates: [multiFix.answer] };
+  if (multiFix.changed) return { changed: true, answer: repairMojibake(stripInternalSections(multiFix.answer)), candidates: [multiFix.answer] };
 
   const placeholderFix = sanitizePlaceholderCommandAnswer(original, question);
-  if (placeholderFix.changed) return { changed: true, answer: stripInternalSections(placeholderFix.answer), candidates: [placeholderFix.answer] };
+  if (placeholderFix.changed) return { changed: true, answer: repairMojibake(stripInternalSections(placeholderFix.answer)), candidates: [placeholderFix.answer] };
 
   const final = finalAnswerText(original);
   const hasInternal = INTERNAL_SECTION_RE.test(original) || /(?:^|[\n|])\s*(?:TEST(?:\s+[A-Z])?|MLVC|ARL|SSV|SACV|İnsan Yorumu|Human Comment)\s*:/im.test(original);
   const hasPipeDump = Boolean(final && final.includes("|"));
 
   if (final && !hasPipeDump) {
-    const cleanedFinal = stripInternalSections(final);
-    return { changed: cleanedFinal !== original, answer: cleanedFinal, candidates: [cleanedFinal] };
+    const cleanedFinal = repairMojibake(stripInternalSections(final));
+    return { changed: cleanedFinal !== String(answer || "").trim(), answer: cleanedFinal, candidates: [cleanedFinal] };
   }
 
-  if (!hasInternal && !hasPipeDump) return { changed: false, answer: original, candidates: [] };
+  if (!hasInternal && !hasPipeDump) {
+    return { changed: original !== String(answer || "").trim(), answer: original, candidates: [] };
+  }
 
   const source = hasPipeDump ? final : original;
   const candidates = deduplicateAnswerCandidates(source.split(hasPipeDump ? /\s*\|\s*/ : /\r?\n+/).filter(Boolean));
   if (!candidates.length) {
-    const cleaned = stripInternalSections(original);
+    const cleaned = repairMojibake(stripInternalSections(original));
     return { changed: cleaned !== original, answer: cleaned, candidates: [] };
   }
 
@@ -122,7 +125,7 @@ function cleanUserFacingOutput(answer, question = "", taskReport = null) {
   const cleaned = (expectedCount > 1 || candidates.length > 1)
     ? candidates.slice(0, expectedCount > 1 ? expectedCount : candidates.length).map((c, i) => `Test ${i + 1}: ${c}`).join("\n")
     : candidates[0];
-  return { changed: cleaned !== original, answer: cleaned, candidates };
+  return { changed: cleaned !== original, answer: repairMojibake(cleaned), candidates };
 }
 
 function questionLeakEvidence(question, finalText) {
@@ -143,8 +146,8 @@ function countAnswerSections(answer) {
 }
 
 function cleanPhantomOutput(answer, question, taskReport = null) {
-  const original = String(answer || "").trim();
-  const cleaned = stripInternalSections(original);
+  const original = repairMojibake(String(answer || "").trim());
+  const cleaned = repairMojibake(stripInternalSections(original));
   return { changed: cleaned !== original, answer: cleaned, removed: [], providedTaskCount: countProvidedTasks(question, taskReport), answerSectionCount: countAnswerSections(cleaned) };
 }
 
@@ -159,7 +162,7 @@ function unrelatedSectionDetector() { return { ok: true, errors: [] }; }
 
 function validateFinalAnswer(answer, question, taskReport = null) {
   const cleaned = cleanPhantomOutput(answer, question, taskReport);
-  const candidate = cleaned.changed ? cleaned.answer : answer;
+  const candidate = cleaned.changed ? cleaned.answer : repairMojibake(answer);
   const finalText = finalAnswerText(candidate) || stripInternalSections(candidate);
   const errors = [];
   if (!finalText) errors.push("Final Answer section is missing.");
