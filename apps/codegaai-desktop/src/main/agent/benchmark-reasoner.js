@@ -56,21 +56,28 @@ function commandOnlyAnswer(question) {
 
 function pdoLoginExampleAnswer() {
   return [
-    "PHP 8.3 + PDO ile güvenli kullanıcı giriş örneği için temel akış:",
+    "PHP 8.3 + PDO ile güvenli kullanıcı giriş sistemi:",
     "",
-    "1. Veritabanında `users` tablosu oluştur: `id`, `email`, `password_hash`, `created_at`.",
-    "2. Kullanıcı kaydında parolayı `password_hash($password, PASSWORD_DEFAULT)` ile sakla.",
-    "3. Girişte e-postayı PDO prepared statement ile sorgula.",
-    "4. Parolayı `password_verify($password, $user['password_hash'])` ile doğrula.",
-    "5. Başarılı girişte `session_regenerate_id(true)` çalıştır ve `$_SESSION['user_id']` ata.",
-    "6. Her korumalı sayfada `isset($_SESSION['user_id'])` kontrolü yap.",
-    "7. Çıkışta `session_unset()`, `session_destroy()` ve güvenli yönlendirme kullan.",
+    "1. `users` tablosunda `id`, `email`, `password_hash`, `created_at` alanları olmalı.",
+    "2. Kayıtta parola `password_hash($password, PASSWORD_DEFAULT)` ile saklanmalı.",
+    "3. Girişte kullanıcı yalnızca e-posta ile PDO prepared statement üzerinden çekilmeli.",
+    "4. Parola kesinlikle SQL içinde karşılaştırılmamalı; `password_verify($password, $user['password_hash'])` kullanılmalı.",
+    "5. Başarılı girişten sonra `session_regenerate_id(true)` çalıştırılmalı ve `$_SESSION['user_id']` atanmalı.",
+    "6. PDO DSN içinde `dbname` ve `charset=utf8mb4` bulunmalı.",
+    "7. POST formlarında CSRF token kullanılmalı.",
+    "8. Çıkışta `session_unset()`, `session_destroy()` ve güvenli yönlendirme yapılmalı.",
     "",
-    "Kısa örnek akış:",
-    "- PDO bağlantısı: hata modu exception olmalı.",
-    "- Sorgu: `SELECT id, password_hash FROM users WHERE email = ? LIMIT 1`.",
-    "- Doğrulama: `password_verify` başarısızsa genel hata mesajı dön.",
-    "- Başarılıysa session yenile ve kullanıcıyı panele gönder.",
+    "Temel sorgu:",
+    "```php",
+    "$stmt = $pdo->prepare('SELECT id, email, password_hash FROM users WHERE email = ? LIMIT 1');",
+    "$stmt->execute([$email]);",
+    "$user = $stmt->fetch(PDO::FETCH_ASSOC);",
+    "",
+    "if ($user && password_verify($password, $user['password_hash'])) {",
+    "    session_regenerate_id(true);",
+    "    $_SESSION['user_id'] = (int) $user['id'];",
+    "}",
+    "```",
   ].join("\n");
 }
 
@@ -132,7 +139,7 @@ function softwareModuleAnswer(question) {
   if (/\bphp\b/.test(q) && /(ates fiat|ateş fiat|servis otomasyon|servis sistemi|is emri|iş emri)/.test(q) && /(gelistir|geliştir|olustur|oluştur|yaz|kur|hazirla|hazırla)/.test(q)) {
     return serviceAutomationBlueprintAnswer();
   }
-  if (/\bphp\b/.test(q) && /\bpdo\b/.test(q) && /(giris sistemi|login|kullanici giris)/.test(q) && /(ornek|örnek|yaz|kod)/.test(q)) {
+  if (/\bphp\b/.test(q) && /(giris sistemi|login|kullanici giris|kimlik dogrulama|kimlik doğrulama)/.test(q) && /(gelistir|geliştir|ornek|örnek|yaz|kod|hazirla|hazırla|olustur|oluştur)/.test(q)) {
     return pdoLoginExampleAnswer();
   }
   if (/\bphp\b/.test(q) && /(kullanici giris|giris sistemi|login)/.test(q) && /(modul|moduller|liste|listele|gerekli)/.test(q)) {
