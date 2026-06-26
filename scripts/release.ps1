@@ -17,11 +17,13 @@ $pkg = "apps\codegaai-desktop\package.json"
 $check = "apps\codegaai-desktop\scripts\check.mjs"
 
 $pkgContent = Get-Content $pkg -Raw
-$pkgContent = $pkgContent -replace '"version"\s*:\s*"[0-9]+\.[0-9]+\.[0-9]+"', '"version":"' + $Version + '"'
+$pkgReplacement = '"version":"' + $Version + '"'
+$pkgContent = $pkgContent -replace '"version"\s*:\s*"[0-9]+\.[0-9]+\.[0-9]+"', $pkgReplacement
 Write-Utf8NoBom $pkg $pkgContent
 
 $checkContent = Get-Content $check -Raw
-$checkContent = $checkContent -replace 'pkg\.version !== "[0-9]+\.[0-9]+\.[0-9]+"', 'pkg.version !== "' + $Version + '"'
+$checkReplacement = 'pkg.version !== "' + $Version + '"'
+$checkContent = $checkContent -replace 'pkg\.version !== "[0-9]+\.[0-9]+\.[0-9]+"', $checkReplacement
 Write-Utf8NoBom $check $checkContent
 
 Push-Location "apps\codegaai-desktop"
