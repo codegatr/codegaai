@@ -43,6 +43,15 @@ const required = [
   "src/main/phoenix/builder/file-manifest.js",
   "src/main/phoenix/builder/service-automation-project.js",
   "src/main/phoenix/builder/index.js",
+  "src/main/phoenix-core/kernel/event-bus.js",
+  "src/main/phoenix-core/kernel/task-registry.js",
+  "src/main/phoenix-core/kernel/kernel.js",
+  "src/main/phoenix-core/intent/fast-path.js",
+  "src/main/phoenix-core/intent/intent-engine.js",
+  "src/main/phoenix-core/runtime/streaming-buffer.js",
+  "src/main/phoenix-core/runtime/conversation-isolation.js",
+  "src/main/phoenix-core/watchdog/heartbeat.js",
+  "src/main/phoenix-core/watchdog/watchdog.js",
   "src/renderer/phoenix-theme.css",
   "src/renderer/phoenix-splash.js"
 ];
@@ -75,13 +84,40 @@ if (!pkg.build?.files?.some((entry) => String(entry).includes("!**/__pycache__/*
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
 if (!pkg.scripts?.["release:win"]) throw new Error("Windows release script is missing");
 
-if (pkg.version !== "6.0.0-alpha.2") throw new Error(`Desktop package version must be 5.4.3, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.3") throw new Error(`Desktop package version must be 6.0.0-alpha.3, got ${pkg.version}`);
 
 const phoenixCore = readText(join(repoRoot, "packages", "phoenix-core", "index.js"));
 if (!phoenixCore.includes("runPhoenix") || !phoenixCore.includes("createTask") || !phoenixCore.includes("createModelStore")) throw new Error("Phoenix core entrypoint is incomplete");
 
 const desktopStore = readText(join(root, "src", "main", "phoenix", "model-store", "index.js"));
 if (!desktopStore.includes("createDesktopModelStore") || !desktopStore.includes("getModelForTask") || !desktopStore.includes("toSettingsPatch")) throw new Error("Desktop ModelStore is incomplete");
+
+const coreKernel = readText(join(root, "src", "main", "phoenix-core", "kernel", "kernel.js"));
+if (!coreKernel.includes("createPhoenixKernel") || !coreKernel.includes("classifyIntent") || !coreKernel.includes("fast_path")) throw new Error("Phoenix Core v2 kernel is incomplete");
+
+const coreEventBus = readText(join(root, "src", "main", "phoenix-core", "kernel", "event-bus.js"));
+if (!coreEventBus.includes("createEventBus") || !coreEventBus.includes("snapshot")) throw new Error("Phoenix Core v2 event bus is incomplete");
+
+const coreRegistry = readText(join(root, "src", "main", "phoenix-core", "kernel", "task-registry.js"));
+if (!coreRegistry.includes("createTaskRegistry") || !coreRegistry.includes("heartbeat") || !coreRegistry.includes("TASK_STATUS")) throw new Error("Phoenix Core v2 task registry is incomplete");
+
+const coreIntent = readText(join(root, "src", "main", "phoenix-core", "intent", "intent-engine.js"));
+if (!coreIntent.includes("classifyIntent") || !coreIntent.includes("project.generate") || !coreIntent.includes("fastPathAnswer")) throw new Error("Phoenix Core v2 intent engine is incomplete");
+
+const coreFastPath = readText(join(root, "src", "main", "phoenix-core", "intent", "fast-path.js"));
+if (!coreFastPath.includes("fastPathAnswer") || !coreFastPath.includes("Renault") || !coreFastPath.includes("calculatorAnswer")) throw new Error("Phoenix Core v2 fast path is incomplete");
+
+const streamBuffer = readText(join(root, "src", "main", "phoenix-core", "runtime", "streaming-buffer.js"));
+if (!streamBuffer.includes("createStreamingBuffer") || !streamBuffer.includes("taskId") || !streamBuffer.includes("append")) throw new Error("Phoenix Core v2 streaming buffer is incomplete");
+
+const isolation = readText(join(root, "src", "main", "phoenix-core", "runtime", "conversation-isolation.js"));
+if (!isolation.includes("createConversationIsolationStore") || !isolation.includes("attachTask") || !isolation.includes("conversationForTask")) throw new Error("Phoenix Core v2 conversation isolation is incomplete");
+
+const heartbeat = readText(join(root, "src", "main", "phoenix-core", "watchdog", "heartbeat.js"));
+if (!heartbeat.includes("createHeartbeatMonitor") || !heartbeat.includes("staleTasks") || !heartbeat.includes("isStale")) throw new Error("Phoenix Core v2 heartbeat monitor is incomplete");
+
+const watchdog = readText(join(root, "src", "main", "phoenix-core", "watchdog", "watchdog.js"));
+if (!watchdog.includes("createPhoenixWatchdog") || !watchdog.includes("WATCHDOG_STATUS") || !watchdog.includes("shouldAbort")) throw new Error("Phoenix Core v2 watchdog is incomplete");
 
 const desktopTaskEngine = readText(join(root, "src", "main", "phoenix", "kernel", "task-engine.js"));
 if (!desktopTaskEngine.includes("createTask") || !desktopTaskEngine.includes("classifyIntent") || !desktopTaskEngine.includes("agentsForIntent")) throw new Error("Desktop Phoenix Task Engine is incomplete");
@@ -125,4 +161,4 @@ function scan(dir) {
 scan(repoRoot);
 if (forbidden.length) throw new Error(`Runtime artifacts must not be shipped in repository: ${forbidden.slice(0, 8).join(", ")}`);
 
-console.log("CODEGA AI Phoenix Kernel + Builder foundation OK");
+console.log("CODEGA AI Phoenix Core v2 watchdog + isolation foundation OK");
