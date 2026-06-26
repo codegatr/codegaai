@@ -84,7 +84,7 @@ const desktopTaskEngine = readText(join(root, "src", "main", "phoenix", "kernel"
 if (!desktopTaskEngine.includes("createTask") || !desktopTaskEngine.includes("classifyIntent") || !desktopTaskEngine.includes("agentsForIntent")) throw new Error("Desktop Phoenix Task Engine is incomplete");
 
 const plannerAgent = readText(join(root, "src", "main", "phoenix", "agents", "planner", "planner-agent.js"));
-if (!plannerAgent.includes("planTask") || !plannerAgent.includes("TASK-001") || !plannerAgent.includes("VeritabanÄ± ÅemasÄ±")) throw new Error("Desktop Phoenix Planner Agent is incomplete");
+if (!plannerAgent.includes("planTask") || !plannerAgent.includes("TASK-001") || !plannerAgent.includes("VeritabanÃ„Â± Ã…ÂemasÃ„Â±")) throw new Error("Desktop Phoenix Planner Agent is incomplete");
 
 const progressBus = readText(join(root, "src", "main", "phoenix", "kernel", "progress-bus.js"));
 if (!progressBus.includes("createProgressBus") || !progressBus.includes("completed")) throw new Error("Phoenix Progress Bus is incomplete");
