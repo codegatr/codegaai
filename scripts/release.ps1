@@ -37,12 +37,12 @@ if ($remoteTag) {
 
 $pkgContent = Get-Content $pkg -Raw
 $pkgReplacement = '"version":"' + $Version + '"'
-$pkgContent = $pkgContent -replace '"version"\s*:\s*"[0-9]+\.[0-9]+\.[0-9]+"', $pkgReplacement
+$pkgContent = $pkgContent -replace '"version"\s*:\s*"[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.]+)?"', $pkgReplacement
 Write-Utf8NoBom $pkg $pkgContent
 
 $checkContent = Get-Content $check -Raw
 $checkReplacement = 'pkg.version !== "' + $Version + '"'
-$checkContent = $checkContent -replace 'pkg\.version !== "[0-9]+\.[0-9]+\.[0-9]+"', $checkReplacement
+$checkContent = $checkContent -replace 'pkg\.version !== "[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.]+)?"', $checkReplacement
 Write-Utf8NoBom $check $checkContent
 
 Push-Location "apps\codegaai-desktop"
@@ -52,7 +52,7 @@ try {
   Pop-Location
 }
 
-git add $pkg $check scripts/release.ps1
+git add $pkg $check scripts/release.ps1 scripts/patch-electron-timeouts.ps1 apps/codegaai-desktop/src/renderer/renderer.js apps/codegaai-desktop/src/shared/constants.js apps/codegaai-desktop/src/main/phoenix-core
 $changes = git status --porcelain
 if (-not $changes) {
   Write-Host "No release file changes to commit." -ForegroundColor Yellow
