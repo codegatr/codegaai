@@ -1,4 +1,4 @@
-const { spawn } = require("node:child_process");
+﻿const { spawn } = require("node:child_process");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -58,7 +58,7 @@ const experts = require("./agent/experts");
 
 function extractWeatherCity(input) {
   const match = String(input || "").trim().match(
-    /(?:bug[uü]n\s+)?([\p{L}.-]+)(?:['’](?:da|de|ta|te))?\s+(?:hava\s+durumu|hava\s+nas[ıi]l|ka[çc]\s+derece)/iu
+    /(?:bug[uÃ¼]n\s+)?([\p{L}.-]+)(?:['â€™](?:da|de|ta|te))?\s+(?:hava\s+durumu|hava\s+nas[Ä±i]l|ka[Ã§c]\s+derece)/iu
   );
   return match ? match[1].trim() : "";
 }
@@ -130,7 +130,7 @@ async function verifyTaskLocalAnswer(task, draft, generateFn = null, opts = {}) 
   let answer = taskLocalFinalAnswer(draft);
   const blocked = (errors = []) => ({
     ok: false,
-    answer: `Yanıt doğrulama kapısından geçmedi.\nBloke eden görev: ${task.label || task.id || "task"}. ${errors.join(" ")}\n\nFinal Answer: Yanıt güvenli şekilde doğrulanamadı.`,
+    answer: `YanÄ±t doÄŸrulama kapÄ±sÄ±ndan geÃ§medi.\nBloke eden gÃ¶rev: ${task.label || task.id || "task"}. ${errors.join(" ")}\n\nFinal Answer: YanÄ±t gÃ¼venli ÅŸekilde doÄŸrulanamadÄ±.`,
     errors,
   });
   const apply = (candidate, source) => {
@@ -258,7 +258,7 @@ function collapseRunawayTaskAnswer(answer) {
     }
   }
   if (!repeated) return text;
-  return `${kept.join("\n").trim()}\n\n[Task-local guard: tekrar eden/uzayan taslak kesildi; yanıt yeniden doğrulanacak.]`;
+  return `${kept.join("\n").trim()}\n\n[Task-local guard: tekrar eden/uzayan taslak kesildi; yanÄ±t yeniden doÄŸrulanacak.]`;
 }
 
 function hashTaskBody(body) {
@@ -269,9 +269,9 @@ function hashTaskBody(body) {
 }
 
 /**
- * Görev sınır bozulması onarımı: komşu görevin etiket sayısı (örn. "Test 2" -> 2) aktif görevin
- * gövde token'ına yapışıp "9x" yerine "29x" üretebilir. Gövdede OLMAYAN "id+token" birleşmesini
- * yakalayıp düzeltir. Döner: { changed, answer, leaks: [...] }.
+ * GÃ¶rev sÄ±nÄ±r bozulmasÄ± onarÄ±mÄ±: komÅŸu gÃ¶revin etiket sayÄ±sÄ± (Ã¶rn. "Test 2" -> 2) aktif gÃ¶revin
+ * gÃ¶vde token'Ä±na yapÄ±ÅŸÄ±p "9x" yerine "29x" Ã¼retebilir. GÃ¶vdede OLMAYAN "id+token" birleÅŸmesini
+ * yakalayÄ±p dÃ¼zeltir. DÃ¶ner: { changed, answer, leaks: [...] }.
  */
 function repairTaskBoundaryLeak(task, answer) {
   const id = String(task && task.id != null ? task.id : "").trim();
@@ -279,12 +279,12 @@ function repairTaskBoundaryLeak(task, answer) {
   const leaks = [];
   if (!/^\d+$/.test(id)) return { changed: false, answer: out, leaks };
   const body = String(task.body || "");
-  const tokens = body.match(/\d+(?:[.,]\d+)?x?|\b[a-zçğıöşü]?\d+\b/gi) || [];
+  const tokens = body.match(/\d+(?:[.,]\d+)?x?|\b[a-zÃ§ÄŸÄ±Ã¶ÅŸÃ¼]?\d+\b/gi) || [];
   for (const tok of tokens) {
     const merged = id + tok; // "2" + "9x" = "29x"
     if (merged !== tok && !body.includes(merged) && out.includes(merged)) {
       out = out.split(merged).join(tok); // "29x" -> "9x"
-      leaks.push(`${merged}→${tok}`);
+      leaks.push(`${merged}â†’${tok}`);
     }
   }
   return { changed: leaks.length > 0, answer: out, leaks };
@@ -292,8 +292,8 @@ function repairTaskBoundaryLeak(task, answer) {
 
 function deterministicTaskAnswer(taskBody) {
   const body = String(taskBody || "");
-  // Önce KNOWN tuzak/canonical (benchmark) — genel matematik çözücü tuzak ifadeleri yanlış
-  // yakalamasın (örn. "birinci sıradaki" -> hatalı). Yalnız bilinen tuzaklarda boş-dışı döner.
+  // Ã–nce KNOWN tuzak/canonical (benchmark) â€” genel matematik Ã§Ã¶zÃ¼cÃ¼ tuzak ifadeleri yanlÄ±ÅŸ
+  // yakalamasÄ±n (Ã¶rn. "birinci sÄ±radaki" -> hatalÄ±). YalnÄ±z bilinen tuzaklarda boÅŸ-dÄ±ÅŸÄ± dÃ¶ner.
   const benchmark = solveKnownReasoningBenchmarks(body);
   if (benchmark && benchmark.trim()) return benchmark.trim();
   const math = solveDeterministicMathLogic(body);
@@ -310,7 +310,7 @@ function trustedDeterministicMultiTaskAnswer(taskDecomposition) {
     const draft = deterministicTaskAnswer(task.body);
     if (!String(draft || "").trim()) return "";
     results.push({
-      label: task.label || `Görev ${results.length + 1}`,
+      label: task.label || `GÃ¶rev ${results.length + 1}`,
       answer: taskLocalFinalAnswer(draft),
     });
   }
@@ -318,11 +318,11 @@ function trustedDeterministicMultiTaskAnswer(taskDecomposition) {
   return results.map((r) => `**${r.label}**\n${r.answer}`).join("\n\n");
 }
 
-// Basit sohbet/selamlaşma tespiti — bunlarda araç/ReAct makinesi devreye girmesin
+// Basit sohbet/selamlaÅŸma tespiti â€” bunlarda araÃ§/ReAct makinesi devreye girmesin
 function _normTr(s) {
   return String(s || "").toLocaleLowerCase("tr")
-    .replace(/[ıİ]/g, "i").replace(/ş/g, "s").replace(/ğ/g, "g")
-    .replace(/ü/g, "u").replace(/ö/g, "o").replace(/ç/g, "c");
+    .replace(/[Ä±Ä°]/g, "i").replace(/ÅŸ/g, "s").replace(/ÄŸ/g, "g")
+    .replace(/Ã¼/g, "u").replace(/Ã¶/g, "o").replace(/Ã§/g, "c");
 }
 const SMALLTALK_RE = /^(selam|merhaba|merhabalar|gunaydin|iyi gunler|iyi geceler|iyi aksamlar|naber|nasilsin|tesekkur|tesekkurler|sagol|sag ol|eyvallah|gorusuruz|hosca kal|hello|hi|hey|thanks|tesekkur ederim)\b/;
 const CONVERSATIONAL_RE = /\b(sence|seninle|senin halin|ne olacak|devam edebilir misin|cevabina devam|beni anladin mi|burada misin|iyi misin|hazir misin|nasil gidiyor|neden cevap veremiyorsun|neden takildin|bu halimiz|duzelmissin|gelismissin|daha iyi olmussun|biraz daha iyi|fena degil|guzel olmus|iyi olmus|harika olmus|bu kez olmus|seni ozledim)\b/;
@@ -392,14 +392,14 @@ function shouldRunHardValidation({
 }
 function smallTalkPrompt(humanTone) {
   return (
-    "Sen CODEGA AI'sın, yerel çalışan bir yapay zeka asistanısın. Kullanıcı seninle kısa bir " +
-    "selamlaşma/sohbet yapıyor. Kısa, doğal ve net Türkçe cevap ver: 1-2 cümle. Araç KULLANMA, " +
-    "liste yapma, kendini uzun uzun tanıtma, rapor/etiket yazma." +
-    (humanTone ? " Sıcak ve içten bir ton kullan." : "")
+    "Sen CODEGA AI'sÄ±n, yerel Ã§alÄ±ÅŸan bir yapay zeka asistanÄ±sÄ±n. KullanÄ±cÄ± seninle kÄ±sa bir " +
+    "selamlaÅŸma/sohbet yapÄ±yor. KÄ±sa, doÄŸal ve net TÃ¼rkÃ§e cevap ver: 1-2 cÃ¼mle. AraÃ§ KULLANMA, " +
+    "liste yapma, kendini uzun uzun tanÄ±tma, rapor/etiket yazma." +
+    (humanTone ? " SÄ±cak ve iÃ§ten bir ton kullan." : "")
   );
 }
 
-const MAX_HISTORY_MESSAGES = 12; // son ~6 turu hatırla
+const MAX_HISTORY_MESSAGES = 12; // son ~6 turu hatÄ±rla
 
 const READY_STATES = {
   CHECKING: "checking",
@@ -413,13 +413,13 @@ const PROGRESS_HEARTBEAT_MS = 5000;
 const HEARTBEAT_TOKEN = "\u200b";
 
 function progressLabel(stage, scope, meta = {}) {
-  const scopeLabel = scope === "multi_task" ? "çoklu görev" : "cevap";
+  const scopeLabel = scope === "multi_task" ? "Ã§oklu gÃ¶rev" : "cevap";
   const reason = meta.reason ? String(meta.reason).replace(/[_-]+/g, " ").slice(0, 80) : "";
-  if (/^hala çalışıyor$/i.test(reason)) return `${scopeLabel}: hala çalışıyorum; son aşamayı bekliyorum.`;
-  if (stage === "reasoning") return reason ? `${scopeLabel}: ${reason} üzerinde çalışıyorum.` : `${scopeLabel}: problemi parçalara ayırıyorum.`;
-  if (stage === "verifying") return reason ? `${scopeLabel}: ${reason} kontrolünü yapıyorum.` : `${scopeLabel}: sonucu doğruluyorum.`;
-  if (stage === "finalizing") return reason ? `${scopeLabel}: ${reason} ile son cevabı toparlıyorum.` : `${scopeLabel}: son cevabı toparlıyorum.`;
-  return `${scopeLabel}: işlem sürüyor.`;
+  if (/^hala Ã§alÄ±ÅŸÄ±yor$/i.test(reason)) return `${scopeLabel}: hala Ã§alÄ±ÅŸÄ±yorum; son aÅŸamayÄ± bekliyorum.`;
+  if (stage === "reasoning") return reason ? `${scopeLabel}: ${reason} Ã¼zerinde Ã§alÄ±ÅŸÄ±yorum.` : `${scopeLabel}: problemi parÃ§alara ayÄ±rÄ±yorum.`;
+  if (stage === "verifying") return reason ? `${scopeLabel}: ${reason} kontrolÃ¼nÃ¼ yapÄ±yorum.` : `${scopeLabel}: sonucu doÄŸruluyorum.`;
+  if (stage === "finalizing") return reason ? `${scopeLabel}: ${reason} ile son cevabÄ± toparlÄ±yorum.` : `${scopeLabel}: son cevabÄ± toparlÄ±yorum.`;
+  return `${scopeLabel}: iÅŸlem sÃ¼rÃ¼yor.`;
 }
 
 function makeVerificationProgress(onProgress, scope = "answer", onHeartbeat = null) {
@@ -430,7 +430,7 @@ function makeVerificationProgress(onProgress, scope = "answer", onHeartbeat = nu
   const sendVisible = (meta = {}) => {
     if (typeof onProgress !== "function") return;
     const elapsed = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-    const line = `Çalışma özeti: ${progressLabel(stage, scope, meta)} (${elapsed} sn)\n`;
+    const line = `Ã‡alÄ±ÅŸma Ã¶zeti: ${progressLabel(stage, scope, meta)} (${elapsed} sn)\n`;
     if (line === lastVisible) return;
     lastVisible = line;
     try { onProgress({ stage, scope, attempt, elapsed, text: line.trim() }); } catch (_e) {}
@@ -446,7 +446,7 @@ function makeVerificationProgress(onProgress, scope = "answer", onHeartbeat = nu
     } catch (_e) {}
   };
   const timer = typeof onProgress === "function" || typeof onHeartbeat === "function"
-    ? setInterval(() => emit(stage, { attempt, reason: "hala çalışıyor" }), PROGRESS_HEARTBEAT_MS)
+    ? setInterval(() => emit(stage, { attempt, reason: "hala Ã§alÄ±ÅŸÄ±yor" }), PROGRESS_HEARTBEAT_MS)
     : null;
   if (timer && timer.unref) timer.unref();
   emit(stage, { attempt });
@@ -460,7 +460,7 @@ function makeVerificationProgress(onProgress, scope = "answer", onHeartbeat = nu
 }
 
 const TASK_MODELS = {
-  code: ["qwen3.5:9b", "qwen2.5-coder:7b", "qwen2.5-coder:3b", "qwen2.5-coder:3b-instruct", "qwen2.5-coder:7b-instruct", "qwen3.5:4b", "qwen3:8b", DEFAULT_MODEL],
+  code: ["qwen2.5-coder:3b", "qwen2.5-coder:3b-instruct", "qwen2.5-coder:7b", "qwen2.5-coder:7b-instruct", "qwen3.5:4b", "qwen3:8b", "qwen3.5:9b", DEFAULT_MODEL],
   image: ["qwen3.5:4b", "gemma3:4b", "qwen3.5:9b", "qwen3:4b", DEFAULT_MODEL],
   writing: ["qwen3.5:9b", "qwen3.5:4b", "qwen3.6:27b", "qwen3:8b", "qwen3:14b", "mistral:7b", DEFAULT_MODEL],
   chat: ["qwen3.5:0.8b", "qwen3.5:2b", DEFAULT_MODEL, "qwen3:1.7b", "qwen3:4b", "llama3.2:3b", "qwen3.5:9b"],
@@ -470,12 +470,12 @@ function safeArithmeticAnswer(input) {
   const raw = String(input || "").trim();
   if (!raw) return "";
   const folded = _foldTr(raw);
-  const match = raw.match(/-?\d+(?:[.,]\d+)?(?:\s*(?:\+|-|\*|\/|x|X|×|÷)\s*-?\d+(?:[.,]\d+)?)+/);
+  const match = raw.match(/-?\d+(?:[.,]\d+)?(?:\s*(?:\+|-|\*|\/|x|X|Ã—|Ã·)\s*-?\d+(?:[.,]\d+)?)+/);
   if (!match) return "";
   if (!/(?:kac|eder|hesap|sonuc|cevap|result|answer|sadece|only|=|\?)/i.test(folded)) return "";
   const expr = match[0]
-    .replace(/[xX×]/g, "*")
-    .replace(/÷/g, "/")
+    .replace(/[xXÃ—]/g, "*")
+    .replace(/Ã·/g, "/")
     .replace(/,/g, ".")
     .replace(/\s+/g, "");
   if (!/^-?(?:\d+(?:\.\d+)?|\.\d+)(?:[+\-*/]-?(?:\d+(?:\.\d+)?|\.\d+))+$/.test(expr)) return "";
@@ -495,19 +495,19 @@ function literalOnlyAnswer(input) {
   if (!original) return "";
   const normalized = original.replace(/\s+/g, " ").trim();
   const patterns = [
-    /^(?:sadece|yaln[\u0131i]zca|yalnizca)\s+["'`“”‘’]?(.+?)["'`“”‘’]?\s+(?:yaz|de|s[öo]yle|cevapla)(?:[.!?]|$)/iu,
-    /^(?:only|just)\s+(?:write|say|print|reply)\s+["'`“”‘’]?(.+?)["'`“”‘’]?(?:[.!?]|$)/iu,
-    /^(?:tek\s+kelime|single\s+word)\s*[:：-]\s*["'`“”‘’]?(.+?)["'`“”‘’]?(?:[.!?]|$)/iu,
+    /^(?:sadece|yaln[\u0131i]zca|yalnizca)\s+["'`â€œâ€â€˜â€™]?(.+?)["'`â€œâ€â€˜â€™]?\s+(?:yaz|de|s[Ã¶o]yle|cevapla)(?:[.!?]|$)/iu,
+    /^(?:only|just)\s+(?:write|say|print|reply)\s+["'`â€œâ€â€˜â€™]?(.+?)["'`â€œâ€â€˜â€™]?(?:[.!?]|$)/iu,
+    /^(?:tek\s+kelime|single\s+word)\s*[:ï¼š-]\s*["'`â€œâ€â€˜â€™]?(.+?)["'`â€œâ€â€˜â€™]?(?:[.!?]|$)/iu,
   ];
   for (const pattern of patterns) {
     const match = normalized.match(pattern);
     if (!match) continue;
     let answer = String(match[1] || "").trim();
     answer = answer
-      .replace(/\s*(?:ba[şs]ka|baska)\s+hi[çc]bir\s+[şs]ey\s+yazma\.?$/iu, "")
+      .replace(/\s*(?:ba[ÅŸs]ka|baska)\s+hi[Ã§c]bir\s+[ÅŸs]ey\s+yazma\.?$/iu, "")
       .replace(/\s*(?:nothing\s+else|do\s+not\s+write\s+anything\s+else|do\s+not\s+add\s+anything\s+else)\.?$/iu, "")
       .trim();
-    answer = answer.replace(/^["'`“”‘’]+|["'`“”‘’]+$/g, "").trim();
+    answer = answer.replace(/^["'`â€œâ€â€˜â€™]+|["'`â€œâ€â€˜â€™]+$/g, "").trim();
     if (!answer) continue;
     const words = answer.split(/\s+/).filter(Boolean);
     if (answer.length <= 120 && words.length <= 12) return answer;
@@ -526,24 +526,24 @@ function instantAnswer(input) {
   const math = safeArithmeticAnswer(raw);
   if (math) return math;
 
-  const direct = raw.match(/(?:^|\b)(?:sadece|yaln[ıi]zca|yalnizca|only)\s+["'“”‘’]?([A-Za-z0-9_.!? -]{1,40}?)["'“”‘’]?\s+(?:yaz|soyle|söyle|cevapla|write|say|reply)\b/i);
+  const direct = raw.match(/(?:^|\b)(?:sadece|yaln[Ä±i]zca|yalnizca|only)\s+["'â€œâ€â€˜â€™]?([A-Za-z0-9_.!? -]{1,40}?)["'â€œâ€â€˜â€™]?\s+(?:yaz|soyle|sÃ¶yle|cevapla|write|say|reply)\b/i);
   if (direct) {
     const value = String(direct[1] || "").replace(/\s+/g, " ").replace(/[ .]+$/g, "").trim();
-    if (value && !/^(cevap|cevabi|cevabı|sonuc|sonuç|sonucu|yanit|yanıt)$/i.test(value)) return value;
+    if (value && !/^(cevap|cevabi|cevabÄ±|sonuc|sonuÃ§|sonucu|yanit|yanÄ±t)$/i.test(value)) return value;
   }
 
-  if (/^(merhaba|selam|hi|hello|hey|günaydın|iyi\s+(akşam|akşamlar|gece|geceler)|nasılsın|naber)\b/.test(text)) {
-    if (text.includes("günaydın")) return "Günaydın. Buradayım, nasıl yardımcı olayım?";
-    if (text.includes("iyi gece")) return "İyi geceler. Buradayım, nasıl yardımcı olayım?";
-    if (text.includes("iyi akşam")) return "İyi akşamlar. Buradayım, nasıl yardımcı olayım?";
-    if (text.includes("nasılsın") || text.includes("naber")) {
-      return "İyiyim, teşekkür ederim. Ne yapmak istiyorsun?";
+  if (/^(merhaba|selam|hi|hello|hey|gÃ¼naydÄ±n|iyi\s+(akÅŸam|akÅŸamlar|gece|geceler)|nasÄ±lsÄ±n|naber)\b/.test(text)) {
+    if (text.includes("gÃ¼naydÄ±n")) return "GÃ¼naydÄ±n. BuradayÄ±m, nasÄ±l yardÄ±mcÄ± olayÄ±m?";
+    if (text.includes("iyi gece")) return "Ä°yi geceler. BuradayÄ±m, nasÄ±l yardÄ±mcÄ± olayÄ±m?";
+    if (text.includes("iyi akÅŸam")) return "Ä°yi akÅŸamlar. BuradayÄ±m, nasÄ±l yardÄ±mcÄ± olayÄ±m?";
+    if (text.includes("nasÄ±lsÄ±n") || text.includes("naber")) {
+      return "Ä°yiyim, teÅŸekkÃ¼r ederim. Ne yapmak istiyorsun?";
     }
-    return "Merhaba. Buradayım, nasıl yardımcı olayım?";
+    return "Merhaba. BuradayÄ±m, nasÄ±l yardÄ±mcÄ± olayÄ±m?";
   }
 
-  if (/(kendin(den|i)|kim(sin)?|neler\s+yapabilirsin|özelliklerin|yeteneklerin|codega\s+ai)\b/.test(text)) {
-    return "Ben CODEGA AI. İsteğine göre uygun yerel modeli otomatik seçen, kod, araştırma, proje planlama ve günlük üretim işlerinde yardımcı olan kişisel yapay zeka asistanınım.";
+  if (/(kendin(den|i)|kim(sin)?|neler\s+yapabilirsin|Ã¶zelliklerin|yeteneklerin|codega\s+ai)\b/.test(text)) {
+    return "Ben CODEGA AI. Ä°steÄŸine gÃ¶re uygun yerel modeli otomatik seÃ§en, kod, araÅŸtÄ±rma, proje planlama ve gÃ¼nlÃ¼k Ã¼retim iÅŸlerinde yardÄ±mcÄ± olan kiÅŸisel yapay zeka asistanÄ±nÄ±m.";
   }
 
   return "";
@@ -585,7 +585,7 @@ function runCommand(command, args, options = {}) {
     if (timeoutMs > 0) {
       timeoutTimer = setTimeout(() => {
         timedOut = true;
-        stderr += `\nKomut ${Math.round(timeoutMs / 1000)} saniye içinde yanıt vermedi.`;
+        stderr += `\nKomut ${Math.round(timeoutMs / 1000)} saniye iÃ§inde yanÄ±t vermedi.`;
         child.kill();
         forceTimer = setTimeout(() => {
           finish({
@@ -593,7 +593,7 @@ function runCommand(command, args, options = {}) {
             stdout,
             stderr,
             timedOut: true,
-            error: "Ollama süreci zaman aşımından sonra kapatılamadı.",
+            error: "Ollama sÃ¼reci zaman aÅŸÄ±mÄ±ndan sonra kapatÄ±lamadÄ±.",
           });
         }, 2000);
       }, timeoutMs);
@@ -621,8 +621,8 @@ function runCommand(command, args, options = {}) {
         timedOut,
         aborted,
         error: timedOut
-          ? "Ollama yanıtı zaman aşımına uğradı."
-          : aborted ? "Ollama isteği durduruldu." : undefined,
+          ? "Ollama yanÄ±tÄ± zaman aÅŸÄ±mÄ±na uÄŸradÄ±."
+          : aborted ? "Ollama isteÄŸi durduruldu." : undefined,
       });
     });
   });
@@ -683,7 +683,7 @@ function modelOption(modelId) {
   return MODEL_OPTIONS.find((model) => model.id === modelId) || {
     id: modelId,
     label: modelId,
-    description: "Özel model",
+    description: "Ã–zel model",
     task: "custom",
   };
 }
@@ -706,21 +706,21 @@ function hasModel(listOutput, model) {
 
 function _foldTr(text) {
   return String(text || "").toLowerCase()
-    .replace(/ı/g, "i").replace(/ş/g, "s").replace(/ğ/g, "g")
-    .replace(/ü/g, "u").replace(/ö/g, "o").replace(/ç/g, "c");
+    .replace(/Ä±/g, "i").replace(/ÅŸ/g, "s").replace(/ÄŸ/g, "g")
+    .replace(/Ã¼/g, "u").replace(/Ã¶/g, "o").replace(/Ã§/g, "c");
 }
 
-/** Açık internet/araştırma niyeti mi? (zayıf yerel model aracı tetikleyemiyor; biz zorlarız) */
+/** AÃ§Ä±k internet/araÅŸtÄ±rma niyeti mi? (zayÄ±f yerel model aracÄ± tetikleyemiyor; biz zorlarÄ±z) */
 function wantsWebResearch(input) {
   const q = _foldTr(input);
   if (/(internet|web|google|cevrimici|online|net)\S*\s*(ten|te|de|da|den|dan)?\s*(arastir|aratip|arat|ara|bak|tara|incele)/.test(q)) return true;
   if (/(guncel|son dakika|haber|piyasa|kur|fiyat|bugun)\S*.*(arastir|ara\b|bul\b|bak\b)/.test(q)) return true;
-  // kısa ve emir kipi "araştır/araştırıp özetle"
+  // kÄ±sa ve emir kipi "araÅŸtÄ±r/araÅŸtÄ±rÄ±p Ã¶zetle"
   if (/\barastir/.test(q) && q.split(/\s+/).length <= 9) return true;
   return false;
 }
 
-/** Araştırma sorgusunu çıkar: komut sözcüklerini at; yetersizse geçmişten konuyu ekle. */
+/** AraÅŸtÄ±rma sorgusunu Ã§Ä±kar: komut sÃ¶zcÃ¼klerini at; yetersizse geÃ§miÅŸten konuyu ekle. */
 function extractResearchQuery(input, history = []) {
   let q = String(input || "")
     .replace(/internetten|internette|internet|web'?[dt]e|web|google'?[dy]?[ae]?|google|cevrimici|online/gi, " ")
@@ -730,7 +730,7 @@ function extractResearchQuery(input, history = []) {
     .replace(/\s+/g, " ").trim();
   const meaningful = q.split(/\s+/).filter((w) => w.length > 1);
   if (meaningful.length >= 3) return q;
-  // yetersiz konu: en son anlamlı kullanıcı mesajını ekle (bağlam)
+  // yetersiz konu: en son anlamlÄ± kullanÄ±cÄ± mesajÄ±nÄ± ekle (baÄŸlam)
   for (let i = history.length - 1; i >= 0; i--) {
     if (history[i] && history[i].role === "user") {
       const h = String(history[i].content || "").replace(/\s+/g, " ").trim();
@@ -745,10 +745,10 @@ function detectTask(input) {
   if (/(php|python|javascript|typescript|react|node|api|site|web sitesi|program|uygulama|kod|script|fonksiyon|class|sql|html|css)\b/.test(text)) {
     return "code";
   }
-  if (/(resim|görsel|fotoğraf|çiz|çizim|afiş|logo|illustrasyon|illustration|image|prompt)\b/.test(text)) {
+  if (/(resim|gÃ¶rsel|fotoÄŸraf|Ã§iz|Ã§izim|afiÅŸ|logo|illustrasyon|illustration|image|prompt)\b/.test(text)) {
     return "image";
   }
-  if (/(makale|metin|içerik|mail|e-posta|özet|rapor|senaryo|hikaye|plan)\b/.test(text)) {
+  if (/(makale|metin|iÃ§erik|mail|e-posta|Ã¶zet|rapor|senaryo|hikaye|plan)\b/.test(text)) {
     return "writing";
   }
   return "chat";
@@ -779,12 +779,12 @@ function candidateModelsForTask(task, installed) {
 
 function buildPrompt(task, input) {
   return [
-    "Sen CODEGA AI'sın. Türkçe, net, samimi ve uygulanabilir cevap ver.",
-    "ChatGPT ve Claude kalitesinde davran: talebi anla, gerekirse kısa plan yap, sonra doğrudan faydalı cevabı ver.",
-    "İç model/paket adlarını kullanıcıya söyleme; sadece doğal şekilde yanıt ver.",
-    "Yanıtı gereksiz uzatma. Önce sonucu ver, sonra gerekiyorsa kısa açıklama ekle.",
-    `Görev türü: ${task}`,
-    `Kullanıcı: ${input}`,
+    "Sen CODEGA AI'sÄ±n. TÃ¼rkÃ§e, net, samimi ve uygulanabilir cevap ver.",
+    "ChatGPT ve Claude kalitesinde davran: talebi anla, gerekirse kÄ±sa plan yap, sonra doÄŸrudan faydalÄ± cevabÄ± ver.",
+    "Ä°Ã§ model/paket adlarÄ±nÄ± kullanÄ±cÄ±ya sÃ¶yleme; sadece doÄŸal ÅŸekilde yanÄ±t ver.",
+    "YanÄ±tÄ± gereksiz uzatma. Ã–nce sonucu ver, sonra gerekiyorsa kÄ±sa aÃ§Ä±klama ekle.",
+    `GÃ¶rev tÃ¼rÃ¼: ${task}`,
+    `KullanÄ±cÄ±: ${input}`,
     "CODEGA AI:",
   ].join("\n");
 }
@@ -825,21 +825,21 @@ function parsePullProgress(line) {
 }
 
 function missingModelReply(task, modelId, started) {
-  const subject = task === "code" ? "kod/PHP işleri" : "bu iş";
-  const action = started ? "arka planda hazırlamaya başladım" : "arka planda hazırlıyorum";
+  const subject = task === "code" ? "kod/PHP iÅŸleri" : "bu iÅŸ";
+  const action = started ? "arka planda hazÄ±rlamaya baÅŸladÄ±m" : "arka planda hazÄ±rlÄ±yorum";
   if (task === "code") {
     return [
-      `PHP yazılım için gerekli yerel kod modelini (${modelId}) ${action}.`,
-      "İndirme bitince otomatik kullanacağım; ayrıca Ayarlar'a gitmene gerek yok.",
+      `PHP yazÄ±lÄ±m iÃ§in gerekli yerel kod modelini (${modelId}) ${action}.`,
+      "Ä°ndirme bitince otomatik kullanacaÄŸÄ±m; ayrÄ±ca Ayarlar'a gitmene gerek yok.",
       "",
-      "Bu sırada ihtiyacını netleştirebiliriz: web sitesi mi, panel/ERP modülü mü, API mi, yoksa mevcut PHP projesinde hata/ek geliştirme mi istiyorsun?",
+      "Bu sÄ±rada ihtiyacÄ±nÄ± netleÅŸtirebiliriz: web sitesi mi, panel/ERP modÃ¼lÃ¼ mÃ¼, API mi, yoksa mevcut PHP projesinde hata/ek geliÅŸtirme mi istiyorsun?",
     ].join("\n");
   }
-  return `${subject} için gerekli yerel modeli (${modelId}) ${action}. Hazır olunca otomatik kullanacağım; ayrıca Ayarlar'a gitmene gerek yok.`;
+  return `${subject} iÃ§in gerekli yerel modeli (${modelId}) ${action}. HazÄ±r olunca otomatik kullanacaÄŸÄ±m; ayrÄ±ca Ayarlar'a gitmene gerek yok.`;
 }
 
-// HTTP /api/chat erişilemezse, CLI `ollama run` için messages dizisini tek
-// prompt'a düzleştir (system + geçmiş + kullanıcı korunur).
+// HTTP /api/chat eriÅŸilemezse, CLI `ollama run` iÃ§in messages dizisini tek
+// prompt'a dÃ¼zleÅŸtir (system + geÃ§miÅŸ + kullanÄ±cÄ± korunur).
 function flattenMessages(messages) {
   const label = { system: "[SISTEM]", user: "[KULLANICI]", assistant: "[CODEGA]" };
   const lines = messages.map((m) => `${label[m.role] || m.role}: ${m.content}`);
@@ -850,13 +850,13 @@ function flattenMessages(messages) {
 class ModelManager {
   constructor() {
     this.ollamaCommand = null;
-    this.history = []; // sunucu-tarafı çok-turlu hafıza ({role, content})
-    this.sessionHistories = new Map(); // renderer sohbetlerini birbirinden kesin olarak ayır
-    this._abort = null; // mevcut üretimi durdurmak için
+    this.history = []; // sunucu-tarafÄ± Ã§ok-turlu hafÄ±za ({role, content})
+    this.sessionHistories = new Map(); // renderer sohbetlerini birbirinden kesin olarak ayÄ±r
+    this._abort = null; // mevcut Ã¼retimi durdurmak iÃ§in
     this._aborted = false;
-    this._queue = Promise.resolve(); // ask() serileştirme kuyruğu
+    this._queue = Promise.resolve(); // ask() serileÅŸtirme kuyruÄŸu
     this._activeForeground = 0;
-    this._preparingModels = new Set(); // arka planda aynı modeli iki kez indirme
+    this._preparingModels = new Set(); // arka planda aynÄ± modeli iki kez indirme
     this.state = {
       provider: "instant",
       status: READY_STATES.CHECKING,
@@ -877,7 +877,7 @@ class ModelManager {
       }
       lastResult = result;
     }
-    return lastResult || { ok: false, error: "Ollama çalıştırılamadı" };
+    return lastResult || { ok: false, error: "Ollama Ã§alÄ±ÅŸtÄ±rÄ±lamadÄ±" };
   }
 
   getStatus() {
@@ -889,7 +889,7 @@ class ModelManager {
   }
 
   async installedModels() {
-    // HTTP /api/tags — CLI/PATH'ten bağımsız (Electron'da güvenilir)
+    // HTTP /api/tags â€” CLI/PATH'ten baÄŸÄ±msÄ±z (Electron'da gÃ¼venilir)
     const viaHttp = await ollamaListModels();
     if (Array.isArray(viaHttp)) return viaHttp;
     const models = await this.runOllama(["list"]);
@@ -900,11 +900,11 @@ class ModelManager {
     this.state = {
       ...this.state,
       status: READY_STATES.CHECKING,
-      message: "Ollama aranıyor",
+      message: "Ollama aranÄ±yor",
     };
 
-    // Önce HTTP servisi (127.0.0.1:11434) — Electron PATH'i CLI'ı görmese bile
-    // servis ayaktaysa Ollama KURULU sayılır. CLI sadece yedek kontrol.
+    // Ã–nce HTTP servisi (127.0.0.1:11434) â€” Electron PATH'i CLI'Ä± gÃ¶rmese bile
+    // servis ayaktaysa Ollama KURULU sayÄ±lÄ±r. CLI sadece yedek kontrol.
     const reachable = await ollamaReachable();
     let cliOk = false;
     if (!reachable) {
@@ -917,7 +917,7 @@ class ModelManager {
         status: READY_STATES.MISSING,
         model: DEFAULT_MODEL,
         task: "chat",
-        message: "Ollama bulunamadı. CODEGA AI temel modda hazır; yerel modeller için Ollama kurulmalı.",
+        message: "Ollama bulunamadÄ±. CODEGA AI temel modda hazÄ±r; yerel modeller iÃ§in Ollama kurulmalÄ±.",
         action: "install_ollama",
         actionUrl: OLLAMA_DOWNLOAD_URL,
       };
@@ -936,8 +936,8 @@ class ModelManager {
       model: installedModel || DEFAULT_MODEL,
       task: option.task || "chat",
       message: installedModel
-        ? "Codega AI hazır."
-        : "Önerilen modeller indirilmeli. Ayarlardan model paketlerini hazırlayabilirsin.",
+        ? "Codega AI hazÄ±r."
+        : "Ã–nerilen modeller indirilmeli. Ayarlardan model paketlerini hazÄ±rlayabilirsin.",
     };
     return this.getStatus();
   }
@@ -962,7 +962,7 @@ class ModelManager {
       return {
         ...this.getStatus(),
         model: target.id,
-        message: "Ollama kurulu değil. Modeli hazırlamak için önce Ollama kurulumu açılıyor.",
+        message: "Ollama kurulu deÄŸil. Modeli hazÄ±rlamak iÃ§in Ã¶nce Ollama kurulumu aÃ§Ä±lÄ±yor.",
         action: "install_ollama",
         actionUrl: OLLAMA_DOWNLOAD_URL,
       };
@@ -975,7 +975,7 @@ class ModelManager {
         status: READY_STATES.READY,
         model: target.id,
         task: target.task || "chat",
-        message: "Codega AI hazır.",
+        message: "Codega AI hazÄ±r.",
       };
       return this.getStatus();
     }
@@ -990,12 +990,12 @@ class ModelManager {
       return {
         ...this.getStatus(),
         model: target.id,
-        message: "Ollama çalışmıyor. Model güncellemesi uygulanamadı.",
+        message: "Ollama Ã§alÄ±ÅŸmÄ±yor. Model gÃ¼ncellemesi uygulanamadÄ±.",
         action: "install_ollama",
         actionUrl: OLLAMA_DOWNLOAD_URL,
       };
     }
-    return this._pullModel(target, onProgress, "güncelleniyor");
+    return this._pullModel(target, onProgress, "gÃ¼ncelleniyor");
   }
 
   async _pullModel(target, onProgress, actionLabel) {
@@ -1033,7 +1033,7 @@ class ModelManager {
       this.state = {
         ...this.state,
         status: READY_STATES.ERROR,
-        message: result.stderr || result.error || `${target.label} işlemi tamamlanamadı`,
+        message: result.stderr || result.error || `${target.label} iÅŸlemi tamamlanamadÄ±`,
       };
       return this.getStatus();
     }
@@ -1043,7 +1043,7 @@ class ModelManager {
       status: READY_STATES.READY,
       model: target.id,
       task: target.task || "chat",
-      message: "Codega AI hazır.",
+      message: "Codega AI hazÄ±r.",
       progress: {
         raw: "completed",
         percent: 100,
@@ -1069,9 +1069,9 @@ class ModelManager {
     return true;
   }
 
-  // Aynı anda gelen mesajları SIRAYA al: yerel model tek seferde tek üretim
-  // yapsın (eşzamanlı istekler küçük modeli tıkar ve "Düşünüyorum"da bırakır).
-  /** Mevcut üretimi durdur (kullanıcı tetikli). */
+  // AynÄ± anda gelen mesajlarÄ± SIRAYA al: yerel model tek seferde tek Ã¼retim
+  // yapsÄ±n (eÅŸzamanlÄ± istekler kÃ¼Ã§Ã¼k modeli tÄ±kar ve "DÃ¼ÅŸÃ¼nÃ¼yorum"da bÄ±rakÄ±r).
+  /** Mevcut Ã¼retimi durdur (kullanÄ±cÄ± tetikli). */
   abortCurrent() {
     if (this._abort) {
       this._aborted = true;
@@ -1118,7 +1118,7 @@ class ModelManager {
     const inputNeedsVerification = shouldVerifyAnswer(input);
     const inputNeedsConclusion = shouldEnforceConclusion(input);
     const inputNeedsMLVC = shouldRunMLVC(input);
-    const deepReasoning = getSettings().deepReasoning === true; // ağır çok-turlu LLM doğrulaması (opt-in, varsayılan KAPALI)
+    const deepReasoning = getSettings().deepReasoning === true; // aÄŸÄ±r Ã§ok-turlu LLM doÄŸrulamasÄ± (opt-in, varsayÄ±lan KAPALI)
     const cognitiveContextState = cognitiveKernel.createContext(input, {
       flags: {
         deepReasoning,
@@ -1138,21 +1138,21 @@ class ModelManager {
       inputNeedsCognitivePipeline,
       taskDecomposition,
     });
-    // Akış yalnızca (opt-in) bilişsel hat çalışırken kapanır. Aksi halde cevap token token
-    // akar — kullanıcı "düşünüyorum"da DONMAZ. Doğrulama/sonuç turları akışı engellemez.
+    // AkÄ±ÅŸ yalnÄ±zca (opt-in) biliÅŸsel hat Ã§alÄ±ÅŸÄ±rken kapanÄ±r. Aksi halde cevap token token
+    // akar â€” kullanÄ±cÄ± "dÃ¼ÅŸÃ¼nÃ¼yorum"da DONMAZ. DoÄŸrulama/sonuÃ§ turlarÄ± akÄ±ÅŸÄ± engellemez.
     const onToken = inputNeedsCognitivePipeline ? null : (opts.onToken || null);
-    // keepAlive: GÖRÜNMEZ heartbeat HER ZAMAN renderer'a gider (içerik gizliyken bile) ki
-    // uzun doğrulama/çok-görev turlarında watchdog (90sn idle) cevabı yarıda KESMESİN.
+    // keepAlive: GÃ–RÃœNMEZ heartbeat HER ZAMAN renderer'a gider (iÃ§erik gizliyken bile) ki
+    // uzun doÄŸrulama/Ã§ok-gÃ¶rev turlarÄ±nda watchdog (90sn idle) cevabÄ± yarÄ±da KESMESÄ°N.
     const keepAlive = opts.onToken || null;
     const conversationHistory = this.historyFor(opts.chatId);
-    // Yeniden üretim: önceki turu (user+assistant) geçmişten çıkar ki bağlam tekrarlanmasın
+    // Yeniden Ã¼retim: Ã¶nceki turu (user+assistant) geÃ§miÅŸten Ã§Ä±kar ki baÄŸlam tekrarlanmasÄ±n
     if (opts.regenerate) {
       if (conversationHistory.length && conversationHistory[conversationHistory.length - 1].role === "assistant") conversationHistory.pop();
       if (conversationHistory.length && conversationHistory[conversationHistory.length - 1].role === "user") conversationHistory.pop();
     }
-    // ÇOK-GÖREV ÖNCELİĞİ: girdi birden çok görev içeriyorsa, anlık tek-cevap kısa-devreleri
-    // (instant/benchmark/MLVC) ATLA. Aksi halde MLVC tüm metni tek soru sanıp "1000 | 2" gibi
-    // tek/anonim cevapla kısa devre yapıp çok-görev dalını HİÇ çalıştırmıyordu (kök neden).
+    // Ã‡OK-GÃ–REV Ã–NCELÄ°ÄÄ°: girdi birden Ã§ok gÃ¶rev iÃ§eriyorsa, anlÄ±k tek-cevap kÄ±sa-devreleri
+    // (instant/benchmark/MLVC) ATLA. Aksi halde MLVC tÃ¼m metni tek soru sanÄ±p "1000 | 2" gibi
+    // tek/anonim cevapla kÄ±sa devre yapÄ±p Ã§ok-gÃ¶rev dalÄ±nÄ± HÄ°Ã‡ Ã§alÄ±ÅŸtÄ±rmÄ±yordu (kÃ¶k neden).
     const isMultiTaskInput = taskDecomposition.applicable && taskDecomposition.count >= 2;
     const isInstructionOnlyMainTask = taskDecomposition.instructionOnly && taskDecomposition.mainTask;
 
@@ -1225,7 +1225,7 @@ class ModelManager {
       return {
         provider: "instant",
         model: "codega-provider-setup",
-        text: `${cloudConfig.label} seçili ancak API anahtarı yapılandırılmamış. Ayarlar > Yapay Zeka bölümünden API anahtarını girip bağlantıyı test et.`,
+        text: `${cloudConfig.label} seÃ§ili ancak API anahtarÄ± yapÄ±landÄ±rÄ±lmamÄ±ÅŸ. Ayarlar > Yapay Zeka bÃ¶lÃ¼mÃ¼nden API anahtarÄ±nÄ± girip baÄŸlantÄ±yÄ± test et.`,
       };
     }
 
@@ -1234,7 +1234,7 @@ class ModelManager {
     let selectedModel;
 
     if (cloudMode) {
-      // Bulut: Ollama'ya gerek yok; kullanıcının seçtiği modeli kullan.
+      // Bulut: Ollama'ya gerek yok; kullanÄ±cÄ±nÄ±n seÃ§tiÄŸi modeli kullan.
       selectedModel = cloudConfig.model;
       attemptModels = [selectedModel];
       this.state = {
@@ -1242,7 +1242,7 @@ class ModelManager {
         status: READY_STATES.READY,
         model: selectedModel,
         task,
-        message: "Düşünüyorum...",
+        message: "DÃ¼ÅŸÃ¼nÃ¼yorum...",
       };
     } else {
       if (this.state.provider !== "ollama") {
@@ -1252,14 +1252,14 @@ class ModelManager {
         return {
           provider: "instant",
           model: "codega-setup",
-          text: "Yerel zeka motoru hazır değil. Ayarlardan kurulumu başlatıp önerilen zeka paketlerini indirebilirsin. (Alternatif: Zekâ & Model'den bulut sağlayıcı tanımlayabilirsin.)",
+          text: "Yerel zeka motoru hazÄ±r deÄŸil. Ayarlardan kurulumu baÅŸlatÄ±p Ã¶nerilen zeka paketlerini indirebilirsin. (Alternatif: ZekÃ¢ & Model'den bulut saÄŸlayÄ±cÄ± tanÄ±mlayabilirsin.)",
         };
       }
 
       const installed = await this.installedModels();
       attemptModels = candidateModelsForTask(task, installed);
-      // Kullanıcının seçtiği varsayılan model KURULUYSA en öne al — Cookbook "Varsayılan Yap"
-      // seçimi gerçekten etki etsin (aksi halde yalnız göreve göre seçiliyordu).
+      // KullanÄ±cÄ±nÄ±n seÃ§tiÄŸi varsayÄ±lan model KURULUYSA en Ã¶ne al â€” Cookbook "VarsayÄ±lan Yap"
+      // seÃ§imi gerÃ§ekten etki etsin (aksi halde yalnÄ±z gÃ¶reve gÃ¶re seÃ§iliyordu).
       const userDefault = settings.defaultModel || settings.model || "";
       if (userDefault) {
         const nrm = (x) => String(x || "").toLowerCase();
@@ -1275,7 +1275,7 @@ class ModelManager {
           status: READY_STATES.CHECKING,
           model: selectedModel,
           task,
-          message: `${selectedModel} arka planda hazırlanıyor.`,
+          message: `${selectedModel} arka planda hazÄ±rlanÄ±yor.`,
         };
         return {
           provider: "instant",
@@ -1289,14 +1289,14 @@ class ModelManager {
         status: READY_STATES.READY,
         model: selectedModel,
         task,
-        message: "Düşünüyorum...",
+        message: "DÃ¼ÅŸÃ¼nÃ¼yorum...",
       };
     }
 
-    // Otonom öğrenme: kullanıcı hakkında hatırladıklarını system prompt'a kat
+    // Otonom Ã¶ÄŸrenme: kullanÄ±cÄ± hakkÄ±nda hatÄ±rladÄ±klarÄ±nÄ± system prompt'a kat
     const memory = settings.autonomousLearning && !fastConversation ? recall(input, 4) : [];
 
-    // RAG: eklenen doküman/bilgi tabanından alakalı parçaları getir
+    // RAG: eklenen dokÃ¼man/bilgi tabanÄ±ndan alakalÄ± parÃ§alarÄ± getir
     let ragContext = [];
     if (settings.ragEnabled && !fastConversation) {
       try {
@@ -1307,7 +1307,7 @@ class ModelManager {
       }
     }
 
-    // Otonom öğrenmeyle toplanan bilgiyi cevaba kat ("kör olma" / hızlandır)
+    // Otonom Ã¶ÄŸrenmeyle toplanan bilgiyi cevaba kat ("kÃ¶r olma" / hÄ±zlandÄ±r)
     let learnedContext = [];
     if (!fastConversation && (settings.continuousLearning || settings.autonomousLearning)) {
       try {
@@ -1324,7 +1324,7 @@ class ModelManager {
       }
     }
 
-    // Hedef-odaklı planlama (opt-in): karmaşık hedefi alt adımlara böl
+    // Hedef-odaklÄ± planlama (opt-in): karmaÅŸÄ±k hedefi alt adÄ±mlara bÃ¶l
     const cognitivePreflight = inputNeedsCognitivePipeline
       ? await runCognitivePreflight(
         input,
@@ -1355,7 +1355,7 @@ class ModelManager {
       }
     }
 
-    // Mesaj dizisi: system (karakter + hafıza + RAG + plan + araç protokolü) + geçmiş + kullanıcı
+    // Mesaj dizisi: system (karakter + hafÄ±za + RAG + plan + araÃ§ protokolÃ¼) + geÃ§miÅŸ + kullanÄ±cÄ±
     const messages = [
       {
         role: "system",
@@ -1377,28 +1377,28 @@ class ModelManager {
 
     const generateFn = (msgs) => this.generate(selectedModel, msgs, attemptModels);
 
-    // Durdurulabilirlik: bu üretim turu için yeni bir abort kontrolcüsü
+    // Durdurulabilirlik: bu Ã¼retim turu iÃ§in yeni bir abort kontrolcÃ¼sÃ¼
     this._abort = new AbortController();
     this._aborted = false;
 
     let agent;
     try {
       if (!cloudMode && wantsWebResearch(input)) {
-        // ZORUNLU ARAŞTIRMA: zayıf yerel model aracı tetikleyemiyor → biz çalıştırırız.
-        // Kullanıcıya "sen Google'a bak" DEMEK yerine gerçekten arar ve özetleriz.
+        // ZORUNLU ARAÅTIRMA: zayÄ±f yerel model aracÄ± tetikleyemiyor â†’ biz Ã§alÄ±ÅŸtÄ±rÄ±rÄ±z.
+        // KullanÄ±cÄ±ya "sen Google'a bak" DEMEK yerine gerÃ§ekten arar ve Ã¶zetleriz.
         const query = extractResearchQuery(input, conversationHistory);
-        if (onToken) onToken(`🔎 İnternette araştırıyorum: "${query}"…\n\n`);
+        if (onToken) onToken(`ğŸ” Ä°nternette araÅŸtÄ±rÄ±yorum: "${query}"â€¦\n\n`);
         let research = "";
         try {
           research = await AGENT_TOOLS.research.fn(query, 3);
         } catch (e) {
-          research = `⚠️ ${e && (e.message || e)}`;
+          research = `âš ï¸ ${e && (e.message || e)}`;
         }
-        if (/^⚠️|kaynak bulunamadı/i.test(research)) {
+        if (/^âš ï¸|kaynak bulunamadÄ±/i.test(research)) {
           agent = {
             content:
-              `İnternet araması yapamadım ya da kaynak bulunamadı (internet bağlantısı veya erişim engeli olabilir). ` +
-              `Aradığım konu: "${query}". Ollama/ağ erişimini kontrol edip tekrar deneyebilirsin.`,
+              `Ä°nternet aramasÄ± yapamadÄ±m ya da kaynak bulunamadÄ± (internet baÄŸlantÄ±sÄ± veya eriÅŸim engeli olabilir). ` +
+              `AradÄ±ÄŸÄ±m konu: "${query}". Ollama/aÄŸ eriÅŸimini kontrol edip tekrar deneyebilirsin.`,
             iterations: 0, stoppedReason: "research_failed", toolCalls: [{ name: "research", result: research }],
           };
         } else {
@@ -1406,10 +1406,10 @@ class ModelManager {
             {
               role: "system",
               content:
-                "Aşağıda internetten TOPLADIĞIN web kaynakları var. Bunları KENDİ SÖZCÜKLERİNLE, Türkçe, " +
-                "derli toplu özetle. Kullanıcıya 'sen ara/Google'a bak' ASLA deme — araştırmayı SEN yaptın. " +
-                "Önemli noktaları maddele, varsa çelişkileri belirt ve sonunda kaynak linklerini listele. " +
-                "Kaynaklarda yoksa uydurma; bilmiyorsan söyle.",
+                "AÅŸaÄŸÄ±da internetten TOPLADIÄIN web kaynaklarÄ± var. BunlarÄ± KENDÄ° SÃ–ZCÃœKLERÄ°NLE, TÃ¼rkÃ§e, " +
+                "derli toplu Ã¶zetle. KullanÄ±cÄ±ya 'sen ara/Google'a bak' ASLA deme â€” araÅŸtÄ±rmayÄ± SEN yaptÄ±n. " +
+                "Ã–nemli noktalarÄ± maddele, varsa Ã§eliÅŸkileri belirt ve sonunda kaynak linklerini listele. " +
+                "Kaynaklarda yoksa uydurma; bilmiyorsan sÃ¶yle.",
             },
             { role: "user", content: research },
           ];
@@ -1421,24 +1421,24 @@ class ModelManager {
           };
         }
       } else if (!cloudMode && taskDecomposition.applicable && taskDecomposition.count >= 2) {
-        // ÇOK-GÖREV: zayıf yerel model 5 görevi tek seferde çözemiyordu (1 cevap dönüyordu).
-        // Her görevi BAĞIMSIZ çöz, task_results[]'e doldur, finali TÜM diziden kur.
+        // Ã‡OK-GÃ–REV: zayÄ±f yerel model 5 gÃ¶revi tek seferde Ã§Ã¶zemiyordu (1 cevap dÃ¶nÃ¼yordu).
+        // Her gÃ¶revi BAÄIMSIZ Ã§Ã¶z, task_results[]'e doldur, finali TÃœM diziden kur.
         const detectedTasks = taskDecomposition.tasks;
         const taskResults = [];
         const progress = makeVerificationProgress(opts.onProgress, "multi_task", keepAlive);
         try {
         for (let i = 0; i < detectedTasks.length; i++) {
           const t = detectedTasks[i];
-          // Sınır bütünlüğü: gövdeyi hash'le; üretim öncesi/sonrası gövde DEĞİŞMEMELİ.
+          // SÄ±nÄ±r bÃ¼tÃ¼nlÃ¼ÄŸÃ¼: gÃ¶vdeyi hash'le; Ã¼retim Ã¶ncesi/sonrasÄ± gÃ¶vde DEÄÄ°ÅMEMELÄ°.
           const bodyHash = hashTaskBody(t.body);
           progress.emit("reasoning", { attempt: 0, reason: t.label || `task-${i + 1}` });
-          // GÖRÜNÜR ilerleme: kullanıcı boş/donmuş ekran görmesin (final cevap bunları değiştirir).
+          // GÃ–RÃœNÃœR ilerleme: kullanÄ±cÄ± boÅŸ/donmuÅŸ ekran gÃ¶rmesin (final cevap bunlarÄ± deÄŸiÅŸtirir).
           if (opts.onProgress) {
             try {
               opts.onProgress({
                 stage: "reasoning",
                 scope: "multi_task",
-                text: `${t.label || `Görev ${i + 1}`} çözülüyor (${i + 1}/${detectedTasks.length})`,
+                text: `${t.label || `GÃ¶rev ${i + 1}`} Ã§Ã¶zÃ¼lÃ¼yor (${i + 1}/${detectedTasks.length})`,
               });
             } catch (_e) {}
           }
@@ -1447,8 +1447,8 @@ class ModelManager {
             {
               role: "system",
               content:
-                "Sana TEK bir görev verilecek. SADECE bu görevi çöz. Adım adım, kısa ve net düşün; " +
-                "sonunda mutlaka 'Cevap: …' satırı yaz. Başka görevlere değinme, soruyu tekrar etme.",
+                "Sana TEK bir gÃ¶rev verilecek. SADECE bu gÃ¶revi Ã§Ã¶z. AdÄ±m adÄ±m, kÄ±sa ve net dÃ¼ÅŸÃ¼n; " +
+                "sonunda mutlaka 'Cevap: â€¦' satÄ±rÄ± yaz. BaÅŸka gÃ¶revlere deÄŸinme, soruyu tekrar etme.",
             },
             ...(taskFactLock.applicable ? [{ role: "system", content: factLock.formatFactLockContext(taskFactLock) }] : []),
             { role: "user", content: t.body },
@@ -1463,20 +1463,20 @@ class ModelManager {
           }
           aTxt = collapseRunawayTaskAnswer(aTxt);
           if (!trustedDeterministic) {
-            // Görev başına ucuz deterministik düzeltme (oran/denklem/matematik)
+            // GÃ¶rev baÅŸÄ±na ucuz deterministik dÃ¼zeltme (oran/denklem/matematik)
             try {
               const rp = rpre.verify(t.body, aTxt);
               if (rp.applicable && rp.status === "REJECTED" && rp.correctedAnswer) aTxt = rp.correctedAnswer;
               const eb = ebse.verify(t.body, aTxt);
               if (eb.applicable && eb.status === "REJECTED" && eb.correctedAnswer) aTxt = eb.correctedAnswer;
-            } catch (_e) { /* doğrulama görevi düşürmesin */ }
+            } catch (_e) { /* doÄŸrulama gÃ¶revi dÃ¼ÅŸÃ¼rmesin */ }
           }
-          if (!aTxt) aTxt = "(bu görev için yanıt üretilemedi)";
-          // Sonucu diziye PUSH et — önceki sonuçların üzerine YAZMA
+          if (!aTxt) aTxt = "(bu gÃ¶rev iÃ§in yanÄ±t Ã¼retilemedi)";
+          // Sonucu diziye PUSH et â€” Ã¶nceki sonuÃ§larÄ±n Ã¼zerine YAZMA
           try {
-            // Hız: deepReasoning KAPALIYSA model-tabanlı AVE/regen ATLANIR; yalnız deterministik
-            // doğrulayıcılar (RPRE/EBSE/MLVC/TCNIS/SACV) çalışır → 4 görev saniyelerde biter.
-            // deepReasoning AÇIKSA tam (model destekli) doğrulama + 1 regen.
+            // HÄ±z: deepReasoning KAPALIYSA model-tabanlÄ± AVE/regen ATLANIR; yalnÄ±z deterministik
+            // doÄŸrulayÄ±cÄ±lar (RPRE/EBSE/MLVC/TCNIS/SACV) Ã§alÄ±ÅŸÄ±r â†’ 4 gÃ¶rev saniyelerde biter.
+            // deepReasoning AÃ‡IKSA tam (model destekli) doÄŸrulama + 1 regen.
             const verifyGen = deepReasoning && !trustedDeterministic
               ? ((msgs) => this.generate(selectedModel, msgs, attemptModels))
               : null;
@@ -1496,10 +1496,10 @@ class ModelManager {
             }
           } catch (e) {
             const message = e && e.message ? e.message : "task-local verification failed";
-            aTxt = `Yanıt doğrulama kapısından geçmedi.\nBloke eden görev: ${t.label}. ${message}\n\nFinal Answer: Yanıt güvenli şekilde doğrulanamadı.`;
+            aTxt = `YanÄ±t doÄŸrulama kapÄ±sÄ±ndan geÃ§medi.\nBloke eden gÃ¶rev: ${t.label}. ${message}\n\nFinal Answer: YanÄ±t gÃ¼venli ÅŸekilde doÄŸrulanamadÄ±.`;
             try { improveDrafts.recordSignal({ kind: "multi_task_local_gate_error", subject: `${t.label}: ${message}` }); } catch (_e) {}
           }
-          // SINIR BÜTÜNLÜĞÜ: gövde değişmemeli + cevapta "id+token" birleşmesi (29x) olmamalı.
+          // SINIR BÃœTÃœNLÃœÄÃœ: gÃ¶vde deÄŸiÅŸmemeli + cevapta "id+token" birleÅŸmesi (29x) olmamalÄ±.
           if (hashTaskBody(t.body) !== bodyHash) {
             try { logs.error("TASK_BOUNDARY_CORRUPTION", `${t.label}: task body mutated during reasoning`); } catch (_e) {}
           }
@@ -1510,7 +1510,7 @@ class ModelManager {
           }
           taskResults.push({ label: t.label, answer: aTxt });
         }
-        // Final yanıt TÜM task_results dizisinden kurulur (yalnız son/aktif görev değil)
+        // Final yanÄ±t TÃœM task_results dizisinden kurulur (yalnÄ±z son/aktif gÃ¶rev deÄŸil)
         } finally {
           progress.stop();
         }
@@ -1519,13 +1519,13 @@ class ModelManager {
         agent = {
           content: complete
             ? assembled
-            : `${assembled}\n\n⚠️ ${detectedTasks.length} görev algılandı ama ${taskResults.length} tanesi yanıtlandı.`,
+            : `${assembled}\n\nâš ï¸ ${detectedTasks.length} gÃ¶rev algÄ±landÄ± ama ${taskResults.length} tanesi yanÄ±tlandÄ±.`,
           iterations: detectedTasks.length,
           stoppedReason: "multi_task",
           toolCalls: [],
         };
       } else if (fastConversation) {
-        // Basit selam/sohbet: araçsız, kısa, doğrudan cevap (ajan saçmalamasın)
+        // Basit selam/sohbet: araÃ§sÄ±z, kÄ±sa, doÄŸrudan cevap (ajan saÃ§malamasÄ±n)
         const sttMsgs = [
           { role: "system", content: smallTalkPrompt(settings.humanTone) },
           ...conversationHistory.slice(-4),
@@ -1534,7 +1534,7 @@ class ModelManager {
         const direct = await this.generate(selectedModel, sttMsgs, attemptModels, onToken);
         agent = { content: direct, iterations: 0, stoppedReason: "smalltalk", toolCalls: [] };
       } else if (shouldUseMultiAgent(settings, input) && looksLikeGoal(input)) {
-        // Multi-agent: orchestrator → uzman ajanlar → denetçi sentezi
+        // Multi-agent: orchestrator â†’ uzman ajanlar â†’ denetÃ§i sentezi
         const gen = (msgs) => this.generate(selectedModel, msgs);
         const orch = await runOrchestrated(input, {
           makePlan: (g) => makePlan(g, gen),
@@ -1552,18 +1552,18 @@ class ModelManager {
           },
           synthesize: async (g, stepResults) => {
             const joined = stepResults
-              .map((r, i) => `Adım ${i + 1} (${r.specialist}): ${r.output}`)
+              .map((r, i) => `AdÄ±m ${i + 1} (${r.specialist}): ${r.output}`)
               .join("\n\n");
             const msgs = [
               {
                 role: "system",
                 content:
                   buildSpecialistPrompt("reviewer", g) +
-                  "\nTüm adım çıktılarını birleştirip kullanıcıya tek, net bir final cevap yaz.",
+                  "\nTÃ¼m adÄ±m Ã§Ä±ktÄ±larÄ±nÄ± birleÅŸtirip kullanÄ±cÄ±ya tek, net bir final cevap yaz.",
               },
               {
                 role: "user",
-                content: `Hedef: ${g}\n\nAdım çıktıları:\n${joined}\n\nFinal cevabı yaz.`,
+                content: `Hedef: ${g}\n\nAdÄ±m Ã§Ä±ktÄ±larÄ±:\n${joined}\n\nFinal cevabÄ± yaz.`,
               },
             ];
             return await gen(msgs);
@@ -1576,8 +1576,8 @@ class ModelManager {
           toolCalls: [],
         };
       } else {
-        // Varsayılan yol: cevabı akışlı üret (token token). Akış bozulursa generate
-        // kendi içinde bloklayıcı moda/CLI'ye düşer; dönüş değeri yine otorite.
+        // VarsayÄ±lan yol: cevabÄ± akÄ±ÅŸlÄ± Ã¼ret (token token). AkÄ±ÅŸ bozulursa generate
+        // kendi iÃ§inde bloklayÄ±cÄ± moda/CLI'ye dÃ¼ÅŸer; dÃ¶nÃ¼ÅŸ deÄŸeri yine otorite.
         const streamFn = (msgs) => this.generate(selectedModel, msgs, attemptModels, onToken);
         agent = await runReact(messages, streamFn, { maxIters: 3 });
       }
@@ -1588,7 +1588,7 @@ class ModelManager {
         return {
           provider: this.state.provider || "ollama",
           model: selectedModel,
-          text: "⏹️ Üretim durduruldu.",
+          text: "â¹ï¸ Ãœretim durduruldu.",
         };
       }
       if (e && e.name === "TimeoutError") {
@@ -1603,51 +1603,51 @@ class ModelManager {
       this.state = {
         ...this.state,
         status: READY_STATES.ERROR,
-        message: (e && e.message) || "Ajan hatası",
+        message: (e && e.message) || "Ajan hatasÄ±",
       };
       return {
         provider: "instant",
         model: "codega-error",
-        text: "Yerel zeka motoru şu an yanıt üretemedi. Ollama açık mı ve model indirildi mi diye kontrol edebilirsin.",
+        text: "Yerel zeka motoru ÅŸu an yanÄ±t Ã¼retemedi. Ollama aÃ§Ä±k mÄ± ve model indirildi mi diye kontrol edebilirsin.",
       };
     }
 
     const text = String(agent.content || "").trim();
-    // Kullanıcı durdurduysa: o ana dek üretilen kısmı (varsa) döndür, yoksa not düş
+    // KullanÄ±cÄ± durdurduysa: o ana dek Ã¼retilen kÄ±smÄ± (varsa) dÃ¶ndÃ¼r, yoksa not dÃ¼ÅŸ
     if (this._aborted) {
       this._abort = null;
       this.state = { ...this.state, status: READY_STATES.READY, message: "Durduruldu" };
       return {
         provider: this.state.provider || "ollama",
         model: selectedModel,
-        text: text ? `${text}\n\n⏹️ (durduruldu)` : "⏹️ Üretim durduruldu.",
+        text: text ? `${text}\n\nâ¹ï¸ (durduruldu)` : "â¹ï¸ Ãœretim durduruldu.",
       };
     }
-    // Kendini gözlemleme: araç hatalarını öneri taslağı için say (yerel, gönderilmez)
+    // Kendini gÃ¶zlemleme: araÃ§ hatalarÄ±nÄ± Ã¶neri taslaÄŸÄ± iÃ§in say (yerel, gÃ¶nderilmez)
     try {
       for (const tc of agent.toolCalls || []) {
-        if (typeof tc.result === "string" && /⚠️\s*Araç hatası|not_allowed/.test(tc.result)) {
+        if (typeof tc.result === "string" && /âš ï¸\s*AraÃ§ hatasÄ±|not_allowed/.test(tc.result)) {
           improveDrafts.recordSignal({ kind: "tool_error", subject: tc.name });
         }
       }
-    } catch (_e) { /* gözlem hatası akışı bozmasın */ }
+    } catch (_e) { /* gÃ¶zlem hatasÄ± akÄ±ÅŸÄ± bozmasÄ±n */ }
     if (!text || agent.stoppedReason === "error") {
       try { improveDrafts.recordSignal({ kind: "empty_response" }); } catch (_e) {}
       this.state = {
         ...this.state,
         status: READY_STATES.READY,
-        message: text ? "Hazır" : "Yanıt boş döndü",
+        message: text ? "HazÄ±r" : "YanÄ±t boÅŸ dÃ¶ndÃ¼",
       };
       return {
         provider: "instant",
         model: "codega-empty",
         text:
           text ||
-          "Yanıt üretemedim. Ollama servisi açık mı ve ilgili model indirildi mi diye kontrol edebilirsin.",
+          "YanÄ±t Ã¼retemedim. Ollama servisi aÃ§Ä±k mÄ± ve ilgili model indirildi mi diye kontrol edebilirsin.",
       };
     }
 
-    // Öz değerlendirme (opt-in): cevabı denetle, gerekiyorsa düzelt
+    // Ã–z deÄŸerlendirme (opt-in): cevabÄ± denetle, gerekiyorsa dÃ¼zelt
     let finalText = text;
     const finalProgress = requiresHardValidation && agent.stoppedReason !== "smalltalk" && agent.stoppedReason !== "multi_task"
       ? makeVerificationProgress(opts.onProgress, "final_answer", keepAlive)
@@ -1661,9 +1661,9 @@ class ModelManager {
       finalText = check.answer;
       return true;
     };
-    // multi_task: etiketli görev birleştirmesi (Görev N: cevap) korunmalı. Aşağıdaki
-    // dönüştürücü motorlar (HRIL/REE/sanitizer/kernel) "Final Answer" çıkarıp etiketleri
-    // silebiliyor ("2 | 12" gibi anonim çıktı). Bu modda onları atlar, sonda geri yükleriz.
+    // multi_task: etiketli gÃ¶rev birleÅŸtirmesi (GÃ¶rev N: cevap) korunmalÄ±. AÅŸaÄŸÄ±daki
+    // dÃ¶nÃ¼ÅŸtÃ¼rÃ¼cÃ¼ motorlar (HRIL/REE/sanitizer/kernel) "Final Answer" Ã§Ä±karÄ±p etiketleri
+    // silebiliyor ("2 | 12" gibi anonim Ã§Ä±ktÄ±). Bu modda onlarÄ± atlar, sonda geri yÃ¼kleriz.
     const isMultiTask = agent.stoppedReason === "multi_task";
     const multiTaskAssembled = isMultiTask ? agent.content : "";
     if (settings.selfReflection && !interactiveSoftwareRequest && !inputNeedsCognitivePipeline && agent.stoppedReason !== "smalltalk" && !isMultiTask) {
@@ -1672,11 +1672,11 @@ class ModelManager {
         const r = await reflect(input, text, (msgs) => this.generate(selectedModel, msgs));
         if (r.answer && r.answer.trim()) applyCorrection(r.answer.trim(), "reflect");
       } catch (_e) {
-        // denetim hatası cevabı etkilemesin
+        // denetim hatasÄ± cevabÄ± etkilemesin
       }
     }
 
-    // Çok-turlu hafıza: kullanıcı + final cevabı sakla (araç gözlemleri hariç)
+    // Ã‡ok-turlu hafÄ±za: kullanÄ±cÄ± + final cevabÄ± sakla (araÃ§ gÃ¶zlemleri hariÃ§)
     if (inputNeedsCognitivePipeline && agent.stoppedReason !== "smalltalk") {
       try {
         finalProgress?.emit?.("verifying", { reason: "adversarial-review" });
@@ -1695,11 +1695,11 @@ class ModelManager {
       }
     }
 
-    // RPRE (Ratio & Proportion Reasoning Engine): DETERMİNİSTİK pay modeli — EBSE'den ÖNCE.
-    // Oran/orantı/"katı" sorularında toplamı doğrudan orana bölme hatasını yakalar; yanlışsa
-    // pay modeliyle yeniden çözer. Model çağrısı YOK.
-    // (multi_task: her görev zaten ayrı doğrulandı; tüm-metne uygulanırsa görevler arası
-    //  sayıları karıştırıp cevabı bozabilir → atla.)
+    // RPRE (Ratio & Proportion Reasoning Engine): DETERMÄ°NÄ°STÄ°K pay modeli â€” EBSE'den Ã–NCE.
+    // Oran/orantÄ±/"katÄ±" sorularÄ±nda toplamÄ± doÄŸrudan orana bÃ¶lme hatasÄ±nÄ± yakalar; yanlÄ±ÅŸsa
+    // pay modeliyle yeniden Ã§Ã¶zer. Model Ã§aÄŸrÄ±sÄ± YOK.
+    // (multi_task: her gÃ¶rev zaten ayrÄ± doÄŸrulandÄ±; tÃ¼m-metne uygulanÄ±rsa gÃ¶revler arasÄ±
+    //  sayÄ±larÄ± karÄ±ÅŸtÄ±rÄ±p cevabÄ± bozabilir â†’ atla.)
     if (agent.stoppedReason !== "smalltalk" && agent.stoppedReason !== "multi_task") {
       try {
         finalProgress?.emit?.("verifying", { reason: "rpre" });
@@ -1709,12 +1709,12 @@ class ModelManager {
             try { improveDrafts.recordSignal({ kind: "rpre_reject", subject: (rp.checks.find((c) => !c.ok) || {}).name || "ratio_parts" }); } catch (_e) {}
           }
         }
-      } catch (_e) { /* RPRE hatası cevabı bozmasın */ }
+      } catch (_e) { /* RPRE hatasÄ± cevabÄ± bozmasÄ±n */ }
     }
 
-    // EBSE (Equation Back-Substitution Engine): DETERMİNİSTİK geri-yerine-koyma.
-    // Self Critic -> [EBSE] -> MLVC -> AVE -> MCE. Model çağrısı YOK (hızlı, her zaman açık).
-    // Türetilen değerleri orijinal denklemlere koyar; geçmezse cevabı reddedip YENİDEN hesaplar.
+    // EBSE (Equation Back-Substitution Engine): DETERMÄ°NÄ°STÄ°K geri-yerine-koyma.
+    // Self Critic -> [EBSE] -> MLVC -> AVE -> MCE. Model Ã§aÄŸrÄ±sÄ± YOK (hÄ±zlÄ±, her zaman aÃ§Ä±k).
+    // TÃ¼retilen deÄŸerleri orijinal denklemlere koyar; geÃ§mezse cevabÄ± reddedip YENÄ°DEN hesaplar.
     if (agent.stoppedReason !== "smalltalk" && agent.stoppedReason !== "multi_task") {
       try {
         finalProgress?.emit?.("verifying", { reason: "ebse" });
@@ -1724,7 +1724,7 @@ class ModelManager {
             try { improveDrafts.recordSignal({ kind: "ebse_reject", subject: (eb.checks.find((c) => !c.ok) || {}).name || "back_substitution" }); } catch (_e) {}
           }
         }
-      } catch (_e) { /* EBSE hatası cevabı bozmasın */ }
+      } catch (_e) { /* EBSE hatasÄ± cevabÄ± bozmasÄ±n */ }
     }
 
     let mlvcApproved = false;
@@ -1733,8 +1733,8 @@ class ModelManager {
       try {
         if (inputNeedsMLVC) {
           finalProgress?.emit?.("verifying", { reason: "mlvc" });
-          // deep KAPALI: yalnız deterministik kontrol (model çağrısı yok) → hızlı, donmaz.
-          // deep AÇIK: ek olarak LLM doğrulama turu.
+          // deep KAPALI: yalnÄ±z deterministik kontrol (model Ã§aÄŸrÄ±sÄ± yok) â†’ hÄ±zlÄ±, donmaz.
+          // deep AÃ‡IK: ek olarak LLM doÄŸrulama turu.
           const mlvc = await verifyMathLogic(
             input,
             finalText,
@@ -1773,27 +1773,27 @@ class ModelManager {
       }
     }
 
-    // HRIL (Human Reasoning & Interpretation Layer): matematiksel olarak doğru sonucu
-    // insanın hemen anlayacağı karşılığa çevirir (örn. 7/15 -> %46,67; 0.5 saat -> 30 dk).
+    // HRIL (Human Reasoning & Interpretation Layer): matematiksel olarak doÄŸru sonucu
+    // insanÄ±n hemen anlayacaÄŸÄ± karÅŸÄ±lÄ±ÄŸa Ã§evirir (Ã¶rn. 7/15 -> %46,67; 0.5 saat -> 30 dk).
     if (requiresHardValidation && agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         finalProgress?.emit?.("finalizing", { reason: "hril" });
         const interpreted = hril.interpret(input, finalText, { mlvc: mlvcMetadata });
         if (interpreted.answer && interpreted.answer.trim()) applyCorrection(interpreted.answer.trim(), "hril");
       } catch (_e) {
-        // yorum katmanı cevabı bozmasın
+        // yorum katmanÄ± cevabÄ± bozmasÄ±n
       }
     }
 
-    // REE (Reasoning -> Explanation Engine): doğrulanmış/yorumlanmış sonucu kısa,
-    // anlaşılır açıklama yapısına çevirir; sonucu değiştirmez.
+    // REE (Reasoning -> Explanation Engine): doÄŸrulanmÄ±ÅŸ/yorumlanmÄ±ÅŸ sonucu kÄ±sa,
+    // anlaÅŸÄ±lÄ±r aÃ§Ä±klama yapÄ±sÄ±na Ã§evirir; sonucu deÄŸiÅŸtirmez.
     if (requiresHardValidation && agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         finalProgress?.emit?.("finalizing", { reason: "ree" });
         const explained = ree.explain(input, finalText);
         if (explained.answer && explained.answer.trim()) applyCorrection(explained.answer.trim(), "ree");
       } catch (_e) {
-        // açıklama katmanı cevabı bozmasın
+        // aÃ§Ä±klama katmanÄ± cevabÄ± bozmasÄ±n
       }
     }
 
@@ -1818,7 +1818,7 @@ class ModelManager {
           }
           coverage = tde.validateTaskCoverage(finalText, taskDecomposition);
           if (!coverage.ok) {
-            finalText = `${finalText}\n\nGörev Tamamlama Uyarısı: ${taskDecomposition.count} görevden ${coverage.completed.length} tanesi görünür biçimde tamamlandı; eksik kalanlar: ${coverage.missing.map((t) => t.label).join(", ")}.`;
+            finalText = `${finalText}\n\nGÃ¶rev Tamamlama UyarÄ±sÄ±: ${taskDecomposition.count} gÃ¶revden ${coverage.completed.length} tanesi gÃ¶rÃ¼nÃ¼r biÃ§imde tamamlandÄ±; eksik kalanlar: ${coverage.missing.map((t) => t.label).join(", ")}.`;
           }
         }
       } catch (_e) {
@@ -1827,8 +1827,8 @@ class ModelManager {
     }
 
     // Final Answer hard gate:
-    // 1) soru metni Final Answer içine giremez
-    // 2) her tespit edilen görev Final Answer içinde tam bir kez cevaplanmalı
+    // 1) soru metni Final Answer iÃ§ine giremez
+    // 2) her tespit edilen gÃ¶rev Final Answer iÃ§inde tam bir kez cevaplanmalÄ±
     if (requiresHardValidation && agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         finalProgress?.emit?.("verifying", { reason: "final-answer-sanitizer" });
@@ -1904,17 +1904,17 @@ class ModelManager {
         const message = error && error.message ? error.message : "verification hard gate failed";
         try { improveDrafts.recordSignal({ kind: "cognitive_kernel_error", subject: message }); } catch (_e) {}
         try { logs.error("verification", `hard gate failed: ${message}`); } catch (_e) {}
-        finalText = preGateText || "Bu yanıtı güvenilir biçimde tamamlayamadım. Lütfen tekrar dene.";
+        finalText = preGateText || "Bu yanÄ±tÄ± gÃ¼venilir biÃ§imde tamamlayamadÄ±m. LÃ¼tfen tekrar dene.";
       }
     }
 
-    // SACV WARNING MODE (debug): sacvDebug açıkken Hard Gate çok-görev/SACV nedeniyle bloklamaz;
-    // her görev için tanı (id, başlık, soru, birimler, beklenen, skor, karar, sebep) loglanır.
+    // SACV WARNING MODE (debug): sacvDebug aÃ§Ä±kken Hard Gate Ã§ok-gÃ¶rev/SACV nedeniyle bloklamaz;
+    // her gÃ¶rev iÃ§in tanÄ± (id, baÅŸlÄ±k, soru, birimler, beklenen, skor, karar, sebep) loglanÄ±r.
     if (settings.sacvDebug && taskDecomposition.applicable) {
       try {
         const sample = (isMultiTask && multiTaskAssembled && multiTaskAssembled.trim()) ? multiTaskAssembled : preGateText;
         const report = sacv.debugReport(sample, taskDecomposition);
-        logs.warn("SACV", `SACV_WARNING (debug) — ${report.tasks.length} görev | finalTextEmpty=${report.finalTextEmpty} | unitCount=${report.unitCount}`);
+        logs.warn("SACV", `SACV_WARNING (debug) â€” ${report.tasks.length} gÃ¶rev | finalTextEmpty=${report.finalTextEmpty} | unitCount=${report.unitCount}`);
         if (report.sharedStateLeak || (report.errors || []).includes("SACV_SHARED_STATE_LEAK")) {
           logs.error("SACV", "SACV_SHARED_STATE_LEAK");
         }
@@ -1924,7 +1924,7 @@ class ModelManager {
       } catch (e) {
         try { logs.error("SACV", "debugReport hata: " + (e && e.message)); } catch (_e) {}
       }
-      // Warning mode: bloklama — modelin ürettiği cevabı göster, akışı sürdür.
+      // Warning mode: bloklama â€” modelin Ã¼rettiÄŸi cevabÄ± gÃ¶ster, akÄ±ÅŸÄ± sÃ¼rdÃ¼r.
       if (hardGateBlocked || !finalText.trim()) {
         const restore = (isMultiTask && multiTaskAssembled && multiTaskAssembled.trim()) ? multiTaskAssembled.trim() : preGateText;
         if (restore && restore.trim()) finalText = restore.trim();
@@ -1932,27 +1932,27 @@ class ModelManager {
       hardGateBlocked = false;
     }
 
-    // multi_task güvencesi: herhangi bir geç aşama (Hard Gate dahil) cevabı boşalttıysa,
-    // görev→cevap eşlemeli birleştirmeyi geri yükle. ASLA boş bubble döndürme.
+    // multi_task gÃ¼vencesi: herhangi bir geÃ§ aÅŸama (Hard Gate dahil) cevabÄ± boÅŸalttÄ±ysa,
+    // gÃ¶revâ†’cevap eÅŸlemeli birleÅŸtirmeyi geri yÃ¼kle. ASLA boÅŸ bubble dÃ¶ndÃ¼rme.
     if (isMultiTask && multiTaskAssembled && multiTaskAssembled.trim() && !finalText.trim()) {
       finalText = multiTaskAssembled.trim();
     }
 
-    // Final Answer tutarlılık: muhakeme bir sayı türettiyse final o sayıya eşit olmalı.
+    // Final Answer tutarlÄ±lÄ±k: muhakeme bir sayÄ± tÃ¼rettiyse final o sayÄ±ya eÅŸit olmalÄ±.
     if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         const consistent = finalAnswerConsistencyGuard(finalText);
         if (consistent && consistent.changed && String(consistent.answer || "").trim()) finalText = String(consistent.answer).trim();
-      } catch (_e) { /* tutarlılık guard cevabı bozmasın */ }
+      } catch (_e) { /* tutarlÄ±lÄ±k guard cevabÄ± bozmasÄ±n */ }
     }
 
-    // Boş/phantom görev placeholder temizliği (tek-problem modu): "Test 2/Görev 3" gibi
-    // dayanaksız bölümleri ve boş "Cevap: ..." placeholder'larını final cevaptan çıkar.
+    // BoÅŸ/phantom gÃ¶rev placeholder temizliÄŸi (tek-problem modu): "Test 2/GÃ¶rev 3" gibi
+    // dayanaksÄ±z bÃ¶lÃ¼mleri ve boÅŸ "Cevap: ..." placeholder'larÄ±nÄ± final cevaptan Ã§Ä±kar.
     if (agent.stoppedReason !== "smalltalk" && !isMultiTask) {
       try {
         const cleaned = finalAnswerSanitizer.cleanPhantomOutput(finalText, input, taskDecomposition);
         if (cleaned && cleaned.changed && String(cleaned.answer || "").trim()) finalText = String(cleaned.answer).trim();
-      } catch (_e) { /* temizleme cevabı bozmasın */ }
+      } catch (_e) { /* temizleme cevabÄ± bozmasÄ±n */ }
     }
 
     finalProgress?.emit?.("finalizing", { reason: "history-and-stats" });
@@ -1964,7 +1964,7 @@ class ModelManager {
       conversationHistory.splice(0, conversationHistory.length - MAX_HISTORY_MESSAGES);
     }
 
-    // Gerçek kullanım istatistiği (demo değil): istek/token/süre/model/ajan
+    // GerÃ§ek kullanÄ±m istatistiÄŸi (demo deÄŸil): istek/token/sÃ¼re/model/ajan
     try {
       const stats = require("./agent/stats");
       stats.record({
@@ -1973,23 +1973,23 @@ class ModelManager {
         tokens: Math.round((String(input).length + String(finalText).length) / 4),
         ms: Date.now() - _t0,
       });
-    } catch (_e) { /* istatistik hatası akışı bozmasın */ }
+    } catch (_e) { /* istatistik hatasÄ± akÄ±ÅŸÄ± bozmasÄ±n */ }
 
-    // Otonom öğrenme: kullanıcı mesajından kalıcı kişisel gerçekleri öğren
+    // Otonom Ã¶ÄŸrenme: kullanÄ±cÄ± mesajÄ±ndan kalÄ±cÄ± kiÅŸisel gerÃ§ekleri Ã¶ÄŸren
     if (settings.autonomousLearning) {
       try {
         for (const fact of extractDurableFacts(input)) remember(fact);
       } catch (_e) {
-        // öğrenme hatası sohbeti etkilemesin
+        // Ã¶ÄŸrenme hatasÄ± sohbeti etkilemesin
       }
     }
 
-    // Sürekli öğrenme açıksa: konuşmadan KONU TOHUMU çıkar (ajan kendi konularını bulsun).
-    // Çok kısa/komut benzeri girdileri ele; ilk anlamlı ifadeyi konu yap.
+    // SÃ¼rekli Ã¶ÄŸrenme aÃ§Ä±ksa: konuÅŸmadan KONU TOHUMU Ã§Ä±kar (ajan kendi konularÄ±nÄ± bulsun).
+    // Ã‡ok kÄ±sa/komut benzeri girdileri ele; ilk anlamlÄ± ifadeyi konu yap.
     if (settings.continuousLearning) {
       try {
         const seed = String(input || "")
-          .replace(/```[\s\S]*?```/g, " ") // kod bloklarını at
+          .replace(/```[\s\S]*?```/g, " ") // kod bloklarÄ±nÄ± at
           .replace(/\s+/g, " ")
           .trim()
           .slice(0, 60);
@@ -2002,7 +2002,7 @@ class ModelManager {
       status: READY_STATES.READY,
       model: selectedModel,
       task,
-      message: "Hazır",
+      message: "HazÄ±r",
     };
 
     return {
@@ -2015,13 +2015,13 @@ class ModelManager {
   }
 
   /**
-   * Tek bir üretim: önce Ollama HTTP /api/chat (messages + system + araç döngüsü
-   * için gerekli), erişilemezse CLI `run`'a fallback (messages düzleştirilir).
-   * runReact bunu generateFn olarak çağırır.
+   * Tek bir Ã¼retim: Ã¶nce Ollama HTTP /api/chat (messages + system + araÃ§ dÃ¶ngÃ¼sÃ¼
+   * iÃ§in gerekli), eriÅŸilemezse CLI `run`'a fallback (messages dÃ¼zleÅŸtirilir).
+   * runReact bunu generateFn olarak Ã§aÄŸÄ±rÄ±r.
    */
   async generate(model, messages, fallbackModels = [], onToken = null) {
     const sig = this._abort ? this._abort.signal : undefined;
-    // Bulut sağlayıcı seçiliyse oraya yönlen — yerel Ollama gerekmez.
+    // Bulut saÄŸlayÄ±cÄ± seÃ§iliyse oraya yÃ¶nlen â€” yerel Ollama gerekmez.
     const s = getSettings();
     const providers = configuredProviderChain(s);
     const primaryProvider = providers[0] || "ollama";
@@ -2037,13 +2037,13 @@ class ModelManager {
           : await cloudChat(messages, o);
         if (content && content.trim()) {
           if (provider !== primaryProvider) {
-            try { logs.info("model-router", `${primaryProvider} yerine ${provider} yedek sağlayıcısı kullanıldı.`); } catch (_e) {}
+            try { logs.info("model-router", `${primaryProvider} yerine ${provider} yedek saÄŸlayÄ±cÄ±sÄ± kullanÄ±ldÄ±.`); } catch (_e) {}
           }
           return content;
         }
       } catch (error) {
         if (sig && sig.aborted) throw error;
-        try { logs.warn("model-router", `${provider} başarısız: ${error.message || error}`); } catch (_e) {}
+        try { logs.warn("model-router", `${provider} baÅŸarÄ±sÄ±z: ${error.message || error}`); } catch (_e) {}
       }
       return "";
     };
@@ -2069,7 +2069,7 @@ class ModelManager {
         try { logs.warn("model_generate", `empty_response provider=ollama model=${m}`); } catch (_e) {}
       } catch (_e) {
         if (sig && sig.aborted) {
-          const aborted = new Error("Ollama isteği durduruldu.");
+          const aborted = new Error("Ollama isteÄŸi durduruldu.");
           aborted.name = "AbortError";
           throw aborted;
         }
@@ -2078,14 +2078,14 @@ class ModelManager {
       }
     }
     if (sig && sig.aborted) {
-      const aborted = new Error("Ollama isteği durduruldu.");
+      const aborted = new Error("Ollama isteÄŸi durduruldu.");
       aborted.name = "AbortError";
       throw aborted;
     }
     const prompt = flattenMessages(messages);
     for (const m of models) {
       if (sig && sig.aborted) {
-        const aborted = new Error("Ollama isteği durduruldu.");
+        const aborted = new Error("Ollama isteÄŸi durduruldu.");
         aborted.name = "AbortError";
         throw aborted;
       }
@@ -2139,3 +2139,4 @@ module.exports = {
   _MAX_REGENERATION_ATTEMPTS: MAX_REGENERATION_ATTEMPTS,
   _HEARTBEAT_TOKEN: HEARTBEAT_TOKEN,
 };
+
