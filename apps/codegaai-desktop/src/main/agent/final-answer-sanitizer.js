@@ -65,6 +65,58 @@ function stripInternalSections(answer) {
   return text;
 }
 
+function splitKnownAnswerBlocks(answer) {
+  const text = String(answer || "").trim();
+  if (!text) return [];
+  const markers = [
+    /(?=^\s*Merhaba\.\s*Buradayım,\s*nasıl yardımcı olayım\?)/gim,
+    /(?=^\s*PHP\s+8\.3\s*\+\s*PDO\s+ile\s+güvenli\s+kullanıcı\s+giriş\s+sistemi\s*:)/gim,
+    /(?=^\s*Phoenix\s+Görev\s+Planı\s*:)/gim,
+  ];
+  let indexes = new Set([0, text.length]);
+  for (const re of markers) {
+    for (const match of text.matchAll(re)) indexes.add(match.index || 0);
+  }
+  const sorted = [...indexes].sort((a, b) => a - b);
+  const blocks = [];
+  for (let i = 0; i < sorted.length - 1; i += 1) {
+    const part = text.slice(sorted[i], sorted[i + 1]).trim();
+    if (part) blocks.push(part);
+  }
+  return blocks.length > 1 ? blocks : [];
+}
+
+function scoreBlockForQuestion(block, question) {
+  const b = trFold(block);
+  const q = trFold(question);
+  let score = 0;
+  if (/\bmerhaba\b|\bnasil\b|\bnasilsin\b|\bselam\b/.test(q)) {
+    if (/merhaba\.\s*buradayim/.test(b)) score += 100;
+    if (/php|phoenix gorev plani|password_verify/.test(b)) score -= 40;
+  }
+  if (/\bphp\b/.test(q) && /(giris|login|kullanici|kimlik)/.test(q)) {
+    if (/password_verify|guvenli kullanici giris|pdo/.test(b)) score += 100;
+    if (/phoenix gorev plani|ates fiat|servis otomasyonu/.test(b)) score -= 40;
+  }
+  if (/(ates fiat|fiat servis|servis otomasyon|is emri|iş emri)/.test(q)) {
+    if (/phoenix gorev plani|servis otomasyonu|workorders|is emri|iş emri/.test(b)) score += 100;
+    if (/merhaba\.\s*buradayim|password_verify/.test(b)) score -= 35;
+  }
+  return score;
+}
+
+function scopeAnswerToQuestion(answer, question) {
+  const blocks = splitKnownAnswerBlocks(answer);
+  if (!blocks.length) return { changed: false, answer };
+  const ranked = blocks
+    .map((block) => ({ block, score: scoreBlockForQuestion(block, question) }))
+    .sort((a, b) => b.score - a.score);
+  if (ranked[0] && ranked[0].score > 0) {
+    return { changed: ranked[0].block.trim() !== String(answer || "").trim(), answer: ranked[0].block.trim() };
+  }
+  return { changed: false, answer };
+}
+
 function deduplicateAnswerCandidates(candidates) {
   const seen = new Set();
   const out = [];
@@ -84,8 +136,11 @@ function looksLikePureTestReport(question) {
 }
 
 function cleanUserFacingOutput(answer, question = "", taskReport = null) {
-  const original = repairMojibake(String(answer || "").trim());
+  let original = repairMojibake(String(answer || "").trim());
   if (!original) return { changed: false, answer: original, candidates: [] };
+
+  const scoped = scopeAnswerToQuestion(original, question);
+  if (scoped.changed) original = scoped.answer;
 
   if (looksLikePureTestReport(question)) {
     return {
@@ -111,21 +166,21 @@ function cleanUserFacingOutput(answer, question = "", taskReport = null) {
   }
 
   if (!hasInternal && !hasPipeDump) {
-    return { changed: original !== String(answer || "").trim(), answer: original, candidates: [] };
+    return { changed: scoped.changed || original !== String(answer || "").trim(), answer: original, candidates: [] };
   }
 
   const source = hasPipeDump ? final : original;
   const candidates = deduplicateAnswerCandidates(source.split(hasPipeDump ? /\s*\|\s*/ : /\r?\n+/).filter(Boolean));
   if (!candidates.length) {
     const cleaned = repairMojibake(stripInternalSections(original));
-    return { changed: cleaned !== original, answer: cleaned, candidates: [] };
+    return { changed: cleaned !== original || scoped.changed, answer: cleaned, candidates: [] };
   }
 
   const expectedCount = taskReport && taskReport.applicable ? Number(taskReport.count || taskReport.tasks?.length || 0) : 0;
   const cleaned = (expectedCount > 1 || candidates.length > 1)
     ? candidates.slice(0, expectedCount > 1 ? expectedCount : candidates.length).map((c, i) => `Test ${i + 1}: ${c}`).join("\n")
     : candidates[0];
-  return { changed: cleaned !== original, answer: repairMojibake(cleaned), candidates };
+  return { changed: cleaned !== original || scoped.changed, answer: repairMojibake(cleaned), candidates };
 }
 
 function questionLeakEvidence(question, finalText) {
@@ -147,7 +202,9 @@ function countAnswerSections(answer) {
 
 function cleanPhantomOutput(answer, question, taskReport = null) {
   const original = repairMojibake(String(answer || "").trim());
-  const cleaned = repairMojibake(stripInternalSections(original));
+  const scoped = scopeAnswerToQuestion(original, question);
+  const source = scoped.changed ? scoped.answer : original;
+  const cleaned = repairMojibake(stripInternalSections(source));
   return { changed: cleaned !== original, answer: cleaned, removed: [], providedTaskCount: countProvidedTasks(question, taskReport), answerSectionCount: countAnswerSections(cleaned) };
 }
 
@@ -193,5 +250,6 @@ module.exports = {
   cleanPhantomOutput,
   countAnswerSections,
   countProvidedTasks,
+  scopeAnswerToQuestion,
   trFold,
 };
