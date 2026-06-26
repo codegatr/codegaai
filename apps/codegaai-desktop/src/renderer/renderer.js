@@ -131,7 +131,7 @@ function setTransientStatus(text) {
   els.modelPill.textContent = text;
   window.clearTimeout(setTransientStatus.timer);
   setTransientStatus.timer = window.setTimeout(() => {
-    els.modelPill.textContent = previous || "Hazır";
+    els.modelPill.textContent = previous || "HazÃ„Â±r";
   }, 2400);
 }
 
@@ -232,22 +232,22 @@ function saveChats() {
       chats: state.chats,
     }));
   } catch (error) {
-    console.warn("Sohbet geçmişi kaydedilemedi", error);
+    console.warn("Sohbet geÃƒÂ§miÃ…Å¸i kaydedilemedi", error);
   }
 }
 
 function cleanupStuckPlaceholders(chats) {
-  // Önceki oturumda cevap gelmeden kapatılmış mesajlar "Düşünüyorum..." olarak
-  // kalmış olabilir. Bunları anlaşılır bir nota çevir (yanıltıcı durmasın).
+  // Ãƒâ€“nceki oturumda cevap gelmeden kapatÃ„Â±lmÃ„Â±Ã…Å¸ mesajlar "DÃƒÂ¼Ã…Å¸ÃƒÂ¼nÃƒÂ¼yorum..." olarak
+  // kalmÃ„Â±Ã…Å¸ olabilir. BunlarÃ„Â± anlaÃ…Å¸Ã„Â±lÃ„Â±r bir nota ÃƒÂ§evir (yanÃ„Â±ltÃ„Â±cÃ„Â± durmasÃ„Â±n).
   const dead = [
-    "Düşünüyorum...",
-    "Biraz uzun düşünüyorum. Cevap gelmezse kısa süre içinde güvenli şekilde durduracağım.",
-    "Çalışma özeti: cevap beklenenden uzun sürüyor; modeli ve doğrulama adımlarını izliyorum.",
+    "DÃƒÂ¼Ã…Å¸ÃƒÂ¼nÃƒÂ¼yorum...",
+    "Biraz uzun dÃƒÂ¼Ã…Å¸ÃƒÂ¼nÃƒÂ¼yorum. Cevap gelmezse kÃ„Â±sa sÃƒÂ¼re iÃƒÂ§inde gÃƒÂ¼venli Ã…Å¸ekilde durduracaÃ„Å¸Ã„Â±m.",
+    "Ãƒâ€¡alÃ„Â±Ã…Å¸ma ÃƒÂ¶zeti: cevap beklenenden uzun sÃƒÂ¼rÃƒÂ¼yor; modeli ve doÃ„Å¸rulama adÃ„Â±mlarÃ„Â±nÃ„Â± izliyorum.",
   ];
   for (const chat of chats) {
     for (const m of chat.messages || []) {
       if (m.role === "assistant" && dead.includes(String(m.text || "").trim())) {
-        m.text = "(yanıt tamamlanmadı — uygulama kapanmış olabilir)";
+        m.text = "(yanÃ„Â±t tamamlanmadÃ„Â± Ã¢â‚¬â€ uygulama kapanmÃ„Â±Ã…Å¸ olabilir)";
       }
     }
   }
@@ -259,17 +259,32 @@ function isInvisibleProgressToken(token) {
 }
 
 function longThinkingNotice() {
-  return "Yanıt beklenenden uzun sürüyor; model çalışmaya devam ediyor.";
+  return "YanÃ„Â±t beklenenden uzun sÃƒÂ¼rÃƒÂ¼yor; model ÃƒÂ§alÃ„Â±Ã…Å¸maya devam ediyor.";
 }
 
 function oneMinuteStatusNotice(lastStatus) {
-  return `${String(lastStatus || longThinkingNotice()).trim()} Bir dakikayı geçti; istersen Durdur düğmesiyle kesebilirsin.`;
+  return `${String(lastStatus || longThinkingNotice()).trim()} Bir dakikayÃ„Â± geÃƒÂ§ti; istersen Durdur dÃƒÂ¼Ã„Å¸mesiyle kesebilirsin.`;
 }
 
+function repairRendererMojibake(value) {
+  return String(value || "")
+    .replace(/ÃƒÆ’Ã¢â‚¬Â¡/g, "Ãƒâ€¡")
+    .replace(/ÃƒÆ’Ã‚Â§/g, "ÃƒÂ§")
+    .replace(/ÃƒÆ’Ã¢â‚¬â€œ/g, "Ãƒâ€“")
+    .replace(/ÃƒÆ’Ã‚Â¶/g, "ÃƒÂ¶")
+    .replace(/ÃƒÆ’Ã…â€œ/g, "ÃƒÅ“")
+    .replace(/ÃƒÆ’Ã‚Â¼/g, "ÃƒÂ¼")
+    .replace(/Ãƒâ€Ã‚Â°/g, "Ã„Â°")
+    .replace(/Ãƒâ€Ã‚Â±/g, "Ã„Â±")
+    .replace(/Ãƒâ€Ã…Â¾/g, "Ã„Â")
+    .replace(/Ãƒâ€Ã…Â¸/g, "Ã„Å¸")
+    .replace(/Ãƒâ€¦Ã…Â¾/g, "Ã…Â")
+    .replace(/Ãƒâ€¦Ã…Â¸/g, "Ã…Å¸");
+}
 function setChatWorkingStatus(value) {
   const text = typeof value === "string" ? value : value?.text;
   if (!text || !els.modelPill) return;
-  els.modelPill.textContent = String(text).replace(/^Çalışma özeti:\s*/i, "").trim();
+  els.modelPill.textContent = String(text).replace(/^Ãƒâ€¡alÃ„Â±Ã…Å¸ma ÃƒÂ¶zeti:\s*/i, "").trim();
 }
 
 function createStreamView(placeholder) {
@@ -309,7 +324,7 @@ function loadChats() {
       : state.chats[0]?.id || null;
     saveChats();
   } catch (error) {
-    console.warn("Sohbet geçmişi okunamadı", error);
+    console.warn("Sohbet geÃƒÂ§miÃ…Å¸i okunamadÃ„Â±", error);
     state.chats = [];
     state.activeChat = null;
   }
@@ -351,10 +366,10 @@ function formatChatAge(ts) {
   const hour = 60 * minute;
   const day = 24 * hour;
   const week = 7 * day;
-  if (diff < minute) return "şimdi";
+  if (diff < minute) return "Ã…Å¸imdi";
   if (diff < hour) return `${Math.floor(diff / minute)} dk.`;
   if (diff < day) return `${Math.floor(diff / hour)} sa.`;
-  if (diff < week) return `${Math.floor(diff / day)} gün`;
+  if (diff < week) return `${Math.floor(diff / day)} gÃƒÂ¼n`;
   return `${Math.floor(diff / week)} hafta`;
 }
 
@@ -362,7 +377,7 @@ function renderHistory() {
   const q = (historyQuery || "").trim();
   const visible = state.chats.filter((chat) => chatMatchesQuery(chat, q));
   if (q && !visible.length) {
-    els.history.innerHTML = `<p class="history-empty">"${escapeHtml(q)}" için sohbet bulunamadı.</p>`;
+    els.history.innerHTML = `<p class="history-empty">"${escapeHtml(q)}" iÃƒÂ§in sohbet bulunamadÃ„Â±.</p>`;
     return;
   }
   els.history.innerHTML = visible.map((chat) => `
@@ -371,10 +386,10 @@ function renderHistory() {
         <span class="history-title">${escapeHtml(chat.title)}</span>
         <span class="history-time">${escapeHtml(formatChatAge(chat.updatedAt))}</span>
       </button>
-      <div class="history-actions" aria-label="Sohbet işlemleri">
-        <button type="button" data-share-chat="${chat.id}" title="Link olarak paylaş" aria-label="Link olarak paylaş">↗</button>
-        <button type="button" data-zip-chat="${chat.id}" title="ZIP olarak indir" aria-label="ZIP olarak indir">↓</button>
-        <button type="button" data-delete-chat="${chat.id}" title="Sohbeti sil" aria-label="Sohbeti sil">×</button>
+      <div class="history-actions" aria-label="Sohbet iÃ…Å¸lemleri">
+        <button type="button" data-share-chat="${chat.id}" title="Link olarak paylaÃ…Å¸" aria-label="Link olarak paylaÃ…Å¸">Ã¢â€ â€”</button>
+        <button type="button" data-zip-chat="${chat.id}" title="ZIP olarak indir" aria-label="ZIP olarak indir">Ã¢â€ â€œ</button>
+        <button type="button" data-delete-chat="${chat.id}" title="Sohbeti sil" aria-label="Sohbeti sil">Ãƒâ€”</button>
       </div>
     </div>
   `).join("");
@@ -432,7 +447,7 @@ function renderConversation() {
       <div>${escapeHtml(message.text).replace(/\n/g, "<br>")}</div>
       ${tsText ? `<div class="msg-time">${tsText}</div>` : ""}
     `;
-    // Asistan cevaplarına geri bildirim (👍/👎) — son cevap hâlâ yazılıyorsa ekleme
+    // Asistan cevaplarÃ„Â±na geri bildirim (ÄŸÅ¸â€˜Â/ÄŸÅ¸â€˜Â) Ã¢â‚¬â€ son cevap hÃƒÂ¢lÃƒÂ¢ yazÃ„Â±lÃ„Â±yorsa ekleme
     const isLivePlaceholder = isSending && idx === chat.messages.length - 1;
     if (message.role === "assistant" && message.text && !isLivePlaceholder) {
       const bar = document.createElement("div");
@@ -443,39 +458,39 @@ function renderConversation() {
         b.type = "button";
         b.className = "fb-btn";
         b.textContent = label;
-        b.title = rating === "up" ? "İyi cevap" : "Kötü cevap (iyileştirme için işaretle)";
+        b.title = rating === "up" ? "Ã„Â°yi cevap" : "KÃƒÂ¶tÃƒÂ¼ cevap (iyileÃ…Å¸tirme iÃƒÂ§in iÃ…Å¸aretle)";
         b.addEventListener("click", async () => {
           bar.querySelectorAll(".fb-btn").forEach((x) => x.classList.remove("on"));
           b.classList.add("on");
           try { await window.codega.recordFeedback({ rating, text: message.text, prompt }); } catch (_e) {}
-          setTransientStatus(rating === "up" ? "Teşekkürler — olumlu geri bildirim kaydedildi." : "Not aldım — bunu iyileştirme için işaretledim.");
+          setTransientStatus(rating === "up" ? "TeÃ…Å¸ekkÃƒÂ¼rler Ã¢â‚¬â€ olumlu geri bildirim kaydedildi." : "Not aldÃ„Â±m Ã¢â‚¬â€ bunu iyileÃ…Å¸tirme iÃƒÂ§in iÃ…Å¸aretledim.");
         });
         return b;
       };
-      bar.appendChild(mkBtn("up", "👍"));
-      bar.appendChild(mkBtn("down", "👎"));
-      // Kopyala — tüm büyük sohbet arayüzlerinde olan evrensel eylem
+      bar.appendChild(mkBtn("up", "ÄŸÅ¸â€˜Â"));
+      bar.appendChild(mkBtn("down", "ÄŸÅ¸â€˜Â"));
+      // Kopyala Ã¢â‚¬â€ tÃƒÂ¼m bÃƒÂ¼yÃƒÂ¼k sohbet arayÃƒÂ¼zlerinde olan evrensel eylem
       const copyBtn = document.createElement("button");
       copyBtn.type = "button";
       copyBtn.className = "fb-btn";
-      copyBtn.textContent = "📋";
-      copyBtn.title = "Cevabı kopyala";
+      copyBtn.textContent = "ÄŸÅ¸â€œâ€¹";
+      copyBtn.title = "CevabÃ„Â± kopyala";
       copyBtn.addEventListener("click", async () => {
         try {
           await navigator.clipboard.writeText(message.text);
-          setTransientStatus("Cevap kopyalandı.");
+          setTransientStatus("Cevap kopyalandÃ„Â±.");
         } catch (_e) {
-          setTransientStatus("Kopyalanamadı.");
+          setTransientStatus("KopyalanamadÃ„Â±.");
         }
       });
       bar.appendChild(copyBtn);
-      // Yeniden üret — yalnızca son cevapta ve gönderim yokken
+      // Yeniden ÃƒÂ¼ret Ã¢â‚¬â€ yalnÃ„Â±zca son cevapta ve gÃƒÂ¶nderim yokken
       if (idx === chat.messages.length - 1 && !isSending) {
         const regen = document.createElement("button");
         regen.type = "button";
         regen.className = "fb-btn";
-        regen.textContent = "🔄";
-        regen.title = "Yeniden üret";
+        regen.textContent = "ÄŸÅ¸â€â€";
+        regen.title = "Yeniden ÃƒÂ¼ret";
         regen.addEventListener("click", () => regenerateLast());
         bar.appendChild(regen);
       }
@@ -498,11 +513,11 @@ document.querySelectorAll("[data-starter-action='attach']").forEach((button) => 
   button.addEventListener("click", () => document.getElementById("file-input")?.click());
 });
 
-// Hangi elemanın gerçekten kaydığını bul (conversation iç kaydırıcıysa o, değilse pencere).
+// Hangi elemanÃ„Â±n gerÃƒÂ§ekten kaydÃ„Â±Ã„Å¸Ã„Â±nÃ„Â± bul (conversation iÃƒÂ§ kaydÃ„Â±rÃ„Â±cÃ„Â±ysa o, deÃ„Å¸ilse pencere).
 function _getScroller() {
   const c = els.conversation;
   if (c && c.scrollHeight > c.clientHeight + 8) return c;
-  return null; // null => pencere kayıyor
+  return null; // null => pencere kayÃ„Â±yor
 }
 function _isNearBottom(threshold = 140) {
   const c = _getScroller();
@@ -516,15 +531,15 @@ function _scrollToBottomNow() {
   else window.scrollTo(0, document.documentElement.scrollHeight);
 }
 
-let stickToBottom = true; // kullanıcı yukarı kaymadıysa dibe yapışık kal
+let stickToBottom = true; // kullanÃ„Â±cÃ„Â± yukarÃ„Â± kaymadÃ„Â±ysa dibe yapÃ„Â±Ã…Å¸Ã„Â±k kal
 function updateScrollButton() {
   const btn = els.scrollBottomBtn;
   if (!btn) return;
   btn.hidden = _isNearBottom();
 }
 
-// Akış sırasında çağrılır: yalnızca kullanıcı dibe yapışıksa otomatik kaydır.
-// Yükseklik oturduktan sonra kaymak için çift rAF kullanılır (yeni satır altta kalmasın).
+// AkÃ„Â±Ã…Å¸ sÃ„Â±rasÃ„Â±nda ÃƒÂ§aÃ„Å¸rÃ„Â±lÃ„Â±r: yalnÃ„Â±zca kullanÃ„Â±cÃ„Â± dibe yapÃ„Â±Ã…Å¸Ã„Â±ksa otomatik kaydÃ„Â±r.
+// YÃƒÂ¼kseklik oturduktan sonra kaymak iÃƒÂ§in ÃƒÂ§ift rAF kullanÃ„Â±lÃ„Â±r (yeni satÃ„Â±r altta kalmasÃ„Â±n).
 function scrollConversationToBottom(force = false) {
   if (!force && !stickToBottom) { updateScrollButton(); return; }
   requestAnimationFrame(() => {
@@ -594,41 +609,41 @@ const FEDERATION_SHARE_BASE = "https://ai.codega.com.tr/api/federation/share";
 async function shareChat(chatId) {
   const chat = state.chats.find((item) => item.id === chatId);
   if (!chat) return;
-  setTransientStatus("Paylaşım linki oluşturuluyor...");
+  setTransientStatus("PaylaÃ…Å¸Ã„Â±m linki oluÃ…Å¸turuluyor...");
   try {
     const remote = await window.codega.shareChat({
       title: chat.title,
       messages: chat.messages,
     });
-    // url varsa kullan; yoksa slug'dan kur (sunucu her ikisini de döndürür)
+    // url varsa kullan; yoksa slug'dan kur (sunucu her ikisini de dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r)
     const link =
       remote && (remote.url || (remote.slug ? `${FEDERATION_SHARE_BASE}/${remote.slug}` : ""));
     if (link) {
       try {
         await navigator.clipboard.writeText(link);
-        setTransientStatus(`Paylaşım linki kopyalandı: ${link}`);
+        setTransientStatus(`PaylaÃ…Å¸Ã„Â±m linki kopyalandÃ„Â±: ${link}`);
       } catch {
-        setTransientStatus(`Paylaşım linki: ${link}`);
+        setTransientStatus(`PaylaÃ…Å¸Ã„Â±m linki: ${link}`);
       }
       return;
     }
-    // Sunucu bir hata döndürdüyse gerçek nedeni göster (tahmin etme)
+    // Sunucu bir hata dÃƒÂ¶ndÃƒÂ¼rdÃƒÂ¼yse gerÃƒÂ§ek nedeni gÃƒÂ¶ster (tahmin etme)
     if (remote && remote.error) {
-      setTransientStatus(`Paylaşım reddedildi: ${remote.error}`);
+      setTransientStatus(`PaylaÃ…Å¸Ã„Â±m reddedildi: ${remote.error}`);
     } else if (remote && remote.service) {
-      // GET sağlık yanıtı geldiyse istek POST olarak ulaşmamış demektir
-      setTransientStatus("Paylaşım isteği sunucuya POST olarak ulaşmadı (yönlendirme?).");
+      // GET saÃ„Å¸lÃ„Â±k yanÃ„Â±tÃ„Â± geldiyse istek POST olarak ulaÃ…Å¸mamÃ„Â±Ã…Å¸ demektir
+      setTransientStatus("PaylaÃ…Å¸Ã„Â±m isteÃ„Å¸i sunucuya POST olarak ulaÃ…Å¸madÃ„Â± (yÃƒÂ¶nlendirme?).");
     } else {
-      setTransientStatus("Paylaşım sunucusu beklenmedik bir yanıt verdi.");
+      setTransientStatus("PaylaÃ…Å¸Ã„Â±m sunucusu beklenmedik bir yanÃ„Â±t verdi.");
     }
   } catch (error) {
-    console.warn("Uzak paylaşım servisi kullanılamadı", error);
+    console.warn("Uzak paylaÃ…Å¸Ã„Â±m servisi kullanÃ„Â±lamadÃ„Â±", error);
     setTransientStatus(
-      "Paylaşım sunucusu (ai.codega.com.tr) yayında değil. Link paylaşımı için sunucu kurulmalı."
+      "PaylaÃ…Å¸Ã„Â±m sunucusu (ai.codega.com.tr) yayÃ„Â±nda deÃ„Å¸il. Link paylaÃ…Å¸Ã„Â±mÃ„Â± iÃƒÂ§in sunucu kurulmalÃ„Â±."
     );
   } finally {
-    // ↗ butonuna tıklayınca odak orada kalıyordu; giriş alanına geri ver ki
-    // kullanıcı hemen yazıp Enter ile gönderebilsin.
+    // Ã¢â€ â€” butonuna tÃ„Â±klayÃ„Â±nca odak orada kalÃ„Â±yordu; giriÃ…Å¸ alanÃ„Â±na geri ver ki
+    // kullanÃ„Â±cÃ„Â± hemen yazÃ„Â±p Enter ile gÃƒÂ¶nderebilsin.
     focusComposer();
   }
 }
@@ -747,7 +762,7 @@ function buildZip(files) {
 function safeFileName(value) {
   return String(value || "codega-sohbet")
     .toLowerCase()
-    .replace(/[^a-z0-9ğüşöçıİĞÜŞÖÇ_-]+/gi, "-")
+    .replace(/[^a-z0-9Ã„Å¸ÃƒÂ¼Ã…Å¸ÃƒÂ¶ÃƒÂ§Ã„Â±Ã„Â°Ã„ÂÃƒÅ“Ã…ÂÃƒâ€“Ãƒâ€¡_-]+/gi, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 48) || "codega-sohbet";
 }
@@ -781,7 +796,7 @@ function restoreSharedChatFromHash() {
     const encoded = window.location.hash.slice(SHARE_HASH_PREFIX.length);
     const payload = JSON.parse(base64UrlDecode(encoded));
     const chat = normalizeChat({
-      title: `${payload.title || "Paylaşılan sohbet"}`,
+      title: `${payload.title || "PaylaÃ…Å¸Ã„Â±lan sohbet"}`,
       messages: payload.messages,
       updatedAt: payload.updatedAt || Date.now(),
     });
@@ -790,7 +805,7 @@ function restoreSharedChatFromHash() {
     saveChats();
     history.replaceState(null, "", window.location.pathname);
   } catch (error) {
-    console.warn("Paylaşılan sohbet açılamadı", error);
+    console.warn("PaylaÃ…Å¸Ã„Â±lan sohbet aÃƒÂ§Ã„Â±lamadÃ„Â±", error);
   }
 }
 
@@ -800,25 +815,25 @@ function setModelStatus(status) {
   const progress = status?.progress || null;
   const isDownloading = status?.status === "checking" && progress;
   els.modelPill.textContent = ready
-    ? "Hazır"
+    ? "HazÃ„Â±r"
     : missing
-      ? "Temel mod hazır"
-      : "Düşünüyor";
+      ? "Temel mod hazÃ„Â±r"
+      : "DÃƒÂ¼Ã…Å¸ÃƒÂ¼nÃƒÂ¼yor";
   els.modelDetail.textContent = progress && status?.status === "checking"
     ? status.message || "Model indiriliyor..."
     : status?.action === "install_ollama"
-    ? "Yerel zeka motoru kurulu değil. Model paketleri için Ollama kurulumu gerekli."
+    ? "Yerel zeka motoru kurulu deÃ„Å¸il. Model paketleri iÃƒÂ§in Ollama kurulumu gerekli."
     : ready
-      ? "Codega AI talimata göre gerekli zeka paketini arka planda kullanır."
-      : "Codega AI çalışma ortamını kontrol ediyor.";
+      ? "Codega AI talimata gÃƒÂ¶re gerekli zeka paketini arka planda kullanÃ„Â±r."
+      : "Codega AI ÃƒÂ§alÃ„Â±Ã…Å¸ma ortamÃ„Â±nÃ„Â± kontrol ediyor.";
   updateModelDownload(status);
 
-  // Ollama satırı: çalışıyorsa "Kur" butonunu gizle, durumu göster
+  // Ollama satÃ„Â±rÃ„Â±: ÃƒÂ§alÃ„Â±Ã…Å¸Ã„Â±yorsa "Kur" butonunu gizle, durumu gÃƒÂ¶ster
   const ollamaMissing = status?.action === "install_ollama" || status?.provider === "instant";
   if (els.ollamaRowStatus) {
     els.ollamaRowStatus.textContent = ollamaMissing
-      ? "Kurulu değil. Yerel modeller için Ollama gerekli — kurmak için tıkla."
-      : "Ollama çalışıyor ✓ (yerel motor hazır).";
+      ? "Kurulu deÃ„Å¸il. Yerel modeller iÃƒÂ§in Ollama gerekli Ã¢â‚¬â€ kurmak iÃƒÂ§in tÃ„Â±kla."
+      : "Ollama ÃƒÂ§alÃ„Â±Ã…Å¸Ã„Â±yor Ã¢Å“â€œ (yerel motor hazÃ„Â±r).";
   }
   if (els.installOllama) {
     els.installOllama.hidden = !ollamaMissing;
@@ -858,7 +873,7 @@ function updateModelDownload(status) {
       ? `${downloaded} / ${total}`
       : progress.raw && progress.raw !== "completed"
         ? progress.raw.slice(0, 90)
-        : "İndirme tamamlandı";
+        : "Ã„Â°ndirme tamamlandÃ„Â±";
   }
   if (els.modelDownloadSpeed) {
     const speed = formatBytes(progress.speedBytesPerSec);
@@ -886,10 +901,10 @@ function renderModelList(payload) {
     <div class="model-row">
       <div>
         <strong>${escapeHtml(model.label)}</strong>
-        <p>${escapeHtml(model.description)} · ${escapeHtml(model.task || "genel")}</p>
+        <p>${escapeHtml(model.description)} Ã‚Â· ${escapeHtml(model.task || "genel")}</p>
       </div>
       <button type="button" data-model="${escapeHtml(model.id)}" ${model.installed ? "disabled" : ""}>
-        ${model.installed ? "Hazır" : "İndir"}
+        ${model.installed ? "HazÃ„Â±r" : "Ã„Â°ndir"}
       </button>
     </div>
   `).join("");
@@ -901,7 +916,7 @@ async function refreshModels() {
     setModelStatus(payload.status);
     renderModelList(payload);
   } catch (error) {
-    els.modelDetail.textContent = `Model listesi alınamadı: ${error.message || error}`;
+    els.modelDetail.textContent = `Model listesi alÃ„Â±namadÃ„Â±: ${error.message || error}`;
   }
 }
 
@@ -909,15 +924,15 @@ async function refreshStatus() {
   const status = await window.codega.getStatus();
   els.version.textContent = `v${status.version}`;
   if (els.modelStoragePath) {
-    els.modelStoragePath.textContent = status.paths?.models || "Ollama varsayılan model dizini";
+    els.modelStoragePath.textContent = status.paths?.models || "Ollama varsayÃ„Â±lan model dizini";
     els.modelStoragePath.title = els.modelStoragePath.textContent;
   }
   if (els.modelStorageStatus && status.paths?.modelStorage) {
     const storage = status.paths.modelStorage;
     const size = formatBytes(storage.bytes);
     els.modelStorageStatus.textContent = storage.files > 0
-      ? `${storage.files} model dosyası${size ? ` · ${size}` : ""} bulundu. Başka bir diske güvenli şekilde taşıyabilirsin.`
-      : "Bu dizinde model dosyası bulunamadı. CODEGA AI diğer Ollama konumlarını da denetleyecek.";
+      ? `${storage.files} model dosyasÃ„Â±${size ? ` Ã‚Â· ${size}` : ""} bulundu. BaÃ…Å¸ka bir diske gÃƒÂ¼venli Ã…Å¸ekilde taÃ…Å¸Ã„Â±yabilirsin.`
+      : "Bu dizinde model dosyasÃ„Â± bulunamadÃ„Â±. CODEGA AI diÃ„Å¸er Ollama konumlarÃ„Â±nÃ„Â± da denetleyecek.";
   }
   setModelStatus(status.model);
   await refreshModels();
@@ -954,7 +969,7 @@ function updatePromptProgress(detail = {}) {
   if (els.updateProgressSize) {
     els.updateProgressSize.textContent = transferred && total
       ? `${transferred} / ${total} indirildi`
-      : "İndirme hazırlanıyor...";
+      : "Ã„Â°ndirme hazÃ„Â±rlanÃ„Â±yor...";
   }
   if (els.updateProgressSpeed) els.updateProgressSpeed.textContent = speed ? `${speed}/sn` : "";
 }
@@ -963,28 +978,28 @@ function hideUpdatePromptProgress() {
   if (els.updateProgress) els.updateProgress.hidden = true;
   if (els.updateProgressBar) els.updateProgressBar.style.width = "0%";
   if (els.updateProgressPercent) els.updateProgressPercent.textContent = "%0";
-  if (els.updateProgressSize) els.updateProgressSize.textContent = "Hazırlanıyor...";
+  if (els.updateProgressSize) els.updateProgressSize.textContent = "HazÃ„Â±rlanÃ„Â±yor...";
   if (els.updateProgressSpeed) els.updateProgressSpeed.textContent = "";
 }
 
 function showUpdatePrompt(mode, detail = {}) {
   state.updatePromptState = mode;
   if (mode === "available") {
-    els.updatePromptTitle.textContent = "Yeni güncelleme var";
-    els.updatePromptDetail.textContent = "Daha iyi ve kararlı bir sürüm bulundu. İstersen şimdi indirebilirim.";
-    els.updateNow.textContent = "Şimdi Güncelle";
+    els.updatePromptTitle.textContent = "Yeni gÃƒÂ¼ncelleme var";
+    els.updatePromptDetail.textContent = "Daha iyi ve kararlÃ„Â± bir sÃƒÂ¼rÃƒÂ¼m bulundu. Ã„Â°stersen Ã…Å¸imdi indirebilirim.";
+    els.updateNow.textContent = "Ã…Âimdi GÃƒÂ¼ncelle";
     els.updateNow.disabled = false;
     hideUpdatePromptProgress();
   } else if (mode === "downloading") {
-    els.updatePromptTitle.textContent = "Güncelleme indiriliyor";
-    els.updatePromptDetail.textContent = "İndirme sürüyor. Tamamlandığında kurulum için onay isteyeceğim.";
-    els.updateNow.textContent = "İndiriliyor";
+    els.updatePromptTitle.textContent = "GÃƒÂ¼ncelleme indiriliyor";
+    els.updatePromptDetail.textContent = "Ã„Â°ndirme sÃƒÂ¼rÃƒÂ¼yor. TamamlandÃ„Â±Ã„Å¸Ã„Â±nda kurulum iÃƒÂ§in onay isteyeceÃ„Å¸im.";
+    els.updateNow.textContent = "Ã„Â°ndiriliyor";
     els.updateNow.disabled = true;
     updatePromptProgress(detail);
   } else {
-    els.updatePromptTitle.textContent = "Güncelleme hazır";
-    els.updatePromptDetail.textContent = "Yeni sürüm indirildi. Kurulum için CODEGA AI yeniden başlatılacak.";
-    els.updateNow.textContent = "Uygula ve Yeniden Başlat";
+    els.updatePromptTitle.textContent = "GÃƒÂ¼ncelleme hazÃ„Â±r";
+    els.updatePromptDetail.textContent = "Yeni sÃƒÂ¼rÃƒÂ¼m indirildi. Kurulum iÃƒÂ§in CODEGA AI yeniden baÃ…Å¸latÃ„Â±lacak.";
+    els.updateNow.textContent = "Uygula ve Yeniden BaÃ…Å¸lat";
     els.updateNow.disabled = false;
     if (detail && (detail.percent || detail.total || detail.transferred)) {
       updatePromptProgress({ ...detail, percent: 100, transferred: detail.total || detail.transferred });
@@ -1003,21 +1018,21 @@ let historyQuery = "";
 let isSending = false;
 let manualUpdateCheck = false;
 let attachedFile = null; // { name, text, kind }
-const ATTACH_MAX_CHARS = 16000; // modele giden bağlam tavanı (yerel modeller için makul)
-const ATTACH_MAX_BYTES = 500 * 1024 * 1024; // yerelde çalışıyoruz: 500 MB'a kadar kabul
-const ATTACH_READ_BYTES = 800 * 1024; // metin dosyalarından yalnızca baştan bu kadar oku (bellek dostu)
+const ATTACH_MAX_CHARS = 16000; // modele giden baÃ„Å¸lam tavanÃ„Â± (yerel modeller iÃƒÂ§in makul)
+const ATTACH_MAX_BYTES = 500 * 1024 * 1024; // yerelde ÃƒÂ§alÃ„Â±Ã…Å¸Ã„Â±yoruz: 500 MB'a kadar kabul
+const ATTACH_READ_BYTES = 800 * 1024; // metin dosyalarÃ„Â±ndan yalnÃ„Â±zca baÃ…Å¸tan bu kadar oku (bellek dostu)
 
-// Uzantıya göre dosya türü + araç/uzman önerisi (rakiplerdeki gibi içeriğe uyum)
+// UzantÃ„Â±ya gÃƒÂ¶re dosya tÃƒÂ¼rÃƒÂ¼ + araÃƒÂ§/uzman ÃƒÂ¶nerisi (rakiplerdeki gibi iÃƒÂ§eriÃ„Å¸e uyum)
 function detectFileKind(name) {
   const ext = String(name).split(".").pop().toLowerCase();
   const T = (label, expert, action) => ({ label, expert, action, readable: true });
   const code = {
-    php: T("PHP", "php", "kod inceleme/geliştirme"),
+    php: T("PHP", "php", "kod inceleme/geliÃ…Å¸tirme"),
     js: T("JavaScript", "javascript", "kod inceleme"),
     ts: T("TypeScript", "javascript", "kod inceleme"),
-    jsx: T("React", "javascript", "bileşen inceleme"),
-    tsx: T("React/TS", "javascript", "bileşen inceleme"),
-    vue: T("Vue", "javascript", "bileşen inceleme"),
+    jsx: T("React", "javascript", "bileÃ…Å¸en inceleme"),
+    tsx: T("React/TS", "javascript", "bileÃ…Å¸en inceleme"),
+    vue: T("Vue", "javascript", "bileÃ…Å¸en inceleme"),
     py: T("Python", "python", "kod inceleme"),
     rb: T("Ruby", "genel", "kod inceleme"),
     go: T("Go", "genel", "kod inceleme"),
@@ -1025,31 +1040,31 @@ function detectFileKind(name) {
     java: T("Java", "genel", "kod inceleme"),
     c: T("C", "genel", "kod inceleme"),
     cpp: T("C++", "genel", "kod inceleme"),
-    h: T("C başlık", "genel", "kod inceleme"),
-    html: T("HTML", "javascript", "işaretleme inceleme"),
-    htm: T("HTML", "javascript", "işaretleme inceleme"),
+    h: T("C baÃ…Å¸lÃ„Â±k", "genel", "kod inceleme"),
+    html: T("HTML", "javascript", "iÃ…Å¸aretleme inceleme"),
+    htm: T("HTML", "javascript", "iÃ…Å¸aretleme inceleme"),
     css: T("CSS", "javascript", "stil inceleme"),
     scss: T("SCSS", "javascript", "stil inceleme"),
-    sql: T("SQL", "genel", "şema/sorgu inceleme"),
+    sql: T("SQL", "genel", "Ã…Å¸ema/sorgu inceleme"),
     sh: T("Shell", "devops", "betik inceleme"),
-    yml: T("YAML", "devops", "yapılandırma inceleme"),
-    yaml: T("YAML", "devops", "yapılandırma inceleme"),
-    ini: T("INI", "devops", "yapılandırma inceleme"),
-    env: T("ENV", "devops", "yapılandırma inceleme (gizli anahtarlara dikkat)"),
-    csv: T("CSV veri", "genel", "veri analizi/özet"),
-    tsv: T("TSV veri", "genel", "veri analizi/özet"),
-    json: T("JSON", "genel", "yapı/veri inceleme"),
-    xml: T("XML", "genel", "yapı inceleme"),
-    md: T("Markdown", "genel", "doküman inceleme"),
-    txt: T("Metin", "genel", "doküman inceleme"),
+    yml: T("YAML", "devops", "yapÃ„Â±landÃ„Â±rma inceleme"),
+    yaml: T("YAML", "devops", "yapÃ„Â±landÃ„Â±rma inceleme"),
+    ini: T("INI", "devops", "yapÃ„Â±landÃ„Â±rma inceleme"),
+    env: T("ENV", "devops", "yapÃ„Â±landÃ„Â±rma inceleme (gizli anahtarlara dikkat)"),
+    csv: T("CSV veri", "genel", "veri analizi/ÃƒÂ¶zet"),
+    tsv: T("TSV veri", "genel", "veri analizi/ÃƒÂ¶zet"),
+    json: T("JSON", "genel", "yapÃ„Â±/veri inceleme"),
+    xml: T("XML", "genel", "yapÃ„Â± inceleme"),
+    md: T("Markdown", "genel", "dokÃƒÂ¼man inceleme"),
+    txt: T("Metin", "genel", "dokÃƒÂ¼man inceleme"),
     log: T("Log", "devops", "hata/iz analizi"),
   };
   if (code[ext]) return code[ext];
   const archive = ["zip", "rar", "7z", "tar", "gz", "tgz"];
   const image = ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"];
-  if (archive.includes(ext)) return { label: "Arşiv", action: "içeriği çıkarıp önemli dosyaları ekle", readable: false, hint: "archive" };
-  if (image.includes(ext)) return { label: "Görsel", action: "görsel anlama (vision) modeli gerekir", readable: false, hint: "image" };
-  if (ext === "pdf") return { label: "PDF", action: "metnini .txt olarak ekleyebilir veya yapıştırabilirsin", readable: false, hint: "pdf" };
+  if (archive.includes(ext)) return { label: "ArÃ…Å¸iv", action: "iÃƒÂ§eriÃ„Å¸i ÃƒÂ§Ã„Â±karÃ„Â±p ÃƒÂ¶nemli dosyalarÃ„Â± ekle", readable: false, hint: "archive" };
+  if (image.includes(ext)) return { label: "GÃƒÂ¶rsel", action: "gÃƒÂ¶rsel anlama (vision) modeli gerekir", readable: false, hint: "image" };
+  if (ext === "pdf") return { label: "PDF", action: "metnini .txt olarak ekleyebilir veya yapÃ„Â±Ã…Å¸tÃ„Â±rabilirsin", readable: false, hint: "pdf" };
   return { label: ext ? ext.toUpperCase() : "Dosya", expert: "genel", action: "metin olarak inceleme", readable: true };
 }
 
@@ -1058,12 +1073,12 @@ function renderAttachChip() {
   if (!chip) return;
   if (!attachedFile) { chip.hidden = true; chip.innerHTML = ""; return; }
   chip.hidden = false;
-  const tag = attachedFile.kind ? ` · ${escapeHtml(attachedFile.kind.label)}` : "";
-  chip.innerHTML = `<span>📎 ${escapeHtml(attachedFile.name)}${tag}</span>`;
+  const tag = attachedFile.kind ? ` Ã‚Â· ${escapeHtml(attachedFile.kind.label)}` : "";
+  chip.innerHTML = `<span>ÄŸÅ¸â€œÂ ${escapeHtml(attachedFile.name)}${tag}</span>`;
   const x = document.createElement("button");
   x.type = "button";
-  x.textContent = "×";
-  x.title = "Eki kaldır";
+  x.textContent = "Ãƒâ€”";
+  x.title = "Eki kaldÃ„Â±r";
   x.addEventListener("click", () => { attachedFile = null; renderAttachChip(); });
   chip.appendChild(x);
 }
@@ -1075,29 +1090,29 @@ function renderAttachChip() {
   btn.addEventListener("click", () => input.click());
   input.addEventListener("change", () => {
     const file = input.files && input.files[0];
-    input.value = ""; // aynı dosya tekrar seçilebilsin
+    input.value = ""; // aynÃ„Â± dosya tekrar seÃƒÂ§ilebilsin
     if (!file) return;
     const kind = detectFileKind(file.name);
 
-    // Metin olmayan türler: okuma yerine doğru aracı öner
+    // Metin olmayan tÃƒÂ¼rler: okuma yerine doÃ„Å¸ru aracÃ„Â± ÃƒÂ¶ner
     if (!kind.readable) {
       attachedFile = null;
       renderAttachChip();
       const msg = {
-        archive: `${file.name}: arşiv dosyası. İçeriği çıkarıp önemli dosyaları tek tek ekleyebilirsin (tam proje/arşiv okuma yakında).`,
-        image: `${file.name}: görsel. Görsel anlama için bir vision modeli gerekiyor (örn. llava) — yakında.`,
-        pdf: `${file.name}: PDF. Metnini .txt olarak kaydedip ekleyebilir ya da yapıştırabilirsin.`,
-      }[kind.hint] || `${file.name}: bu tür metin olarak okunamıyor.`;
+        archive: `${file.name}: arÃ…Å¸iv dosyasÃ„Â±. Ã„Â°ÃƒÂ§eriÃ„Å¸i ÃƒÂ§Ã„Â±karÃ„Â±p ÃƒÂ¶nemli dosyalarÃ„Â± tek tek ekleyebilirsin (tam proje/arÃ…Å¸iv okuma yakÃ„Â±nda).`,
+        image: `${file.name}: gÃƒÂ¶rsel. GÃƒÂ¶rsel anlama iÃƒÂ§in bir vision modeli gerekiyor (ÃƒÂ¶rn. llava) Ã¢â‚¬â€ yakÃ„Â±nda.`,
+        pdf: `${file.name}: PDF. Metnini .txt olarak kaydedip ekleyebilir ya da yapÃ„Â±Ã…Å¸tÃ„Â±rabilirsin.`,
+      }[kind.hint] || `${file.name}: bu tÃƒÂ¼r metin olarak okunamÃ„Â±yor.`;
       setTransientStatus(msg);
       return;
     }
 
     if (file.size > ATTACH_MAX_BYTES) {
-      setTransientStatus("Dosya 500 MB sınırını aşıyor.");
+      setTransientStatus("Dosya 500 MB sÃ„Â±nÃ„Â±rÃ„Â±nÃ„Â± aÃ…Å¸Ã„Â±yor.");
       return;
     }
 
-    // Büyük dosyalarda belleği şişirmeden yalnızca baştan bir dilim oku
+    // BÃƒÂ¼yÃƒÂ¼k dosyalarda belleÃ„Å¸i Ã…Å¸iÃ…Å¸irmeden yalnÃ„Â±zca baÃ…Å¸tan bir dilim oku
     const slice = file.size > ATTACH_READ_BYTES ? file.slice(0, ATTACH_READ_BYTES) : file;
     const reader = new FileReader();
     reader.onload = () => {
@@ -1105,14 +1120,14 @@ function renderAttachChip() {
       let note = "";
       if (file.size > ATTACH_READ_BYTES || text.length > ATTACH_MAX_CHARS) {
         text = text.slice(0, ATTACH_MAX_CHARS);
-        note = " (baş kısmı)";
+        note = " (baÃ…Å¸ kÃ„Â±smÃ„Â±)";
       }
       attachedFile = { name: file.name + note, text, kind };
       renderAttachChip();
-      const sug = kind.expert && kind.expert !== "genel" ? ` Öneri: Uzman Modu'nu "${kind.expert}" yapabilirsin.` : "";
-      setTransientStatus(`Ek hazır: ${kind.label}${note} — ${kind.action}.${sug}`);
+      const sug = kind.expert && kind.expert !== "genel" ? ` Ãƒâ€“neri: Uzman Modu'nu "${kind.expert}" yapabilirsin.` : "";
+      setTransientStatus(`Ek hazÃ„Â±r: ${kind.label}${note} Ã¢â‚¬â€ ${kind.action}.${sug}`);
     };
-    reader.onerror = () => setTransientStatus("Dosya okunamadı (metin tabanlı bir dosya seç).");
+    reader.onerror = () => setTransientStatus("Dosya okunamadÃ„Â± (metin tabanlÃ„Â± bir dosya seÃƒÂ§).");
     reader.readAsText(slice);
   });
 })();
@@ -1122,21 +1137,21 @@ async function regenerateLast() {
   const chat = currentChat();
   const msgs = chat.messages;
   if (!msgs.length || msgs[msgs.length - 1].role !== "assistant") return;
-  // Son kullanıcı mesajını bul
+  // Son kullanÃ„Â±cÃ„Â± mesajÃ„Â±nÃ„Â± bul
   let userText = "";
   for (let i = msgs.length - 2; i >= 0; i--) {
     if (msgs[i].role === "user") { userText = msgs[i].text; break; }
   }
   if (!userText) return;
-  // "📎 dosya" notunu temizle (yeniden üretimde dosya bağlamı yeniden eklenmez)
-  userText = userText.replace(/\n+📎 .*$/s, "").trim();
+  // "ÄŸÅ¸â€œÂ dosya" notunu temizle (yeniden ÃƒÂ¼retimde dosya baÃ„Å¸lamÃ„Â± yeniden eklenmez)
+  userText = userText.replace(/\n+ÄŸÅ¸â€œÂ .*$/s, "").trim();
   if (!userText) return;
 
   isSending = true;
   setSendingUi(true);
-  stickToBottom = true; // yeniden üretim: en alta in
-  msgs.pop(); // eski asistan cevabını kaldır
-  appendMessage("assistant", "Düşünüyorum...");
+  stickToBottom = true; // yeniden ÃƒÂ¼retim: en alta in
+  msgs.pop(); // eski asistan cevabÃ„Â±nÃ„Â± kaldÃ„Â±r
+  appendMessage("assistant", "DÃƒÂ¼Ã…Å¸ÃƒÂ¼nÃƒÂ¼yorum...");
   const placeholder = msgs[msgs.length - 1];
 
   const streamView = createStreamView(placeholder);
@@ -1192,16 +1207,16 @@ async function regenerateLast() {
 }
 
 async function handleSubmit() {
-  if (isSending) return; // önceki cevap dönmeden yeni istek gönderme
+  if (isSending) return; // ÃƒÂ¶nceki cevap dÃƒÂ¶nmeden yeni istek gÃƒÂ¶nderme
   const text = els.input.value.trim();
   if (!text) return;
   isSending = true;
 
-  // Ek dosya varsa: ekranda kullanıcı metni + ek rozeti; modele dosya bağlamı eklenmiş metin
+  // Ek dosya varsa: ekranda kullanÃ„Â±cÃ„Â± metni + ek rozeti; modele dosya baÃ„Å¸lamÃ„Â± eklenmiÃ…Å¸ metin
   const att = attachedFile;
-  const displayText = att ? `${text}\n\n📎 ${att.name}` : text;
+  const displayText = att ? `${text}\n\nÄŸÅ¸â€œÂ ${att.name}` : text;
   const sendText = att
-    ? `Kullanıcı bir dosya ekledi: "${att.name}"\n\n--- DOSYA İÇERİĞİ ---\n${att.text}\n--- DOSYA SONU ---\n\nKullanıcının isteği: ${text}`
+    ? `KullanÃ„Â±cÃ„Â± bir dosya ekledi: "${att.name}"\n\n--- DOSYA Ã„Â°Ãƒâ€¡ERÃ„Â°Ã„ÂÃ„Â° ---\n${att.text}\n--- DOSYA SONU ---\n\nKullanÃ„Â±cÃ„Â±nÃ„Â±n isteÃ„Å¸i: ${text}`
     : text;
   attachedFile = null;
   renderAttachChip();
@@ -1212,11 +1227,11 @@ async function handleSubmit() {
   checkUpdatesAfterFirstQuery();
   els.input.value = "";
   els.input.style.height = "auto";
-  appendMessage("assistant", "Düşünüyorum...");
+  appendMessage("assistant", "DÃƒÂ¼Ã…Å¸ÃƒÂ¼nÃƒÂ¼yorum...");
 
   const chat = currentChat();
   const placeholder = chat.messages[chat.messages.length - 1];
-  // Streaming: token geldikçe placeholder'ı canlı güncelle (akış kapalıysa hiç gelmez)
+  // Streaming: token geldikÃƒÂ§e placeholder'Ã„Â± canlÃ„Â± gÃƒÂ¼ncelle (akÃ„Â±Ã…Å¸ kapalÃ„Â±ysa hiÃƒÂ§ gelmez)
   const streamView = createStreamView(placeholder);
   const offStatus = window.codega.onChatStatus((status) => {
     setChatWorkingStatus(status);
@@ -1269,7 +1284,7 @@ async function handleSubmit() {
     isSending = false;
     setSendingUi(false);
   }
-  saveChats(); // final cevabı diske yaz; yoksa kapatıp açınca "Düşünüyorum..." kalıyordu
+  saveChats(); // final cevabÃ„Â± diske yaz; yoksa kapatÃ„Â±p aÃƒÂ§Ã„Â±nca "DÃƒÂ¼Ã…Å¸ÃƒÂ¼nÃƒÂ¼yorum..." kalÃ„Â±yordu
   renderConversation();
   scrollConversationToBottom();
 }
@@ -1285,8 +1300,8 @@ els.input.addEventListener("input", () => {
 });
 
 els.input.addEventListener("keydown", (event) => {
-  // Enter = gönder (Shift+Enter = yeni satır). Mac dahil tüm platformlarda
-  // çalışsın diye requestSubmit yerine doğrudan handleSubmit çağrılır.
+  // Enter = gÃƒÂ¶nder (Shift+Enter = yeni satÃ„Â±r). Mac dahil tÃƒÂ¼m platformlarda
+  // ÃƒÂ§alÃ„Â±Ã…Å¸sÃ„Â±n diye requestSubmit yerine doÃ„Å¸rudan handleSubmit ÃƒÂ§aÃ„Å¸rÃ„Â±lÃ„Â±r.
   const isEnter = event.key === "Enter" || event.keyCode === 13;
   if (isEnter && !event.shiftKey && !event.isComposing && event.keyCode !== 229) {
     event.preventDefault();
@@ -1296,7 +1311,7 @@ els.input.addEventListener("keydown", (event) => {
 
 document.getElementById("new-chat").addEventListener("click", () => createChat());
 
-// Kaydırma: kullanıcı yukarı kayarsa "dibe yapış" kapanır ve buton görünür; dibe inince geri açılır.
+// KaydÃ„Â±rma: kullanÃ„Â±cÃ„Â± yukarÃ„Â± kayarsa "dibe yapÃ„Â±Ã…Å¸" kapanÃ„Â±r ve buton gÃƒÂ¶rÃƒÂ¼nÃƒÂ¼r; dibe inince geri aÃƒÂ§Ã„Â±lÃ„Â±r.
 function _onScrollActivity() {
   stickToBottom = _isNearBottom();
   updateScrollButton();
@@ -1310,11 +1325,11 @@ if (els.scrollBottomBtn) els.scrollBottomBtn.addEventListener("click", () => {
 });
 if (els.historySearch) els.historySearch.addEventListener("input", () => { historyQuery = els.historySearch.value; renderHistory(); });
 let _metricsTimer = null;
-let _kickWatchdog = null; // akışta her gerçek token geldiğinde idle watchdog'u sıfırlar
+let _kickWatchdog = null; // akÃ„Â±Ã…Å¸ta her gerÃƒÂ§ek token geldiÃ„Å¸inde idle watchdog'u sÃ„Â±fÃ„Â±rlar
 
-// İki katmanlı koruma: cevap tokenları ile motorun ilerleme/heartbeat sinyalleri idle
-// sayacını sıfırlar. hardMs ise takılan bir işi her durumda sonlandıran kesin üst sınırdır.
-function sendMessageWithWatchdog(text, options = {}, idleMs = 30000, hardMs = 30000) {
+// Ã„Â°ki katmanlÃ„Â± koruma: cevap tokenlarÃ„Â± ile motorun ilerleme/heartbeat sinyalleri idle
+// sayacÃ„Â±nÃ„Â± sÃ„Â±fÃ„Â±rlar. hardMs ise takÃ„Â±lan bir iÃ…Å¸i her durumda sonlandÃ„Â±ran kesin ÃƒÂ¼st sÃ„Â±nÃ„Â±rdÃ„Â±r.
+function sendMessageWithWatchdog(text, options = {}, idleMs = 90000, hardMs = 180000) {
   let timer = null;
   let hardTimer = null;
   let rejectFn = null;
@@ -1328,13 +1343,13 @@ function sendMessageWithWatchdog(text, options = {}, idleMs = 30000, hardMs = 30
   const arm = () => {
     if (timer) window.clearTimeout(timer);
     timer = window.setTimeout(() => stopAndReject(
-      "Model uzun süre gerçek bir yanıt üretmedi; işlem durduruldu. Daha hafif bir model seçip tekrar deneyebilirsin."
+      "Model uzun sÃƒÂ¼re yanÃ„Â±t ÃƒÂ¼retmedi; iÃ…Å¸lem gÃƒÂ¼venli Ã…Å¸ekilde durduruldu. Daha hafif bir model seÃƒÂ§ip tekrar deneyebilirsin."
     ), idleMs);
   };
   const timeout = new Promise((_, reject) => { rejectFn = reject; });
   arm();
   hardTimer = window.setTimeout(() => stopAndReject(
-    `Yanıt ${Math.round(hardMs / 1000)} saniyelik üst süreyi aştı ve durduruldu. Modeli veya ağı kontrol edip tekrar deneyebilirsin.`
+    `YanÃ„Â±t ${Math.round(hardMs / 1000)} saniyelik ÃƒÂ¼st sÃƒÂ¼reyi aÃ…Å¸tÃ„Â± ve durduruldu. Modeli veya aÃ„Å¸Ã„Â± kontrol edip tekrar deneyebilirsin.`
   ), hardMs);
   _kickWatchdog = arm;
   return Promise.race([
@@ -1351,8 +1366,8 @@ function sendMessageWithWatchdog(text, options = {}, idleMs = 30000, hardMs = 30
 function _fillUsage(prefix, m) {
   const setV = (id, t) => { const e = document.getElementById(id); if (e) e.textContent = t; };
   const setB = (id, p) => { const e = document.getElementById(id); if (e) e.style.width = (p == null ? 0 : p) + "%"; };
-  setV(`${prefix}-cpu-v`, m.cpu == null ? "—" : "%" + m.cpu); setB(`${prefix}-cpu-b`, m.cpu);
-  setV(`${prefix}-ram-v`, m.ram == null ? "—" : "%" + m.ram); setB(`${prefix}-ram-b`, m.ram);
+  setV(`${prefix}-cpu-v`, m.cpu == null ? "Ã¢â‚¬â€" : "%" + m.cpu); setB(`${prefix}-cpu-b`, m.cpu);
+  setV(`${prefix}-ram-v`, m.ram == null ? "Ã¢â‚¬â€" : "%" + m.ram); setB(`${prefix}-ram-b`, m.ram);
   setV(`${prefix}-gpu-v`, m.gpu == null ? "GPU yok" : "%" + m.gpu); setB(`${prefix}-gpu-b`, m.gpu || 0);
 }
 async function refreshLiveMetrics() {
@@ -1362,8 +1377,8 @@ async function refreshLiveMetrics() {
     _fillUsage("ov", m);
     _fillUsage("sys", m);
     const badge = document.getElementById("ov-usage-badge");
-    if (badge) badge.hidden = true; // gerçek ölçüm; "Demo" rozeti gizlenir
-  } catch (_e) { /* metrik hatası paneli bozmasın */ }
+    if (badge) badge.hidden = true; // gerÃƒÂ§ek ÃƒÂ¶lÃƒÂ§ÃƒÂ¼m; "Demo" rozeti gizlenir
+  } catch (_e) { /* metrik hatasÃ„Â± paneli bozmasÃ„Â±n */ }
 }
 function startLiveMetrics() {
   refreshLiveMetrics();
@@ -1383,9 +1398,9 @@ async function refreshLiveStats() {
     setV("ov-today", String(s.today || 0));
     setV("ov-tokens", fmt(s.tokensToday || 0));
     setV("ov-avg", (s.avgSeconds || 0) + " sn");
-    setV("ov-model", s.topModel || "—");
-    setV("ov-agent", s.topAgent || "—");
-  } catch (_e) { /* istatistik hatası paneli bozmasın */ }
+    setV("ov-model", s.topModel || "Ã¢â‚¬â€");
+    setV("ov-agent", s.topAgent || "Ã¢â‚¬â€");
+  } catch (_e) { /* istatistik hatasÃ„Â± paneli bozmasÃ„Â±n */ }
 }
 if (els.settings) els.settings.addEventListener("close", stopLiveMetrics);
 
@@ -1395,7 +1410,7 @@ async function refreshLogs() {
   try {
     const items = await window.codega.getLogs();
     box.innerHTML = "";
-    if (!items || !items.length) { box.innerHTML = '<p class="log-empty">Henüz kayıt yok.</p>'; return; }
+    if (!items || !items.length) { box.innerHTML = '<p class="log-empty">HenÃƒÂ¼z kayÃ„Â±t yok.</p>'; return; }
     for (const it of items) {
       const row = document.createElement("div");
       row.className = "log-item log-" + (it.level || "info");
@@ -1421,14 +1436,14 @@ async function refreshRouter() {
     for (const row of (r && r.rows) || []) {
       const div = document.createElement("div");
       div.className = "settings-row";
-      const pref = (row.preferred || []).join(" → ");
-      div.innerHTML = `<div><strong>${row.label}</strong><p>Tercih: ${pref.replace(/</g,"&lt;")}</p></div><span class="badge-active">${(row.chosen||"—").replace(/</g,"&lt;")}</span>`;
+      const pref = (row.preferred || []).join(" Ã¢â€ â€™ ");
+      div.innerHTML = `<div><strong>${row.label}</strong><p>Tercih: ${pref.replace(/</g,"&lt;")}</p></div><span class="badge-active">${(row.chosen||"Ã¢â‚¬â€").replace(/</g,"&lt;")}</span>`;
       box.appendChild(div);
     }
     const inst = document.getElementById("router-installed");
     if (inst) {
       const list = (r && r.installed) || [];
-      inst.textContent = list.length ? `Kurulu modeller: ${list.join(", ")}` : "Kurulu model yok (Ollama kapalı veya model indirilmemiş). Seçilenler tercih listesinin ilk sırasıdır.";
+      inst.textContent = list.length ? `Kurulu modeller: ${list.join(", ")}` : "Kurulu model yok (Ollama kapalÃ„Â± veya model indirilmemiÃ…Å¸). SeÃƒÂ§ilenler tercih listesinin ilk sÃ„Â±rasÃ„Â±dÃ„Â±r.";
     }
   } catch (_e) {}
 }
@@ -1436,12 +1451,12 @@ const routerTestBtn = document.getElementById("router-test-btn");
 if (routerTestBtn) routerTestBtn.addEventListener("click", async () => {
   const input = (document.getElementById("router-test-input") || {}).value || "";
   const out = document.getElementById("router-test-out");
-  if (!input.trim()) { setTransientStatus("Önce bir örnek yaz."); return; }
-  if (out) { out.hidden = false; out.textContent = "Hesaplanıyor…"; }
+  if (!input.trim()) { setTransientStatus("Ãƒâ€“nce bir ÃƒÂ¶rnek yaz."); return; }
+  if (out) { out.hidden = false; out.textContent = "HesaplanÃ„Â±yorÃ¢â‚¬Â¦"; }
   try {
     const r = await window.codega.routerTest({ input });
-    const taskTr = { code: "Kod/Yazılım", image: "Görsel", writing: "Yazı/İçerik", chat: "Sohbet" }[r.task] || r.task;
-    if (out) out.textContent = `Görev: ${taskTr}\nSeçilen model: ${r.chosen}\nAdaylar: ${(r.candidates||[]).join(", ")}`;
+    const taskTr = { code: "Kod/YazÃ„Â±lÃ„Â±m", image: "GÃƒÂ¶rsel", writing: "YazÃ„Â±/Ã„Â°ÃƒÂ§erik", chat: "Sohbet" }[r.task] || r.task;
+    if (out) out.textContent = `GÃƒÂ¶rev: ${taskTr}\nSeÃƒÂ§ilen model: ${r.chosen}\nAdaylar: ${(r.candidates||[]).join(", ")}`;
   } catch (e) { if (out) out.textContent = "Hata: " + (e.message || e); }
 });
 
@@ -1456,17 +1471,17 @@ async function refreshModelsPage() {
     if (inst) {
       inst.innerHTML = "";
       const installedOpts = options.filter((o) => o.installed);
-      if (!installedOpts.length) { inst.innerHTML = '<p class="log-empty">Kurulu yerel model yok (Ollama kapalı veya henüz indirilmedi).</p>'; }
+      if (!installedOpts.length) { inst.innerHTML = '<p class="log-empty">Kurulu yerel model yok (Ollama kapalÃ„Â± veya henÃƒÂ¼z indirilmedi).</p>'; }
       for (const o of installedOpts) {
         const row = document.createElement("div");
         row.className = "settings-row";
-        const sz = o.sizeGb ? ` · ~${o.sizeGb} GB` : "";
+        const sz = o.sizeGb ? ` Ã‚Â· ~${o.sizeGb} GB` : "";
         row.innerHTML = `<div><strong>${(o.label||o.id).replace(/</g,"&lt;")}</strong><p>${o.id}${sz}</p></div>`;
         const del = document.createElement("button");
         del.type = "button"; del.textContent = "Sil";
         del.addEventListener("click", async () => {
           if (!window.confirm(`${o.id} silinsin mi?`)) return;
-          del.disabled = true; setTransientStatus(`${o.id} siliniyor…`);
+          del.disabled = true; setTransientStatus(`${o.id} siliniyorÃ¢â‚¬Â¦`);
           try { const r = await window.codega.deleteModel({ id: o.id }); setTransientStatus(r && r.ok ? `${o.id} silindi.` : "Silinemedi."); refreshModelsPage(); }
           catch (e) { setTransientStatus("Hata: " + (e.message||e)); del.disabled = false; }
         });
@@ -1480,10 +1495,10 @@ async function refreshModelsPage() {
       for (const o of notInstalled) {
         const row = document.createElement("div");
         row.className = "settings-row";
-        const sz = o.sizeGb ? ` · ~${o.sizeGb} GB` : "";
-        row.innerHTML = `<div><strong>${(o.label||o.id).replace(/</g,"&lt;")}</strong><p>${(o.description||"").replace(/</g,"&lt;")} · ${o.id}${sz}</p></div>`;
+        const sz = o.sizeGb ? ` Ã‚Â· ~${o.sizeGb} GB` : "";
+        row.innerHTML = `<div><strong>${(o.label||o.id).replace(/</g,"&lt;")}</strong><p>${(o.description||"").replace(/</g,"&lt;")} Ã‚Â· ${o.id}${sz}</p></div>`;
         const dl = document.createElement("button");
-        dl.type = "button"; dl.textContent = "İndir";
+        dl.type = "button"; dl.textContent = "Ã„Â°ndir";
         dl.addEventListener("click", async () => {
           dl.disabled = true;
           try { await runModelSetup(o.id, o.label || o.id); }
@@ -1509,7 +1524,7 @@ async function refreshModelsPageCompact() {
   const defaultModel = options.some((model) => model.installed && model.id === configuredDefault)
     ? configuredDefault
     : (data && data.status && data.status.model) || "";
-  const taskLabels = { chat: "Sohbet", code: "Kod", writing: "Yazı", image: "Görsel" };
+  const taskLabels = { chat: "Sohbet", code: "Kod", writing: "YazÃ„Â±", image: "GÃƒÂ¶rsel" };
 
   const createCard = (model, installed) => {
     const active = installed && model.id === defaultModel;
@@ -1531,14 +1546,14 @@ async function refreshModelsPageCompact() {
     controls.className = "model-manager-card__controls";
     const status = document.createElement("span");
     status.className = `model-state ${active ? "active" : installed ? "passive" : "missing"}`;
-    status.textContent = active ? "Aktif" : installed ? "Pasif" : "Yüklü değil";
+    status.textContent = active ? "Aktif" : installed ? "Pasif" : "YÃƒÂ¼klÃƒÂ¼ deÃ„Å¸il";
     controls.appendChild(status);
 
     if (installed && !active) {
       const activate = document.createElement("button");
       activate.type = "button";
       activate.className = "model-action primary";
-      activate.textContent = "Varsayılan Yap";
+      activate.textContent = "VarsayÃ„Â±lan Yap";
       activate.addEventListener("click", async () => {
         activate.disabled = true;
         await setDefaultModel(model.id, model.label || model.id);
@@ -1554,12 +1569,12 @@ async function refreshModelsPageCompact() {
       remove.textContent = "Sil";
       remove.disabled = active;
       remove.title = active
-        ? "Aktif modeli silmeden önce başka bir modeli varsayılan yap."
+        ? "Aktif modeli silmeden ÃƒÂ¶nce baÃ…Å¸ka bir modeli varsayÃ„Â±lan yap."
         : "Modeli cihazdan sil";
       remove.addEventListener("click", async () => {
         if (!window.confirm(`${model.id} silinsin mi?`)) return;
         remove.disabled = true;
-        setTransientStatus(`${model.id} siliniyor…`);
+        setTransientStatus(`${model.id} siliniyorÃ¢â‚¬Â¦`);
         try {
           const result = await window.codega.deleteModel({ id: model.id });
           setTransientStatus(result && result.ok ? `${model.id} silindi.` : "Model silinemedi.");
@@ -1575,7 +1590,7 @@ async function refreshModelsPageCompact() {
       const download = document.createElement("button");
       download.type = "button";
       download.className = "model-action primary";
-      download.textContent = "İndir";
+      download.textContent = "Ã„Â°ndir";
       download.addEventListener("click", async () => {
         download.disabled = true;
         try {
@@ -1615,7 +1630,7 @@ async function refreshModelsPageCompact() {
         String(a.label || a.id).localeCompare(String(b.label || b.id), "tr")
       );
     if (!installed.length) {
-      installedBox.innerHTML = '<p class="log-empty">Kurulu yerel model yok. İndirilebilir modellerden birini seçebilirsin.</p>';
+      installedBox.innerHTML = '<p class="log-empty">Kurulu yerel model yok. Ã„Â°ndirilebilir modellerden birini seÃƒÂ§ebilirsin.</p>';
     } else {
       installed.forEach((model) => installedBox.appendChild(createCard(model, true)));
     }
@@ -1656,12 +1671,12 @@ function simplifyModelsLayout() {
     heading.appendChild(button);
   };
 
-  addCollapseButton(document.getElementById("models-available")?.closest(".settings-section"), "Modelleri Göster");
-  addCollapseButton(document.querySelector(".model-update-center"), "Güncellemeleri Göster");
+  addCollapseButton(document.getElementById("models-available")?.closest(".settings-section"), "Modelleri GÃƒÂ¶ster");
+  addCollapseButton(document.querySelector(".model-update-center"), "GÃƒÂ¼ncellemeleri GÃƒÂ¶ster");
 
   for (const section of group.querySelectorAll(".settings-section")) {
     const heading = section.querySelector("h2");
-    if (heading && heading.textContent.toLocaleLowerCase("tr").includes("sağlayıcı")) {
+    if (heading && heading.textContent.toLocaleLowerCase("tr").includes("saÃ„Å¸layÃ„Â±cÃ„Â±")) {
       section.hidden = true;
     }
   }
@@ -1673,7 +1688,7 @@ const modelsRefreshBtn = document.getElementById("models-refresh");
 if (modelsRefreshBtn) modelsRefreshBtn.addEventListener("click", () => refreshModelsPage());
 
 function formatModelUpdateTime(value) {
-  if (!value) return "Henüz kontrol edilmedi";
+  if (!value) return "HenÃƒÂ¼z kontrol edilmedi";
   try {
     return new Intl.DateTimeFormat("tr-TR", {
       dateStyle: "short",
@@ -1692,41 +1707,41 @@ function renderModelUpdates(data) {
   const catalog = status.catalog || {};
   const discoveries = Array.isArray(catalog.discoveries) ? catalog.discoveries : [];
   if (status.checking) {
-    els.modelUpdatesSummary.textContent = "Resmi Ollama manifestleri kontrol ediliyor…";
+    els.modelUpdatesSummary.textContent = "Resmi Ollama manifestleri kontrol ediliyorÃ¢â‚¬Â¦";
   } else if (status.error) {
     els.modelUpdatesSummary.textContent = catalog.sources?.length
-      ? `Ollama kontrolü tamamlanamadı; resmi model radarı çalışıyor · ${status.error}`
-      : `Kontrol tamamlanamadı: ${status.error}`;
+      ? `Ollama kontrolÃƒÂ¼ tamamlanamadÃ„Â±; resmi model radarÃ„Â± ÃƒÂ§alÃ„Â±Ã…Å¸Ã„Â±yor Ã‚Â· ${status.error}`
+      : `Kontrol tamamlanamadÃ„Â±: ${status.error}`;
   } else if (!status.lastCheck) {
-    els.modelUpdatesSummary.textContent = "Henüz kontrol edilmedi.";
+    els.modelUpdatesSummary.textContent = "HenÃƒÂ¼z kontrol edilmedi.";
   } else if (updates.length) {
-    els.modelUpdatesSummary.textContent = `${updates.length} model güncellemesi hazır · Son kontrol: ${formatModelUpdateTime(status.lastCheck)}`;
+    els.modelUpdatesSummary.textContent = `${updates.length} model gÃƒÂ¼ncellemesi hazÃ„Â±r Ã‚Â· Son kontrol: ${formatModelUpdateTime(status.lastCheck)}`;
   } else if (discoveries.length) {
-    els.modelUpdatesSummary.textContent = `${discoveries.length} yeni model ailesi bulundu · Son kontrol: ${formatModelUpdateTime(status.lastCheck)}`;
+    els.modelUpdatesSummary.textContent = `${discoveries.length} yeni model ailesi bulundu Ã‚Â· Son kontrol: ${formatModelUpdateTime(status.lastCheck)}`;
   } else {
-    els.modelUpdatesSummary.textContent = `Kurulu modeller güncel · Resmi model radarı aktif · Son kontrol: ${formatModelUpdateTime(status.lastCheck)}`;
+    els.modelUpdatesSummary.textContent = `Kurulu modeller gÃƒÂ¼ncel Ã‚Â· Resmi model radarÃ„Â± aktif Ã‚Â· Son kontrol: ${formatModelUpdateTime(status.lastCheck)}`;
   }
 
   els.modelUpdatesList.innerHTML = "";
   if (!models.length && status.lastCheck) {
-    els.modelUpdatesList.innerHTML = '<p class="log-empty">Kurulu Ollama modeli bulunamadı.</p>';
+    els.modelUpdatesList.innerHTML = '<p class="log-empty">Kurulu Ollama modeli bulunamadÃ„Â±.</p>';
     return;
   }
   for (const model of models) {
     const row = document.createElement("div");
     row.className = `settings-row model-update-row${model.updateAvailable ? " update-ready" : ""}`;
     const detail = model.checked
-      ? model.updateAvailable ? "Yeni resmi manifest bulundu" : "Güncel"
-      : "Resmi manifest doğrulanamadı";
+      ? model.updateAvailable ? "Yeni resmi manifest bulundu" : "GÃƒÂ¼ncel"
+      : "Resmi manifest doÃ„Å¸rulanamadÃ„Â±";
     row.innerHTML = `<div><strong>${escapeHtml(model.name)}</strong><p class="update-state">${detail}</p></div>`;
     if (model.updateAvailable) {
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = "Güncelle";
+      button.textContent = "GÃƒÂ¼ncelle";
       button.addEventListener("click", async () => {
         button.disabled = true;
-        if (els.setupTitle) els.setupTitle.textContent = `${model.name} güncelleniyor`;
-        if (els.setupStatus) els.setupStatus.textContent = "Resmi model paketi indiriliyor…";
+        if (els.setupTitle) els.setupTitle.textContent = `${model.name} gÃƒÂ¼ncelleniyor`;
+        if (els.setupStatus) els.setupStatus.textContent = "Resmi model paketi indiriliyorÃ¢â‚¬Â¦";
         if (els.setupBar) {
           els.setupBar.style.width = "0%";
           els.setupBar.classList.add("indeterminate");
@@ -1735,14 +1750,14 @@ function renderModelUpdates(data) {
         try {
           const result = await window.codega.applyModelUpdate(model.name);
           renderModelUpdates(result && result.updates);
-          setTransientStatus(`${model.name} güncellendi.`);
-          if (els.setupStatus) els.setupStatus.textContent = "Model güncellendi.";
+          setTransientStatus(`${model.name} gÃƒÂ¼ncellendi.`);
+          if (els.setupStatus) els.setupStatus.textContent = "Model gÃƒÂ¼ncellendi.";
           if (els.setupBar) {
             els.setupBar.classList.remove("indeterminate");
             els.setupBar.style.width = "100%";
           }
         } catch (error) {
-          setTransientStatus(`Güncelleme başarısız: ${error.message || error}`);
+          setTransientStatus(`GÃƒÂ¼ncelleme baÃ…Å¸arÃ„Â±sÃ„Â±z: ${error.message || error}`);
           if (els.setupStatus) els.setupStatus.textContent = `Hata: ${error.message || error}`;
         } finally {
           button.disabled = false;
@@ -1755,7 +1770,7 @@ function renderModelUpdates(data) {
   for (const source of discoveries) {
     const row = document.createElement("div");
     row.className = "settings-row model-update-row update-ready";
-    row.innerHTML = `<div><strong>${escapeHtml(source.label)}: ${escapeHtml(source.latestGeneration)}</strong><p class="update-state">Yeni resmi model ailesi bulundu; donanım ve Ollama paketi doğrulanmadan otomatik kurulmaz.</p></div>`;
+    row.innerHTML = `<div><strong>${escapeHtml(source.label)}: ${escapeHtml(source.latestGeneration)}</strong><p class="update-state">Yeni resmi model ailesi bulundu; donanÃ„Â±m ve Ollama paketi doÃ„Å¸rulanmadan otomatik kurulmaz.</p></div>`;
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = "Resmi Kaynak";
@@ -1788,17 +1803,17 @@ if (els.modelUpdatesCheck) {
 }
 
 const FIT_BADGE = {
-  gpu: { txt: "✅ GPU — hızlı", cls: "fit-gpu" },
-  "gpu-tight": { txt: "⚠️ GPU — sıkışık", cls: "fit-tight" },
-  cpu: { txt: "🐢 CPU — yavaş", cls: "fit-cpu" },
-  no: { txt: "❌ Yetersiz", cls: "fit-no" },
+  gpu: { txt: "Ã¢Å“â€¦ GPU Ã¢â‚¬â€ hÃ„Â±zlÃ„Â±", cls: "fit-gpu" },
+  "gpu-tight": { txt: "Ã¢Å¡Â Ã¯Â¸Â GPU Ã¢â‚¬â€ sÃ„Â±kÃ„Â±Ã…Å¸Ã„Â±k", cls: "fit-tight" },
+  cpu: { txt: "ÄŸÅ¸ÂÂ¢ CPU Ã¢â‚¬â€ yavaÃ…Å¸", cls: "fit-cpu" },
+  no: { txt: "Ã¢ÂÅ’ Yetersiz", cls: "fit-no" },
 };
-const stars = (q) => "★".repeat(Math.max(0, Math.min(5, Number(q) || 0))) + "☆".repeat(5 - Math.max(0, Math.min(5, Number(q) || 0)));
+const stars = (q) => "Ã¢Ëœâ€¦".repeat(Math.max(0, Math.min(5, Number(q) || 0))) + "Ã¢Ëœâ€ ".repeat(5 - Math.max(0, Math.min(5, Number(q) || 0)));
 
 async function setDefaultModel(id, label) {
   try {
     await window.codega.setSettings({ defaultModel: id });
-    setTransientStatus(`Varsayılan model: ${label || id}`);
+    setTransientStatus(`VarsayÃ„Â±lan model: ${label || id}`);
     refreshCookbook();
   } catch (e) { setTransientStatus("Ayar kaydedilemedi: " + (e.message || e)); }
 }
@@ -1813,28 +1828,28 @@ async function refreshCookbook(manual = false) {
   cookbookScanRunning = true;
   if (cookbookScanBtn) {
     cookbookScanBtn.disabled = true;
-    cookbookScanBtn.textContent = "Taranıyor…";
+    cookbookScanBtn.textContent = "TaranÃ„Â±yorÃ¢â‚¬Â¦";
   }
-  if (manual && hwEl) hwEl.textContent = "CPU, RAM ve NVIDIA VRAM yeniden taranıyor…";
+  if (manual && hwEl) hwEl.textContent = "CPU, RAM ve NVIDIA VRAM yeniden taranÃ„Â±yorÃ¢â‚¬Â¦";
   try {
     const data = await window.codega.cookbookScan();
     const hw = (data && data.hardware) || {};
     if (hwEl) {
       const vram = hw.vramGb != null ? `${hw.vramGb} GB VRAM` : "GPU yok (CPU)";
-      const gpu = hw.gpuName ? ` · ${hw.gpuName}` : "";
+      const gpu = hw.gpuName ? ` Ã‚Â· ${hw.gpuName}` : "";
       const time = hw.scannedAt ? new Date(hw.scannedAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "";
-      hwEl.textContent = `Donanım: ${vram}${gpu} · ${hw.ramGb} GB RAM · ${hw.cores} çekirdek${time ? ` · ${time}` : ""}`;
+      hwEl.textContent = `DonanÃ„Â±m: ${vram}${gpu} Ã‚Â· ${hw.ramGb} GB RAM Ã‚Â· ${hw.cores} ÃƒÂ§ekirdek${time ? ` Ã‚Â· ${time}` : ""}`;
     }
-    if (manual) setTransientStatus("Donanım taraması tamamlandı.");
+    if (manual) setTransientStatus("DonanÃ„Â±m taramasÃ„Â± tamamlandÃ„Â±.");
     if (recoEl) {
       if (data && data.recommended) {
         const r = data.recommended;
         recoEl.hidden = false;
-        recoEl.innerHTML = `<strong>Önerilen: ${(r.label || r.id).replace(/</g, "&lt;")}</strong><p>${(r.reason || "").replace(/</g, "&lt;")}</p>`;
+        recoEl.innerHTML = `<strong>Ãƒâ€“nerilen: ${(r.label || r.id).replace(/</g, "&lt;")}</strong><p>${(r.reason || "").replace(/</g, "&lt;")}</p>`;
         const btn = document.createElement("button");
         btn.type = "button"; btn.className = "primary-btn";
         const recModel = (data.models || []).find((m) => m.id === r.id) || {};
-        btn.textContent = recModel.installed ? "Varsayılan Yap" : "Kur ve Varsayılan Yap";
+        btn.textContent = recModel.installed ? "VarsayÃ„Â±lan Yap" : "Kur ve VarsayÃ„Â±lan Yap";
         btn.addEventListener("click", async () => {
           btn.disabled = true;
           try {
@@ -1852,9 +1867,9 @@ async function refreshCookbook(manual = false) {
         const row = document.createElement("div");
         row.className = "settings-row cookbook-row";
         const sz = m.sizeGb ? `~${m.sizeGb} GB` : "";
-        const flags = [m.isDefault ? "● Varsayılan" : "", m.installed ? "Kurulu" : ""].filter(Boolean).join(" · ");
+        const flags = [m.isDefault ? "Ã¢â€”Â VarsayÃ„Â±lan" : "", m.installed ? "Kurulu" : ""].filter(Boolean).join(" Ã‚Â· ");
         row.innerHTML = `<div><strong>${(m.label || m.id).replace(/</g, "&lt;")}</strong> <span class="fit-badge ${badge.cls}">${badge.txt}</span>`
-          + `<p>${(m.note || m.description || "").replace(/</g, "&lt;")} · ${m.params || ""} · ${sz} · <span title="kalite">${stars(m.quality)}</span>${flags ? " · " + flags : ""}</p></div>`;
+          + `<p>${(m.note || m.description || "").replace(/</g, "&lt;")} Ã‚Â· ${m.params || ""} Ã‚Â· ${sz} Ã‚Â· <span title="kalite">${stars(m.quality)}</span>${flags ? " Ã‚Â· " + flags : ""}</p></div>`;
         const actions = document.createElement("div");
         actions.className = "cookbook-actions";
         if (!m.installed && m.fit !== "no") {
@@ -1865,7 +1880,7 @@ async function refreshCookbook(manual = false) {
         }
         if (m.installed && !m.isDefault) {
           const def = document.createElement("button");
-          def.type = "button"; def.textContent = "Varsayılan Yap";
+          def.type = "button"; def.textContent = "VarsayÃ„Â±lan Yap";
           def.addEventListener("click", () => setDefaultModel(m.id, m.label || m.id));
           actions.appendChild(def);
         }
@@ -1874,13 +1889,13 @@ async function refreshCookbook(manual = false) {
       }
     }
   } catch (e) {
-    if (hwEl) hwEl.textContent = "Donanım taranamadı: " + (e.message || e);
-    if (manual) setTransientStatus("Donanım taraması başarısız: " + (e.message || e));
+    if (hwEl) hwEl.textContent = "DonanÃ„Â±m taranamadÃ„Â±: " + (e.message || e);
+    if (manual) setTransientStatus("DonanÃ„Â±m taramasÃ„Â± baÃ…Å¸arÃ„Â±sÃ„Â±z: " + (e.message || e));
   } finally {
     cookbookScanRunning = false;
     if (cookbookScanBtn) {
       cookbookScanBtn.disabled = false;
-      cookbookScanBtn.textContent = "Donanımı Tara";
+      cookbookScanBtn.textContent = "DonanÃ„Â±mÃ„Â± Tara";
     }
   }
 }
@@ -1896,11 +1911,11 @@ async function refreshAutomations() {
     for (const it of (data && data.items) || []) {
       const row = document.createElement("div");
       row.className = "settings-row";
-      let lastTxt = "Henüz çalışmadı";
+      let lastTxt = "HenÃƒÂ¼z ÃƒÂ§alÃ„Â±Ã…Å¸madÃ„Â±";
       if (it.last && it.last.at) {
         const t = new Date(it.last.at);
         const hh = String(t.getHours()).padStart(2,"0")+":"+String(t.getMinutes()).padStart(2,"0");
-        lastTxt = `Son: ${hh}${it.last.info ? " · " + it.last.info : ""}`;
+        lastTxt = `Son: ${hh}${it.last.info ? " Ã‚Â· " + it.last.info : ""}`;
       }
       row.innerHTML = `<div><strong>${it.label}</strong><p>${(it.desc||"").replace(/</g,"&lt;")}<br><span class="log-time">${lastTxt.replace(/</g,"&lt;")}</span></p></div>`;
       const btn = document.createElement("button");
@@ -1931,30 +1946,30 @@ async function refreshAgentWatch() {
   const findings = document.getElementById("agent-watch-findings");
   if (!summary || !findings) return;
   if (!window.codega || !window.codega.agentWatchStatus) {
-    summary.textContent = "GitHub Agent Watch uygulama bağlantısı bekleniyor.";
+    summary.textContent = "GitHub Agent Watch uygulama baÃ„Å¸lantÃ„Â±sÃ„Â± bekleniyor.";
     return;
   }
   try {
     const data = await window.codega.agentWatchStatus();
-    const last = data.lastScanAt ? new Date(data.lastScanAt).toLocaleString("tr-TR") : "henüz taranmadı";
-    summary.textContent = `${data.healthySources || 0}/${data.sourceCount || 0} kaynak erişilebilir · Son tarama: ${last}`
-      + ` · Resmî ${data.officialSources || 0} · Araştırma ${data.researchSources || 0} · Engelli ${data.blockedSources || 0}`
-      + ((data.errors || []).length ? ` · ${(data.errors || []).length} hata` : "");
+    const last = data.lastScanAt ? new Date(data.lastScanAt).toLocaleString("tr-TR") : "henÃƒÂ¼z taranmadÃ„Â±";
+    summary.textContent = `${data.healthySources || 0}/${data.sourceCount || 0} kaynak eriÃ…Å¸ilebilir Ã‚Â· Son tarama: ${last}`
+      + ` Ã‚Â· ResmÃƒÂ® ${data.officialSources || 0} Ã‚Â· AraÃ…Å¸tÃ„Â±rma ${data.researchSources || 0} Ã‚Â· Engelli ${data.blockedSources || 0}`
+      + ((data.errors || []).length ? ` Ã‚Â· ${(data.errors || []).length} hata` : "");
     findings.innerHTML = "";
     const rows = (data.findings || []).slice(0, 8);
     if (!rows.length) {
-      findings.innerHTML = '<div class="agent-watch-empty">Henüz bulgu yok. İlk tarama kaynakların başlangıç görüntüsünü oluşturur.</div>';
+      findings.innerHTML = '<div class="agent-watch-empty">HenÃƒÂ¼z bulgu yok. Ã„Â°lk tarama kaynaklarÃ„Â±n baÃ…Å¸langÃ„Â±ÃƒÂ§ gÃƒÂ¶rÃƒÂ¼ntÃƒÂ¼sÃƒÂ¼nÃƒÂ¼ oluÃ…Å¸turur.</div>';
       return;
     }
     for (const item of rows) {
       const row = document.createElement("div");
       row.className = "settings-row agent-watch-row";
       const policy = item.policy || {};
-      const policyLabel = policy.label || (policy.mode === "reviewable-reuse" ? "Lisans incelemesiyle kullanılabilir" : "Yalnız araştırma");
+      const policyLabel = policy.label || (policy.mode === "reviewable-reuse" ? "Lisans incelemesiyle kullanÃ„Â±labilir" : "YalnÃ„Â±z araÃ…Å¸tÃ„Â±rma");
       const capabilityText = Array.isArray(item.capabilities) && item.capabilities.length
-        ? `<br><span class="log-time">Yetenek alanları: ${safeText(item.capabilities.join(", "))}</span>`
+        ? `<br><span class="log-time">Yetenek alanlarÃ„Â±: ${safeText(item.capabilities.join(", "))}</span>`
         : "";
-      row.innerHTML = `<div><strong>${safeText(item.title)}</strong><p>${safeText(item.detail)}<br><span class="log-time">${safeText(item.repo)} · ${safeText(policyLabel)}</span>${capabilityText}${policy.reason ? `<br><span class="log-time">${safeText(policy.reason)}</span>` : ""}</p></div>`;
+      row.innerHTML = `<div><strong>${safeText(item.title)}</strong><p>${safeText(item.detail)}<br><span class="log-time">${safeText(item.repo)} Ã‚Â· ${safeText(policyLabel)}</span>${capabilityText}${policy.reason ? `<br><span class="log-time">${safeText(policy.reason)}</span>` : ""}</p></div>`;
       if (item.url) {
         const open = document.createElement("button");
         open.type = "button";
@@ -1965,25 +1980,25 @@ async function refreshAgentWatch() {
       findings.appendChild(row);
     }
   } catch (e) {
-    summary.textContent = "GitHub Agent Watch okunamadı: " + (e.message || e);
+    summary.textContent = "GitHub Agent Watch okunamadÃ„Â±: " + (e.message || e);
   }
 }
 
 const agentWatchRunBtn = document.getElementById("agent-watch-run");
 if (agentWatchRunBtn) agentWatchRunBtn.addEventListener("click", async () => {
   agentWatchRunBtn.disabled = true;
-  agentWatchRunBtn.textContent = "Taranıyor…";
-  setTransientStatus("GitHub ajan depoları taranıyor…");
+  agentWatchRunBtn.textContent = "TaranÃ„Â±yorÃ¢â‚¬Â¦";
+  setTransientStatus("GitHub ajan depolarÃ„Â± taranÃ„Â±yorÃ¢â‚¬Â¦");
   try {
     const result = await window.codega.runAgentWatch();
-    setTransientStatus(`Agent Watch tamamlandı: ${result.healthySources}/${result.sourceCount} kaynak, ${result.newCount} yeni bulgu.`);
+    setTransientStatus(`Agent Watch tamamlandÃ„Â±: ${result.healthySources}/${result.sourceCount} kaynak, ${result.newCount} yeni bulgu.`);
     await refreshAgentWatch();
     await refreshAutomations();
   } catch (e) {
-    setTransientStatus("Agent Watch hatası: " + (e.message || e));
+    setTransientStatus("Agent Watch hatasÃ„Â±: " + (e.message || e));
   } finally {
     agentWatchRunBtn.disabled = false;
-    agentWatchRunBtn.textContent = "Şimdi Tara";
+    agentWatchRunBtn.textContent = "Ã…Âimdi Tara";
   }
 });
 
@@ -1998,7 +2013,7 @@ async function refreshSecurity() {
       for (const c of (data && data.credentials) || []) {
         const row = document.createElement("div");
         row.className = "settings-row";
-        const badge = c.present ? `<span class="badge-active">Var ${c.hint ? "· " + c.hint : ""}</span>` : `<span class="badge-plan">Yok</span>`;
+        const badge = c.present ? `<span class="badge-active">Var ${c.hint ? "Ã‚Â· " + c.hint : ""}</span>` : `<span class="badge-plan">Yok</span>`;
         row.innerHTML = `<div><strong>${c.key.replace(/</g,"&lt;")}</strong><p>${(c.note||"").replace(/</g,"&lt;")}</p></div>${badge}`;
         creds.appendChild(row);
       }
@@ -2008,7 +2023,7 @@ async function refreshSecurity() {
       for (const pm of (data && data.permissions) || []) {
         const row = document.createElement("div");
         row.className = "settings-row";
-        const badge = pm.enabled ? `<span class="badge-active">Açık</span>` : `<span class="badge-plan">Kapalı</span>`;
+        const badge = pm.enabled ? `<span class="badge-active">AÃƒÂ§Ã„Â±k</span>` : `<span class="badge-plan">KapalÃ„Â±</span>`;
         row.innerHTML = `<div><strong>${pm.key.replace(/</g,"&lt;")}</strong><p>${(pm.note||"").replace(/</g,"&lt;")}</p></div>${badge}`;
         perms.appendChild(row);
       }
@@ -2036,16 +2051,16 @@ function renderRuntimePolicy(runtime) {
   if (list) {
     list.innerHTML = "";
     const folders = Array.isArray(data.trustedFolders) ? data.trustedFolders : [];
-    if (!folders.length) list.innerHTML = '<p class="log-empty">Henüz güvenilen çalışma alanı yok.</p>';
+    if (!folders.length) list.innerHTML = '<p class="log-empty">HenÃƒÂ¼z gÃƒÂ¼venilen ÃƒÂ§alÃ„Â±Ã…Å¸ma alanÃ„Â± yok.</p>';
     for (const folder of folders) {
       const row = document.createElement("div");
       row.className = "settings-row";
       const text = document.createElement("div");
-      text.innerHTML = `<strong>Çalışma alanı</strong><p>${safeText(folder)}</p>`;
+      text.innerHTML = `<strong>Ãƒâ€¡alÃ„Â±Ã…Å¸ma alanÃ„Â±</strong><p>${safeText(folder)}</p>`;
       const remove = document.createElement("button");
       remove.type = "button";
       remove.className = "mini-btn danger";
-      remove.textContent = "Kaldır";
+      remove.textContent = "KaldÃ„Â±r";
       remove.addEventListener("click", async () => {
         agentSettings = await window.codega.removeTrustedWorkspace(folder);
         await refreshSecurity();
@@ -2076,7 +2091,7 @@ if (saveRuntimePolicyBtn) saveRuntimePolicyBtn.addEventListener("click", async (
       autonomousDevelopment: value("permission-development"),
     },
   });
-  setTransientStatus("Ajan çalışma zamanı politikası kaydedildi.");
+  setTransientStatus("Ajan ÃƒÂ§alÃ„Â±Ã…Å¸ma zamanÃ„Â± politikasÃ„Â± kaydedildi.");
   await refreshSecurity();
 });
 
@@ -2084,9 +2099,9 @@ const devPromptBtn = document.getElementById("dev-prompt-btn");
 if (devPromptBtn) devPromptBtn.addEventListener("click", async () => {
   const input = (document.getElementById("dev-prompt-input") || {}).value || "";
   const out = document.getElementById("dev-prompt-out");
-  if (!input.trim()) { setTransientStatus("Önce bir prompt yaz."); return; }
+  if (!input.trim()) { setTransientStatus("Ãƒâ€“nce bir prompt yaz."); return; }
   devPromptBtn.disabled = true;
-  if (out) { out.hidden = false; out.textContent = "Çalışıyor…"; }
+  if (out) { out.hidden = false; out.textContent = "Ãƒâ€¡alÃ„Â±Ã…Å¸Ã„Â±yorÃ¢â‚¬Â¦"; }
   try {
     const r = await window.codega.devPrompt({ input });
     if (out) out.textContent = r && r.ok ? `[model: ${r.model}]\n${r.text}` : ("Hata: " + ((r && r.message) || "bilinmiyor"));
@@ -2110,26 +2125,26 @@ async function refreshMcpStatus() {
     const on = !!(sset && sset.mcpAutoTools);
     const r1 = document.createElement("div");
     r1.className = "settings-row";
-    r1.innerHTML = `<div><strong>Sunucu</strong><p>${url ? url.replace(/</g,"&lt;") : "Tanımlı değil"}</p></div><span class="${url?'badge-active':'badge-plan'}">${url?'Tanımlı':'Yok'}</span>`;
+    r1.innerHTML = `<div><strong>Sunucu</strong><p>${url ? url.replace(/</g,"&lt;") : "TanÃ„Â±mlÃ„Â± deÃ„Å¸il"}</p></div><span class="${url?'badge-active':'badge-plan'}">${url?'TanÃ„Â±mlÃ„Â±':'Yok'}</span>`;
     box.appendChild(r1);
     const r2 = document.createElement("div");
     r2.className = "settings-row";
-    r2.innerHTML = `<div><strong>Ajana bağlı (otonom kullanım)</strong><p>Açıkken ajan sunucunun araçlarını kendi çağırır.</p></div><span class="${on?'badge-active':'badge-plan'}">${on?'Açık':'Kapalı'}</span>`;
+    r2.innerHTML = `<div><strong>Ajana baÃ„Å¸lÃ„Â± (otonom kullanÃ„Â±m)</strong><p>AÃƒÂ§Ã„Â±kken ajan sunucunun araÃƒÂ§larÃ„Â±nÃ„Â± kendi ÃƒÂ§aÃ„Å¸Ã„Â±rÃ„Â±r.</p></div><span class="${on?'badge-active':'badge-plan'}">${on?'AÃƒÂ§Ã„Â±k':'KapalÃ„Â±'}</span>`;
     box.appendChild(r2);
     const r3 = document.createElement("div");
     r3.className = "settings-row";
     let health = null;
     try { health = await window.codega.mcpHealth(); } catch (_e) {}
     const healthText = !url
-      ? "Sunucu tanımlı değil"
+      ? "Sunucu tanÃ„Â±mlÃ„Â± deÃ„Å¸il"
       : health && health.ok
-        ? `${health.latencyMs || 0} ms · ${health.toolCount || 0} araç`
-        : (health && health.message) || "Bağlantı kurulamadı";
-    r3.innerHTML = `<div><strong>Bağlantı Sağlığı</strong><p>${safeText(healthText)}</p></div><span class="${health && health.ok ? 'badge-active' : 'badge-plan'}">${health && health.ok ? 'Hazır' : 'Kontrol Gerekli'}</span>`;
+        ? `${health.latencyMs || 0} ms Ã‚Â· ${health.toolCount || 0} araÃƒÂ§`
+        : (health && health.message) || "BaÃ„Å¸lantÃ„Â± kurulamadÃ„Â±";
+    r3.innerHTML = `<div><strong>BaÃ„Å¸lantÃ„Â± SaÃ„Å¸lÃ„Â±Ã„Å¸Ã„Â±</strong><p>${safeText(healthText)}</p></div><span class="${health && health.ok ? 'badge-active' : 'badge-plan'}">${health && health.ok ? 'HazÃ„Â±r' : 'Kontrol Gerekli'}</span>`;
     box.appendChild(r3);
     const r4 = document.createElement("div");
     r4.className = "settings-row";
-    r4.innerHTML = `<div><strong>Yapılandırma</strong><p>Sunucu URL, araç listeleme ve manuel çağrı "Hafıza & Bilgi" sekmesindedir.</p></div>`;
+    r4.innerHTML = `<div><strong>YapÃ„Â±landÃ„Â±rma</strong><p>Sunucu URL, araÃƒÂ§ listeleme ve manuel ÃƒÂ§aÃ„Å¸rÃ„Â± "HafÃ„Â±za & Bilgi" sekmesindedir.</p></div>`;
     box.appendChild(r4);
   } catch (_e) {}
 }
@@ -2143,17 +2158,17 @@ async function refreshRag() {
   try {
     if (statsEl) {
       const st = await window.codega.ragStats();
-      statsEl.textContent = st ? `${st.documents} belge · ${st.chunks} parça · ${st.embedded} embedding'li` : "İstatistik yok.";
+      statsEl.textContent = st ? `${st.documents} belge Ã‚Â· ${st.chunks} parÃƒÂ§a Ã‚Â· ${st.embedded} embedding'li` : "Ã„Â°statistik yok.";
     }
     if (docs) {
       const list = await window.codega.ragList();
       docs.innerHTML = "";
-      if (!list || !list.length) { docs.innerHTML = '<p class="log-empty">Henüz belge eklenmedi.</p>'; }
+      if (!list || !list.length) { docs.innerHTML = '<p class="log-empty">HenÃƒÂ¼z belge eklenmedi.</p>'; }
       for (const d of (list || [])) {
         const row = document.createElement("div");
         row.className = "settings-row";
-        const emb = d.embedded ? `${d.embedded}/${d.chunks} embedding` : `${d.chunks} parça (keyword)`;
-        row.innerHTML = `<div><strong>${(d.title||"Doküman").replace(/</g,"&lt;")}</strong><p>${emb}</p></div>`;
+        const emb = d.embedded ? `${d.embedded}/${d.chunks} embedding` : `${d.chunks} parÃƒÂ§a (keyword)`;
+        row.innerHTML = `<div><strong>${(d.title||"DokÃƒÂ¼man").replace(/</g,"&lt;")}</strong><p>${emb}</p></div>`;
         const del = document.createElement("button");
         del.type = "button"; del.textContent = "Sil";
         del.addEventListener("click", async () => {
@@ -2172,11 +2187,11 @@ const ragAddBtn = document.getElementById("rag-add");
 if (ragAddBtn) ragAddBtn.addEventListener("click", async () => {
   const title = (document.getElementById("rag-title")||{}).value || "";
   const text = (document.getElementById("rag-text")||{}).value || "";
-  if (!text.trim()) { setTransientStatus("Metin boş olamaz."); return; }
-  ragAddBtn.disabled = true; setTransientStatus("İndeksleniyor…");
+  if (!text.trim()) { setTransientStatus("Metin boÃ…Å¸ olamaz."); return; }
+  ragAddBtn.disabled = true; setTransientStatus("Ã„Â°ndeksleniyorÃ¢â‚¬Â¦");
   try {
-    const r = await window.codega.ragIngest({ title: title.trim() || "Doküman", text });
-    setTransientStatus(r && r.ok ? `Eklendi (+${r.added} parça${r.embedded?", embedding'li":""}).` : "Eklenemedi.");
+    const r = await window.codega.ragIngest({ title: title.trim() || "DokÃƒÂ¼man", text });
+    setTransientStatus(r && r.ok ? `Eklendi (+${r.added} parÃƒÂ§a${r.embedded?", embedding'li":""}).` : "Eklenemedi.");
     const ti=document.getElementById("rag-title"), tx=document.getElementById("rag-text");
     if (ti) ti.value=""; if (tx) tx.value="";
     refreshRag();
@@ -2187,20 +2202,20 @@ const ragRefreshBtn = document.getElementById("rag-refresh");
 if (ragRefreshBtn) ragRefreshBtn.addEventListener("click", () => refreshRag());
 const ragClearBtn = document.getElementById("rag-clear");
 if (ragClearBtn) ragClearBtn.addEventListener("click", async () => {
-  if (!window.confirm("Tüm RAG belgeleri silinsin mi?")) return;
+  if (!window.confirm("TÃƒÂ¼m RAG belgeleri silinsin mi?")) return;
   try { await window.codega.ragClear(); refreshRag(); } catch (_e) {}
 });
 const ragSearchBtn = document.getElementById("rag-search-btn");
 if (ragSearchBtn) ragSearchBtn.addEventListener("click", async () => {
   const q = (document.getElementById("rag-query")||{}).value || "";
   const out = document.getElementById("rag-search-out");
-  if (!q.trim()) { setTransientStatus("Önce bir sorgu yaz."); return; }
-  if (out) { out.hidden = false; out.textContent = "Aranıyor…"; }
+  if (!q.trim()) { setTransientStatus("Ãƒâ€“nce bir sorgu yaz."); return; }
+  if (out) { out.hidden = false; out.textContent = "AranÃ„Â±yorÃ¢â‚¬Â¦"; }
   try {
     const hits = await window.codega.ragSearch({ query: q });
     if (out) out.textContent = (hits && hits.length)
       ? hits.map((h,i) => `#${i+1} [${h.title}] (skor ${h.score.toFixed(3)})\n${h.text.slice(0,300)}`).join("\n\n")
-      : "Eşleşme bulunamadı.";
+      : "EÃ…Å¸leÃ…Å¸me bulunamadÃ„Â±.";
   } catch (e) { if (out) out.textContent = "Hata: " + (e.message||e); }
 });
 const toggleRagBtn = document.getElementById("toggle-rag");
@@ -2229,24 +2244,24 @@ els.settingsButton.addEventListener("click", async () => {
   if (toggleDebugBtn && agentSettings) applyToggleLabel(toggleDebugBtn, !!agentSettings.debugLogging);
   if (toggleDeepBtn && agentSettings) applyToggleLabel(toggleDeepBtn, !!agentSettings.deepReasoning);
   if (toggleSacvDebugBtn && agentSettings) applyToggleLabel(toggleSacvDebugBtn, !!agentSettings.sacvDebug);
-  // Aktif Model: kullanıcının seçtiği varsayılan (yoksa canlı durum)
+  // Aktif Model: kullanÃ„Â±cÃ„Â±nÃ„Â±n seÃƒÂ§tiÃ„Å¸i varsayÃ„Â±lan (yoksa canlÃ„Â± durum)
   window.codega.getStatus().then((st) => {
     const raw = st && st.model;
     const live = raw && (raw.model || (typeof raw === "string" ? raw : null));
     const configured = agentSettings && (agentSettings.defaultModel || agentSettings.model);
     const el = document.getElementById("ov-health-model");
-    if (el) el.textContent = String(configured || live || "—");
+    if (el) el.textContent = String(configured || live || "Ã¢â‚¬â€");
   }).catch(() => {});
   if (typeof refreshLearnList === "function") refreshLearnList();
   window.codega.feedbackStats().then((f) => {
     const el = document.getElementById("ov-feedback");
-    if (el && f) el.textContent = `👍 ${f.up || 0} · 👎 ${f.down || 0}`;
+    if (el && f) el.textContent = `ÄŸÅ¸â€˜Â ${f.up || 0} Ã‚Â· ÄŸÅ¸â€˜Â ${f.down || 0}`;
   }).catch(() => {});
   window.codega.analyzeSystem().then((sys) => {
     const el = document.getElementById("ov-system");
     const btn = document.getElementById("ov-use-recommended");
     if (!sys) return;
-    if (el) el.textContent = `${sys.ramGB} GB RAM · ${sys.cores} çekirdek · ${sys.platform}/${sys.arch} → önerilen: ${sys.recommended.label}`;
+    if (el) el.textContent = `${sys.ramGB} GB RAM Ã‚Â· ${sys.cores} ÃƒÂ§ekirdek Ã‚Â· ${sys.platform}/${sys.arch} Ã¢â€ â€™ ÃƒÂ¶nerilen: ${sys.recommended.label}`;
     if (btn && sys.recommended) {
       btn.hidden = false;
       btn.onclick = async () => {
@@ -2258,7 +2273,7 @@ els.settingsButton.addEventListener("click", async () => {
   }).catch(() => {});
 });
 
-// ===== Ayarlar Kontrol Merkezi: gezinme / arama / içe-dışa aktarma =====
+// ===== Ayarlar Kontrol Merkezi: gezinme / arama / iÃƒÂ§e-dÃ„Â±Ã…Å¸a aktarma =====
 const settingsCats = document.getElementById("settings-cats");
 const settingsNav = document.getElementById("settings-nav");
 
@@ -2370,18 +2385,18 @@ function runSettingsSearch(q) {
 
 function updateOverview() {
   const set = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.textContent = val; };
-  const health = (name, ready, active, configuredText = "hazır") => {
-    set(`ov-health-${name}`, active ? "aktif" : ready ? configuredText : "yapılandırılmadı");
+  const health = (name, ready, active, configuredText = "hazÃ„Â±r") => {
+    set(`ov-health-${name}`, active ? "aktif" : ready ? configuredText : "yapÃ„Â±landÃ„Â±rÃ„Â±lmadÃ„Â±");
     const dot = document.getElementById(`ov-health-${name}-dot`);
     if (dot) dot.className = `dot ${active || ready ? "ok" : "plan"}`;
   };
   const ollama = document.getElementById("ollama-row-status");
   const ollamaText = ollama ? ollama.textContent || "" : "";
-  const ollamaReady = /çalışıyor/i.test(ollamaText);
+  const ollamaReady = /ÃƒÂ§alÃ„Â±Ã…Å¸Ã„Â±yor/i.test(ollamaText);
   if (ollama) set("ov-health-ollama", ollamaReady ? "\u00e7al\u0131\u015f\u0131yor" : "kurulu de\u011fil");
-  if (ollama) set("ov-ollama", /çalışıyor/i.test(ollama.textContent) ? "Çalışıyor ✓" : "Kurulu değil");
+  if (ollama) set("ov-ollama", /ÃƒÂ§alÃ„Â±Ã…Å¸Ã„Â±yor/i.test(ollama.textContent) ? "Ãƒâ€¡alÃ„Â±Ã…Å¸Ã„Â±yor Ã¢Å“â€œ" : "Kurulu deÃ„Å¸il");
   const ver = document.getElementById("version-label");
-  if (ver) set("ov-version", ver.textContent || "—");
+  if (ver) set("ov-version", ver.textContent || "Ã¢â‚¬â€");
   const mem = document.getElementById("memory-summary");
   if (mem) set("ov-memory", (mem.textContent || "").slice(0, 40));
   if (agentSettings && (agentSettings.model || agentSettings.defaultModel)) {
@@ -2393,20 +2408,20 @@ function updateOverview() {
     const providerHealth = (name, apiKey) => {
       const configured = !!String(apiKey || "").trim();
       const selected = agentSettings.provider === name;
-      set(`ov-health-${name}`, selected ? (configured ? "aktif" : "API anahtarı gerekli") : (configured ? "hazır" : "yapılandırılmadı"));
+      set(`ov-health-${name}`, selected ? (configured ? "aktif" : "API anahtarÃ„Â± gerekli") : (configured ? "hazÃ„Â±r" : "yapÃ„Â±landÃ„Â±rÃ„Â±lmadÃ„Â±"));
       const dot = document.getElementById(`ov-health-${name}-dot`);
       if (dot) dot.className = `dot ${selected && !configured ? "warn" : configured ? "ok" : "plan"}`;
     };
     providerHealth("openai", agentSettings.openaiApiKey);
     providerHealth("claude", agentSettings.claudeApiKey);
     providerHealth("gemini", agentSettings.geminiApiKey);
-    health("mcp", !!String(agentSettings.mcpServerUrl || "").trim(), !!agentSettings.mcpAutoTools, agentSettings.mcpAutoTools ? "ajana bağlı" : "sunucu kayıtlı");
-    health("federation", !!agentSettings.federation, !!agentSettings.federation, "açık");
-    if (!agentSettings.federation) set("ov-health-federation", "kapalı");
+    health("mcp", !!String(agentSettings.mcpServerUrl || "").trim(), !!agentSettings.mcpAutoTools, agentSettings.mcpAutoTools ? "ajana baÃ„Å¸lÃ„Â±" : "sunucu kayÃ„Â±tlÃ„Â±");
+    health("federation", !!agentSettings.federation, !!agentSettings.federation, "aÃƒÂ§Ã„Â±k");
+    if (!agentSettings.federation) set("ov-health-federation", "kapalÃ„Â±");
   }
 }
 
-// Arama kutusu (Enter dialog'u kapatmasın)
+// Arama kutusu (Enter dialog'u kapatmasÃ„Â±n)
 const settingsSearchInput = document.getElementById("settings-search");
 if (settingsSearchInput) {
   settingsSearchInput.addEventListener("input", (e) => runSettingsSearch(e.target.value));
@@ -2427,7 +2442,7 @@ if (settingsThemeToggle) {
   });
 }
 
-// JSON dışa aktarma
+// JSON dÃ„Â±Ã…Å¸a aktarma
 const settingsExportBtn = document.getElementById("settings-export");
 if (settingsExportBtn) {
   settingsExportBtn.addEventListener("click", async () => {
@@ -2438,14 +2453,14 @@ if (settingsExportBtn) {
       a.href = URL.createObjectURL(blob);
       a.download = "codega-ayarlar.json";
       a.click();
-      setTransientStatus("Ayarlar dışa aktarıldı.");
+      setTransientStatus("Ayarlar dÃ„Â±Ã…Å¸a aktarÃ„Â±ldÃ„Â±.");
     } catch (e) {
-      setTransientStatus("Dışa aktarma başarısız: " + (e.message || e));
+      setTransientStatus("DÃ„Â±Ã…Å¸a aktarma baÃ…Å¸arÃ„Â±sÃ„Â±z: " + (e.message || e));
     }
   });
 }
 
-// JSON içe aktarma
+// JSON iÃƒÂ§e aktarma
 const settingsImportBtn = document.getElementById("settings-import");
 const settingsImportFile = document.getElementById("settings-import-file");
 if (settingsImportBtn && settingsImportFile) {
@@ -2457,14 +2472,14 @@ if (settingsImportBtn && settingsImportFile) {
     fr.onload = async () => {
       try {
         const data = JSON.parse(fr.result);
-        if (!data || typeof data !== "object") throw new Error("geçersiz format");
+        if (!data || typeof data !== "object") throw new Error("geÃƒÂ§ersiz format");
         agentSettings = await window.codega.setSettings(data);
         applyAppearance(agentSettings);
         await refreshAgentSettings();
         updateOverview();
-        setTransientStatus("Ayarlar içe aktarıldı ✓");
+        setTransientStatus("Ayarlar iÃƒÂ§e aktarÃ„Â±ldÃ„Â± Ã¢Å“â€œ");
       } catch (err) {
-        setTransientStatus("İçe aktarma başarısız: " + (err.message || err));
+        setTransientStatus("Ã„Â°ÃƒÂ§e aktarma baÃ…Å¸arÃ„Â±sÃ„Â±z: " + (err.message || err));
       }
       settingsImportFile.value = "";
     };
@@ -2472,7 +2487,7 @@ if (settingsImportBtn && settingsImportFile) {
   });
 }
 
-// Ajanın topladığı öneri taslakları: listele + tek tıkla PR
+// AjanÃ„Â±n topladÃ„Â±Ã„Å¸Ã„Â± ÃƒÂ¶neri taslaklarÃ„Â±: listele + tek tÃ„Â±kla PR
 async function refreshImproveDrafts() {
   const list = document.getElementById("improve-drafts-list");
   const status = document.getElementById("improve-drafts-status");
@@ -2481,10 +2496,10 @@ async function refreshImproveDrafts() {
   try { drafts = (await window.codega.improveDrafts()) || []; } catch (_e) { drafts = []; }
   list.innerHTML = "";
   if (!drafts.length) {
-    if (status) status.textContent = "Şu an taslak yok — ajan henüz dikkate değer tekrar eden bir sorun gözlemlemedi.";
+    if (status) status.textContent = "Ã…Âu an taslak yok Ã¢â‚¬â€ ajan henÃƒÂ¼z dikkate deÃ„Å¸er tekrar eden bir sorun gÃƒÂ¶zlemlemedi.";
     return;
   }
-  if (status) status.textContent = `${drafts.length} taslak öneri (yerel). Birini PR olarak açabilirsin.`;
+  if (status) status.textContent = `${drafts.length} taslak ÃƒÂ¶neri (yerel). Birini PR olarak aÃƒÂ§abilirsin.`;
   drafts.forEach((d) => {
     const row = document.createElement("div");
     row.className = "settings-row";
@@ -2492,19 +2507,19 @@ async function refreshImproveDrafts() {
     info.innerHTML = `<strong>${d.idea}</strong><p>${d.rationale}</p>`;
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.textContent = "PR Aç";
+    btn.textContent = "PR AÃƒÂ§";
     btn.addEventListener("click", async () => {
       const repo = (document.getElementById("improve-repo")?.value || "").trim();
       btn.disabled = true;
-      setTransientStatus("Öneri PR'ı hazırlanıyor…");
+      setTransientStatus("Ãƒâ€“neri PR'Ã„Â± hazÃ„Â±rlanÃ„Â±yorÃ¢â‚¬Â¦");
       try {
         const res = await window.codega.proposeImprovement({ repo, idea: d.idea, rationale: d.rationale });
         if (res && res.url) {
           try { await navigator.clipboard.writeText(res.url); } catch {}
-          setTransientStatus(`Öneri PR açıldı (#${res.number}) — link kopyalandı.`);
-        } else setTransientStatus("PR açıldı ama link alınamadı.");
+          setTransientStatus(`Ãƒâ€“neri PR aÃƒÂ§Ã„Â±ldÃ„Â± (#${res.number}) Ã¢â‚¬â€ link kopyalandÃ„Â±.`);
+        } else setTransientStatus("PR aÃƒÂ§Ã„Â±ldÃ„Â± ama link alÃ„Â±namadÃ„Â±.");
       } catch (e) {
-        setTransientStatus("PR açılamadı: " + (e.message || e));
+        setTransientStatus("PR aÃƒÂ§Ã„Â±lamadÃ„Â±: " + (e.message || e));
         btn.disabled = false;
       }
     });
@@ -2543,7 +2558,7 @@ if (els.providerSelect) els.providerSelect.addEventListener("change", async () =
   agentSettings = await window.codega.setSettings({ provider: els.providerSelect.value });
   updateProviderVisibility();
   updateOverview();
-  setTransientStatus(selectedProviderFields() ? "Bulut sağlayıcı seçildi." : "Yerel sağlayıcı seçildi.");
+  setTransientStatus(selectedProviderFields() ? "Bulut saÃ„Å¸layÃ„Â±cÃ„Â± seÃƒÂ§ildi." : "Yerel saÃ„Å¸layÃ„Â±cÃ„Â± seÃƒÂ§ildi.");
 });
 function bindProviderField(el, fieldName) {
   if (!el) return;
@@ -2559,7 +2574,7 @@ bindProviderField(els.openaiKey, "key");
 bindProviderField(els.openaiModel, "model");
 if (els.providerTest) els.providerTest.addEventListener("click", async () => {
   els.providerTest.disabled = true;
-  setTransientStatus("Bağlantı test ediliyor…");
+  setTransientStatus("BaÃ„Å¸lantÃ„Â± test ediliyorÃ¢â‚¬Â¦");
   try {
     const r = await window.codega.testProvider({
       provider: els.providerSelect ? els.providerSelect.value : "openai",
@@ -2567,31 +2582,31 @@ if (els.providerTest) els.providerTest.addEventListener("click", async () => {
       apiKey: els.openaiKey ? els.openaiKey.value.trim() : "",
       model: els.openaiModel ? els.openaiModel.value.trim() : "",
     });
-    setTransientStatus((r && r.message) || (r && r.ok ? "Bağlantı başarılı." : "Bağlantı başarısız."));
+    setTransientStatus((r && r.message) || (r && r.ok ? "BaÃ„Å¸lantÃ„Â± baÃ…Å¸arÃ„Â±lÃ„Â±." : "BaÃ„Å¸lantÃ„Â± baÃ…Å¸arÃ„Â±sÃ„Â±z."));
   } catch (e) {
-    setTransientStatus("Test hatası: " + (e.message || e));
+    setTransientStatus("Test hatasÃ„Â±: " + (e.message || e));
   } finally {
     els.providerTest.disabled = false;
   }
 });
 
-// İnsan onaylı kod çalıştırıcı (ajan kendiliğinden çalıştırmaz)
+// Ã„Â°nsan onaylÃ„Â± kod ÃƒÂ§alÃ„Â±Ã…Å¸tÃ„Â±rÃ„Â±cÃ„Â± (ajan kendiliÃ„Å¸inden ÃƒÂ§alÃ„Â±Ã…Å¸tÃ„Â±rmaz)
 const codeRunBtn = document.getElementById("code-run");
 if (codeRunBtn) {
   codeRunBtn.addEventListener("click", async () => {
     const lang = (document.getElementById("code-lang") || {}).value || "python";
     const code = (document.getElementById("code-input") || {}).value || "";
     const out = document.getElementById("code-output");
-    if (!code.trim()) { setTransientStatus("Önce kod yaz."); return; }
+    if (!code.trim()) { setTransientStatus("Ãƒâ€“nce kod yaz."); return; }
     codeRunBtn.disabled = true;
-    if (out) { out.hidden = false; out.textContent = "Çalışıyor…"; }
+    if (out) { out.hidden = false; out.textContent = "Ãƒâ€¡alÃ„Â±Ã…Å¸Ã„Â±yorÃ¢â‚¬Â¦"; }
     try {
       const r = await window.codega.runCode({ language: lang, code });
       const parts = [];
       if (r.stdout) parts.push(r.stdout);
-      if (r.stderr) parts.push((r.stdout ? "\n— stderr —\n" : "") + r.stderr);
-      const body = parts.join("") || "(çıktı yok)";
-      if (out) out.textContent = `[çıkış kodu: ${r.exitCode}]\n${body}`;
+      if (r.stderr) parts.push((r.stdout ? "\nÃ¢â‚¬â€ stderr Ã¢â‚¬â€\n" : "") + r.stderr);
+      const body = parts.join("") || "(ÃƒÂ§Ã„Â±ktÃ„Â± yok)";
+      if (out) out.textContent = `[ÃƒÂ§Ã„Â±kÃ„Â±Ã…Å¸ kodu: ${r.exitCode}]\n${body}`;
     } catch (e) {
       if (out) out.textContent = "Hata: " + (e.message || e);
     } finally {
@@ -2606,7 +2621,7 @@ function setSendingUi(on) {
 }
 if (els.stopBtn) els.stopBtn.addEventListener("click", async () => {
   els.stopBtn.disabled = true;
-  setTransientStatus("Durduruluyor…");
+  setTransientStatus("DurduruluyorÃ¢â‚¬Â¦");
   try { await window.codega.abortChat(); } catch (_e) {}
   els.stopBtn.disabled = false;
 });
@@ -2626,35 +2641,35 @@ if (els.brainInput) els.brainInput.addEventListener("input", () => {
   if (els.brainBtn) els.brainBtn.classList.toggle("on", !!c.context.trim());
 });
 
-// MCP araç sunucusu (manuel; ajan döngüsüne bağlı değil)
+// MCP araÃƒÂ§ sunucusu (manuel; ajan dÃƒÂ¶ngÃƒÂ¼sÃƒÂ¼ne baÃ„Å¸lÃ„Â± deÃ„Å¸il)
 const mcpListBtn = document.getElementById("mcp-list");
 if (mcpListBtn) {
   mcpListBtn.addEventListener("click", async () => {
     const url = (document.getElementById("mcp-url") || {}).value || "";
     const box = document.getElementById("mcp-tools");
     mcpListBtn.disabled = true;
-    if (box) box.textContent = "Bağlanılıyor…";
+    if (box) box.textContent = "BaÃ„Å¸lanÃ„Â±lÃ„Â±yorÃ¢â‚¬Â¦";
     try {
       const r = await window.codega.mcpListTools({ url: url.trim() });
       const tools = (r && r.tools) || [];
       if (box) {
         box.innerHTML = "";
-        if (!tools.length) { box.textContent = "Araç bulunamadı."; }
+        if (!tools.length) { box.textContent = "AraÃƒÂ§ bulunamadÃ„Â±."; }
         tools.forEach((t) => {
           const row = document.createElement("div");
           row.className = "settings-row";
           row.innerHTML = `<div><strong>${t.name}</strong><p>${(t.description||"").slice(0,140)}</p></div>`;
           const use = document.createElement("button");
-          use.type = "button"; use.textContent = "Seç";
+          use.type = "button"; use.textContent = "SeÃƒÂ§";
           use.addEventListener("click", () => { const n = document.getElementById("mcp-tool-name"); if (n) n.value = t.name; });
           row.appendChild(use);
           box.appendChild(row);
         });
       }
-      setTransientStatus(`${tools.length} araç bulundu${r && r.serverInfo ? " · " + r.serverInfo.name : ""}.`);
+      setTransientStatus(`${tools.length} araÃƒÂ§ bulundu${r && r.serverInfo ? " Ã‚Â· " + r.serverInfo.name : ""}.`);
     } catch (e) {
       if (box) box.textContent = "Hata: " + (e.message || e);
-      setTransientStatus("MCP bağlanılamadı.");
+      setTransientStatus("MCP baÃ„Å¸lanÃ„Â±lamadÃ„Â±.");
     } finally {
       mcpListBtn.disabled = false;
     }
@@ -2667,12 +2682,12 @@ if (mcpCallBtn) {
     const name = (document.getElementById("mcp-tool-name") || {}).value || "";
     const args = (document.getElementById("mcp-tool-args") || {}).value || "";
     const out = document.getElementById("mcp-output");
-    if (!name.trim()) { setTransientStatus("Araç adı gir."); return; }
+    if (!name.trim()) { setTransientStatus("AraÃƒÂ§ adÃ„Â± gir."); return; }
     mcpCallBtn.disabled = true;
-    if (out) { out.hidden = false; out.textContent = "Çağrılıyor…"; }
+    if (out) { out.hidden = false; out.textContent = "Ãƒâ€¡aÃ„Å¸rÃ„Â±lÃ„Â±yorÃ¢â‚¬Â¦"; }
     try {
       const r = await window.codega.mcpCallTool({ url: url.trim(), name: name.trim(), args });
-      if (out) out.textContent = (r.isError ? "[hata] " : "") + (r.text || "(boş)");
+      if (out) out.textContent = (r.isError ? "[hata] " : "") + (r.text || "(boÃ…Å¸)");
     } catch (e) {
       if (out) out.textContent = "Hata: " + (e.message || e);
     } finally {
@@ -2701,7 +2716,7 @@ async function refreshLearnList() {
     box.innerHTML = "";
     const head = document.createElement("p");
     head.className = "section-label";
-    head.textContent = `Öğrenilen bilgi: ${(r && r.total) || 0}` + (r && r.last ? ` · son konu: ${r.last.topic}` : "");
+    head.textContent = `Ãƒâ€“Ã„Å¸renilen bilgi: ${(r && r.total) || 0}` + (r && r.last ? ` Ã‚Â· son konu: ${r.last.topic}` : "");
     box.appendChild(head);
     notes.slice(0, 15).forEach((n) => {
       const row = document.createElement("div");
@@ -2714,56 +2729,56 @@ async function refreshLearnList() {
 const learnNowBtn = document.getElementById("learn-now");
 if (learnNowBtn) learnNowBtn.addEventListener("click", async () => {
   learnNowBtn.disabled = true;
-  setTransientStatus("Öğreniliyor… (seçili kaynaklar)");
+  setTransientStatus("Ãƒâ€“Ã„Å¸reniliyorÃ¢â‚¬Â¦ (seÃƒÂ§ili kaynaklar)");
   try {
     const r = await window.codega.learnNow({});
-    setTransientStatus(r && r.ok ? `Öğrenildi: ${r.topic} (+${r.added}, toplam ${r.total})` : (r && r.message) || "Öğrenilemedi.");
+    setTransientStatus(r && r.ok ? `Ãƒâ€“Ã„Å¸renildi: ${r.topic} (+${r.added}, toplam ${r.total})` : (r && r.message) || "Ãƒâ€“Ã„Å¸renilemedi.");
     refreshLearnList();
-  } catch (e) { setTransientStatus("Öğrenme hatası: " + (e.message || e)); }
+  } catch (e) { setTransientStatus("Ãƒâ€“Ã„Å¸renme hatasÃ„Â±: " + (e.message || e)); }
   finally { learnNowBtn.disabled = false; }
 });
 const learnClearBtn = document.getElementById("learn-clear");
 if (learnClearBtn) learnClearBtn.addEventListener("click", async () => {
-  try { await window.codega.clearLearning(); refreshLearnList(); setTransientStatus("Öğrenilenler temizlendi."); } catch (_e) {}
+  try { await window.codega.clearLearning(); refreshLearnList(); setTransientStatus("Ãƒâ€“Ã„Å¸renilenler temizlendi."); } catch (_e) {}
 });
 
 if (els.toggleMcpAuto) els.toggleMcpAuto.addEventListener("click", async () => {
   const next = !agentSettings.mcpAutoTools;
   const url = ((document.getElementById("mcp-url") || {}).value || "").trim();
-  if (next && !/^https?:\/\//i.test(url)) { setTransientStatus("Önce geçerli bir MCP sunucu URL gir."); return; }
+  if (next && !/^https?:\/\//i.test(url)) { setTransientStatus("Ãƒâ€“nce geÃƒÂ§erli bir MCP sunucu URL gir."); return; }
   els.toggleMcpAuto.disabled = true;
   try {
     agentSettings = await window.codega.setSettings({ mcpAutoTools: next, mcpServerUrl: url });
     applyToggleLabel(els.toggleMcpAuto, !!agentSettings.mcpAutoTools);
     const r = await window.codega.mcpRefreshTools();
-    setTransientStatus(next ? (r && r.ok ? `Ajana ${r.count} MCP aracı bağlandı.` : "Bağlanamadı: " + ((r && r.message) || "")) : "MCP araçları ajandan çıkarıldı.");
+    setTransientStatus(next ? (r && r.ok ? `Ajana ${r.count} MCP aracÃ„Â± baÃ„Å¸landÃ„Â±.` : "BaÃ„Å¸lanamadÃ„Â±: " + ((r && r.message) || "")) : "MCP araÃƒÂ§larÃ„Â± ajandan ÃƒÂ§Ã„Â±karÃ„Â±ldÃ„Â±.");
   } catch (e) { setTransientStatus("Hata: " + (e.message || e)); }
   finally { els.toggleMcpAuto.disabled = false; }
 });
 
 buildSettingsNav();
 
-// Denetimli kendini geliştirme: öneriyi PR olarak aç
+// Denetimli kendini geliÃ…Å¸tirme: ÃƒÂ¶neriyi PR olarak aÃƒÂ§
 const improveSubmit = document.getElementById("improve-submit");
 if (improveSubmit) {
   improveSubmit.addEventListener("click", async () => {
     const repo = (document.getElementById("improve-repo")?.value || "").trim();
     const idea = (document.getElementById("improve-idea")?.value || "").trim();
-    if (!idea) { setTransientStatus("Önce bir öneri metni yaz."); return; }
+    if (!idea) { setTransientStatus("Ãƒâ€“nce bir ÃƒÂ¶neri metni yaz."); return; }
     improveSubmit.disabled = true;
-    setTransientStatus("Öneri PR'ı hazırlanıyor…");
+    setTransientStatus("Ãƒâ€“neri PR'Ã„Â± hazÃ„Â±rlanÃ„Â±yorÃ¢â‚¬Â¦");
     try {
       const res = await window.codega.proposeImprovement({ repo, idea });
       if (res && res.url) {
         try { await navigator.clipboard.writeText(res.url); } catch {}
-        setTransientStatus(`Öneri PR açıldı (#${res.number}) — link kopyalandı.`);
+        setTransientStatus(`Ãƒâ€“neri PR aÃƒÂ§Ã„Â±ldÃ„Â± (#${res.number}) Ã¢â‚¬â€ link kopyalandÃ„Â±.`);
         const ideaEl = document.getElementById("improve-idea");
         if (ideaEl) ideaEl.value = "";
       } else {
-        setTransientStatus("PR açıldı ama link alınamadı.");
+        setTransientStatus("PR aÃƒÂ§Ã„Â±ldÃ„Â± ama link alÃ„Â±namadÃ„Â±.");
       }
     } catch (e) {
-      setTransientStatus("Öneri PR'ı açılamadı: " + (e.message || e));
+      setTransientStatus("Ãƒâ€“neri PR'Ã„Â± aÃƒÂ§Ã„Â±lamadÃ„Â±: " + (e.message || e));
     } finally {
       improveSubmit.disabled = false;
     }
@@ -2776,11 +2791,11 @@ if (els.developmentRun) {
     const paths = (els.developmentPaths.value || "").trim();
     const task = (els.developmentTask.value || "").trim();
     if (!repo || !paths || !task) {
-      setTransientStatus("Repo, hedef dosyalar ve geliştirme görevi gerekli.");
+      setTransientStatus("Repo, hedef dosyalar ve geliÃ…Å¸tirme gÃƒÂ¶revi gerekli.");
       return;
     }
     els.developmentRun.disabled = true;
-    els.developmentStatus.textContent = "Dosyalar okunuyor, kod değişikliği hazırlanıyor…";
+    els.developmentStatus.textContent = "Dosyalar okunuyor, kod deÃ„Å¸iÃ…Å¸ikliÃ„Å¸i hazÃ„Â±rlanÃ„Â±yorÃ¢â‚¬Â¦";
     try {
       agentSettings = await window.codega.setSettings({
         autonomousDevelopmentRepo: repo,
@@ -2789,27 +2804,27 @@ if (els.developmentRun) {
       });
       const result = await window.codega.runAutonomousDevelopment({ repo, paths, task });
       els.developmentStatus.textContent =
-        `Taslak PR #${result.number} açıldı · ${result.changedFiles.length} dosya · ${result.branch}`;
+        `Taslak PR #${result.number} aÃƒÂ§Ã„Â±ldÃ„Â± Ã‚Â· ${result.changedFiles.length} dosya Ã‚Â· ${result.branch}`;
       try { await navigator.clipboard.writeText(result.url); } catch (_e) {}
-      setTransientStatus(`Taslak PR #${result.number} açıldı; bağlantı kopyalandı.`);
+      setTransientStatus(`Taslak PR #${result.number} aÃƒÂ§Ã„Â±ldÃ„Â±; baÃ„Å¸lantÃ„Â± kopyalandÃ„Â±.`);
       els.developmentTask.value = "";
     } catch (error) {
-      els.developmentStatus.textContent = `Geliştirme durdu: ${error.message || error}`;
-      setTransientStatus("Kod geliştirme görevi tamamlanamadı.");
+      els.developmentStatus.textContent = `GeliÃ…Å¸tirme durdu: ${error.message || error}`;
+      setTransientStatus("Kod geliÃ…Å¸tirme gÃƒÂ¶revi tamamlanamadÃ„Â±.");
     } finally {
       els.developmentRun.disabled = false;
     }
   });
 }
 
-// Kendi kendine bakım: elle çalıştır + sonucu göster
+// Kendi kendine bakÃ„Â±m: elle ÃƒÂ§alÃ„Â±Ã…Å¸tÃ„Â±r + sonucu gÃƒÂ¶ster
 function summarizeMaintenance(rep) {
-  if (!rep || !rep.items) return "Bakım bilgisi yok.";
+  if (!rep || !rep.items) return "BakÃ„Â±m bilgisi yok.";
   const oll = rep.items.find((i) => i.name === "ollama");
-  const parts = [`Ollama: ${oll && oll.status === "ok" ? "çalışıyor ✓" : "kapalı"}`];
-  if (rep.repairs && rep.repairs.length) parts.push(`onarıldı: ${rep.repairs.join(", ")}`);
-  else parts.push("onarım gerekmedi");
-  return parts.join(" · ");
+  const parts = [`Ollama: ${oll && oll.status === "ok" ? "ÃƒÂ§alÃ„Â±Ã…Å¸Ã„Â±yor Ã¢Å“â€œ" : "kapalÃ„Â±"}`];
+  if (rep.repairs && rep.repairs.length) parts.push(`onarÃ„Â±ldÃ„Â±: ${rep.repairs.join(", ")}`);
+  else parts.push("onarÃ„Â±m gerekmedi");
+  return parts.join(" Ã‚Â· ");
 }
 if (els.runMaintenance) {
   els.runMaintenance.addEventListener("click", async () => {
@@ -2819,9 +2834,9 @@ if (els.runMaintenance) {
       const txt = summarizeMaintenance(rep);
       const ov = document.getElementById("ov-maintenance");
       if (ov) ov.textContent = txt;
-      setTransientStatus("Bakım tamam — " + txt);
+      setTransientStatus("BakÃ„Â±m tamam Ã¢â‚¬â€ " + txt);
     } catch (e) {
-      setTransientStatus("Bakım başarısız: " + (e.message || e));
+      setTransientStatus("BakÃ„Â±m baÃ…Å¸arÃ„Â±sÃ„Â±z: " + (e.message || e));
     } finally {
       els.runMaintenance.disabled = false;
     }
@@ -2858,8 +2873,8 @@ function applyAppearance(s) {
 async function setAppearance(patch) {
   agentSettings = await window.codega.setSettings(patch);
   applyAppearance(agentSettings);
-  const what = patch.theme ? "Tema" : patch.accent ? "Vurgu rengi" : patch.fontScale ? "Yazı boyutu" : "Görünüm";
-  setTransientStatus(`${what} uygulandı.`);
+  const what = patch.theme ? "Tema" : patch.accent ? "Vurgu rengi" : patch.fontScale ? "YazÃ„Â± boyutu" : "GÃƒÂ¶rÃƒÂ¼nÃƒÂ¼m";
+  setTransientStatus(`${what} uygulandÃ„Â±.`);
 }
 
 document.querySelectorAll(".theme-btn").forEach((b) =>
@@ -2872,7 +2887,7 @@ document.querySelectorAll("#accent-swatches .swatch").forEach((b) =>
   b.addEventListener("click", () => setAppearance({ accent: b.dataset.accent }))
 );
 
-// Açılışta kayıtlı görünümü uygula
+// AÃƒÂ§Ã„Â±lÃ„Â±Ã…Å¸ta kayÃ„Â±tlÃ„Â± gÃƒÂ¶rÃƒÂ¼nÃƒÂ¼mÃƒÂ¼ uygula
 window.codega
   .getSettings()
   .then((s) => {
@@ -2883,12 +2898,12 @@ window.codega
 
 function applyToggleLabel(button, on) {
   if (!button) return;
-  // Prototipteki kaydırmalı "pill" anahtar görünümü (metin yerine görsel switch)
+  // Prototipteki kaydÃ„Â±rmalÃ„Â± "pill" anahtar gÃƒÂ¶rÃƒÂ¼nÃƒÂ¼mÃƒÂ¼ (metin yerine gÃƒÂ¶rsel switch)
   button.classList.add("switch");
   button.classList.toggle("on", !!on);
   button.setAttribute("aria-pressed", on ? "true" : "false");
-  button.setAttribute("aria-label", on ? "Açık" : "Kapalı");
-  button.title = on ? "Açık" : "Kapalı";
+  button.setAttribute("aria-label", on ? "AÃƒÂ§Ã„Â±k" : "KapalÃ„Â±");
+  button.title = on ? "AÃƒÂ§Ã„Â±k" : "KapalÃ„Â±";
   button.textContent = "";
 }
 
@@ -2940,56 +2955,56 @@ async function refreshAgentSettings() {
     if (els.developmentStatus) {
       const lastResult = String(agentSettings.autonomousDevelopmentLastResult || "").trim();
       els.developmentStatus.textContent = agentSettings.autonomousDevelopment
-        ? `${agentSettings.autonomousDevelopmentSchedule ? "Gözlem döngüsü açık." : "Elle çalışma hazır."} En fazla 4 hedef dosya, ayrı dal ve taslak PR sınırı etkin.${lastResult ? ` Sonuç: ${lastResult}` : ""}`
-        : "Kapalı. Etkinleştirdiğinde yalnız belirttiğin dosyalar değiştirilebilir.";
+        ? `${agentSettings.autonomousDevelopmentSchedule ? "GÃƒÂ¶zlem dÃƒÂ¶ngÃƒÂ¼sÃƒÂ¼ aÃƒÂ§Ã„Â±k." : "Elle ÃƒÂ§alÃ„Â±Ã…Å¸ma hazÃ„Â±r."} En fazla 4 hedef dosya, ayrÃ„Â± dal ve taslak PR sÃ„Â±nÃ„Â±rÃ„Â± etkin.${lastResult ? ` SonuÃƒÂ§: ${lastResult}` : ""}`
+        : "KapalÃ„Â±. EtkinleÃ…Å¸tirdiÃ„Å¸inde yalnÃ„Â±z belirttiÃ„Å¸in dosyalar deÃ„Å¸iÃ…Å¸tirilebilir.";
     }
     els.githubToken.value = "";
     els.githubToken.placeholder = agentSettings.githubToken
-      ? "•••• (kayıtlı — değiştirmek için yaz)"
+      ? "Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢ (kayÃ„Â±tlÃ„Â± Ã¢â‚¬â€ deÃ„Å¸iÃ…Å¸tirmek iÃƒÂ§in yaz)"
       : "GitHub token (ghp_...)";
   } catch (_e) {
-    /* ayar okunamadı */
+    /* ayar okunamadÃ„Â± */
   }
   try {
     const facts = await window.codega.listMemory();
     els.memorySummary.textContent = facts.length
-      ? `${facts.length} şey öğrenildi.`
-      : "Henüz bir şey öğrenmedim.";
+      ? `${facts.length} Ã…Å¸ey ÃƒÂ¶Ã„Å¸renildi.`
+      : "HenÃƒÂ¼z bir Ã…Å¸ey ÃƒÂ¶Ã„Å¸renmedim.";
     els.memoryList.innerHTML = facts
       .map((f) => `<div class="model-row"><div><p>${escapeHtml(f)}</p></div></div>`)
       .join("");
   } catch (_e) {
-    /* hafıza okunamadı */
+    /* hafÃ„Â±za okunamadÃ„Â± */
   }
   try {
     const rs = await window.codega.ragStats();
     els.ragStats.textContent = rs.chunks
-      ? `${rs.documents} doküman / ${rs.chunks} parça (${rs.embedded} gömülü).`
-      : "Doküman/not ekle; sorularında bunlardan yararlanır.";
+      ? `${rs.documents} dokÃƒÂ¼man / ${rs.chunks} parÃƒÂ§a (${rs.embedded} gÃƒÂ¶mÃƒÂ¼lÃƒÂ¼).`
+      : "DokÃƒÂ¼man/not ekle; sorularÃ„Â±nda bunlardan yararlanÃ„Â±r.";
   } catch (_e) {
-    /* rag okunamadı */
+    /* rag okunamadÃ„Â± */
   }
 }
 
 els.ragAdd.addEventListener("click", async () => {
   const text = els.ragText.value.trim();
   if (!text) {
-    setTransientStatus("Eklenecek metin boş.");
+    setTransientStatus("Eklenecek metin boÃ…Å¸.");
     return;
   }
   els.ragAdd.disabled = true;
-  els.ragStats.textContent = "Bilgi tabanına ekleniyor...";
+  els.ragStats.textContent = "Bilgi tabanÃ„Â±na ekleniyor...";
   try {
     const res = await window.codega.ragIngest({
-      title: els.ragTitle.value.trim() || "Doküman",
+      title: els.ragTitle.value.trim() || "DokÃƒÂ¼man",
       text,
     });
     els.ragText.value = "";
     els.ragTitle.value = "";
     setTransientStatus(
       res.embedded
-        ? `Eklendi: ${res.added} parça (semantik gömme ile).`
-        : `Eklendi: ${res.added} parça (Ollama kapalı → anahtar kelime modu).`
+        ? `Eklendi: ${res.added} parÃƒÂ§a (semantik gÃƒÂ¶mme ile).`
+        : `Eklendi: ${res.added} parÃƒÂ§a (Ollama kapalÃ„Â± Ã¢â€ â€™ anahtar kelime modu).`
     );
     await refreshAgentSettings();
   } catch (error) {
@@ -3004,7 +3019,7 @@ els.ragClear.addEventListener("click", async () => {
   try {
     await window.codega.ragClear();
     await refreshAgentSettings();
-    setTransientStatus("Bilgi tabanı temizlendi.");
+    setTransientStatus("Bilgi tabanÃ„Â± temizlendi.");
   } finally {
     els.ragClear.disabled = false;
   }
@@ -3023,9 +3038,9 @@ els.githubTest.addEventListener("click", async () => {
   try {
     await saveGithubFields();
     const me = await window.codega.testGithub();
-    els.knowledgeStatus.textContent = `Bağlandı: ${me.login}`;
+    els.knowledgeStatus.textContent = `BaÃ„Å¸landÃ„Â±: ${me.login}`;
   } catch (error) {
-    els.knowledgeStatus.textContent = `Bağlanamadı: ${error.message || error}`;
+    els.knowledgeStatus.textContent = `BaÃ„Å¸lanamadÃ„Â±: ${error.message || error}`;
   } finally {
     els.githubTest.disabled = false;
   }
@@ -3037,9 +3052,9 @@ els.installOllama.addEventListener("click", async () => {
   els.installOllama.disabled = true;
   try {
     await window.codega.installOllama();
-    setTransientStatus("Ollama indirme sayfası açıldı. Kurduktan sonra uygulamayı yeniden başlat.");
+    setTransientStatus("Ollama indirme sayfasÃ„Â± aÃƒÂ§Ã„Â±ldÃ„Â±. Kurduktan sonra uygulamayÃ„Â± yeniden baÃ…Å¸lat.");
   } catch (error) {
-    setTransientStatus(`Açılamadı: ${error.message || error}`);
+    setTransientStatus(`AÃƒÂ§Ã„Â±lamadÃ„Â±: ${error.message || error}`);
   } finally {
     els.installOllama.disabled = false;
   }
@@ -3048,20 +3063,20 @@ els.installOllama.addEventListener("click", async () => {
 if (els.moveModelStorage) {
   els.moveModelStorage.addEventListener("click", async () => {
     els.moveModelStorage.disabled = true;
-    if (els.modelStorageStatus) els.modelStorageStatus.textContent = "Hedef klasör seçimi bekleniyor…";
+    if (els.modelStorageStatus) els.modelStorageStatus.textContent = "Hedef klasÃƒÂ¶r seÃƒÂ§imi bekleniyorÃ¢â‚¬Â¦";
     try {
       const result = await window.codega.moveModelStorage();
       if (result?.canceled) {
-        if (els.modelStorageStatus) els.modelStorageStatus.textContent = "Taşıma iptal edildi.";
+        if (els.modelStorageStatus) els.modelStorageStatus.textContent = "TaÃ…Å¸Ã„Â±ma iptal edildi.";
         return;
       }
       if (result?.ok) {
-        if (els.modelStorageStatus) els.modelStorageStatus.textContent = "Modeller yeni dizinde hazır.";
+        if (els.modelStorageStatus) els.modelStorageStatus.textContent = "Modeller yeni dizinde hazÃ„Â±r.";
         await refreshStatus();
       }
     } catch (error) {
       if (els.modelStorageStatus) {
-        els.modelStorageStatus.textContent = `Taşıma başarısız: ${error.message || error}`;
+        els.modelStorageStatus.textContent = `TaÃ…Å¸Ã„Â±ma baÃ…Å¸arÃ„Â±sÃ„Â±z: ${error.message || error}`;
       }
     } finally {
       els.moveModelStorage.disabled = false;
@@ -3085,7 +3100,7 @@ els.knowledgeUp.addEventListener("click", async () => {
     const res = await window.codega.syncKnowledgeUp();
     els.knowledgeStatus.textContent = res.ok
       ? `Kaydedildi: ${res.added} yeni bilgi.`
-      : `Olmadı: ${res.reason}`;
+      : `OlmadÃ„Â±: ${res.reason}`;
   } catch (error) {
     els.knowledgeStatus.textContent = `Hata: ${error.message || error}`;
   } finally {
@@ -3100,8 +3115,8 @@ els.knowledgeDown.addEventListener("click", async () => {
     await saveGithubFields();
     const res = await window.codega.syncKnowledgeDown();
     els.knowledgeStatus.textContent = res.ok
-      ? `Okundu: ${res.loaded} bilgi yüklendi.`
-      : `Olmadı: ${res.reason}`;
+      ? `Okundu: ${res.loaded} bilgi yÃƒÂ¼klendi.`
+      : `OlmadÃ„Â±: ${res.reason}`;
     await refreshAgentSettings();
   } catch (error) {
     els.knowledgeStatus.textContent = `Hata: ${error.message || error}`;
@@ -3140,7 +3155,7 @@ if (els.toggleAutonomousSchedule) {
     const paths = (els.developmentPaths?.value || "").trim();
     const enabling = !agentSettings?.autonomousDevelopmentSchedule;
     if (enabling && (!repo || !paths)) {
-      setTransientStatus("Önce hedef repo ve en fazla 4 dosya yolu belirle.");
+      setTransientStatus("Ãƒâ€“nce hedef repo ve en fazla 4 dosya yolu belirle.");
       return;
     }
     agentSettings = await window.codega.setSettings({
@@ -3164,7 +3179,7 @@ if (els.saveModelFallback) {
       .map((item) => item.trim().toLowerCase())
       .filter(Boolean);
     agentSettings = await window.codega.setSettings({ modelFallbackOrder: order });
-    setTransientStatus(`Model yedekleme sırası: ${agentSettings.modelFallbackOrder.join(" → ")}`);
+    setTransientStatus(`Model yedekleme sÃ„Â±rasÃ„Â±: ${agentSettings.modelFallbackOrder.join(" Ã¢â€ â€™ ")}`);
     await refreshAgentSettings();
   });
 }
@@ -3188,7 +3203,7 @@ els.clearMemory.addEventListener("click", async () => {
 });
 els.prepareModel.addEventListener("click", async () => {
   els.prepareModel.disabled = true;
-  els.modelDetail.textContent = "Zeka paketi hazırlanıyor...";
+  els.modelDetail.textContent = "Zeka paketi hazÃ„Â±rlanÃ„Â±yor...";
   try {
     const status = await window.codega.prepareModel();
     setModelStatus(status);
@@ -3213,13 +3228,13 @@ els.modelList.addEventListener("click", async (event) => {
 els.checkUpdate.addEventListener("click", async () => {
   els.checkUpdate.disabled = true;
   manualUpdateCheck = true;
-  els.updateDetail.textContent = "Güncelleme kontrol ediliyor...";
-  setTransientStatus("Güncelleme kontrol ediliyor…");
+  els.updateDetail.textContent = "GÃƒÂ¼ncelleme kontrol ediliyor...";
+  setTransientStatus("GÃƒÂ¼ncelleme kontrol ediliyorÃ¢â‚¬Â¦");
   try {
     await window.codega.checkForUpdates();
   } catch (error) {
-    els.updateDetail.textContent = `Güncelleme kontrol edilemedi: ${error.message || error}`;
-    setTransientStatus(`Güncelleme kontrol edilemedi: ${error.message || error}`);
+    els.updateDetail.textContent = `GÃƒÂ¼ncelleme kontrol edilemedi: ${error.message || error}`;
+    setTransientStatus(`GÃƒÂ¼ncelleme kontrol edilemedi: ${error.message || error}`);
   } finally {
     els.checkUpdate.disabled = false;
   }
@@ -3227,11 +3242,11 @@ els.checkUpdate.addEventListener("click", async () => {
 els.downloadUpdate.addEventListener("click", async () => {
   els.downloadUpdate.disabled = true;
   showUpdatePrompt("downloading", { percent: 0 });
-  els.updateDetail.textContent = "Güncelleme indiriliyor...";
+  els.updateDetail.textContent = "GÃƒÂ¼ncelleme indiriliyor...";
   try {
     await window.codega.downloadUpdate();
   } catch (error) {
-    els.updateDetail.textContent = `Güncelleme indirilemedi: ${error.message || error}`;
+    els.updateDetail.textContent = `GÃƒÂ¼ncelleme indirilemedi: ${error.message || error}`;
     els.downloadUpdate.disabled = false;
   }
 });
@@ -3245,12 +3260,12 @@ els.updateNow.addEventListener("click", async () => {
     if (state.updatePromptState === "ready") {
       await window.codega.installUpdate();
     } else {
-      els.updatePromptDetail.textContent = "Güncelleme indiriliyor. Hazır olunca tekrar soracağım.";
+      els.updatePromptDetail.textContent = "GÃƒÂ¼ncelleme indiriliyor. HazÃ„Â±r olunca tekrar soracaÃ„Å¸Ã„Â±m.";
       showUpdatePrompt("downloading", { percent: 0 });
       await window.codega.downloadUpdate();
     }
   } catch (error) {
-    els.updatePromptDetail.textContent = `Güncelleme başlatılamadı: ${error.message || error}`;
+    els.updatePromptDetail.textContent = `GÃƒÂ¼ncelleme baÃ…Å¸latÃ„Â±lamadÃ„Â±: ${error.message || error}`;
   } finally {
     els.updateNow.disabled = false;
   }
@@ -3265,7 +3280,7 @@ function openSetupProgress(title) {
   if (!els.setupDialog) return;
   setupActive = true;
   if (els.setupTitle) els.setupTitle.textContent = title || "Kurulum";
-  if (els.setupStatus) els.setupStatus.textContent = "Başlatılıyor…";
+  if (els.setupStatus) els.setupStatus.textContent = "BaÃ…Å¸latÃ„Â±lÃ„Â±yorÃ¢â‚¬Â¦";
   if (els.setupBar) { els.setupBar.style.width = "0%"; els.setupBar.classList.add("indeterminate"); }
   _setStep("ollama", "active"); _setStep("model", ""); _setStep("ready", "");
   if (els.setupClose) els.setupClose.disabled = true;
@@ -3277,7 +3292,7 @@ function updateSetupFromStatus(status) {
   if (els.setupStatus && msg) els.setupStatus.textContent = msg;
   const pct = (typeof status.percent === "number") ? status.percent : null;
   const isModelPhase = pct != null || status.downloadedBytes != null || /model|indir/i.test(msg);
-  const ollamaDone = /kuruldu|hazır|✓/i.test(msg) || isModelPhase;
+  const ollamaDone = /kuruldu|hazÃ„Â±r|Ã¢Å“â€œ/i.test(msg) || isModelPhase;
   if (ollamaDone) _setStep("ollama", "done");
   if (isModelPhase) {
     _setStep("model", "active");
@@ -3301,19 +3316,19 @@ function finishSetup(ok, message) {
   setupActive = false;
 }
 async function runModelSetup(modelId, label) {
-  openSetupProgress(label ? `Kurulum: ${label}` : "Önerilen Modeli Kur");
+  openSetupProgress(label ? `Kurulum: ${label}` : "Ãƒâ€“nerilen Modeli Kur");
   try {
     const status = await window.codega.setupModel({ modelId });
     if (status && status.ok === false) {
-      finishSetup(false, status.message || "Kurulum tamamlanmadı.");
+      finishSetup(false, status.message || "Kurulum tamamlanmadÃ„Â±.");
     } else {
-      finishSetup(true, `${label || "Model"} hazır ✓`);
+      finishSetup(true, `${label || "Model"} hazÃ„Â±r Ã¢Å“â€œ`);
       if (typeof refreshModels === "function") refreshModels();
       if (typeof refreshModelsPage === "function") refreshModelsPage();
       if (typeof refreshCookbook === "function") refreshCookbook();
     }
   } catch (e) {
-    finishSetup(false, "Kurulum hatası: " + (e.message || e));
+    finishSetup(false, "Kurulum hatasÃ„Â±: " + (e.message || e));
   }
 }
 if (els.setupClose) els.setupClose.addEventListener("click", () => { if (els.setupDialog && els.setupDialog.open) els.setupDialog.close(); });
@@ -3329,14 +3344,14 @@ window.codega.onUpdateStatus((payload) => {
   const state = payload?.state || "unknown";
   const detail = payload?.detail || {};
   const messages = {
-    checking: "Güncelleme kontrol ediliyor...",
-    available: "Yeni sürüm bulundu. İndirmeye hazır.",
+    checking: "GÃƒÂ¼ncelleme kontrol ediliyor...",
+    available: "Yeni sÃƒÂ¼rÃƒÂ¼m bulundu. Ã„Â°ndirmeye hazÃ„Â±r.",
     "not-available": detail.reason === "development"
-      ? "Güncelleme kontrolü paketlenmiş uygulamada çalışır."
-      : "Güncel sürümü kullanıyorsun.",
-    downloading: `Güncelleme indiriliyor${detail.percent ? `: %${Math.round(detail.percent)}` : "..."}`,
-    ready: "Güncelleme indirildi. Kurulum için yeniden başlatabilirsin.",
-    error: detail.message ? `Güncelleme hatası: ${detail.message}` : "Güncelleme kontrolü tamamlanamadı.",
+      ? "GÃƒÂ¼ncelleme kontrolÃƒÂ¼ paketlenmiÃ…Å¸ uygulamada ÃƒÂ§alÃ„Â±Ã…Å¸Ã„Â±r."
+      : "GÃƒÂ¼ncel sÃƒÂ¼rÃƒÂ¼mÃƒÂ¼ kullanÃ„Â±yorsun.",
+    downloading: `GÃƒÂ¼ncelleme indiriliyor${detail.percent ? `: %${Math.round(detail.percent)}` : "..."}`,
+    ready: "GÃƒÂ¼ncelleme indirildi. Kurulum iÃƒÂ§in yeniden baÃ…Å¸latabilirsin.",
+    error: detail.message ? `GÃƒÂ¼ncelleme hatasÃ„Â±: ${detail.message}` : "GÃƒÂ¼ncelleme kontrolÃƒÂ¼ tamamlanamadÃ„Â±.",
   };
   els.updateDetail.textContent = messages[state] || `Durum: ${state}`;
   if (state === "checking" || state === "not-available" || state === "error") {
@@ -3359,9 +3374,9 @@ window.codega.onUpdateStatus((payload) => {
     els.installUpdate.hidden = false;
     showUpdatePrompt("ready", detail);
   }
-  // Elle kontrolde görünür geri bildirim (sonuç gizli sekmede kalmasın)
+  // Elle kontrolde gÃƒÂ¶rÃƒÂ¼nÃƒÂ¼r geri bildirim (sonuÃƒÂ§ gizli sekmede kalmasÃ„Â±n)
   if (manualUpdateCheck && (state === "not-available" || state === "error")) {
-    setTransientStatus(messages[state] || "Güncelleme kontrolü tamamlandı.");
+    setTransientStatus(messages[state] || "GÃƒÂ¼ncelleme kontrolÃƒÂ¼ tamamlandÃ„Â±.");
   }
   if (state !== "checking" && state !== "downloading") manualUpdateCheck = false;
 });
