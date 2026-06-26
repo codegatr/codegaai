@@ -72,7 +72,7 @@ if (!pkg.build?.files?.some((entry) => String(entry).includes("!**/__pycache__/*
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
 if (!pkg.scripts?.["release:win"]) throw new Error("Windows release script is missing");
 
-if (pkg.version !== "5.4.1") throw new Error(`Desktop package version must be 5.4.1, got ${pkg.version}`);
+if (pkg.version !== "5.4.2") throw new Error(`Desktop package version must be 5.4.1, got ${pkg.version}`);
 
 const phoenixCore = readText(join(repoRoot, "packages", "phoenix-core", "index.js"));
 if (!phoenixCore.includes("runPhoenix") || !phoenixCore.includes("createTask") || !phoenixCore.includes("createModelStore")) throw new Error("Phoenix core entrypoint is incomplete");
@@ -84,7 +84,7 @@ const desktopTaskEngine = readText(join(root, "src", "main", "phoenix", "kernel"
 if (!desktopTaskEngine.includes("createTask") || !desktopTaskEngine.includes("classifyIntent") || !desktopTaskEngine.includes("agentsForIntent")) throw new Error("Desktop Phoenix Task Engine is incomplete");
 
 const plannerAgent = readText(join(root, "src", "main", "phoenix", "agents", "planner", "planner-agent.js"));
-if (!plannerAgent.includes("planTask") || !plannerAgent.includes("TASK-001") || !plannerAgent.includes("VeritabanÃ„Â± Ã…ÂemasÃ„Â±")) throw new Error("Desktop Phoenix Planner Agent is incomplete");
+if (!plannerAgent.includes("planTask") || !plannerAgent.includes("TASK-001") || !plannerAgent.includes("VeritabanÃƒâ€Ã‚Â± Ãƒâ€¦Ã‚ÂemasÃƒâ€Ã‚Â±")) throw new Error("Desktop Phoenix Planner Agent is incomplete");
 
 const progressBus = readText(join(root, "src", "main", "phoenix", "kernel", "progress-bus.js"));
 if (!progressBus.includes("createProgressBus") || !progressBus.includes("completed")) throw new Error("Phoenix Progress Bus is incomplete");
