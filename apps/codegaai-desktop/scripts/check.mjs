@@ -58,13 +58,13 @@ if (!pkg.build?.files?.some((entry) => String(entry).includes("!**/__pycache__/*
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
 if (!pkg.scripts?.["release:win"]) throw new Error("Windows release script is missing");
 
-if (pkg.version !== "5.1.2") throw new Error(`Desktop package version must be 5.1.2, got ${pkg.version}`);
+if (pkg.version !== "5.2.0") throw new Error(`Desktop package version must be 5.2.0, got ${pkg.version}`);
 
 const phoenixCore = readFileSync(join(repoRoot, "packages", "phoenix-core", "index.js"), "utf8");
 if (!phoenixCore.includes("runPhoenix") || !phoenixCore.includes("createTask") || !phoenixCore.includes("createModelStore")) throw new Error("Phoenix core entrypoint is incomplete");
 
 const desktopStore = readFileSync(join(root, "src", "main", "phoenix", "model-store", "index.js"), "utf8");
-if (!desktopStore.includes("createDesktopModelStore") || !desktopStore.includes("getModelForTask")) throw new Error("Desktop ModelStore is incomplete");
+if (!desktopStore.includes("createDesktopModelStore") || !desktopStore.includes("getModelForTask") || !desktopStore.includes("toSettingsPatch")) throw new Error("Desktop ModelStore is incomplete");
 
 const taskEngine = readFileSync(join(repoRoot, "packages", "phoenix-core", "task-engine", "create-task.js"), "utf8");
 if (!taskEngine.includes("createTask") || !taskEngine.includes("service_automation")) throw new Error("Phoenix task engine is incomplete");
@@ -90,4 +90,4 @@ function scan(dir) {
 scan(repoRoot);
 if (forbidden.length) throw new Error(`Runtime artifacts must not be shipped in repository: ${forbidden.slice(0, 8).join(", ")}`);
 
-console.log("CODEGA AI Phoenix scaffold OK");
+console.log("CODEGA AI Phoenix ModelStore foundation OK");
