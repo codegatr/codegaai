@@ -58,7 +58,7 @@ if (!pkg.build?.files?.some((entry) => String(entry).includes("!**/__pycache__/*
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
 if (!pkg.scripts?.["release:win"]) throw new Error("Windows release script is missing");
 
-if (pkg.version !== "5.2.1") throw new Error(`Desktop package version must be 5.2.1, got ${pkg.version}`);
+if (pkg.version !== "5.3.1") throw new Error(`Desktop package version must be 5.3.1, got ${pkg.version}`);
 
 const phoenixCore = readFileSync(join(repoRoot, "packages", "phoenix-core", "index.js"), "utf8");
 if (!phoenixCore.includes("runPhoenix") || !phoenixCore.includes("createTask") || !phoenixCore.includes("createModelStore")) throw new Error("Phoenix core entrypoint is incomplete");
