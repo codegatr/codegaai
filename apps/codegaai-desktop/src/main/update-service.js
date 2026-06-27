@@ -86,7 +86,7 @@ function rawUpdateError(error) {
 
 function updateErrorMessage(error) {
   const message = rawUpdateError(error);
-  if (/not digitally signed|not signed by the application owner/i.test(message)) {
+  if (/not digitally signed|not signed by the application owner|kod nesnesi.*imzalanmam|Code signature.*did not pass|imza do.rulanmad/i.test(message)) {
     return "Guncelleme installer'i imzasiz. CODEGA AI unsigned build kullandigi icin imza dogrulamasi kapali olmali; bu surumde otomatik olarak kapatildi.";
   }
   if (/status code 502|HttpError:\s*502|Unicorn|This page is taking too long to load/i.test(message)) {
@@ -183,4 +183,37 @@ class UpdateService {
           return await autoUpdater.checkForUpdates();
         } catch (retryError) {
           console.error("[UpdateService] retry error:", rawUpdateError(retryError));
-          const detail = updateErrorDetail(
+          const detail = updateErrorDetail(retryError);
+          this.emit("error", detail);
+          return { ok: false, ...detail };
+        }
+      }
+      const detail = updateErrorDetail(error);
+      this.emit("error", detail);
+      return { ok: false, ...detail };
+    }
+  }
+
+  async download() {
+    try {
+      await this.prepareFeed();
+      return await autoUpdater.downloadUpdate();
+    } catch (error) {
+      const detail = updateErrorDetail(error);
+      this.emit("error", detail);
+      return { ok: false, ...detail };
+    }
+  }
+
+  installNow() {
+    if (!this.readyToInstall) {
+      this.emit("error", { message: "Guncelleme henuz kuruluma hazir degil." });
+      return;
+    }
+    autoUpdater.quitAndInstall(false, true);
+  }
+}
+
+module.exports = {
+  UpdateService,
+};
