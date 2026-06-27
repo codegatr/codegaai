@@ -725,31 +725,17 @@ function registerIpc() {
       send({ status: "checking", message: "Ollama kuruluyor… (yönetici onayı çıkabilir)" });
       const r = await installer.installOllama((line) => {
         const clean = String(line).replace(/\s+/g, " ").trim();
-        if (clean) send({ status: "checking", message: "Ollama kurulumu: " + clean.slice(0, 90) });
+        if (clean) send({ status: "checking", message: clean.slice(0, 120) });
       });
-      hasOllama = await installer.detectOllama();
-      // Harici (GUI) kurulum hemen bitmez: kullanıcı kurulum penceresini tamamlayana kadar
-      // OTOMATİK YOKLA (poll). Böylece "tekrar bas" demek yerine kendiliğinden ilerler.
-      if (!hasOllama) {
-        send({ status: "installing", message: "Açılan Ollama kurulum penceresini tamamla — otomatik algılayacağım…" });
-        const deadline = Date.now() + 6 * 60 * 1000; // 6 dk bekle
-        let waited = 0;
-        while (!hasOllama && Date.now() < deadline) {
-          await new Promise((res) => setTimeout(res, 3000));
-          waited += 3;
-          hasOllama = await installer.detectOllama();
-          if (!hasOllama) send({ status: "installing", message: `Ollama kurulumu bekleniyor… (${waited}sn) — kurulum penceresini tamamla` });
-        }
-      }
-      if (!hasOllama) {
+      // installOllama() artık kendi içinde waitForOllama() yapıyor.
+      // ok=true ise Ollama zaten çalışıyor; ok=false ise hata mesajı döner.
+      if (!r.ok) {
         return {
           ok: false,
-          needsManual: !!r.needsManual,
-          message: r.needsManual
-            ? "Ollama kurulumu süre içinde algılanmadı. Kurulumu tamamladıysan 'Önerilen Modeli Kur'a tekrar bas."
-            : (r.message || "Ollama kurulumu doğrulanamadı. Tamamlandıysa tekrar dene."),
+          message: r.message || "Ollama kurulumu başarısız. Lütfen ollama.com/download adresinden manuel kur.",
         };
       }
+      hasOllama = true;
       send({ status: "checking", message: "Ollama kuruldu ✓ — model indiriliyor…" });
     }
 
