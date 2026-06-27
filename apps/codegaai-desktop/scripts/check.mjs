@@ -52,6 +52,13 @@ const required = [
   "src/main/phoenix-core/runtime/conversation-isolation.js",
   "src/main/phoenix-core/watchdog/heartbeat.js",
   "src/main/phoenix-core/watchdog/watchdog.js",
+  "src/main/phoenix-core/runtime/phoenix-runtime.js",
+  "src/main/agent/zip/zip-engine.js",
+  "src/main/agent/zip/zip-analyzer.js",
+  "src/main/agent/zip/zip-ipc.js",
+  "src/main/agent/git/git-engine.js",
+  "src/main/agent/git/git-analyzer.js",
+  "src/main/agent/git/git-ipc.js",
   "src/renderer/phoenix-theme.css",
   "src/renderer/phoenix-splash.js"
 ];
@@ -84,7 +91,7 @@ if (!pkg.build?.files?.some((entry) => String(entry).includes("!**/__pycache__/*
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
 if (!pkg.scripts?.["release:win"]) throw new Error("Windows release script is missing");
 
-if (pkg.version !== "6.0.0-alpha.8") throw new Error(`Desktop package version must be 6.0.0-alpha.8, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.9") throw new Error(`Desktop package version must be 6.0.0-alpha.9, got ${pkg.version}`);
 
 const phoenixCore = readText(join(repoRoot, "packages", "phoenix-core", "index.js"));
 if (!phoenixCore.includes("runPhoenix") || !phoenixCore.includes("createTask") || !phoenixCore.includes("createModelStore")) throw new Error("Phoenix core entrypoint is incomplete");
@@ -155,12 +162,4 @@ function scan(dir) {
     if (entry.isDirectory()) {
       if (entry.name === "__pycache__") forbidden.push(rel);
       scan(full);
-    } else if (entry.name.endsWith(".pyc") || entry.name.endsWith(".log")) forbidden.push(rel);
-  }
-}
-scan(repoRoot);
-if (forbidden.length) throw new Error(`Runtime artifacts must not be shipped in repository: ${forbidden.slice(0, 8).join(", ")}`);
-
-console.log("CODEGA AI Phoenix Core v2 watchdog + isolation foundation OK");
-
-
+    } else if (entry.name.endsWith(".pyc") || e

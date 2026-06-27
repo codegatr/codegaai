@@ -218,12 +218,12 @@ async function generateChangelog(repoPath, maxTags = 10) {
     if (notes) lines.push(notes.markdown);
   }
 
-  // Unreleased section
+  // Unreleased section (splice after the fixed header, not unshift again)
   const latestTag = allTags[0] || "";
   const unreleased = await generateReleaseNotes(repoPath, latestTag, "HEAD", "Unreleased").catch(() => null);
   if (unreleased?.commitCount) {
-    lines.unshift("", unreleased.markdown);
-    lines.unshift("# Changelog", "");
+    // Insert after the 4-line header block (index 4), not before the whole array
+    lines.splice(4, 0, unreleased.markdown, "");
   }
 
   return lines.join("\n");

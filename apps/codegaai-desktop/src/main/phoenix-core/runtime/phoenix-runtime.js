@@ -135,12 +135,11 @@ class PhoenixRuntime {
     } catch (_e) {}
     try { this.watchdog.heartbeat.remove(taskId); } catch (_e) {}
 
-    this._activeTasks.delete(taskId);
-
     const duration = (() => {
       const task = this._activeTasks.get(taskId);
       return task ? Date.now() - task.startedAt : 0;
     })();
+    this._activeTasks.delete(taskId);
 
     this.eventBus.emit("chat.finished", {
       taskId,

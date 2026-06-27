@@ -438,7 +438,7 @@ function registerIpc() {
     try { if (settingsStore.getSettings().debugLogging) logs.info("chat", `[${intent.intent}] ${String(message).slice(0, 60)}`); } catch (_e) {}
 
     // FastPath: basit sorgular LLM'e gitmeden anında yanıt alır
-    if (intent.fastAnswer && !intent.needsModel) {
+    if (intent.fastAnswer !== undefined && !intent.needsModel) {
       const fastResult = { text: intent.fastAnswer, source: "fast_path", intent: intent.intent };
       try { event.sender.send("chat:stream", intent.fastAnswer); } catch (_e) {}
       phoenixRuntime.finishChat(taskId, chatId, fastResult);

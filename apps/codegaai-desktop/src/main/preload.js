@@ -89,4 +89,29 @@ contextBridge.exposeInMainWorld("codega", {
   onUpdateStatus: (callback) => {
     ipcRenderer.on("updates:status", (_event, payload) => callback(payload));
   },
+
+  // ZIP Engine API
+  zip: {
+    list:    (zipPath)                    => ipcRenderer.invoke("zip:list",    zipPath),
+    analyze: (zipPath)                    => ipcRenderer.invoke("zip:analyze", zipPath),
+    read:    (zipPath, entry)             => ipcRenderer.invoke("zip:read",    zipPath, entry),
+    extract: (zipPath, destDir)           => ipcRenderer.invoke("zip:extract", zipPath, destDir),
+    patch:   (zipPath, destZip, patches)  => ipcRenderer.invoke("zip:patch",   zipPath, destZip, patches),
+    create:  (sourceDir, destZip)         => ipcRenderer.invoke("zip:create",  sourceDir, destZip),
+  },
+
+  // Git Agent API
+  git: {
+    findRoot:       (dir)              => ipcRenderer.invoke("git:find-root",       dir),
+    status:         (repo)             => ipcRenderer.invoke("git:status",           repo),
+    diff:           (repo, staged)     => ipcRenderer.invoke("git:diff",             repo, staged),
+    log:            (repo, opts)       => ipcRenderer.invoke("git:log",              repo, opts),
+    branches:       (repo)             => ipcRenderer.invoke("git:branches",         repo),
+    tags:           (repo)             => ipcRenderer.invoke("git:tags",             repo),
+    suggestCommit:  (repo)             => ipcRenderer.invoke("git:suggest-commit",   repo),
+    suggestBranch:  (desc, type)       => ipcRenderer.invoke("git:suggest-branch",   desc, type),
+    releaseNotes:   (repo, from, ver)  => ipcRenderer.invoke("git:release-notes",    repo, from, ver),
+    changelog:      (repo, max)        => ipcRenderer.invoke("git:changelog",        repo, max),
+    explainConflict:(block)            => ipcRenderer.invoke("git:explain-conflict", block),
+  },
 });
