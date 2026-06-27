@@ -284,4 +284,24 @@ const macTargets = pkg.build?.mac?.target || [];
 const hasUniversal = macTargets.some(t => (t.arch || []).includes("universal"));
 if (!hasUniversal) throw new Error("macOS build must target universal arch for ARM64 compatibility");
 
+
+// Kritik JS dosyalarında sözdizimi kontrolü
+import { execSync } from "node:child_process";
+const syntaxFiles = [
+  "src/main/main.js",
+  "src/main/preload.js",
+  "src/main/agent/ace/ace-os.js",
+  "src/main/agent/ace/ace-ipc.js",
+  "src/main/agent/aep/aep-os.js",
+  "src/main/agent/aep/aep-ipc.js",
+  "src/main/agent/mission/mission-ipc.js",
+];
+for (const f of syntaxFiles) {
+  try {
+    execSync(`node --check "${join(root, f)}"`, { stdio: "pipe" });
+  } catch (e) {
+    throw new Error(`Syntax error in ${f}:\n${e.stderr?.toString() || e.message}`);
+  }
+}
+
 console.log("CODEGA AI alpha.26 -- ACE (Artificial Cognition Engine) + 7 Cognitive Layers + Life Graph OK");
