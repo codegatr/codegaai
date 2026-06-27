@@ -78,6 +78,7 @@ const DEFAULTS = {
   theme: "oled", // görünüm teması (oled/slate/midnight/warm)
   accent: "#f59e0b", // vurgu rengi (prototip amber)
   fontScale: "orta", // sohbet yazı boyutu (kucuk/orta/buyuk)
+  notifications: false, // sistem bildirimleri: AI cevabi hazir oldugunda OS bildirimi gonder
 };
 
 function settingsPath() {

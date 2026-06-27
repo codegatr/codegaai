@@ -748,11 +748,23 @@ body.empty-chat .starter-meta {
   color: var(--muted);
 }
 
-/* Görünüm: tema modları (koyu aile — sadece --bg/--accent değişir, güvenli) */
-body[data-theme="slate"] { --bg: #10141c; }
-body[data-theme="midnight"] { --bg: #0b1230; }
-body[data-theme="warm"] { --bg: #1b1410; }
-body[data-theme="oled"] { --bg: #000; }
+/* Goruntum: tema modlari — her tema birden fazla degisken override eder */
+body[data-theme="oled"] {
+  --bg: #000; --card: #14171c; --panel: rgba(255,255,255,.055);
+  --panel-strong: rgba(255,255,255,.09); --line: rgba(255,255,255,.10);
+}
+body[data-theme="slate"] {
+  --bg: #10141c; --card: #1a2030; --panel: rgba(255,255,255,.08);
+  --panel-strong: rgba(255,255,255,.13); --line: rgba(148,163,200,.16);
+}
+body[data-theme="midnight"] {
+  --bg: #060b1f; --card: #0e1535; --panel: rgba(80,120,255,.08);
+  --panel-strong: rgba(80,120,255,.14); --line: rgba(100,140,255,.18);
+}
+body[data-theme="warm"] {
+  --bg: #120d08; --card: #1e160f; --panel: rgba(255,150,50,.07);
+  --panel-strong: rgba(255,150,50,.13); --line: rgba(255,180,80,.16);
+}
 
 /* Görünüm: sohbet yazı boyutu (additive) */
 .message {

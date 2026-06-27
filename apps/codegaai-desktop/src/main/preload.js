@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld("codega", {
   downloadUpdate: () => ipcRenderer.invoke("updates:download"),
   installUpdate: () => ipcRenderer.invoke("updates:install"),
   getSettings: () => ipcRenderer.invoke("settings:get"),
+  sendNotification: (opts) => ipcRenderer.invoke("notifications:send", opts),
   setSettings: (patch) => ipcRenderer.invoke("settings:set", patch),
   listMemory: () => ipcRenderer.invoke("memory:list"),
   clearMemory: () => ipcRenderer.invoke("memory:clear"),

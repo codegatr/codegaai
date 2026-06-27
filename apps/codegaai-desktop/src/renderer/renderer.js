@@ -97,6 +97,7 @@ const els = {
   providerCloudFields: document.getElementById("provider-cloud-fields"),
   providerTest: document.getElementById("provider-test"),
   toggleFederation: document.getElementById("toggle-federation"),
+  toggleNotifications: document.getElementById("toggle-notifications"),
   clearMemory: document.getElementById("clear-memory"),
   memorySummary: document.getElementById("memory-summary"),
   memoryList: document.getElementById("memory-list"),
@@ -1279,6 +1280,9 @@ async function handleSubmit() {
       chatId: currentChat().id,
     });
     placeholder.text = cleanStoredAssistantOutput(answer.text); // final cevap otorite
+    if (agentSettings && agentSettings.notifications && !document.hasFocus()) {
+      window.codega.sendNotification({ title: "CODEGA AI", body: "Yanit hazir." }).catch(() => {});
+    }
     await refreshModels();
   } catch (error) {
     placeholder.text = `Bir aksama oldu: ${error.message || error}`;
@@ -2894,6 +2898,16 @@ document.querySelectorAll("#accent-swatches .swatch").forEach((b) =>
   b.addEventListener("click", () => setAppearance({ accent: b.dataset.accent }))
 );
 
+// Sistem Bildirimleri toggle
+if (els.toggleNotifications) {
+  els.toggleNotifications.addEventListener("click", async () => {
+    const next = !(agentSettings && agentSettings.notifications);
+    agentSettings = await window.codega.setSettings({ notifications: next });
+    applyToggleLabel(els.toggleNotifications, next);
+    setTransientStatus(next ? "Bildirimler acildi." : "Bildirimler kapatildi.");
+  });
+}
+
 // Açılışta kayıtlı görünümü uygula
 window.codega
   .getSettings()
@@ -2954,6 +2968,7 @@ async function refreshAgentSettings() {
     updateOverview();
     applyAppearance(agentSettings);
     applyToggleLabel(els.toggleFederation, !!agentSettings.federation);
+    if (els.toggleNotifications) applyToggleLabel(els.toggleNotifications, !!agentSettings.notifications);
     applyToggleLabel(els.toggleIdle, !!agentSettings.idleLearning);
     els.knowledgeRepo.value = agentSettings.knowledgeRepo || "";
     if (els.developmentRepo) els.developmentRepo.value = agentSettings.autonomousDevelopmentRepo || agentSettings.knowledgeRepo || "";

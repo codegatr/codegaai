@@ -491,9 +491,9 @@ function registerIpc() {
     // Cloudflare bağlantıyı askıya alırsa istek sonsuza dek beklemesin (yazma kilidi olmasın)
     const timer = setTimeout(() => controller.abort(), 12000);
     try {
-      const response = await fetch(`${FEDERATION_BASE_URL}/share`, {
+      const response = await fetch(`${FEDERATION_BASE_URL}/share/`, {
         method: "POST",
-        redirect: "follow",
+        redirect: "error",
         signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
@@ -761,6 +761,15 @@ function registerIpc() {
   ipcMain.handle("updates:install", async () => updateService.installNow());
 
   ipcMain.handle("settings:get", async () => settingsStore.getSettings());
+  ipcMain.handle("notifications:send", (_event, opts) => {
+    if (!settingsStore.getSettings().notifications) return false;
+    const { Notification } = require("electron");
+    if (!Notification.isSupported()) return false;
+    const title = String((opts && opts.title) || "CODEGA AI").slice(0, 80);
+    const body  = String((opts && opts.body)  || "").slice(0, 200);
+    new Notification({ title, body }).show();
+    return true;
+  });
   ipcMain.handle("external:open", async (_event, rawUrl) => {
     const url = String(rawUrl || "").trim();
     if (!/^https:\/\/github\.com\//i.test(url)) throw new Error("Yalnızca GitHub bağlantıları açılabilir.");
