@@ -278,6 +278,34 @@ CODEGA AI, gerçek çalışan proje iskeleti üretir ve ZIP olarak verir.
 
 **IPC Kanalları:** `builder:stacks` · `builder:build` · `builder:preview`
 
+## 🧩 Sprint 6 — Plugin System
+
+CODEGA AI artık harici plugin'leri destekliyor. ZIP dosyasından kur, anında etkinleştir.
+
+**Mimarisi:**
+
+- Her plugin `userData/plugins/<id>/` klasörü içindedir
+- `plugin.json` manifest: id, name, version, description, author, entry, permissions
+- `index.js` entry point: `onLoad(ctx)`, `onUnload()`, `ipcHandlers`, `intentHandlers`
+- Sandbox güvenliği: IPC kanalları mutlaka `<plugin-id>:` ile başlamalı
+- Plugin başına kalıcı `key-value store` (`userData/plugins/<id>/data/store.json`)
+- IntentEngine entegrasyonu: plugin'ler yeni intent handler'ları kaydedebilir
+
+**8 IPC Kanalı:**
+
+| Kanal | Fonksiyon |
+|-------|-----------|
+| `plugin:list` | Tüm plugin'leri listele |
+| `plugin:info` | Tek plugin detayı |
+| `plugin:enable` | Etkinleştir + yükle |
+| `plugin:disable` | Devre dışı bırak + kaldır |
+| `plugin:install-zip` | ZIP'ten kur |
+| `plugin:uninstall` | Kaldır |
+| `plugin:reload` | Hot-reload |
+| `plugin:intent-handlers` | Kayıtlı intent listesi |
+
+**preload API:** `window.codega.plugins.*`
+
 ---
 
 <p align="center">

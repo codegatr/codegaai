@@ -1,0 +1,10 @@
+{
+  "id": "hello-plugin",
+  "name": "Hello Plugin",
+  "version": "1.0.0",
+  "description": "CODEGA AI plugin sistemi için örnek/referans plugin.",
+  "author": "CODEGA",
+  "entry": "index.js",
+  "permissions": [],
+  "codegaMinVersion": "6.0.0-alpha.13"
+}

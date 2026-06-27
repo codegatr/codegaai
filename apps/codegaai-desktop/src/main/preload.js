@@ -138,4 +138,15 @@ contextBridge.exposeInMainWorld("codega", {
     build:   (spec)   => ipcRenderer.invoke("builder:build",   spec),
     preview: (spec)   => ipcRenderer.invoke("builder:preview", spec),
   },
+  // Plugin System API
+  plugins: {
+    list:           ()          => ipcRenderer.invoke("plugin:list"),
+    info:           (id)        => ipcRenderer.invoke("plugin:info",           id),
+    enable:         (id)        => ipcRenderer.invoke("plugin:enable",         id),
+    disable:        (id)        => ipcRenderer.invoke("plugin:disable",        id),
+    installZip:     (zipPath)   => ipcRenderer.invoke("plugin:install-zip",    zipPath),
+    uninstall:      (id)        => ipcRenderer.invoke("plugin:uninstall",      id),
+    reload:         (id)        => ipcRenderer.invoke("plugin:reload",         id),
+    intentHandlers: ()          => ipcRenderer.invoke("plugin:intent-handlers"),
+  },
 });

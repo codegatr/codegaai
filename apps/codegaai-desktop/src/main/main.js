@@ -34,6 +34,7 @@ const { registerZipIpc } = require("./agent/zip/zip-ipc");
 const { registerGitIpc } = require("./agent/git/git-ipc");
 const { registerProjectMemoryIpc } = require("./agent/memory/project-ipc");
 const { registerBuilderIpc }       = require("./agent/builder/builder-ipc");
+const { registerPluginIpc }        = require("./agent/plugins/plugin-ipc");
 const inheritedOllamaModelsPath = String(process.env.OLLAMA_MODELS || "").trim();
 let activeModelStorage = null;
 let lastMcpHealth = null;
@@ -430,6 +431,7 @@ function registerIpc() {
   // Project Memory IPC handlers
   registerProjectMemoryIpc();
   registerBuilderIpc();
+  registerPluginIpc();
 
   ipcMain.handle("chat:send", async (event, message, opts) => {
     lastActivityAt = Date.now();
