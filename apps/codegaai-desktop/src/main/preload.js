@@ -131,4 +131,11 @@ contextBridge.exposeInMainWorld("codega", {
     context:     (id, max)                => ipcRenderer.invoke("project-memory:context",       id, max),
     categories:  ()                       => ipcRenderer.invoke("project-memory:categories"),
   },
+
+  // Builder Engine API
+  builder: {
+    stacks:  ()       => ipcRenderer.invoke("builder:stacks"),
+    build:   (spec)   => ipcRenderer.invoke("builder:build",   spec),
+    preview: (spec)   => ipcRenderer.invoke("builder:preview", spec),
+  },
 });
