@@ -39,6 +39,7 @@ const { registerMissionIpc }       = require("./agent/mission/mission-ipc");
 const { EvolutionEngine }          = require("./agent/evolution/evolution-engine");
 const { codegaDNA, initCodegaDNA } = require("./agent/evolution/codega-dna");
 const { contextEngine }            = require("./agent/context/context-engine");
+const { registerAEPIpc }              = require("./agent/aep/aep-ipc");
 const inheritedOllamaModelsPath = String(process.env.OLLAMA_MODELS || "").trim();
 let activeModelStorage = null;
 let lastMcpHealth = null;
@@ -447,6 +448,15 @@ function registerIpc() {
     return result?.text || "";
   };
   registerMissionIpc(null, missionGenerateFn);  // win lazily resolved via BrowserWindow.getAllWindows()
+
+  // AEP — Autonomous Evolution Platform — Sprint XX
+  const githubSettings = settingsStore.getSettings();
+  const aepGitHub = {
+    token: String(githubSettings.githubToken || "").trim(),
+    owner: "codegatr",
+    repo : "codegaai",
+  };
+  registerAEPIpc(missionGenerateFn, aepGitHub);
 
   // Evolution Engine + CODEGA DNA init — Sprint 11
   const evoDataDir = path.join(app.getPath("userData"), "evolution");

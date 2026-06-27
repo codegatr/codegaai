@@ -188,4 +188,51 @@ contextBridge.exposeInMainWorld("codega", {
       byVersion: (version) => ipcRenderer.invoke("evolution:dna:by-version", version),
     },
   },
+
+  // Autonomous Evolution Platform (AEP) API — Sprint XX
+  aep: {
+    dashboard:        ()                    => ipcRenderer.invoke("aep:dashboard"),
+    backlog: {
+      list:           (opts)                => ipcRenderer.invoke("aep:backlog:list",    opts),
+      add:            (opts)                => ipcRenderer.invoke("aep:backlog:add",     opts),
+      update:         (id, patch)           => ipcRenderer.invoke("aep:backlog:update",  id, patch),
+      summary:        ()                    => ipcRenderer.invoke("aep:backlog:summary"),
+    },
+    proposals: {
+      list:           (opts)                => ipcRenderer.invoke("aep:proposals:list",    opts),
+      approve:        (id)                  => ipcRenderer.invoke("aep:proposals:approve", id),
+      reject:         (id, reason)          => ipcRenderer.invoke("aep:proposals:reject",  id, reason),
+      summary:        ()                    => ipcRenderer.invoke("aep:proposals:summary"),
+    },
+    patch:            (proposalId)          => ipcRenderer.invoke("aep:patch:run",         proposalId),
+    score: {
+      latest:         ()                    => ipcRenderer.invoke("aep:score:latest"),
+      history:        (n)                   => ipcRenderer.invoke("aep:score:history",     n),
+      record:         (opts)                => ipcRenderer.invoke("aep:score:record",      opts),
+    },
+    learning: {
+      summary:        ()                    => ipcRenderer.invoke("aep:learning:summary"),
+      query:          (opts)                => ipcRenderer.invoke("aep:learning:query",    opts),
+    },
+    intel: {
+      analyze:        ()                    => ipcRenderer.invoke("aep:intel:analyze"),
+      summary:        ()                    => ipcRenderer.invoke("aep:intel:summary"),
+    },
+    genome: {
+      latest:         ()                    => ipcRenderer.invoke("aep:genome:latest"),
+      report:         ()                    => ipcRenderer.invoke("aep:genome:report"),
+    },
+    cycle:            (report, version)     => ipcRenderer.invoke("aep:cycle:run",         report, version),
+    closeTask:        (taskId)              => ipcRenderer.invoke("aep:close-task",         taskId),
+    on: (channel, fn) => {
+      const allowed = [
+        "aep:cycle:start", "aep:cycle:complete", "aep:cycle:error",
+        "aep:patch:start", "aep:patch:pr_open",  "aep:patch:failed",
+        "aep:genome:update",
+      ];
+      if (!allowed.includes(channel)) return;
+      ipcRenderer.on(channel, (_e, data) => fn(data));
+    },
+    off: (channel, fn) => ipcRenderer.removeListener(channel, fn),
+  },
 });

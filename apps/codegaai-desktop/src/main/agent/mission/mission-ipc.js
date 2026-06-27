@@ -154,9 +154,8 @@ function err(e)     { return { ok: false, error: String(e?.message || e) }; }
 
 function _push(channel, data) {
   try {
-    const win = _win || require("electron").BrowserWindow.getAllWindows()[0];
-    if (win && !win.isDestroyed()) {
-      win.webContents.send(channel, data);
+    if (_win && !_win.isDestroyed()) {
+      _win.webContents.send(channel, data);
     }
   } catch (_) {}
 }

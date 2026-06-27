@@ -118,7 +118,8 @@ if (!pkg.build?.asarUnpack?.some((e) => String(e).includes("archiver"))) throw n
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
 if (!pkg.scripts?.["release:win"]) throw new Error("Windows release script is missing");
 
-if (pkg.version !== "6.0.0-alpha.24") throw new Error(`Desktop package version must be 6.0.0-alpha.24, got ${pkg.version}`);
+// replaced below — see alpha.25 check
+// if (pkg.version !== "6.0.0-alpha.24")(`Desktop package version must be 6.0.0-alpha.24, got ${pkg.version}`);
 
 const phoenixCore = readText(join(repoRoot, "packages", "phoenix-core", "index.js"));
 if (!phoenixCore.includes("runPhoenix") || !phoenixCore.includes("createTask") || !phoenixCore.includes("createModelStore")) throw new Error("Phoenix core entrypoint is incomplete");
@@ -211,4 +212,53 @@ if (!codegaDNAFile.includes("CodegaDNA") || !codegaDNAFile.includes("DNA_VERDICT
 const ctxEngine = readText(join(root, "src/main/agent/context/context-engine.js"));
 if (!ctxEngine.includes("ContextEngine") || !ctxEngine.includes("CONTEXT_TYPE")) throw new Error("ContextEngine is incomplete");
 
-console.log("CODEGA AI alpha.24 — MissionOS + Evolution Engine + Context Engine OK");
+
+// AEP dosya varlık + içerik kontrolleri
+const aepFiles = [
+  "src/main/agent/aep/engineering-backlog.js",
+  "src/main/agent/aep/improvement-planner.js",
+  "src/main/agent/aep/engineering-score.js",
+  "src/main/agent/aep/patch-generator.js",
+  "src/main/agent/aep/pr-agent.js",
+  "src/main/agent/aep/learning-db.js",
+  "src/main/agent/aep/competitive-intel.js",
+  "src/main/agent/aep/ceg.js",
+  "src/main/agent/aep/aep-os.js",
+  "src/main/agent/aep/aep-ipc.js",
+  "src/main/agent/__tests__/aep.test.js",
+];
+for (const file of aepFiles) readText(join(root, file));
+
+const backlogFile = readText(join(root, "src/main/agent/aep/engineering-backlog.js"));
+if (!backlogFile.includes("EngineeringBacklog") || !backlogFile.includes("SEVERITY")) throw new Error("EngineeringBacklog is incomplete");
+
+const plannerFile = readText(join(root, "src/main/agent/aep/improvement-planner.js"));
+if (!plannerFile.includes("ImprovementPlanner") || !plannerFile.includes("PROPOSAL_TYPE")) throw new Error("ImprovementPlanner is incomplete");
+
+const scoreFile = readText(join(root, "src/main/agent/aep/engineering-score.js"));
+if (!scoreFile.includes("EngineeringScorecard") || !scoreFile.includes("calcOverall")) throw new Error("EngineeringScorecard is incomplete");
+
+const patchFile = readText(join(root, "src/main/agent/aep/patch-generator.js"));
+if (!patchFile.includes("PatchGenerator") || !patchFile.includes("PATCH_STATUS")) throw new Error("PatchGenerator is incomplete");
+
+const prFile = readText(join(root, "src/main/agent/aep/pr-agent.js"));
+if (!prFile.includes("generatePRContent") || !prFile.includes("createGitHubPR")) throw new Error("PRAgent is incomplete");
+
+const learningFile = readText(join(root, "src/main/agent/aep/learning-db.js"));
+if (!learningFile.includes("LearningDatabase") || !learningFile.includes("LEARNING_TYPE")) throw new Error("LearningDatabase is incomplete");
+
+const intelFile = readText(join(root, "src/main/agent/aep/competitive-intel.js"));
+if (!intelFile.includes("CompetitiveIntel") || !intelFile.includes("COMPETITORS")) throw new Error("CompetitiveIntel is incomplete");
+
+const cegFile = readText(join(root, "src/main/agent/aep/ceg.js"));
+if (!cegFile.includes("CODEGAEG") || !cegFile.includes("CEG_QUESTIONS")) throw new Error("CODEGA Engineering Genome is incomplete");
+
+const aepOsFile = readText(join(root, "src/main/agent/aep/aep-os.js"));
+if (!aepOsFile.includes("AEPOS") || !aepOsFile.includes("initAEPOS") || !aepOsFile.includes("dashboard")) throw new Error("AEPOS is incomplete");
+
+const preloadFile = readText(join(root, "src/main/preload.js"));
+if (!preloadFile.includes("aep:dashboard") || !preloadFile.includes("aep:genome:report")) throw new Error("preload.js AEP API eksik");
+
+if (pkg.version !== "6.0.0-alpha.25") throw new Error(`Desktop package version must be 6.0.0-alpha.25, got ${pkg.version}`);
+
+console.log("CODEGA AI alpha.25 — AEP + Engineering Genome + CTO Dashboard OK");
