@@ -59,37 +59,37 @@ const MODEL_OPTIONS = [
   {
     id: "qwen2.5:1.5b",
     label: "Qwen 2.5 1.5B",
-    description: "En hÄ±zlÄ± gÃ¼nlÃ¼k sohbet",
+    description: "En hÃ„Â±zlÃ„Â± gÃƒÂ¼nlÃƒÂ¼k sohbet",
     task: "chat",
   },
   {
     id: "qwen2.5:3b",
     label: "Qwen 2.5 3B",
-    description: "Dengeli varsayÄ±lan model",
+    description: "Dengeli varsayÃ„Â±lan model",
     task: "chat",
   },
   {
     id: "qwen2.5-coder:3b-instruct",
     label: "Qwen 2.5 Coder 3B",
-    description: "Kod yazma ve kÄ±sa teknik iÅŸler",
+    description: "Kod yazma ve kÃ„Â±sa teknik iÃ…Å¸ler",
     task: "code",
   },
   {
     id: "qwen2.5-coder:7b-instruct",
     label: "Qwen 2.5 Coder 7B",
-    description: "Daha iyi kod, daha yavaÅŸ",
+    description: "Daha iyi kod, daha yavaÃ…Å¸",
     task: "code",
   },
   {
     id: "qwen3:4b",
     label: "Qwen3 4B",
-    description: "Yeni nesil hÄ±zlÄ± Qwen",
+    description: "Yeni nesil hÃ„Â±zlÃ„Â± Qwen",
     task: "writing",
   },
   {
     id: "qwen3:8b",
     label: "Qwen3 8B",
-    description: "Daha gÃ¼Ã§lÃ¼ Qwen",
+    description: "Daha gÃƒÂ¼ÃƒÂ§lÃƒÂ¼ Qwen",
     task: "writing",
   },
   {
@@ -101,13 +101,13 @@ const MODEL_OPTIONS = [
   {
     id: "mistral:7b",
     label: "Mistral 7B",
-    description: "Genel amaÃ§lÄ± gÃ¼Ã§lÃ¼ model",
+    description: "Genel amaÃƒÂ§lÃ„Â± gÃƒÂ¼ÃƒÂ§lÃƒÂ¼ model",
     task: "writing",
   },
   {
     id: "gemma3:4b",
     label: "Gemma 3 4B",
-    description: "HÄ±zlÄ± ve kompakt alternatif",
+    description: "HÃ„Â±zlÃ„Â± ve kompakt alternatif",
     task: "image",
   },
 ];
@@ -136,28 +136,28 @@ const OLLAMA_CHAT_TIMEOUT_MS = 180 * 1000;
 const OLLAMA_PULL_TIMEOUT_MS = 30 * 60 * 1000;
 const UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
-// Cookbook: model baÅŸÄ±na yaklaÅŸÄ±k DONANIM gereksinimi (Q4 nicemleme).
-// sizeGb = indirme boyutu, minVramGb = GPU'da rahat Ã§alÄ±ÅŸma iÃ§in, minRamGb = CPU/sistem,
-// quality = 1..5 (TÃ¼rkÃ§e akÄ±l yÃ¼rÃ¼tme iÃ§in kabaca), note = kÄ±sa aÃ§Ä±klama.
+// Cookbook: model baÃ…Å¸Ã„Â±na yaklaÃ…Å¸Ã„Â±k DONANIM gereksinimi (Q4 nicemleme).
+// sizeGb = indirme boyutu, minVramGb = GPU'da rahat ÃƒÂ§alÃ„Â±Ã…Å¸ma iÃƒÂ§in, minRamGb = CPU/sistem,
+// quality = 1..5 (TÃƒÂ¼rkÃƒÂ§e akÃ„Â±l yÃƒÂ¼rÃƒÂ¼tme iÃƒÂ§in kabaca), note = kÃ„Â±sa aÃƒÂ§Ã„Â±klama.
 const MODEL_CATALOG = {
   "qwen3.5:0.8b": { params: "0.8B", sizeGb: 1.0, minVramGb: 2, minRamGb: 4, quality: 2, note: "En hafif guncel Qwen3.5" },
   "qwen3.5:2b": { params: "2B", sizeGb: 2.0, minVramGb: 3, minRamGb: 6, quality: 3, note: "Dusuk donanim icin guncel" },
   "qwen3.5:4b": { params: "4B", sizeGb: 3.4, minVramGb: 5, minRamGb: 10, quality: 4, note: "Guncel varsayilan - en iyi yerel denge" },
   "qwen3.5:9b": { params: "9B", sizeGb: 6.6, minVramGb: 8, minRamGb: 18, quality: 5, note: "Guclu muhakeme; CPU offload gerekebilir" },
   "qwen3.6:27b": { params: "27B", sizeGb: 17.0, minVramGb: 20, minRamGb: 40, quality: 5, note: "En yeni ust seviye Qwen; workstation" },
-  "qwen2.5:1.5b": { params: "1.5B", sizeGb: 1.0, minVramGb: 2, minRamGb: 4, quality: 2, note: "En hÄ±zlÄ±, en hafif sohbet" },
-  "qwen3:1.7b": { params: "1.7B", sizeGb: 1.4, minVramGb: 2, minRamGb: 4, quality: 2, note: "Yeni nesil Ã§ok hafif" },
-  "llama3.2:3b": { params: "3B", sizeGb: 2.0, minVramGb: 3, minRamGb: 6, quality: 2, note: "Hafif genel amaÃ§lÄ±" },
-  "qwen2.5:3b": { params: "3B", sizeGb: 1.9, minVramGb: 3, minRamGb: 6, quality: 3, note: "Dengeli kÃ¼Ã§Ã¼k model" },
-  "qwen2.5-coder:3b": { params: "3B", sizeGb: 1.9, minVramGb: 3, minRamGb: 6, quality: 3, note: "Kod iÃ§in hafif" },
-  "qwen2.5-coder:3b-instruct": { params: "3B", sizeGb: 1.9, minVramGb: 3, minRamGb: 6, quality: 3, note: "Kod iÃ§in hafif (instruct)" },
+  "qwen2.5:1.5b": { params: "1.5B", sizeGb: 1.0, minVramGb: 2, minRamGb: 4, quality: 2, note: "En hÃ„Â±zlÃ„Â±, en hafif sohbet" },
+  "qwen3:1.7b": { params: "1.7B", sizeGb: 1.4, minVramGb: 2, minRamGb: 4, quality: 2, note: "Yeni nesil ÃƒÂ§ok hafif" },
+  "llama3.2:3b": { params: "3B", sizeGb: 2.0, minVramGb: 3, minRamGb: 6, quality: 2, note: "Hafif genel amaÃƒÂ§lÃ„Â±" },
+  "qwen2.5:3b": { params: "3B", sizeGb: 1.9, minVramGb: 3, minRamGb: 6, quality: 3, note: "Dengeli kÃƒÂ¼ÃƒÂ§ÃƒÂ¼k model" },
+  "qwen2.5-coder:3b": { params: "3B", sizeGb: 1.9, minVramGb: 3, minRamGb: 6, quality: 3, note: "Kod iÃƒÂ§in hafif" },
+  "qwen2.5-coder:3b-instruct": { params: "3B", sizeGb: 1.9, minVramGb: 3, minRamGb: 6, quality: 3, note: "Kod iÃƒÂ§in hafif (instruct)" },
   "gemma3:4b": { params: "4B", sizeGb: 3.3, minVramGb: 4, minRamGb: 8, quality: 3, note: "Google Gemma 3" },
-  "qwen3:4b": { params: "4B", sizeGb: 2.6, minVramGb: 4, minRamGb: 8, quality: 3, note: "VarsayÄ±lan â€” dengeli" },
+  "qwen3:4b": { params: "4B", sizeGb: 2.6, minVramGb: 4, minRamGb: 8, quality: 3, note: "VarsayÃ„Â±lan Ã¢â‚¬â€ dengeli" },
   "mistral:7b": { params: "7B", sizeGb: 4.4, minVramGb: 6, minRamGb: 12, quality: 3, note: "Klasik 7B" },
-  "qwen2.5-coder:7b": { params: "7B", sizeGb: 4.7, minVramGb: 6, minRamGb: 12, quality: 4, note: "Kod iÃ§in gÃ¼Ã§lÃ¼" },
-  "qwen2.5-coder:7b-instruct": { params: "7B", sizeGb: 4.7, minVramGb: 6, minRamGb: 12, quality: 4, note: "Kod iÃ§in gÃ¼Ã§lÃ¼ (instruct)" },
+  "qwen2.5-coder:7b": { params: "7B", sizeGb: 4.7, minVramGb: 6, minRamGb: 12, quality: 4, note: "Kod iÃƒÂ§in gÃƒÂ¼ÃƒÂ§lÃƒÂ¼" },
+  "qwen2.5-coder:7b-instruct": { params: "7B", sizeGb: 4.7, minVramGb: 6, minRamGb: 12, quality: 4, note: "Kod iÃƒÂ§in gÃƒÂ¼ÃƒÂ§lÃƒÂ¼ (instruct)" },
   "qwen3:8b": { params: "8B", sizeGb: 5.2, minVramGb: 7, minRamGb: 16, quality: 4, note: "En iyi denge (16 GB sistem)" },
-  "qwen3:14b": { params: "14B", sizeGb: 9.0, minVramGb: 12, minRamGb: 32, quality: 5, note: "En gÃ¼Ã§lÃ¼ â€” yÃ¼ksek donanÄ±m" },
+  "qwen3:14b": { params: "14B", sizeGb: 9.0, minVramGb: 12, minRamGb: 32, quality: 5, note: "En gÃƒÂ¼ÃƒÂ§lÃƒÂ¼ Ã¢â‚¬â€ yÃƒÂ¼ksek donanÃ„Â±m" },
 };
 
 module.exports = {
