@@ -260,4 +260,3 @@ function mountSetupWizard(onComplete) {
 function upgradePhoenixWelcome() {}
 
 module.exports = { mountPhoenixSplash, mountSetupWizard };
-    
