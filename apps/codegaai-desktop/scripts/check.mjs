@@ -290,11 +290,15 @@ import { execSync } from "node:child_process";
 const syntaxFiles = [
   "src/main/main.js",
   "src/main/preload.js",
+  "src/main/update-service.js",
   "src/main/agent/ace/ace-os.js",
   "src/main/agent/ace/ace-ipc.js",
   "src/main/agent/aep/aep-os.js",
   "src/main/agent/aep/aep-ipc.js",
   "src/main/agent/mission/mission-ipc.js",
+  "src/renderer/renderer.js",
+  "src/renderer/phoenix-splash.js",
+  "src/renderer/renderer-hotfix.js",
 ];
 for (const f of syntaxFiles) {
   try {
