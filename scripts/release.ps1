@@ -35,12 +35,13 @@ if ($remoteTag) {
   throw "Remote tag v$Version already exists. Use a new version number."
 }
 
-$pkgContent = Get-Content $pkg -Raw
+# KRITIK: -Encoding UTF8 olmadan Get-Content cp1252 kullanir ve Turkce karakterleri bozar
+$pkgContent = Get-Content $pkg -Raw -Encoding UTF8
 $pkgReplacement = '"version":"' + $Version + '"'
 $pkgContent = $pkgContent -replace '"version"\s*:\s*"[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.]+)?"', $pkgReplacement
 Write-Utf8NoBom $pkg $pkgContent
 
-$checkContent = Get-Content $check -Raw
+$checkContent = Get-Content $check -Raw -Encoding UTF8
 $checkReplacement = 'pkg.version !== "' + $Version + '"'
 $checkContent = $checkContent -replace 'pkg\.version !== "[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.]+)?"', $checkReplacement
 Write-Utf8NoBom $check $checkContent
