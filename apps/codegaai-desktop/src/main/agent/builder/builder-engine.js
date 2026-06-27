@@ -1695,26 +1695,44 @@ async function build(spec, outputDir) {
   if (!GENERATORS[type]) throw new Error(`Desteklenmeyen stack: ${type}. Geçerliler: ${Object.keys(GENERATORS).join(", ")}`);
   if (!name || !String(name).trim()) throw new Error("Proje adı boş olamaz");
 
+  const t0        = Date.now();
   const generator = GENERATORS[type];
-  const files = generator({ name: String(name).trim(), features, database: database || STACKS[type]?.defaultDb || "", description });
+  const files     = generator({ name: String(name).trim(), features, database: database || STACKS[type]?.defaultDb || "", description });
 
   await fsp.mkdir(outputDir, { recursive: true });
   const outName = `${slug(name)}-${type}-${Date.now()}.zip`;
   const outPath = path.join(outputDir, outName);
 
-  await packToZip(files, outPath);
+  let result;
+  try {
+    await packToZip(files, outPath);
+    result = {
+      outPath,
+      fileName: outName,
+      stack:    type,
+      name:     String(name).trim(),
+      fileCount: files.length,
+      files:    files.map((f) => ({ path: f.path, size: Buffer.byteLength(f.content, "utf8") })),
+    };
+  } catch (err) {
+    // Execution Memory: record failed build (non-blocking)
+    try {
+      const { executionMemory } = require("../memory/execution-memory");
+      executionMemory.record("builder", spec, err, false, Date.now() - t0).catch(() => {});
+    } catch (_e) { /* memory module must never break the main flow */ }
+    throw err;
+  }
 
-  return {
-    outPath,
-    fileName: outName,
-    stack:    type,
-    name:     String(name).trim(),
-    fileCount: files.length,
-    files:    files.map((f) => ({ path: f.path, size: Buffer.byteLength(f.content, "utf8") })),
-  };
+  // Execution Memory: record successful build (non-blocking)
+  try {
+    const { executionMemory } = require("../memory/execution-memory");
+    executionMemory.record("builder", spec, result, true, Date.now() - t0).catch(() => {});
+  } catch (_e) { /* non-fatal */ }
+
+  return result;
 }
 
-/** Dosya ağacını önizler (ZIP oluşturmaz). */
+/** Dosya agacini onizler (ZIP olusturmaz). */
 function preview(spec) {
   const { type, name, features = [], database, description = "" } = spec;
   if (!GENERATORS[type]) throw new Error(`Desteklenmeyen stack: ${type}`);
