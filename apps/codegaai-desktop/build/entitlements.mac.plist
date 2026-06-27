@@ -2,11 +2,23 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+  <!-- Electron V8 JIT (zorunlu) -->
   <key>com.apple.security.cs.allow-jit</key>
   <true/>
+  <!-- Electron native modülleri için -->
   <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
   <true/>
+  <!-- Node.js native addons için -->
   <key>com.apple.security.cs.disable-library-validation</key>
   <true/>
+  <!-- Ağ erişimi -->
+  <key>com.apple.security.network.client</key>
+  <true/>
+  <!-- Dosya sistemi okuma -->
+  <key>com.apple.security.files.user-selected.read-write</key>
+  <true/>
+  <!-- App Sandbox devre dışı (Electron uygulamaları için gerekli) -->
+  <key>com.apple.security.app-sandbox</key>
+  <false/>
 </dict>
 </plist>

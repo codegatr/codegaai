@@ -94,18 +94,25 @@ jobs:
             echo "available=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build signed macOS app
+      - name: Build signed + notarized macOS app
         if: steps.apple_credentials.outputs.available == 'true'
         run: npm run dist:mac
 
-      - name: Build unsigned macOS app
+      - name: Build unsigned macOS app (ARM64 compatible)
+        # CRITICAL: hardenedRuntime=false for unsigned builds.
+        # hardenedRuntime=true without a valid Developer ID certificate causes
+        # macOS Gatekeeper to report "damaged" instead of "unidentified developer".
+        # Universal binary (fat binary) ensures Apple Silicon compatibility.
         if: steps.apple_credentials.outputs.available != 'true'
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         shell: bash
         run: |
           unset CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
-          npm run dist:mac
+          npx electron-builder --mac dmg zip --universal --publish never \
+            --config.mac.hardenedRuntime=false \
+            --config.mac.notarize=false \
+            --config.mac.identity=null
 
       - name: Verify Developer ID signature
         if: steps.apple_credentials.outputs.available == 'true'
@@ -167,6 +174,11 @@ jobs:
             exit 1
           fi
           printf 'Unsigned macOS artifact produced: %s\n' "${artifacts[@]}"
+          # Print install instructions for users
+          echo ""
+          echo "=== UNSIGNED BUILD INSTALL INSTRUCTIONS ==="
+          echo "Users must run: xattr -cr '/Applications/CODEGA AI.app'"
+          echo "OR: Right-click the app → Open → Open (in the dialog)"
 
       - name: Verify updater metadata
         shell: bash
@@ -191,6 +203,21 @@ jobs:
         with:
           tag_name: ${{ steps.release.outputs.tag }}
           name: CODEGA AI Desktop ${{ steps.release.outputs.version }}
+          body: |
+            ## CODEGA AI Desktop ${{ steps.release.outputs.version }}
+
+            ### macOS Kurulum Notu
+            Uygulama henüz Apple notarize edilmemiştir.
+
+            **"Hasar görmüş" / "damaged" hatası alırsanız:**
+            Terminal'de şunu çalıştırın:
+            ```bash
+            xattr -cr "/Applications/CODEGA AI.app"
+            ```
+            Veya: Uygulamaya sağ tıklayın → Aç → Aç (çıkan diyalogda)
+
+            ### Windows
+            Kurulum sırasında "Windows koruması" uyarısı çıkarsa: "Daha fazla bilgi" → "Yine de çalıştır"
           files: |
             apps/codegaai-desktop/release/*.dmg
             apps/codegaai-desktop/release/*.zip

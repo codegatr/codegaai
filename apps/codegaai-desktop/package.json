@@ -14,7 +14,7 @@
     "test:ci": "npm run check && jest --ci",
     "pack": "electron-builder --dir",
     "dist:win": "electron-builder --win nsis --x64 --publish never",
-    "dist:mac": "electron-builder --mac dmg zip --x64 --arm64 --publish never",
+    "dist:mac": "electron-builder --mac dmg zip --universal --publish never",
     "release:prepare": "npm run check",
     "release:win": "electron-builder --win nsis --x64 --publish never",
     "test": "jest",
@@ -68,15 +68,13 @@
         {
           "target": "dmg",
           "arch": [
-            "x64",
-            "arm64"
+            "universal"
           ]
         },
         {
           "target": "zip",
           "arch": [
-            "x64",
-            "arm64"
+            "universal"
           ]
         }
       ],

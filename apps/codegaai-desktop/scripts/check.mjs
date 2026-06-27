@@ -261,4 +261,10 @@ if (!preloadFile.includes("aep:dashboard") || !preloadFile.includes("aep:genome:
 
 if (pkg.version !== "6.0.0-alpha.25") throw new Error(`Desktop package version must be 6.0.0-alpha.25, got ${pkg.version}`);
 
+
+// macOS universal binary kontrolü (ARM64 Gatekeeper fix)
+const macTargets = pkg.build?.mac?.target || [];
+const hasUniversal = macTargets.some(t => (t.arch || []).includes("universal"));
+if (!hasUniversal) throw new Error("macOS build must target universal arch for ARM64 compatibility");
+
 console.log("CODEGA AI alpha.25 — AEP + Engineering Genome + CTO Dashboard OK");
