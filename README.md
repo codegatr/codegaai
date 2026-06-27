@@ -1,11 +1,12 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/codegatr/codegaai/main/codegaai/ui/web/assets/codega_logo.png" width="520" alt="CODEGA AI - Otonom Yapay Zeka Platformu" />
+  <img src="https://raw.githubusercontent.com/codegatr/codegaai/main/codegaai/ui/web/assets/codega_logo.png" width="480" alt="CODEGA AI" />
 </p>
 
 <h1 align="center">CODEGA AI</h1>
 
 <p align="center">
-  <strong>Hafızalı, araç kullanabilen, federe ağa bağlı otonom dijital personel sistemi.</strong>
+  <strong>Yerel çalışan, hafızalı, ajan tabanlı otonom yazılım mühendisliği platformu.</strong><br>
+  <em>Local-first · Fully Offline · Phoenix Core v2 · v6.0.0-alpha.10</em>
 </p>
 
 <p align="center">
@@ -16,257 +17,261 @@
 </p>
 
 <p align="center">
-  <img alt="Python" src="https://img.shields.io/badge/Python-3.10--3.12-3776ab?style=flat-square&logo=python&logoColor=white">
-  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-Backend-009688?style=flat-square&logo=fastapi&logoColor=white">
-  <img alt="Windows" src="https://img.shields.io/badge/Windows-Portable-0078d4?style=flat-square&logo=windows&logoColor=white">
-  <img alt="Apple Silicon" src="https://img.shields.io/badge/macOS-Apple%20Silicon-111827?style=flat-square&logo=apple&logoColor=white">
-  <img alt="Local AI" src="https://img.shields.io/badge/Local%20AI-Qwen%20%7C%20llama.cpp-f59e0b?style=flat-square">
-  <img alt="Federation" src="https://img.shields.io/badge/Federated-ai.codega.com.tr-06b6d4?style=flat-square">
+  <img alt="Electron" src="https://img.shields.io/badge/Electron-Desktop-47848f?style=flat-square&logo=electron&logoColor=white">
+  <img alt="Ollama" src="https://img.shields.io/badge/Ollama-Local%20LLM-000000?style=flat-square">
+  <img alt="Qwen3.5" src="https://img.shields.io/badge/Default%20Model-Qwen3.5%204B-f59e0b?style=flat-square">
+  <img alt="Phoenix Core" src="https://img.shields.io/badge/Phoenix%20Core-v2-e11d48?style=flat-square">
+  <img alt="Federation" src="https://img.shields.io/badge/Federation-ai.codega.com.tr-06b6d4?style=flat-square">
 </p>
 
 <p align="center">
-  <a href="https://codega.com.tr">Website</a>
-  ·
-  <a href="https://github.com/codegatr/codegaai/releases/latest">Download</a>
-  ·
-  <a href="#-agent-os">Agent OS</a>
-  ·
-  <a href="#-federe-ogrenme-agi">Federe Ağ</a>
-  ·
-  <a href="#-api">API</a>
+  <a href="https://codega.com.tr">Website</a> ·
+  <a href="https://github.com/codegatr/codegaai/releases/latest">İndir / Download</a> ·
+  <a href="NIRVANA.md">Nirvana Manifesto</a>
 </p>
 
 ---
 
 ## CODEGA AI Nedir?
 
-CODEGA AI klasik bir chatbot değildir. Yerel modeller, güçlü bulut model sağlayıcıları, proje hafızası, RAG, araç kullanımı, dosya üretimi, kod analizi, görsel/ses/video anlama ve federe öğrenme ağını tek bir ajan omurgasında birleştiren masaüstü AI platformudur.
+CODEGA AI, **tamamen yerel çalışan**, internet bağlantısı gerektirmeyen bir **AI mühendislik platformudur.** Verileriniz bilgisayarınızdan çıkmaz. Model bilgisayarınızda çalışır.
 
-> Slogan: **AI çalışanı gibi davranan, hafızalı ve araç kullanabilen otonom dijital personel sistemi.**
+Hedef: Bir gün kullanıcının yalnızca şunu yazması yeterli olacak:
 
-## Öne Çıkanlar
+> **"CODEGA, projemin yeni sürümünü inşa et."**
 
-| Alan | Yetenek |
-| --- | --- |
-| Multi-Model AI | GPT-5, GPT-4.1, Claude, Gemini, Qwen, Whisper, BGE-M3 ve yerel vision provider manifesti |
-| Agent OS | Planner, executor, verifier, uzman profili, model router ve tool policy |
-| Project Brain | CODEGA AI, CODEGA ERP, cMiner, Tekcan Metal gibi projeler için ayrılmış hafıza |
-| RAG Hafıza | Sohbet, proje, hata, çözüm, web öğrenmesi ve federe sinyaller |
-| Araç Kullanımı | Web, GitHub, dosya, ZIP, PDF, Excel, Python sandbox, OCR, görsel analiz |
-| Federe Ağ | Ham sohbet göndermeden anonim konu sinyali, kalite puanı, kaynak sayısı ve güven skoru |
-| macOS ARM64 | Apple Silicon hedefli `macos-15` build ve `macos-arm64.dmg` artifact |
-| Windows Portable | Tek klasör portable Windows build |
-
-## Agent OS
-
-CODEGA AI içindeki ajan çekirdeği her görev için şu blueprint’i üretir:
-
-```text
-Kullanıcı mesajı
-  -> niyet tespiti
-  -> uzman profil seçimi
-  -> model zinciri
-  -> proje beyni
-  -> hafıza kaynakları
-  -> araç seti
-  -> güvenlik/onay politikası
-  -> doğrulama ve öğrenme adımları
-```
-
-Agent OS katmanları:
-
-| Katman | Durum |
-| --- | --- |
-| Çoklu model sistemi | Aktif |
-| Gerçek hafıza ve proje beyni | Aktif |
-| Kendini geliştirme / feedback hafızası | Kademeli |
-| Araç kullanımı | Aktif |
-| Planner + Executor | Aktif |
-| Uzman AI modları | Aktif |
-| Kod tabanı okuma | Aktif - seçili GitHub dosyaları ve SHA tabanlı değişiklik |
-| Otonom kod geliştirme | Aktif - korumalı kapsam, ayrı dal, taslak PR ve PR CI |
-| Test ve self-repair döngüsü | Aktif - PR doğrulama paketi, insan onayıyla birleştirme |
-| Prompt mühendisliği motoru | Tasarımda |
-| Sandbox VM | Kademeli |
-| Multimodal anlama | Kademeli |
-| Auto deployment | Tasarımda |
-
-### Agent Governance
-
-Repository-level agents and CODEGA AI's autonomous development worker share one governed operating system:
-
-- [`AGENTS.md`](AGENTS.md): agent roles, operating loop, and delivery contract.
-- [`CODEGA_CORE.md`](CODEGA_CORE.md): mission, active architecture, capabilities, and roadmap.
-- [`CODEGA_RULES.md`](CODEGA_RULES.md): mandatory safety, privacy, quality, federation, and release rules.
-- [`CODEGA_SKILLS/`](CODEGA_SKILLS): task skills for architecture, backend, desktop UI, Flutter, DevOps, security, QA, memory/RAG, and autonomous development.
-
-The autonomous GitHub development worker loads these files from the target repository before generating a changeset. It selects task-specific skills, keeps a strict context-size limit, and never allows repository instructions to relax its hard safety rules.
-
-Endpoint:
-
-```text
-GET  /api/orchestrate/agent-os
-POST /api/orchestrate/plan
-```
-
-## Agentic Core
-
-CODEGA AI Agentic Core; `.codegaaiignore`, güvenlik sınıflandırması,
-prompt injection filtresi, AST tabanlı kod grafiği ve context-pack üretimiyle
-ajan kararlarını daha güvenli ve daha isabetli hale getirir.
-
-Endpoint:
-
-```text
-POST /api/codebase/index-local
-POST /api/codebase/search
-POST /api/codebase/context-pack
-GET  /api/codebase/graph/{project_id}
-```
-
-## Uzman Modları
-
-| Uzman | Odak |
-| --- | --- |
-| PHP 8.3 / DirectAdmin | Hosting, Laravel, WordPress, MySQL, PHP-FPM |
-| Docker / Ubuntu | VPS, Nginx, systemd, deployment |
-| Play Console / AAB | Android release, signing, versionCode, keystore |
-| ERP / Cari Takip | Fatura, stok, tahsilat, rapor, Excel |
-| Kripto Güvenlik | Wallet, API key, hot/cold storage, rate limit |
-| SEO / Kurumsal Metin | Marka dili, landing page, blog, dönüşüm |
-| 3D Baskı / STL | Ölçü, tolerans, filament, slicer |
-| Kod Tabanı Ajanı | Repo tarama, hata bulma, test, rapor |
-| AI Sistem Mimarı | Model router, RAG, araç ve güvenlik omurgası |
-
-## Federe Öğrenme Ağı
-
-CODEGA AI kurulu bilgisayarlar isteğe bağlı olarak `ai.codega.com.tr` koordinatörüne bağlanır. Amaç ham veriyi toplamak değil; cihazların öğrendiği konuları anonim ve kalite filtresinden geçmiş sinyaller olarak birleştirmektir.
-
-Gizlilik sözleşmesi:
-
-- Ham sohbet gönderilmez.
-- Dosya gönderilmez.
-- API key, token, `.env`, local path ve tam node ID gönderilmez.
-- Konular kalite filtresinden geçer.
-- Aynı konu birden fazla cihazda öğrenilirse güven skoru yükselir.
-- Rate limit ve admin prune desteği vardır.
-
-Koordinatör endpoint’leri:
-
-```text
-GET  /api/federation/health
-GET  /api/federation/capabilities
-GET  /api/federation/metrics
-POST /api/federation/stats
-GET  /api/federation/knowledge
-GET  /api/federation/nodes
-GET  /api/federation/admin?token=...
-GET  /api/federation/admin/prune?token=...
-```
-
-DirectAdmin kurulumu:
-
-```text
-deploy/federation-php/public/  ->  public_html/api/federation/
-config.sample.php              ->  config.php
-schema.sql                     ->  manuel tablo kurulumu için
-```
-
-## Platform ve Build
-
-| Platform | Artifact | Hedef |
-| --- | --- | --- |
-| Windows | `codegaai-vX.Y.Z-windows-cpu.zip` | Portable desktop |
-| macOS Apple Silicon | `codegaai-vX.Y.Z-macos-arm64.dmg` | M1, M2, M3, M4 |
-
-macOS workflow açıkça Apple Silicon doğrular:
-
-```yaml
-runs-on: macos-15
-```
-
-```bash
-test "$(uname -m)" = "arm64"
-```
-
-## Kurulum
-
-Windows:
-
-```text
-Releases sayfasından Windows ZIP indir
-D:\2-CODEGAAI\ altına çıkar
-codegaai.exe çalıştır
-```
-
-macOS Apple Silicon:
-
-```text
-Releases sayfasından macos-arm64 DMG indir
-DMG dosyasını aç
-CODEGA AI klasörünü Applications'a sürükle veya içindeki codegaai dosyasını çalıştır
-```
-
-Geliştirici:
-
-```bash
-git clone https://github.com/codegatr/codegaai.git
-cd codegaai
-python -m pip install -r requirements.txt
-python launcher.py
-```
-
-macOS Apple Silicon geliştirici kurulumu (MacBook Pro M1/M2/M3/M4):
-
-```bash
-xcode-select --install
-brew install python@3.12 cmake
-git clone https://github.com/codegatr/codegaai.git
-cd codegaai
-bash installer/macos/install.sh
-source .venv/bin/activate
-python launcher.py
-```
-
-Not: Python 3.12 kurulumunda Coqui `TTS` paketi atlanır; ana uygulama, sohbet,
-görsel, OCR, dosya ve backend özellikleri kurulmaya devam eder. XTTS/Coqui TTS
-özelliğine ihtiyacınız varsa `brew install python@3.11` kurup sanal ortamı
-Python 3.11 ile oluşturun.
-
-## API
-
-| Grup | Endpoint |
-| --- | --- |
-| Sohbet | `/api/jobs/chat`, `/api/stream/chat` |
-| Hafıza | `/api/memory/search`, `/api/memory/learn`, `/api/memory/ensure-embedding` |
-| Orkestrasyon | `/api/orchestrate/platform`, `/api/orchestrate/agent-os`, `/api/orchestrate/plan` |
-| Federe Ağ | `/api/federation/status`, `/api/federation/sync`, `/api/federation/capabilities` |
-| Görsel | `/api/vision/analyze`, `/api/vision/ocr` |
-| Dosya | `/api/files/upload`, `/api/files/pack`, `/api/files/project` |
-| Sandbox | `/api/sandbox/run`, `/api/sandbox/analyze` |
-| Kod | `/api/codebase/*`, `/api/devtools/*`, `/api/powertools/*` |
-| Sistem | `/api/system/info`, `/api/system/health`, `/api/models/*` |
-
-## Güvenlik
-
-- Token ve API key değerleri maskelenir.
-- `.env` ve gizli config içerikleri modele ham verilmez.
-- Riskli araçlar onay politikasıyla ayrılır.
-- İnternetten gelen içerik doğrudan komut olarak çalıştırılmaz.
-- Federe ağ yalnızca anonim ve kalite filtresinden geçmiş sinyal taşır.
-
-## Lisans
-
-Bu proje MIT lisansı ile yayınlanır. Detaylar için [LICENSE](LICENSE) dosyasına bakın.
+Ve platform bunu baştan sona yapacak. Bkz. [NIRVANA.md](NIRVANA.md)
 
 ---
 
-<p align="center">
-  <strong>CODEGA AI - yerel, hafızalı, araç kullanan ve federe ağ ile büyüyen otonom yapay zeka platformu.</strong>
-</p>
+## Gerçek Özellikler (v6.0.0-alpha.10)
+
+### 🧠 Phoenix Core v2 — Ajan Altyapısı
+
+Tüm sohbet, görev ve akış yönetimi **Phoenix Core v2** üzerinden koordine edilir. Hiçbir bileşen diğerini doğrudan çağırmaz; her şey merkezi EventBus üzerinden iletişim kurar.
+
+| Bileşen | Görev |
+|---|---|
+| **EventBus** | Tüm olaylar için merkezi mesaj veri yolu |
+| **PhoenixWatchdog** | Takılan görevleri tespit eder, zaman aşımında iptal eder |
+| **ConversationIsolationStore** | Sohbetleri izole tutar; hafıza karışması olmaz |
+| **StreamingBuffer** | Gerçek zamanlı token akışını yönetir |
+| **IntentEngine + FastPath** | LLM'e gitmeden önce isteği sınıflandırır; basit sorular anında yanıtlanır |
+| **PhoenixRuntime** | Tüm bileşenleri tek yaşam döngüsünde birleştirir |
+
+### ⚡ IntentEngine — FastPath
+
+Her istek LLM'e gitmeden önce sınıflandırılır. Basit sorgular (`"saat kaç?"`, `"kaç derece Ankara?"`, `"256 / 8 = ?"`) Ollama'ya hiç dokunmadan milisaniyeler içinde yanıtlanır.
+
+```
+İstek gelir → IntentEngine sınıflandırır
+     ├── needsModel: false → FastPath → Anında yanıt (0ms LLM)
+     └── needsModel: true  → Ollama → Streaming yanıt
+```
+
+### 🤖 Yerel Model Desteği
+
+Ollama üzerinden tamamen offline çalışır. İnternet yok, bulut yok, API ücreti yok.
+
+| Model | Parametre | Görev | Min. VRAM |
+|---|---|---|---|
+| Qwen3.5 0.8B | 0.8B | Sohbet (çok hafif) | 1 GB |
+| Qwen3.5 2B | 2B | Sohbet | 2 GB |
+| **Qwen3.5 4B** *(varsayılan)* | 4B | Sohbet · Yazı · Araç | 3 GB |
+| Qwen3.5 9B | 9B | Güçlü muhakeme + kod | 6 GB |
+| Qwen3.6 27B | 27B | En güçlü yerel seçenek | 16 GB |
+| Qwen3 1.7B | 1.7B | Yeni nesil hafif | 1.5 GB |
+| Qwen3 14B | 14B | Güçlü Qwen3 serisi | 10 GB |
+| Qwen2.5 Coder 3B | 3B | Kod odaklı | 2 GB |
+| Qwen2.5 Coder 7B | 7B | Kod odaklı güçlü | 5 GB |
+
+**Donanım bazlı otomatik öneri:** Uygulama `nvidia-smi` ile VRAM'i okur, sisteminize en uygun modeli önerir (VRAM öncelikli; GPU yoksa RAM bazlı fallback).
+
+### 🗜️ ZIP Engine (Sprint 2)
+
+Saf JavaScript, native bağımlılık yok, asar paketi içinde çalışır.
+
+**Desteklenen işlemler:**
+
+| IPC Kanalı | Açıklama |
+|---|---|
+| `zip:list` | Arşiv içeriğini listele |
+| `zip:analyze` | Stack tespit et + AI özeti üret |
+| `zip:read` | Arşiv içindeki text dosyasını oku |
+| `zip:extract` | Tüm arşivi klasöre çıkar |
+| `zip:patch` | Mevcut ZIP'e yamalar uygula |
+| `zip:create` | Klasörden ZIP oluştur |
+
+**Otomatik stack tespiti — 16 imza:**
+
+`Laravel` · `PHP` · `Next.js` · `NestJS` · `Express` · `Node.js` · `React` · `Vue` · `Svelte` · `Electron` · `Flutter` · `React Native` · `.NET` · `FastAPI` · `Django` · `Python`
+
+### 🌿 Git Agent (Sprint 3)
+
+`execFile` ile güvenli git işlemleri. Her handler, path'i `findRepoRoot()` ile doğrular — path traversal yok.
+
+| IPC Kanalı | Açıklama |
+|---|---|
+| `git:find-root` | Dizinden depo kökünü bulur |
+| `git:status` | Staged / unstaged / untracked dosyalar |
+| `git:diff` | Diff çıktısı (staged veya unstaged) |
+| `git:log` | Commit geçmişi |
+| `git:branches` | Branch listesi + aktif branch |
+| `git:tags` | Tag listesi |
+| `git:suggest-commit` | Conventional Commits formatında commit mesajı önerisi |
+| `git:suggest-branch` | `feat/` · `fix/` · `chore/` prefix'li branch adı |
+| `git:release-notes` | İki tag arası markdown release notes |
+| `git:changelog` | Keep a Changelog formatında CHANGELOG.md |
+| `git:explain-conflict` | Merge conflict açıklaması + çözüm seçenekleri |
+
+### 🧩 Model Router
+
+Görev tipine göre doğru modeli otomatik seçer:
+
+- **Kod görevleri** → Qwen2.5 Coder serisi
+- **Yazı / Sohbet** → Qwen3.5 4B (varsayılan)
+- **Güçlü muhakeme** → Qwen3.5 9B (yeterli VRAM varsa)
+
+### 📚 RAG — Retrieval Augmented Generation
+
+Yerel embedding tabanlı bilgi tabanı.
+
+- Belge/kod ingest (yerel vektör indeksi)
+- Bağlamsal arama
+- Liste ve silme yönetimi
+
+### 🧠 Hafıza Sistemi
+
+- **Konuşma hafızası** — sohbet bağlamını korur
+- **Gerçek hafızası** — kullanıcı tercihleri ve öğrenilen bilgiler
+- **Öğrenme motoru** — dış kaynaklardan konu araştırır, notları biriktirir, isteğe bağlı LLM damıtması
+
+### 🤝 Federe Öğrenme Ağı
+
+`https://ai.codega.com.tr/api/federation` üzerinden diğer CODEGA AI kurulumlarıyla anonim bilgi paylaşımı (opt-in).
+
+### 🛠️ MCP Desteği
+
+Model Context Protocol (MCP) client. Harici araç ve servisleri AI'ya bağlar.
+
+### 📊 Metrikler & Log Merkezi
+
+- Gerçek zamanlı GPU/CPU kullanımı (`nvidia-smi` entegrasyonu)
+- Token/gün, ortalama yanıt süresi, toplam görev sayısı
+- Yapılandırılmış log viewer
+
+### 🛡️ Güvenlik Mimarisi
+
+- `contextIsolation: true` · `nodeIntegration: false` — Electron sandbox
+- ZIP/Git IPC handler'larında path traversal koruması
+- `execFile` — shell injection yok
+- Windows installer: `asInvoker` (yükseltilmiş yetki talep etmez)
+- `archiver` ve `extract-zip` production bağımlılığı olarak dahil
+
+### 🔄 Otomatik Güncelleme
+
+`electron-updater` + GitHub Releases. Her sprint GitHub Actions workflow'u ile otomatik paketlenir ve release olarak yayınlanır. Uygulama içinden güncelleme kontrolü ve kurulumu.
+
+### 🤖 Otonom Geliştirme (Deneysel, Opt-in)
+
+- **Self-improve drafts** — kendi gözlemlerinden iyileştirme önerileri üretir
+- **Autonomous dev loop** — kendi PR'larını açar (yalnızca ayrı dalda; asla `main`'e yazmaz, asla merge etmez)
+- **Self-maintenance** — Ollama sağlığı + JSON store bütünlüğü periyodik kontrolü
+
+---
+
+## Mimari
+
+```
+codegaai/
+├── apps/
+│   └── codegaai-desktop/              ← Electron masaüstü uygulaması
+│       └── src/
+│           ├── main/
+│           │   ├── main.js                ← Electron main process
+│           │   ├── preload.js             ← contextBridge (IPC köprüsü)
+│           │   ├── model-manager.js       ← Ollama yönetimi
+│           │   ├── phoenix-core/          ← Phoenix Core v2
+│           │   │   ├── kernel/            ← EventBus, TaskRegistry
+│           │   │   ├── intent/            ← IntentEngine, FastPath
+│           │   │   ├── runtime/           ← PhoenixRuntime, StreamingBuffer, ConversationIsolation
+│           │   │   └── watchdog/          ← Heartbeat, PhoenixWatchdog
+│           │   └── agent/
+│           │       ├── zip/               ← ZIP Engine (Sprint 2)
+│           │       ├── git/               ← Git Agent (Sprint 3)
+│           │       ├── rag.js             ← RAG
+│           │       ├── memory.js          ← Hafıza
+│           │       └── system-info.js     ← VRAM-aware donanım analizi
+│           └── renderer/                  ← UI (vanilla JS, no framework)
+├── packages/
+│   ├── phoenix-core/                  ← Phoenix Core npm paketi
+│   └── phoenix-agents/                ← Agent şablonları
+└── NIRVANA.md                         ← Platform vizyonu
+```
+
+---
+
+## Kurulum
+
+### Gereksinimler
+
+- Windows 10/11 x64 veya macOS 12+ (Apple Silicon / Intel)
+- [Ollama](https://ollama.ai) (uygulama yoksa otomatik kurulum başlatır)
+- En az 4 GB RAM (8 GB+ önerilir)
+- NVIDIA GPU 4 GB+ VRAM *(opsiyonel; CPU'da da çalışır)*
+
+### İndir & Çalıştır
+
+```
+1. Releases sayfasından son sürümü indir
+2. Kurulumu çalıştır (yükseltilmiş yetki talep etmez)
+3. CODEGA AI açılır
+4. Ollama yoksa otomatik kurulum + model indirme başlar
+5. Çalışmaya hazır
+```
+
+👉 [Son sürümü indir](https://github.com/codegatr/codegaai/releases/latest)
+
+### Geliştirici Kurulumu
+
+```bash
+git clone https://github.com/codegatr/codegaai.git
+cd codegaai/apps/codegaai-desktop
+npm install
+npm run dev
+```
+
+---
+
+## Sürüm Geçmişi
+
+| Sürüm | Tarih | Öne Çıkan |
+|---|---|---|
+| **v6.0.0-alpha.10** | 2026-06-27 | VRAM-aware öneri motoru; Cookbook ↔ "Önerilen Modeli Kur" tutarsızlığı giderildi |
+| **v6.0.0-alpha.9** | 2026-06-27 | 7 kritik bug düzeltmesi · preload.js zip/git kanalları · NIRVANA.md |
+| **v6.0.0-alpha.8** | 2026-06-27 | Phoenix Core v2 tam entegrasyon (EventBus · Watchdog · ConversationIsolation · Stream · Intent) |
+| **v6.0.0-alpha.7** | 2026-06-27 | Sprint 3: Git Agent — 11 IPC kanalı, Conventional Commits, release notes üretimi |
+| **v6.0.0-alpha.6** | 2026-06-27 | Sprint 2: ZIP Engine — 16 stack imzası, 6 IPC kanalı, pure JS parser |
+
+---
+
+## Nirvana Vizyon
+
+Tam yol haritası için → **[NIRVANA.md](NIRVANA.md)**
+
+```
+Bugün:   Kullanıcı ne yapılacağını söyler, AI yapar.
+Yarın:   AI ne yapılması gerektiğini söyler, kullanıcı onaylar.
+Nirvana: Kullanıcı misyon verir, AI her şeyi yapar.
+```
+
+Ajan ekibi (inşa edilecek): CEO · CTO · Mimar · Planlayıcı · Backend · Frontend · DB · DevOps · Security · QA · Performans · Dokümantasyon · Release Manager · Builder · Git Agent · ZIP Agent · Memory Manager · Research Agent
+
+---
+
+> *"Build toward Nirvana. Every sprint. Every commit. Every release."*
 
 <p align="center">
-  <a href="https://starchart.cc/codegatr/codegaai">
-    <img alt="Stargazers over time" src="https://starchart.cc/codegatr/codegaai.svg?variant=adaptive" />
-  </a>
+  <strong>CODEGA AI</strong> — MIT Lisansı ·
+  <a href="https://codega.com.tr">codega.com.tr</a>
 </p>
