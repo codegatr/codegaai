@@ -185,7 +185,7 @@ const PAGES = [
 ];
 
 function mountSetupWizard(onComplete) {
-  if (sessionStorage.getItem("codega-setup-done")) { if (onComplete) onComplete(); return; }
+  if (localStorage.getItem("codega-setup-done")) { if (onComplete) onComplete(); return; }
   const style = document.createElement("style");
   style.textContent = SETUP_CSS;
   document.head.appendChild(style);
@@ -247,7 +247,7 @@ function mountSetupWizard(onComplete) {
   document.getElementById("setup-next").addEventListener("click", () => {
     if (current < STEPS.length-1) { current++; updateUI(); }
     else {
-      sessionStorage.setItem("codega-setup-done","1");
+      localStorage.setItem("codega-setup-done","1");
       el.style.cssText += ";opacity:0;transition:opacity .4s";
       setTimeout(() => { el.remove(); style.remove(); if (onComplete) onComplete(); }, 420);
     }
@@ -260,3 +260,4 @@ function mountSetupWizard(onComplete) {
 function upgradePhoenixWelcome() {}
 
 module.exports = { mountPhoenixSplash, mountSetupWizard };
+    
