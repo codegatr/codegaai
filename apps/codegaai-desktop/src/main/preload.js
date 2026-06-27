@@ -151,4 +151,41 @@ contextBridge.exposeInMainWorld("codega", {
     intentHandlers: ()          => ipcRenderer.invoke("plugin:intent-handlers"),
   },
 
-  /
+  // MissionOS API — Sprint 10
+  mission: {
+    create:       (intent, ctx)              => ipcRenderer.invoke("mission:create",        intent, ctx),
+    createManual: (opts)                     => ipcRenderer.invoke("mission:create-manual",  opts),
+    list:         (stateFilter)              => ipcRenderer.invoke("mission:list",           stateFilter),
+    get:          (id)                       => ipcRenderer.invoke("mission:get",            id),
+    execute:      (id)                       => ipcRenderer.invoke("mission:execute",        id),
+    approve:      (id, note)                 => ipcRenderer.invoke("mission:approve",        id, note),
+    release:      (id, version)              => ipcRenderer.invoke("mission:release",        id, version),
+    cancel:       (id)                       => ipcRenderer.invoke("mission:cancel",         id),
+    completeTask: (missionId, taskId, res)   => ipcRenderer.invoke("mission:complete-task",  missionId, taskId, res),
+    summary:      ()                         => ipcRenderer.invoke("mission:summary"),
+    events:       (n)                        => ipcRenderer.invoke("mission:events",         n),
+    queue:        (id)                       => ipcRenderer.invoke("mission:queue",          id),
+    on:  (channel, fn) => {
+      const allowed = [
+        "mission:created", "mission:started", "mission:review", "mission:failed",
+        "mission:cancelled", "mission:progress",
+        "mission:task:started", "mission:task:completed", "mission:task:failed",
+      ];
+      if (!allowed.includes(channel)) return;
+      ipcRenderer.on(channel, (_e, data) => fn(data));
+    },
+    off: (channel, fn) => ipcRenderer.removeListener(channel, fn),
+  },
+
+  // Evolution Engine API — Sprint 11
+  evolution: {
+    analyze:    ()         => ipcRenderer.invoke("evolution:analyze"),
+    report:     (n)        => ipcRenderer.invoke("evolution:reports",       n),
+    dna: {
+      evaluate:  (opts)    => ipcRenderer.invoke("evolution:dna:evaluate",   opts),
+      list:      ()        => ipcRenderer.invoke("evolution:dna:list"),
+      trend:     (n)       => ipcRenderer.invoke("evolution:dna:trend",      n),
+      byVersion: (version) => ipcRenderer.invoke("evolution:dna:by-version", version),
+    },
+  },
+});
