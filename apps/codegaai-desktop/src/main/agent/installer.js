@@ -262,6 +262,8 @@ async function installOllama(onData) {
         appDest = appDestSys;
       }
 
+      log("Karantina bayrağı kaldırılıyor…");
+      await run("xattr", ["-cr", appDest], { timeoutMs: 15000 }).catch(() => {});
       log("Ollama başlatılıyor…");
       await run("open", [appDest], { timeoutMs: 10000 });
       const ready = await waitForOllama(60000, 2000, onData);
@@ -329,12 +331,4 @@ module.exports = {
   ensureOllamaServing,
   findOllamaCommand,
   hasCommand,
-  headSize,
-  installOllama,
-  modelSizeGb,
-  ollamaInstallerUrl,
-  persistOllamaModelsPath,
-  restartOllama,
-  stopOllama,
-  waitForOllama,
-};
+  headSiz
