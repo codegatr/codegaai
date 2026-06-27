@@ -35,6 +35,10 @@ const { registerGitIpc } = require("./agent/git/git-ipc");
 const { registerProjectMemoryIpc } = require("./agent/memory/project-ipc");
 const { registerBuilderIpc }       = require("./agent/builder/builder-ipc");
 const { registerPluginIpc }        = require("./agent/plugins/plugin-ipc");
+const { registerMissionIpc }       = require("./agent/mission/mission-ipc");
+const { EvolutionEngine }          = require("./agent/evolution/evolution-engine");
+const { codegaDNA, initCodegaDNA } = require("./agent/evolution/codega-dna");
+const { contextEngine }            = require("./agent/context/context-engine");
 const inheritedOllamaModelsPath = String(process.env.OLLAMA_MODELS || "").trim();
 let activeModelStorage = null;
 let lastMcpHealth = null;
@@ -433,14 +437,52 @@ function registerIpc() {
   registerBuilderIpc();
   registerPluginIpc();
 
+  // MissionOS IPC — Sprint 10
+  // generateFn: mevcut modelManager.ask ile uyumlu wrapper
+  const missionGenerateFn = async (messages) => {
+    const systemMsg = messages.find(m => m.role === "system");
+    const userMsg   = messages.find(m => m.role === "user");
+    const prompt    = [systemMsg?.content, userMsg?.content].filter(Boolean).join("\n\n");
+    const result    = await modelManager.ask(prompt, { context: systemMsg?.content || "" });
+    return result?.text || "";
+  };
+  registerMissionIpc(mainWindow, missionGenerateFn);
+
+  // Evolution Engine + CODEGA DNA init — Sprint 11
+  const evoDataDir = path.join(app.getPath("userData"), "evolution");
+  const evolutionEngine = new EvolutionEngine(
+    path.join(__dirname, "..", ".."),  // proje kökü
+    evoDataDir
+  );
+  evolutionEngine.init().catch(e => console.warn("[Evolution] init:", e.message));
+  initCodegaDNA(evoDataDir).catch(e => console.warn("[DNA] init:", e.message));
+
   ipcMain.handle("chat:send", async (event, message, opts) => {
     lastActivityAt = Date.now();
 
+    // ─── Context Engine — Sprint 10 ───────────────────────────────────────
+    // Her mesajdan önce bağlam analizi yap.
+    // "devam", "tamam", "bunu yap" gibi kısa mesajlar önceki bağlamdan çözülür.
+    let resolvedMessage = message;
+    let contextPacket   = null;
+    try {
+      contextPacket   = contextEngine.analyze(message);
+      resolvedMessage = contextPacket.resolvedMessage || message;
+      // Bağlam analizini renderer'a bildir (UI göstergesi için)
+      try { event.sender.send("chat:context", {
+        type:        contextPacket.type,
+        reason:      contextPacket.reason,
+        confidence:  contextPacket.confidence,
+        resolved:    resolvedMessage !== message,
+      }); } catch (_e) {}
+    } catch (_e) {}
+    // ─────────────────────────────────────────────────────────────────────
+
     // Phoenix Core v2: intent sınıflandırması + görev başlatma
-    const { taskId, chatId, intent } = phoenixRuntime.startChat(message, {
+    const { taskId, chatId, intent } = phoenixRuntime.startChat(resolvedMessage, {
       chatId: (opts && opts.chatId) || "",
       regenerate: !!(opts && opts.regenerate),
-      context: (opts && opts.context) || "",
+      context: (opts && opts.context) || (contextPacket?.compressedContext || ""),
     });
 
     try { if (settingsStore.getSettings().debugLogging) logs.info("chat", `[${intent.intent}] ${String(message).slice(0, 60)}`); } catch (_e) {}
@@ -480,6 +522,13 @@ function registerIpc() {
 
     // Tamamlanma: buffer kapat, konuşmaya ekle, watchdog temizle
     phoenixRuntime.finishChat(taskId, chatId, result);
+
+    // Context Engine'e bu tur mesajları kaydet
+    try {
+      contextEngine.push("user",      message);
+      contextEngine.push("assistant", result?.text || "");
+    } catch (_e) {}
+
     return result;
   });
 
@@ -813,6 +862,43 @@ function registerIpc() {
   ipcMain.handle("memory:list", async () => memory.listFacts());
   ipcMain.handle("memory:clear", async () => memory.clearAll());
 
+  // Evolution Engine IPC — Sprint 11
+  ipcMain.handle("evolution:analyze", async () => {
+    try {
+      const report = await evolutionEngine.analyze();
+      return { ok: true, data: report };
+    } catch (e) { return { ok: false, error: String(e?.message || e) }; }
+  });
+
+  ipcMain.handle("evolution:reports", async (_e, n) => {
+    try {
+      return { ok: true, data: await evolutionEngine.loadReports(Number(n) || 10) };
+    } catch (e) { return { ok: false, error: String(e?.message || e) }; }
+  });
+
+  // CODEGA DNA IPC — Sprint 11
+  ipcMain.handle("evolution:dna:evaluate", async (_e, opts) => {
+    try {
+      const record = await codegaDNA.evaluate(opts || {});
+      return { ok: true, data: record };
+    } catch (e) { return { ok: false, error: String(e?.message || e) }; }
+  });
+
+  ipcMain.handle("evolution:dna:list", async () => {
+    try { return { ok: true, data: codegaDNA.listAll() }; }
+    catch (e) { return { ok: false, error: String(e?.message || e) }; }
+  });
+
+  ipcMain.handle("evolution:dna:trend", async (_e, n) => {
+    try { return { ok: true, data: codegaDNA.trend(Number(n) || 10) }; }
+    catch (e) { return { ok: false, error: String(e?.message || e) }; }
+  });
+
+  ipcMain.handle("evolution:dna:by-version", async (_e, version) => {
+    try { return { ok: true, data: codegaDNA.getByVersion(String(version)) }; }
+    catch (e) { return { ok: false, error: String(e?.message || e) }; }
+  });
+
   ipcMain.handle("github:test", async () => githubClient.testConnection());
   ipcMain.handle("knowledge:syncUp", async () => knowledge.syncUp());
   ipcMain.handle("knowledge:syncDown", async () => knowledge.syncDown());
@@ -1140,85 +1226,3 @@ app.whenReady().then(async () => {
   const userDataPath = app.getPath("userData");
   // Hafıza ve ayarlar kullanıcının userData dizininde kalıcı olsun
   process.env.CODEGA_MEMORY_PATH =
-    process.env.CODEGA_MEMORY_PATH || path.join(userDataPath, "memory.json");
-  process.env.CODEGA_SETTINGS_PATH =
-    process.env.CODEGA_SETTINGS_PATH || path.join(userDataPath, "agent-settings.json");
-  process.env.CODEGA_RAG_PATH =
-    process.env.CODEGA_RAG_PATH || path.join(userDataPath, "rag-store.json");
-  process.env.CODEGA_IMPROVE_PATH =
-    process.env.CODEGA_IMPROVE_PATH || path.join(userDataPath, "improve-drafts.json");
-  process.env.CODEGA_FEEDBACK_PATH =
-    process.env.CODEGA_FEEDBACK_PATH || path.join(userDataPath, "feedback.json");
-  process.env.CODEGA_LEARNING_PATH =
-    process.env.CODEGA_LEARNING_PATH || path.join(userDataPath, "learning.json");
-  process.env.CODEGA_STATS_PATH =
-    process.env.CODEGA_STATS_PATH || path.join(userDataPath, "stats.json");
-  process.env.CODEGA_LOGS_PATH =
-    process.env.CODEGA_LOGS_PATH || path.join(userDataPath, "logs.json");
-  process.env.CODEGA_AGENT_WATCH_PATH =
-    process.env.CODEGA_AGENT_WATCH_PATH || path.join(userDataPath, "agent-watch.json");
-  const storage = await resolveModelStorage();
-  process.env.CODEGA_MODELS_PATH = storage.path || path.join(userDataPath, "ollama-models");
-  process.env.OLLAMA_MODELS = storage.path || process.env.CODEGA_MODELS_PATH;
-  try { fs.mkdirSync(process.env.CODEGA_MODELS_PATH, { recursive: true }); } catch (_e) {}
-
-  registerIpc();
-  createWindow();
-  updateService.start();
-  await modelManager.detect();
-  const installedAtStartup = await modelManager.installedModels();
-  if (!installedAtStartup.length && storage.files > 0) {
-    try {
-      logs.warn("models", `Ollama boş depo kullanıyor; gerçek model diziniyle yeniden başlatılıyor: ${storage.path}`);
-      await installer.restartOllama(storage.path);
-      for (let attempt = 0; attempt < 15; attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        if (await ollamaReachable()) break;
-      }
-      await modelManager.detect();
-    } catch (error) {
-      try { logs.error("models", `Model deposu otomatik düzeltilemedi: ${error.message || error}`); } catch (_e) {}
-    }
-  }
-
-  // Kendi kendine bakım: açılışta bir kez + her 5 dakikada bir (güvenli, kod değiştirmez)
-  runMaintenanceAutomations().catch(() => {});
-  setInterval(() => { runMaintenanceAutomations().catch(() => {}); }, 5 * 60 * 1000);
-  scheduleLearning();
-  scheduleAgentWatch();
-  refreshMcpTools().catch(() => {});
-  try { logs.info("app", `CODEGA AI ${app.getVersion()} başladı`); } catch (_e) {}
-  process.on("uncaughtException", (e) => { try { logs.error("uncaught", e && (e.stack || e.message || e)); } catch (_e2) {} });
-  process.on("unhandledRejection", (e) => { try { logs.error("rejection", e && (e.message || e)); } catch (_e2) {} });
-
-  // Başlangıçta GitHub'daki bilgi dosyasını yerel belleğe yükle (yapılandırıldıysa)
-  knowledge.syncDown().catch(() => {});
-
-  // Boşta otonom öğrenme: opt-in. Yalnızca öğrenilen NOTLARI GitHub'a senkronlar
-  // (kod yazmaz). ~5 dk boşta kalınca ve ayar açıksa çalışır.
-  setInterval(() => {
-    const s = settingsStore.getSettings();
-    if (s.scheduledTasksEnabled === false) return;
-    if (!s.idleLearning) return;
-    if (Date.now() - lastActivityAt < 2 * 60 * 1000) return; // 2 dk boşta değilse atla
-    knowledge.syncUp().catch(() => {});
-  }, 5 * 60 * 1000);
-
-  // Kurulu Ollama modellerinin resmi manifestlerini günlük kontrol et.
-  // Yalnız cihaz en az 5 dakika boşta kaldığında aynı model etiketi güncellenir.
-  const maybeUpdateModels = async () => {
-    const settings = settingsStore.getSettings();
-    if (!settings || !settings.defaultModel) return;
-    // Re-detect after setup to keep status current
-    await modelManager.detect().catch(() => {});
-  };
-  try { await maybeUpdateModels(); } catch (_e) {}
-});
-
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
-});
-
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});

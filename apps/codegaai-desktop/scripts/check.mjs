@@ -71,6 +71,18 @@ const required = [
   "src/main/agent/__tests__/plugin-store.test.js",
   "src/main/agent/__tests__/project-store.test.js",
   "src/main/agent/__tests__/git-engine.test.js",
+  "src/main/agent/__tests__/mission-os.test.js",
+  "src/main/agent/__tests__/evolution-engine.test.js",
+  "src/main/agent/mission/mission-types.js",
+  "src/main/agent/mission/mission-store.js",
+  "src/main/agent/mission/mission-planner.js",
+  "src/main/agent/mission/mission-scheduler.js",
+  "src/main/agent/mission/mission-executor.js",
+  "src/main/agent/mission/mission-os.js",
+  "src/main/agent/mission/mission-ipc.js",
+  "src/main/agent/evolution/evolution-engine.js",
+  "src/main/agent/evolution/codega-dna.js",
+  "src/main/agent/context/context-engine.js",
   "assets/logo.svg",
   "src/renderer/phoenix-splash.js",
   "src/renderer/phoenix-theme.css",
@@ -106,7 +118,7 @@ if (!pkg.build?.asarUnpack?.some((e) => String(e).includes("archiver"))) throw n
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
 if (!pkg.scripts?.["release:win"]) throw new Error("Windows release script is missing");
 
-if (pkg.version !== "6.0.0-alpha.23") throw new Error(`Desktop package version must be 6.0.0-alpha.23, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.24") throw new Error(`Desktop package version must be 6.0.0-alpha.24, got ${pkg.version}`);
 
 const phoenixCore = readText(join(repoRoot, "packages", "phoenix-core", "index.js"));
 if (!phoenixCore.includes("runPhoenix") || !phoenixCore.includes("createTask") || !phoenixCore.includes("createModelStore")) throw new Error("Phoenix core entrypoint is incomplete");
@@ -183,4 +195,20 @@ function scan(dir) {
 scan(repoRoot);
 if (forbidden.length) throw new Error(`Runtime artifacts must not be shipped in repository: ${forbidden.slice(0, 8).join(", ")}`);
 
-console.log("CODEGA AI Phoenix Core v2 watchdog + isolation foundation OK");
+// MissionOS varlık kontrolleri
+const missionOS = readText(join(root, "src/main/agent/mission/mission-os.js"));
+if (!missionOS.includes("MissionOS") || !missionOS.includes("initMissionOS")) throw new Error("MissionOS is incomplete");
+
+const missionSched = readText(join(root, "src/main/agent/mission/mission-scheduler.js"));
+if (!missionSched.includes("topologicalSort") || !missionSched.includes("buildExecutionQueue")) throw new Error("MissionScheduler is incomplete");
+
+const evolutionEng = readText(join(root, "src/main/agent/evolution/evolution-engine.js"));
+if (!evolutionEng.includes("EvolutionEngine") || !evolutionEng.includes("analyze")) throw new Error("EvolutionEngine is incomplete");
+
+const codegaDNAFile = readText(join(root, "src/main/agent/evolution/codega-dna.js"));
+if (!codegaDNAFile.includes("CodegaDNA") || !codegaDNAFile.includes("DNA_VERDICT")) throw new Error("CODEGA DNA is incomplete");
+
+const ctxEngine = readText(join(root, "src/main/agent/context/context-engine.js"));
+if (!ctxEngine.includes("ContextEngine") || !ctxEngine.includes("CONTEXT_TYPE")) throw new Error("ContextEngine is incomplete");
+
+console.log("CODEGA AI alpha.24 — MissionOS + Evolution Engine + Context Engine OK");

@@ -150,4 +150,5 @@ contextBridge.exposeInMainWorld("codega", {
     reload:         (id)        => ipcRenderer.invoke("plugin:reload",         id),
     intentHandlers: ()          => ipcRenderer.invoke("plugin:intent-handlers"),
   },
-});
+
+  /
