@@ -1,3 +1,7 @@
+// CODEGA AI Splash
+if (typeof mountPhoenixSplash === "function") mountPhoenixSplash();
+if (typeof mountSetupWizard === "function") mountSetupWizard();
+
 const STORAGE_KEY = "codega.desktop.chats.v1";
 const SHARE_HASH_PREFIX = "#share=";
 
