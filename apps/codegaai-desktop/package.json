@@ -1,106 +1,123 @@
 {
-    "name": "codega-ai-desktop",
-    "productName": "CODEGA AI",
-    "version": "6.0.0-alpha.15",
-    "description": "CODEGA AI Phoenix local-first desktop app.",
-    "author": "CODEGA",
-    "private": true,
-    "main": "src/main/main.js",
-    "type": "commonjs",
-    "scripts": {
-        "dev": "electron .",
-        "start": "electron .",
-        "check": "node scripts/check.mjs",
-        "test:ci": "npm run check",
-        "pack": "electron-builder --dir",
-        "dist:win": "electron-builder --win nsis --x64 --publish never",
-        "dist:mac": "electron-builder --mac dmg zip --x64 --arm64 --publish never",
-        "release:prepare": "npm run check",
-        "release:win": "electron-builder --win nsis --x64 --publish never"
+  "name": "codega-ai-desktop",
+  "productName": "CODEGA AI",
+  "version": "6.0.0-alpha.16",
+  "description": "CODEGA AI Phoenix local-first desktop app.",
+  "author": "CODEGA",
+  "private": true,
+  "main": "src/main/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "electron .",
+    "start": "electron .",
+    "check": "node scripts/check.mjs",
+    "test:ci": "npm run check && jest --ci",
+    "pack": "electron-builder --dir",
+    "dist:win": "electron-builder --win nsis --x64 --publish never",
+    "dist:mac": "electron-builder --mac dmg zip --x64 --arm64 --publish never",
+    "release:prepare": "npm run check",
+    "release:win": "electron-builder --win nsis --x64 --publish never",
+    "test": "jest",
+    "test:coverage": "jest --coverage --coverageReporters=text-summary"
+  },
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "electron-updater": "^6.3.9",
+    "extract-zip": "^2.0.1"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "jest": "^29.7.0"
+  },
+  "build": {
+    "appId": "tr.com.codega.codegaai",
+    "artifactName": "CODEGA-AI-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "release"
     },
-    "dependencies": {
-        "archiver": "^7.0.1",
-        "electron-updater": "^6.3.9",
-        "extract-zip": "^2.0.1"
+    "asar": true,
+    "files": [
+      "src/**/*",
+      "package.json",
+      "!**/*.map",
+      "!**/*.log",
+      "!**/__pycache__/**",
+      "!**/*.pyc"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "requestedExecutionLevel": "asInvoker",
+      "signAndEditExecutable": true
     },
-    "devDependencies": {
-        "electron": "^33.4.11",
-        "electron-builder": "^25.1.8",
-        "jest": "^29.7.0"
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity",
+      "gatekeeperAssess": false
     },
-    "build": {
-        "appId": "tr.com.codega.codegaai",
-        "artifactName": "CODEGA-AI-${version}-${os}-${arch}.${ext}",
-        "directories": {
-            "output": "release"
-        },
-        "asar": true,
-        "files": [
-            "src/**/*",
-            "package.json",
-            "!**/*.map",
-            "!**/*.log",
-            "!**/__pycache__/**",
-            "!**/*.pyc"
-        ],
-        "win": {
-            "target": [
-                {
-                    "target": "nsis",
-                    "arch": [
-                        "x64"
-                    ]
-                }
-            ],
-            "requestedExecutionLevel": "asInvoker",
-            "signAndEditExecutable": true
-        },
-        "mac": {
-            "target": [
-                {
-                    "target": "dmg",
-                    "arch": [
-                        "x64",
-                        "arm64"
-                    ]
-                },
-                {
-                    "target": "zip",
-                    "arch": [
-                        "x64",
-                        "arm64"
-                    ]
-                }
-            ],
-            "category": "public.app-category.productivity",
-            "gatekeeperAssess": false
-        },
-        "nsis": {
-            "oneClick": false,
-            "allowToChangeInstallationDirectory": true,
-            "createDesktopShortcut": true,
-            "createStartMenuShortcut": true,
-            "shortcutName": "CODEGA AI",
-            "deleteAppDataOnUninstall": false
-        },
-        "publish": [
-            {
-                "provider": "github",
-                "owner": "codegatr",
-                "repo": "codegaai",
-                "releaseType": "release"
-            }
-        ],
-        "asarUnpack": [
-            "node_modules/archiver/**",
-            "node_modules/archiver-utils/**",
-            "node_modules/zip-stream/**",
-            "node_modules/extract-zip/**",
-            "node_modules/yauzl/**",
-            "node_modules/fd-slicer/**",
-            "node_modules/pend/**",
-            "node_modules/crc32-stream/**",
-            "node_modules/readable-stream/**"
-        ]
-    }
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "CODEGA AI",
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "codegatr",
+        "repo": "codegaai",
+        "releaseType": "release"
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/archiver/**",
+      "node_modules/archiver-utils/**",
+      "node_modules/zip-stream/**",
+      "node_modules/extract-zip/**",
+      "node_modules/yauzl/**",
+      "node_modules/fd-slicer/**",
+      "node_modules/pend/**",
+      "node_modules/crc32-stream/**",
+      "node_modules/readable-stream/**"
+    ]
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/src/main/agent/__tests__/**/*.test.js"
+    ],
+    "testTimeout": 20000,
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "src/main/agent/builder/builder-engine.js",
+      "src/main/agent/plugins/plugin-store.js",
+      "src/main/agent/git/git-engine.js",
+      "src/main/agent/memory/project-store.js",
+      "src/main/agent/zip/zip-engine.js"
+    ]
+  }
 }
