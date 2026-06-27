@@ -96,10 +96,11 @@ if (!pkg.build?.nsis || !pkg.dependencies?.["electron-updater"]) throw new Error
 if (pkg.build?.win?.requestedExecutionLevel !== "asInvoker") throw new Error("Windows installer must not request elevated privileges by default");
 if (pkg.build?.asar !== true) throw new Error("Electron app should be packed with asar");
 if (!pkg.build?.files?.some((entry) => String(entry).includes("!**/__pycache__/**"))) throw new Error("Desktop package must exclude Python cache artifacts");
+if (!pkg.build?.asarUnpack?.some((e) => String(e).includes("archiver"))) throw new Error("archiver must be in asarUnpack to work outside asar");
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
 if (!pkg.scripts?.["release:win"]) throw new Error("Windows release script is missing");
 
-if (pkg.version !== "6.0.0-alpha.13") throw new Error(`Desktop package version must be 6.0.0-alpha.12, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.14") throw new Error(`Desktop package version must be 6.0.0-alpha.12, got ${pkg.version}`);
 
 const phoenixCore = readText(join(repoRoot, "packages", "phoenix-core", "index.js"));
 if (!phoenixCore.includes("runPhoenix") || !phoenixCore.includes("createTask") || !phoenixCore.includes("createModelStore")) throw new Error("Phoenix core entrypoint is incomplete");

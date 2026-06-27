@@ -1,7 +1,7 @@
 {
     "name": "codega-ai-desktop",
     "productName": "CODEGA AI",
-    "version": "6.0.0-alpha.13",
+    "version": "6.0.0-alpha.14",
     "description": "CODEGA AI Phoenix local-first desktop app.",
     "author": "CODEGA",
     "private": true,
@@ -19,13 +19,14 @@
         "release:win": "electron-builder --win nsis --x64 --publish never"
     },
     "dependencies": {
-        "electron-updater": "^6.3.9",
         "archiver": "^7.0.1",
+        "electron-updater": "^6.3.9",
         "extract-zip": "^2.0.1"
     },
     "devDependencies": {
         "electron": "^33.4.11",
-        "electron-builder": "^25.1.8"
+        "electron-builder": "^25.1.8",
+        "jest": "^29.7.0"
     },
     "build": {
         "appId": "tr.com.codega.codegaai",
@@ -89,6 +90,17 @@
                 "repo": "codegaai",
                 "releaseType": "release"
             }
+        ],
+        "asarUnpack": [
+            "node_modules/archiver/**",
+            "node_modules/archiver-utils/**",
+            "node_modules/zip-stream/**",
+            "node_modules/extract-zip/**",
+            "node_modules/yauzl/**",
+            "node_modules/fd-slicer/**",
+            "node_modules/pend/**",
+            "node_modules/crc32-stream/**",
+            "node_modules/readable-stream/**"
         ]
     }
 }
