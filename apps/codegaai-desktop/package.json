@@ -1,7 +1,7 @@
 {
   "name": "codega-ai-desktop",
   "productName": "CODEGA AI",
-  "version": "6.0.0-alpha.16",
+  "version": "6.0.0-alpha.17",
   "description": "CODEGA AI Phoenix local-first desktop app.",
   "author": "CODEGA",
   "private": true,
@@ -55,7 +55,12 @@
         }
       ],
       "requestedExecutionLevel": "asInvoker",
-      "signAndEditExecutable": true
+      "signAndEditExecutable": true,
+      "signingHashAlgorithms": [
+        "sha256"
+      ],
+      "verifyUpdateCodeSignature": false,
+      "sign": null
     },
     "mac": {
       "target": [
@@ -75,7 +80,13 @@
         }
       ],
       "category": "public.app-category.productivity",
-      "gatekeeperAssess": false
+      "gatekeeperAssess": false,
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.inherit.plist",
+      "notarize": {
+        "teamId": "${APPLE_TEAM_ID}"
+      }
     },
     "nsis": {
       "oneClick": false,
