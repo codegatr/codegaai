@@ -27,7 +27,6 @@ const path   = require("node:path");
 const fsp    = require("node:fs/promises");
 const os     = require("node:os");
 const crypto = require("node:crypto");
-const archiver = require("archiver");
 const fs     = require("node:fs");
 
 // ─────────────────────────────────────────────────────────────
@@ -66,6 +65,7 @@ async function packToZip(files, outPath) {
 
     // ZIP oluştur
     await new Promise((resolve, reject) => {
+      const archiver = require("archiver");  // lazy require
       const output = fs.createWriteStream(outPath);
       const archive = archiver("zip", { zlib: { level: 6 } });
       output.on("close", resolve);
