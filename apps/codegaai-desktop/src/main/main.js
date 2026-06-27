@@ -1226,3 +1226,84 @@ app.whenReady().then(async () => {
   const userDataPath = app.getPath("userData");
   // Hafıza ve ayarlar kullanıcının userData dizininde kalıcı olsun
   process.env.CODEGA_MEMORY_PATH =
+  process.env.CODEGA_SETTINGS_PATH =
+    process.env.CODEGA_SETTINGS_PATH || path.join(userDataPath, "agent-settings.json");
+  process.env.CODEGA_RAG_PATH =
+    process.env.CODEGA_RAG_PATH || path.join(userDataPath, "rag-store.json");
+  process.env.CODEGA_IMPROVE_PATH =
+    process.env.CODEGA_IMPROVE_PATH || path.join(userDataPath, "improve-drafts.json");
+  process.env.CODEGA_FEEDBACK_PATH =
+    process.env.CODEGA_FEEDBACK_PATH || path.join(userDataPath, "feedback.json");
+  process.env.CODEGA_LEARNING_PATH =
+    process.env.CODEGA_LEARNING_PATH || path.join(userDataPath, "learning.json");
+  process.env.CODEGA_STATS_PATH =
+    process.env.CODEGA_STATS_PATH || path.join(userDataPath, "stats.json");
+  process.env.CODEGA_LOGS_PATH =
+    process.env.CODEGA_LOGS_PATH || path.join(userDataPath, "logs.json");
+  process.env.CODEGA_AGENT_WATCH_PATH =
+    process.env.CODEGA_AGENT_WATCH_PATH || path.join(userDataPath, "agent-watch.json");
+  const storage = await resolveModelStorage();
+  process.env.CODEGA_MODELS_PATH = storage.path || path.join(userDataPath, "ollama-models");
+  process.env.OLLAMA_MODELS = storage.path || process.env.CODEGA_MODELS_PATH;
+  try { fs.mkdirSync(process.env.CODEGA_MODELS_PATH, { recursive: true }); } catch (_e) {}
+
+  registerIpc();
+  createWindow();
+  updateService.start();
+  await modelManager.detect();
+  const installedAtStartup = await modelManager.installedModels();
+  if (!installedAtStartup.length && storage.files > 0) {
+    try {
+      logs.warn("models", `Ollama boş depo kullanıyor; gerçek model diziniyle yeniden başlatılıyor: ${storage.path}`);
+      await installer.restartOllama(storage.path);
+      for (let attempt = 0; attempt < 15; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (await ollamaReachable()) break;
+      }
+      await modelManager.detect();
+    } catch (error) {
+      try { logs.error("models", `Model deposu otomatik düzeltilemedi: ${error.message || error}`); } catch (_e) {}
+    }
+  }
+
+  // Kendi kendine bakım: açılışta bir kez + her 5 dakikada bir (güvenli, kod değiştirmez)
+  runMaintenanceAutomations().catch(() => {});
+  setInterval(() => { runMaintenanceAutomations().catch(() => {}); }, 5 * 60 * 1000);
+  scheduleLearning();
+  scheduleAgentWatch();
+  refreshMcpTools().catch(() => {});
+  try { logs.info("app", `CODEGA AI ${app.getVersion()} başladı`); } catch (_e) {}
+  process.on("uncaughtException", (e) => { try { logs.error("uncaught", e && (e.stack || e.message || e)); } catch (_e2) {} });
+  process.on("unhandledRejection", (e) => { try { logs.error("rejection", e && (e.message || e)); } catch (_e2) {} });
+
+  // Başlangıçta GitHub'daki bilgi dosyasını yerel belleğe yükle (yapılandırıldıysa)
+  knowledge.syncDown().catch(() => {});
+
+  // Boşta otonom öğrenme: opt-in. Yalnızca öğrenilen NOTLARI GitHub'a senkronlar
+  // (kod yazmaz). ~5 dk boşta kalınca ve ayar açıksa çalışır.
+  setInterval(() => {
+    const s = settingsStore.getSettings();
+    if (s.scheduledTasksEnabled === false) return;
+    if (!s.idleLearning) return;
+    if (Date.now() - lastActivityAt < 2 * 60 * 1000) return; // 2 dk boşta değilse atla
+    knowledge.syncUp().catch(() => {});
+  }, 5 * 60 * 1000);
+
+  // Kurulu Ollama modellerinin resmi manifestlerini günlük kontrol et.
+  // Yalnız cihaz en az 5 dakika boşta kaldığında aynı model etiketi güncellenir.
+  const maybeUpdateModels = async () => {
+    const settings = settingsStore.getSettings();
+    if (!settings || !settings.defaultModel) return;
+    // Re-detect after setup to keep status current
+    await modelManager.detect().catch(() => {});
+  };
+  try { await maybeUpdateModels(); } catch (_e) {}
+});
+
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});
+
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") app.quit();
+});
