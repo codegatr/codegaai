@@ -1314,4 +1314,8 @@ app.whenReady().then(async () => {
   try { await maybeUpdateModels(); } catch (_e) {}
 });
 
-app.on("act
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});
+
+if (process.platform !== "darwin") app.quit();
