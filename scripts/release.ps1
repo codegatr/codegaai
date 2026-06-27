@@ -52,7 +52,7 @@ try {
   Pop-Location
 }
 
-git add $pkg $check scripts/release.ps1 scripts/patch-electron-timeouts.ps1 apps/codegaai-desktop/src/renderer/renderer.js apps/codegaai-desktop/src/shared/constants.js apps/codegaai-desktop/src/main/phoenix-core
+git add $pkg $check scripts/release.ps1 scripts/patch-electron-timeouts.ps1 apps/codegaai-desktop/src/renderer/index.html apps/codegaai-desktop/src/renderer/renderer-hotfix.js apps/codegaai-desktop/src/renderer/renderer.js apps/codegaai-desktop/src/shared/constants.js apps/codegaai-desktop/src/main/phoenix-core
 $changes = git status --porcelain
 if (-not $changes) {
   Write-Host "No release file changes to commit." -ForegroundColor Yellow
