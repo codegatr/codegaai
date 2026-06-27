@@ -186,7 +186,7 @@ jobs:
             apps/codegaai-desktop/release/latest-mac.yml
 
       - name: Attach to GitHub Release
-        if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/desktop-v') || inputs.publish_release }}
+        if: ${{ startsWith(github.ref, 'refs/tags/desktop-v') || inputs.publish_release == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release.outputs.tag }}
@@ -195,4 +195,7 @@ jobs:
             apps/codegaai-desktop/release/*.dmg
             apps/codegaai-desktop/release/*.zip
             apps/codegaai-desktop/release/latest-mac.yml
-          make_latest: true
+          make_latest: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

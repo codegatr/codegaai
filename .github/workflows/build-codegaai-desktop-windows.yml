@@ -124,10 +124,13 @@ jobs:
           path: apps/codegaai-desktop/release/*
 
       - name: Attach to GitHub Release
-        if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/desktop-v') || inputs.publish_release }}
+        if: ${{ startsWith(github.ref, 'refs/tags/desktop-v') || inputs.publish_release == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release.outputs.tag }}
           name: CODEGA AI Desktop ${{ steps.release.outputs.version }}
           files: apps/codegaai-desktop/release/*
-          make_latest: true
+          make_latest: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
