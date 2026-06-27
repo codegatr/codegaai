@@ -114,4 +114,21 @@ contextBridge.exposeInMainWorld("codega", {
     changelog:      (repo, max)        => ipcRenderer.invoke("git:changelog",        repo, max),
     explainConflict:(block)            => ipcRenderer.invoke("git:explain-conflict", block),
   },
+
+  // Project Memory API
+  projectMemory: {
+    list:        ()                       => ipcRenderer.invoke("project-memory:list"),
+    create:      (name, opts)             => ipcRenderer.invoke("project-memory:create",      name, opts),
+    get:         (id)                     => ipcRenderer.invoke("project-memory:get",          id),
+    updateMeta:  (id, patch)              => ipcRenderer.invoke("project-memory:update-meta",  id, patch),
+    delete:      (id)                     => ipcRenderer.invoke("project-memory:delete",       id),
+    append:      (id, category, entry)    => ipcRenderer.invoke("project-memory:append",       id, category, entry),
+    removeEntry: (id, category, index)    => ipcRenderer.invoke("project-memory:remove-entry", id, category, index),
+    replaceCat:  (id, category, entries)  => ipcRenderer.invoke("project-memory:replace-cat",  id, category, entries),
+    search:      (id, query)              => ipcRenderer.invoke("project-memory:search",        id, query),
+    searchAll:   (query)                  => ipcRenderer.invoke("project-memory:search-all",   query),
+    detect:      (hints)                  => ipcRenderer.invoke("project-memory:detect",        hints),
+    context:     (id, max)                => ipcRenderer.invoke("project-memory:context",       id, max),
+    categories:  ()                       => ipcRenderer.invoke("project-memory:categories"),
+  },
 });

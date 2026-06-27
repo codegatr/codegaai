@@ -59,6 +59,9 @@ const required = [
   "src/main/agent/git/git-engine.js",
   "src/main/agent/git/git-analyzer.js",
   "src/main/agent/git/git-ipc.js",
+  "src/main/agent/memory/project-store.js",
+  "src/main/agent/memory/project-engine.js",
+  "src/main/agent/memory/project-ipc.js",
   "src/renderer/phoenix-theme.css",
   "src/renderer/phoenix-splash.js"
 ];
@@ -91,7 +94,7 @@ if (!pkg.build?.files?.some((entry) => String(entry).includes("!**/__pycache__/*
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
 if (!pkg.scripts?.["release:win"]) throw new Error("Windows release script is missing");
 
-if (pkg.version !== "6.0.0-alpha.10") throw new Error(`Desktop package version must be 6.0.0-alpha.10, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.11") throw new Error(`Desktop package version must be 6.0.0-alpha.11, got ${pkg.version}`);
 
 const phoenixCore = readText(join(repoRoot, "packages", "phoenix-core", "index.js"));
 if (!phoenixCore.includes("runPhoenix") || !phoenixCore.includes("createTask") || !phoenixCore.includes("createModelStore")) throw new Error("Phoenix core entrypoint is incomplete");
@@ -159,7 +162,4 @@ function scan(dir) {
     const full = join(dir, entry.name);
     const rel = full.slice(repoRoot.length + 1).replace(/\\/g, "/");
     if (rel.includes("node_modules/") || rel.includes("release/")) continue;
-    if (entry.isDirectory()) {
-      if (entry.name === "__pycache__") forbidden.push(rel);
-      scan(full);
-    } else if (entry.name.endsWith(".pyc") ||
+    if (entry.isDirector

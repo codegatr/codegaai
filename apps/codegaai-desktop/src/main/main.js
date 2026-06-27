@@ -32,6 +32,7 @@ const { ollamaReachable } = require("./agent/ollama-client");
 const { createPhoenixRuntime } = require("./phoenix-core/runtime/phoenix-runtime");
 const { registerZipIpc } = require("./agent/zip/zip-ipc");
 const { registerGitIpc } = require("./agent/git/git-ipc");
+const { registerProjectMemoryIpc } = require("./agent/memory/project-ipc");
 const inheritedOllamaModelsPath = String(process.env.OLLAMA_MODELS || "").trim();
 let activeModelStorage = null;
 let lastMcpHealth = null;
@@ -424,6 +425,9 @@ function registerIpc() {
 
   // Git Agent IPC handlers
   registerGitIpc();
+
+  // Project Memory IPC handlers
+  registerProjectMemoryIpc();
 
   ipcMain.handle("chat:send", async (event, message, opts) => {
     lastActivityAt = Date.now();
