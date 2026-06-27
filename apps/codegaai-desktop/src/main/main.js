@@ -1,5 +1,6 @@
 const path = require("node:path");
 const fs = require("node:fs");
+const crypto = require("node:crypto");
 const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const { APP_NAME, FEDERATION_BASE_URL, MODEL_OPTIONS, DEFAULT_MODEL } = require("../shared/constants");
 const { ModelManager } = require("./model-manager");
@@ -28,12 +29,17 @@ const logs = require("./agent/logs");
 const agentTools = require("./agent/tools");
 const runtimePolicy = require("./agent/runtime-policy");
 const { ollamaReachable } = require("./agent/ollama-client");
+const { createPhoenixWatchdog } = require("./phoenix-core/watchdog/watchdog");
+const { createConversationIsolationStore } = require("./phoenix-core/runtime/conversation-isolation");
 const inheritedOllamaModelsPath = String(process.env.OLLAMA_MODELS || "").trim();
 let activeModelStorage = null;
 let lastMcpHealth = null;
 
 const modelManager = new ModelManager();
 const updateService = new UpdateService();
+// Phoenix Core v2: konuşma izolasyonu ve watchdog (dead-letter sıfırı risk — try/catch ile sarılı)
+const phoenixWatchdog = createPhoenixWatchdog({ staleMs: 90000, expireMs: 300000 });
+const conversationStore = createConversationIsolationStore();
 const modelUpdateService = new ModelUpdateService({
   updateModel: (name, onProgress) => modelManager.updateModel(name, onProgress),
   catalogOptions: () => ({ token: String(settingsStore.getSettings().githubToken || "").trim() }),
@@ -415,21 +421,42 @@ function registerIpc() {
 
   ipcMain.handle("chat:send", async (event, message, opts) => {
     lastActivityAt = Date.now();
+    const chatId = (opts && opts.chatId) || "";
+    const taskId = crypto.randomUUID();
+
+    // Phoenix Core v2: konuşmayı izole et, kullanıcı mesajını kaydet, watchdog başlat
+    try { conversationStore.attachTask(chatId, taskId); } catch (_e) {}
+    try { conversationStore.appendMessage(chatId, { role: "user", text: String(message || ""), taskId }); } catch (_e) {}
+    try { phoenixWatchdog.beat(taskId); } catch (_e) {}
+
     const streamOn = settingsStore.getSettings().streaming !== false;
     const onToken = streamOn
-      ? (t) => { try { event.sender.send("chat:stream", t); } catch (_e) {} }
+      ? (t) => {
+          try { event.sender.send("chat:stream", t); } catch (_e) {}
+          try { phoenixWatchdog.beat(taskId); } catch (_e) {} // her token watchdog'u tazeler
+        }
       : null;
     const onProgress = (payload) => {
       try { event.sender.send("chat:status", payload); } catch (_e) {}
     };
     try { if (settingsStore.getSettings().debugLogging) logs.info("chat", `İstek: ${String(message).slice(0, 60)}`); } catch (_e) {}
-    return modelManager.ask(message, {
+
+    const result = await modelManager.ask(message, {
       onToken,
       onProgress,
       regenerate: !!(opts && opts.regenerate),
       context: (opts && opts.context) || "",
-      chatId: (opts && opts.chatId) || "",
+      chatId,
     });
+
+    // Phoenix Core v2: asistan yanıtını kaydet, watchdog'dan kaldır
+    try {
+      const text = (result && typeof result.text === "string") ? result.text : String(result || "");
+      conversationStore.appendMessage(chatId, { role: "assistant", text, taskId });
+    } catch (_e) {}
+    try { phoenixWatchdog.heartbeat.remove(taskId); } catch (_e) {}
+
+    return result;
   });
 
   ipcMain.handle("chat:share", async (_event, chat) => {
