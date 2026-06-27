@@ -67,6 +67,10 @@ const required = [
   "src/main/agent/plugins/plugin-store.js",
   "src/main/agent/plugins/plugin-engine.js",
   "src/main/agent/plugins/plugin-ipc.js",
+  "src/main/agent/__tests__/builder-engine.test.js",
+  "src/main/agent/__tests__/plugin-store.test.js",
+  "src/main/agent/__tests__/project-store.test.js",
+  "src/main/agent/__tests__/git-engine.test.js",
   "src/renderer/phoenix-theme.css",
   "src/renderer/phoenix-splash.js"
 ];
@@ -100,7 +104,7 @@ if (!pkg.build?.asarUnpack?.some((e) => String(e).includes("archiver"))) throw n
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
 if (!pkg.scripts?.["release:win"]) throw new Error("Windows release script is missing");
 
-if (pkg.version !== "6.0.0-alpha.15") throw new Error(`Desktop package version must be 6.0.0-alpha.15, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.16") throw new Error(`Desktop package version must be 6.0.0-alpha.16, got ${pkg.version}`);
 
 const phoenixCore = readText(join(repoRoot, "packages", "phoenix-core", "index.js"));
 if (!phoenixCore.includes("runPhoenix") || !phoenixCore.includes("createTask") || !phoenixCore.includes("createModelStore")) throw new Error("Phoenix core entrypoint is incomplete");
