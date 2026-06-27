@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
 function readText(path) {
-  return readFileSync(path, "utf8").replace(/^\uFEFF/, "");
+  return readFileSync(path, "utf8").replace(/^﻿/, "");
 }
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -96,7 +96,7 @@ if (!pkg.build?.files?.some((entry) => String(entry).includes("!**/__pycache__/*
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
 if (!pkg.scripts?.["release:win"]) throw new Error("Windows release script is missing");
 
-if (pkg.version !== "6.0.0-alpha.12") throw new Error(`Desktop package version must be 6.0.0-alpha.11, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.12") throw new Error(`Desktop package version must be 6.0.0-alpha.12, got ${pkg.version}`);
 
 const phoenixCore = readText(join(repoRoot, "packages", "phoenix-core", "index.js"));
 if (!phoenixCore.includes("runPhoenix") || !phoenixCore.includes("createTask") || !phoenixCore.includes("createModelStore")) throw new Error("Phoenix core entrypoint is incomplete");
@@ -164,4 +164,13 @@ function scan(dir) {
     const full = join(dir, entry.name);
     const rel = full.slice(repoRoot.length + 1).replace(/\\/g, "/");
     if (rel.includes("node_modules/") || rel.includes("release/")) continue;
-    if (entry.isDirector
+    if (entry.isDirectory()) {
+      if (entry.name === "__pycache__") forbidden.push(rel);
+      scan(full);
+    } else if (entry.name.endsWith(".pyc") || entry.name.endsWith(".log")) forbidden.push(rel);
+  }
+}
+scan(repoRoot);
+if (forbidden.length) throw new Error(`Runtime artifacts must not be shipped in repository: ${forbidden.slice(0, 8).join(", ")}`);
+
+console.log("CODEGA AI Phoenix Core v2 watchdog + isolation foundation OK");
