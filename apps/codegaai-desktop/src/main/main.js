@@ -446,7 +446,7 @@ function registerIpc() {
     const result    = await modelManager.ask(prompt, { context: systemMsg?.content || "" });
     return result?.text || "";
   };
-  registerMissionIpc(mainWindow, missionGenerateFn);
+  registerMissionIpc(null, missionGenerateFn);  // win lazily resolved via BrowserWindow.getAllWindows()
 
   // Evolution Engine + CODEGA DNA init — Sprint 11
   const evoDataDir = path.join(app.getPath("userData"), "evolution");
@@ -1305,5 +1305,5 @@ app.on("activate", () => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+   if (process.platform !== "darwin") app.quit();
 });
