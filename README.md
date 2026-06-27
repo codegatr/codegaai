@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Yerel çalışan, hafızalı, ajan tabanlı otonom yazılım mühendisliği platformu.</strong><br>
-  <em>Local-first · Fully Offline · Phoenix Core v2 · v6.0.0-alpha.10</em>
+  <em>Local-first · Fully Offline · Phoenix Core v2 · v6.0.0-alpha.11</em>
 </p>
 
 <p align="center">
@@ -123,6 +123,33 @@ Saf JavaScript, native bağımlılık yok, asar paketi içinde çalışır.
 | `git:release-notes` | İki tag arası markdown release notes |
 | `git:changelog` | Keep a Changelog formatında CHANGELOG.md |
 | `git:explain-conflict` | Merge conflict açıklaması + çözüm seçenekleri |
+
+### 🧠 Project Memory — Proje Hafızası (Sprint 4)
+
+Her proje için izole, kalıcı ve aranabilir beyin hafızası. Projeler **asla** birbirine karışmaz.
+
+**11 Kategori (NIRVANA Manifesto):**
+
+| Kategori | İçerik |
+|---|---|
+| `architecture` | Sistem tasarımı, katmanlar, bileşenler |
+| `tech_stack` | Kullanılan teknolojiler, kütüphaneler, sürümler |
+| `business_rules` | Alan mantığı, iş kuralları |
+| `naming` | İsimlendirme kuralları, kod stili |
+| `schema` | Veritabanı şeması, tablolar, ilişkiler |
+| `decisions` | Mimari kararlar (ADR) |
+| `tech_debt` | Bilinen teknik borçlar |
+| `pending_work` | Yapılacaklar, özellik talepleri |
+| `release_history` | Sürüm geçmişi |
+| `known_bugs` | Bilinen hatalar |
+| `standards` | Kodlama standartları |
+
+**13 IPC Kanalı:**
+`project-memory:list` · `create` · `get` · `update-meta` · `delete` · `append` · `remove-entry` · `replace-cat` · `search` · `search-all` · `detect` · `context` · `categories`
+
+**Auto-detect:** Git repo URL'si veya ZIP analiz sonucundan projeyi otomatik tanır ya da yeni oluşturur.
+
+**AI Bağlam Özeti:** `buildContext()` — proje brain'ini LLM'e göndermek için token-verimli düz metin üretir.
 
 ### 🧩 Model Router
 
@@ -247,6 +274,7 @@ npm run dev
 
 | Sürüm | Tarih | Öne Çıkan |
 |---|---|---|
+| **v6.0.0-alpha.11** | 2026-06-27 | Sprint 4: Proje Hafızası — 11 kategori, 13 IPC kanalı, AI bağlam özeti, auto-detect |
 | **v6.0.0-alpha.10** | 2026-06-27 | VRAM-aware öneri motoru; Cookbook ↔ "Önerilen Modeli Kur" tutarsızlığı giderildi |
 | **v6.0.0-alpha.9** | 2026-06-27 | 7 kritik bug düzeltmesi · preload.js zip/git kanalları · NIRVANA.md |
 | **v6.0.0-alpha.8** | 2026-06-27 | Phoenix Core v2 tam entegrasyon (EventBus · Watchdog · ConversationIsolation · Stream · Intent) |
