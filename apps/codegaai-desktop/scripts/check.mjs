@@ -84,7 +84,7 @@ if (!pkg.build?.files?.some((entry) => String(entry).includes("!**/__pycache__/*
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
 if (!pkg.scripts?.["release:win"]) throw new Error("Windows release script is missing");
 
-if (pkg.version !== "6.0.0-alpha.7") throw new Error(`Desktop package version must be 6.0.0-alpha.7, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.8") throw new Error(`Desktop package version must be 6.0.0-alpha.8, got ${pkg.version}`);
 
 const phoenixCore = readText(join(repoRoot, "packages", "phoenix-core", "index.js"));
 if (!phoenixCore.includes("runPhoenix") || !phoenixCore.includes("createTask") || !phoenixCore.includes("createModelStore")) throw new Error("Phoenix core entrypoint is incomplete");
@@ -162,4 +162,5 @@ scan(repoRoot);
 if (forbidden.length) throw new Error(`Runtime artifacts must not be shipped in repository: ${forbidden.slice(0, 8).join(", ")}`);
 
 console.log("CODEGA AI Phoenix Core v2 watchdog + isolation foundation OK");
+
 
