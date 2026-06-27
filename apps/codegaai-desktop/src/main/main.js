@@ -29,17 +29,15 @@ const logs = require("./agent/logs");
 const agentTools = require("./agent/tools");
 const runtimePolicy = require("./agent/runtime-policy");
 const { ollamaReachable } = require("./agent/ollama-client");
-const { createPhoenixWatchdog } = require("./phoenix-core/watchdog/watchdog");
-const { createConversationIsolationStore } = require("./phoenix-core/runtime/conversation-isolation");
+const { createPhoenixRuntime } = require("./phoenix-core/runtime/phoenix-runtime");
 const inheritedOllamaModelsPath = String(process.env.OLLAMA_MODELS || "").trim();
 let activeModelStorage = null;
 let lastMcpHealth = null;
 
 const modelManager = new ModelManager();
 const updateService = new UpdateService();
-// Phoenix Core v2: konuşma izolasyonu ve watchdog (dead-letter sıfırı risk — try/catch ile sarılı)
-const phoenixWatchdog = createPhoenixWatchdog({ staleMs: 90000, expireMs: 300000 });
-const conversationStore = createConversationIsolationStore();
+// Phoenix Core v2: merkezi runtime (EventBus + Watchdog + ConversationStore + StreamBuffer + IntentEngine)
+const phoenixRuntime = createPhoenixRuntime({ staleMs: 90000, expireMs: 300000 });
 const modelUpdateService = new ModelUpdateService({
   updateModel: (name, onProgress) => modelManager.updateModel(name, onProgress),
   catalogOptions: () => ({ token: String(settingsStore.getSettings().githubToken || "").trim() }),
@@ -421,41 +419,51 @@ function registerIpc() {
 
   ipcMain.handle("chat:send", async (event, message, opts) => {
     lastActivityAt = Date.now();
-    const chatId = (opts && opts.chatId) || "";
-    const taskId = crypto.randomUUID();
 
-    // Phoenix Core v2: konuşmayı izole et, kullanıcı mesajını kaydet, watchdog başlat
-    try { conversationStore.attachTask(chatId, taskId); } catch (_e) {}
-    try { conversationStore.appendMessage(chatId, { role: "user", text: String(message || ""), taskId }); } catch (_e) {}
-    try { phoenixWatchdog.beat(taskId); } catch (_e) {}
+    // Phoenix Core v2: intent sınıflandırması + görev başlatma
+    const { taskId, chatId, intent } = phoenixRuntime.startChat(message, {
+      chatId: (opts && opts.chatId) || "",
+      regenerate: !!(opts && opts.regenerate),
+      context: (opts && opts.context) || "",
+    });
+
+    try { if (settingsStore.getSettings().debugLogging) logs.info("chat", `[${intent.intent}] ${String(message).slice(0, 60)}`); } catch (_e) {}
+
+    // FastPath: basit sorgular LLM'e gitmeden anında yanıt alır
+    if (intent.fastAnswer && !intent.needsModel) {
+      const fastResult = { text: intent.fastAnswer, source: "fast_path", intent: intent.intent };
+      try { event.sender.send("chat:stream", intent.fastAnswer); } catch (_e) {}
+      phoenixRuntime.finishChat(taskId, chatId, fastResult);
+      return fastResult;
+    }
 
     const streamOn = settingsStore.getSettings().streaming !== false;
     const onToken = streamOn
       ? (t) => {
           try { event.sender.send("chat:stream", t); } catch (_e) {}
-          try { phoenixWatchdog.beat(taskId); } catch (_e) {} // her token watchdog'u tazeler
+          phoenixRuntime.onToken(taskId, chatId, t); // buffer + watchdog + EventBus
         }
       : null;
     const onProgress = (payload) => {
       try { event.sender.send("chat:status", payload); } catch (_e) {}
     };
-    try { if (settingsStore.getSettings().debugLogging) logs.info("chat", `İstek: ${String(message).slice(0, 60)}`); } catch (_e) {}
 
-    const result = await modelManager.ask(message, {
-      onToken,
-      onProgress,
-      regenerate: !!(opts && opts.regenerate),
-      context: (opts && opts.context) || "",
-      chatId,
-    });
-
-    // Phoenix Core v2: asistan yanıtını kaydet, watchdog'dan kaldır
+    let result;
     try {
-      const text = (result && typeof result.text === "string") ? result.text : String(result || "");
-      conversationStore.appendMessage(chatId, { role: "assistant", text, taskId });
-    } catch (_e) {}
-    try { phoenixWatchdog.heartbeat.remove(taskId); } catch (_e) {}
+      result = await modelManager.ask(message, {
+        onToken,
+        onProgress,
+        regenerate: !!(opts && opts.regenerate),
+        context: (opts && opts.context) || "",
+        chatId,
+      });
+    } catch (err) {
+      phoenixRuntime.abortChat(taskId, chatId, err?.message || "model_error");
+      throw err;
+    }
 
+    // Tamamlanma: buffer kapat, konuşmaya ekle, watchdog temizle
+    phoenixRuntime.finishChat(taskId, chatId, result);
     return result;
   });
 

@@ -58,7 +58,7 @@ const experts = require("./agent/experts");
 
 function extractWeatherCity(input) {
   const match = String(input || "").trim().match(
-    /(?:bug[uÃ¼]n\s+)?([\p{L}.-]+)(?:['â€™](?:da|de|ta|te))?\s+(?:hava\s+durumu|hava\s+nas[Ä±i]l|ka[Ã§c]\s+derece)/iu
+    /(?:bug[uü]n\s+)?([\p{L}.-]+)(?:['’](?:da|de|ta|te))?\s+(?:hava\s+durumu|hava\s+nas[ıi]l|ka[çc]\s+derece)/iu
   );
   return match ? match[1].trim() : "";
 }
