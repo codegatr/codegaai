@@ -2263,7 +2263,8 @@ els.settingsButton.addEventListener("click", async () => {
     const el = document.getElementById("ov-system");
     const btn = document.getElementById("ov-use-recommended");
     if (!sys) return;
-    if (el) el.textContent = `${sys.ramGB} GB RAM · ${sys.cores} çekirdek · ${sys.platform}/${sys.arch} → önerilen: ${sys.recommended.label}`;
+    const vramPart = sys.vramGb ? ` · ${sys.vramGb} GB VRAM` : "";
+    if (el) el.textContent = `${sys.ramGB} GB RAM${vramPart} · ${sys.cores} çekirdek · ${sys.platform}/${sys.arch} → önerilen: ${sys.recommended.label}`;
     if (btn && sys.recommended) {
       btn.hidden = false;
       btn.onclick = async () => {

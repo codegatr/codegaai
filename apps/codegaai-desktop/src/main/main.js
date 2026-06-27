@@ -685,8 +685,22 @@ function registerIpc() {
     // 2) Model indir (önerilen ya da verilen). UI zaten "Önerilen Modeli Kur"
     // veya model satırındaki "İndir" ile açık kullanıcı niyeti alıyor; sistem
     // popup'ı progress panelini kapattığı için burada tekrar onay istemiyoruz.
-    const sys = systemInfo.analyze(MODEL_OPTIONS);
-    const modelId = (payload && payload.modelId) || (sys.recommended && sys.recommended.id) || undefined;
+    // Öncelik: (1) explicit modelId, (2) VRAM-aware cookbook önerisi, (3) RAM-only fallback
+    let modelId = payload && payload.modelId;
+    if (!modelId) {
+      try {
+        const { MODEL_CATALOG } = require("../shared/constants");
+        const catalog = MODEL_OPTIONS
+          .map((o) => ({ ...o, ...(MODEL_CATALOG[o.id] || {}) }))
+          .filter((o) => o.minVramGb);
+        const ck = await systemInfo.analyzeCookbook(catalog);
+        modelId = ck.recommended && ck.recommended.id;
+      } catch (_e) {}
+      if (!modelId) {
+        const sys = systemInfo.analyze(MODEL_OPTIONS);
+        modelId = sys.recommended && sys.recommended.id;
+      }
+    }
     const status = await modelManager.prepareModel(modelId, (progress) => send(progress));
     if (status && status.status === "ready" && status.model) {
       settingsStore.setSettings({ defaultModel: status.model });
@@ -986,7 +1000,23 @@ function registerIpc() {
   });
   ipcMain.handle("feedback:stats", async () => feedback.stats());
 
-  ipcMain.handle("system:analyze", async () => systemInfo.analyze(MODEL_OPTIONS));
+  ipcMain.handle("system:analyze", async () => {
+    // Temel (senkron) analiz her zaman çalışır
+    const base = systemInfo.analyze(MODEL_OPTIONS);
+    try {
+      // GPU/VRAM bilgisiyle zenginleştirilmiş öneri (cookbook)
+      const { MODEL_CATALOG } = require("../shared/constants");
+      const catalog = MODEL_OPTIONS
+        .map((o) => ({ ...o, ...(MODEL_CATALOG[o.id] || {}) }))
+        .filter((o) => o.minVramGb);
+      const ck = await systemInfo.analyzeCookbook(catalog);
+      // Cookbook önerisi varsa onu kullan (VRAM-aware > RAM-only)
+      if (ck.recommended) base.recommended = ck.recommended;
+      base.vramGb  = ck.hardware.vramGb;
+      base.gpuName = ck.hardware.gpuName;
+    } catch (_e) { /* GPU okunamazsa sessizce geç, RAM-only öneri kalır */ }
+    return base;
+  });
   // Cookbook: donanımı tara, model uyum skoru + öneri üret, kurulu durumla birleştir.
   ipcMain.handle("cookbook:scan", async () => {
     const { MODEL_CATALOG } = require("../shared/constants");
@@ -1160,31 +1190,16 @@ app.whenReady().then(async () => {
   // Kurulu Ollama modellerinin resmi manifestlerini günlük kontrol et.
   // Yalnız cihaz en az 5 dakika boşta kaldığında aynı model etiketi güncellenir.
   const maybeUpdateModels = async () => {
-    const s = settingsStore.getSettings();
-    if (s.scheduledTasksEnabled === false) return;
-    if (s.autoModelUpdates === false) return;
-    if (Date.now() - lastActivityAt < 5 * 60 * 1000) return;
-    const previous = modelUpdateService.snapshot();
-    const hours = Math.max(1, Number(s.modelUpdateCheckHours) || 24);
-    if (previous.lastCheck && Date.now() - previous.lastCheck < hours * 60 * 60 * 1000) return;
-    const checked = await modelUpdateService.check();
-    broadcastModelUpdateStatus(checked);
-    if (!checked.models.some((model) => model.updateAvailable)) return;
-    const applied = await modelUpdateService.applyAll((progress) => {
-      for (const win of BrowserWindow.getAllWindows()) {
-        try {
-          if (!win.isDestroyed()) win.webContents.send("model:status", progress);
-        } catch (_e) {}
-      }
-    });
-    broadcastModelUpdateStatus(applied.status);
+    const settings = settingsStore.getSettings();
+    if (!settings || !settings.defaultModel) return;
+    // Re-detect after setup to keep status current
+    await modelManager.detect().catch(() => {});
   };
-  setTimeout(() => maybeUpdateModels().catch(() => {}), 6 * 60 * 1000);
-  setInterval(() => maybeUpdateModels().catch(() => {}), 60 * 60 * 1000);
+  try { await maybeUpdateModels(); } catch (_e) {}
+});
 
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
 app.on("window-all-closed", () => {

@@ -91,7 +91,7 @@ if (!pkg.build?.files?.some((entry) => String(entry).includes("!**/__pycache__/*
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
 if (!pkg.scripts?.["release:win"]) throw new Error("Windows release script is missing");
 
-if (pkg.version !== "6.0.0-alpha.9") throw new Error(`Desktop package version must be 6.0.0-alpha.9, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.10") throw new Error(`Desktop package version must be 6.0.0-alpha.10, got ${pkg.version}`);
 
 const phoenixCore = readText(join(repoRoot, "packages", "phoenix-core", "index.js"));
 if (!phoenixCore.includes("runPhoenix") || !phoenixCore.includes("createTask") || !phoenixCore.includes("createModelStore")) throw new Error("Phoenix core entrypoint is incomplete");
@@ -162,4 +162,4 @@ function scan(dir) {
     if (entry.isDirectory()) {
       if (entry.name === "__pycache__") forbidden.push(rel);
       scan(full);
-    } else if (entry.name.endsWith(".pyc") || e
+    } else if (entry.name.endsWith(".pyc") ||
