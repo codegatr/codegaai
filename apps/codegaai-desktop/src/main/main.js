@@ -40,6 +40,7 @@ const { EvolutionEngine }          = require("./agent/evolution/evolution-engine
 const { codegaDNA, initCodegaDNA } = require("./agent/evolution/codega-dna");
 const { contextEngine }            = require("./agent/context/context-engine");
 const { registerAEPIpc }              = require("./agent/aep/aep-ipc");
+const { registerACEIpc }              = require("./agent/ace/ace-ipc");
 const inheritedOllamaModelsPath = String(process.env.OLLAMA_MODELS || "").trim();
 let activeModelStorage = null;
 let lastMcpHealth = null;
@@ -457,6 +458,9 @@ function registerIpc() {
     repo : "codegaai",
   };
   registerAEPIpc(missionGenerateFn, aepGitHub);
+
+  // ACE — Artificial Cognition Engine — Sprint ACE (alpha.26)
+  registerACEIpc(missionGenerateFn);
 
   // Evolution Engine + CODEGA DNA init — Sprint 11
   const evoDataDir = path.join(app.getPath("userData"), "evolution");
@@ -1310,10 +1314,4 @@ app.whenReady().then(async () => {
   try { await maybeUpdateModels(); } catch (_e) {}
 });
 
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
-});
-
-app.on("window-all-closed", () => {
-   if (process.platform !== "darwin") app.quit();
-});
+app.on("act

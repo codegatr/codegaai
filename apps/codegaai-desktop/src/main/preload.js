@@ -235,4 +235,51 @@ contextBridge.exposeInMainWorld("codega", {
     },
     off: (channel, fn) => ipcRenderer.removeListener(channel, fn),
   },
+  ace: {
+    dashboard:        ()             => ipcRenderer.invoke("ace:dashboard"),
+    context:          (opts)         => ipcRenderer.invoke("ace:context",          opts),
+    processMessage:   (msg, userId)  => ipcRenderer.invoke("ace:process-message",  { message: msg, userId }),
+
+    project: {
+      activate:       (label, userId)  => ipcRenderer.invoke("ace:project:activate",   { label, userId }),
+      context:        (label)          => ipcRenderer.invoke("ace:project:context",     { label }),
+      addArch:        (label, text)    => ipcRenderer.invoke("ace:project:add-arch",    { label, text }),
+      addTodo:        (label, text)    => ipcRenderer.invoke("ace:project:add-todo",    { label, text }),
+      resolveTodo:    (label, id)      => ipcRenderer.invoke("ace:project:resolve-todo",{ label, id }),
+    },
+
+    working: {
+      setProject:     (label)          => ipcRenderer.invoke("ace:working:set-project",  { label }),
+      setMission:     (label)          => ipcRenderer.invoke("ace:working:set-mission",  { label }),
+      setTask:        (task)           => ipcRenderer.invoke("ace:working:set-task",      { task }),
+      addDecision:    (decision, r)    => ipcRenderer.invoke("ace:working:add-decision", { decision, rationale: r }),
+      snapshot:       ()               => ipcRenderer.invoke("ace:working:snapshot"),
+    },
+
+    goal: {
+      add:            (opts)           => ipcRenderer.invoke("ace:goal:add",     opts),
+      list:           (userId)         => ipcRenderer.invoke("ace:goal:list",    { userId }),
+      achieve:        (id)             => ipcRenderer.invoke("ace:goal:achieve", { id }),
+      summary:        (userId)         => ipcRenderer.invoke("ace:goal:summary", { userId }),
+    },
+
+    user: {
+      observe:        (userId, data)   => ipcRenderer.invoke("ace:user:observe",  { userId, ...data }),
+      context:        (userId)         => ipcRenderer.invoke("ace:user:context",  { userId }),
+      summary:        ()               => ipcRenderer.invoke("ace:user:summary"),
+    },
+
+    engineering: {
+      learn:          (opts)           => ipcRenderer.invoke("ace:engineering:learn",   opts),
+      query:          (opts)           => ipcRenderer.invoke("ace:engineering:query",   opts),
+      summary:        ()               => ipcRenderer.invoke("ace:engineering:summary"),
+    },
+
+    reflect:          (userId)         => ipcRenderer.invoke("ace:reflect",            { userId }),
+
+    lifeGraph: {
+      summary:        ()               => ipcRenderer.invoke("ace:life-graph:summary"),
+      upsertNode:     (nodeData)       => ipcRenderer.invoke("ace:life-graph:upsert-node", nodeData),
+    },
+  },
 });

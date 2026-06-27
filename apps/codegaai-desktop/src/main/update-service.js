@@ -89,14 +89,23 @@ function updateErrorMessage(error) {
   if (/not digitally signed|not signed by the application owner/i.test(message)) {
     return "Guncelleme installer'i imzasiz. CODEGA AI unsigned build kullandigi icin imza dogrulamasi kapali olmali; bu surumde otomatik olarak kapatildi.";
   }
-  if (/status code 502|HttpError:\s*502|Unicorn|This page is taking too long to load|github\.com/i.test(message)) {
+  if (/status code 502|HttpError:\s*502|Unicorn|This page is taking too long to load/i.test(message)) {
     return "GitHub guncelleme dosyasina su an ulasilamadi. Baglanti veya GitHub gecici olarak yogun olabilir; birazdan tekrar dene.";
+  }
+  if (/API rate limit exceeded|rate limit/i.test(message)) {
+    return "GitHub API istek limiti asildi. Birkaç dakika sonra tekrar dene.";
   }
   if (/sha512 checksum mismatch|checksum mismatch/i.test(message)) {
     return "Guncelleme dosyasi dogrulanamadi. Indirme bozulmus veya GitHub release dosyasi yeni guncellenmis olabilir; birazdan tekrar kontrol edip yeniden indir.";
   }
-  if (/latest\.ya?ml|release|download/i.test(message)) {
-    return "Guncelleme bilgisi okunamadi. Desktop release metadata dosyasi bulunamadi; birazdan tekrar dene veya son installer'i manuel indir.";
+  if (/ERR_UPDATER_CHANNEL_FILE_NOT_FOUND|Cannot find channel/i.test(message)) {
+    return "Guncelleme metadata dosyasi sunucuda bulunamadi (latest-mac.yml). Agda bir sorun olabilir; birazdan tekrar dene.";
+  }
+  if (/desktop metadata.*bulunamadi|kanalinda.*bulunamadi/i.test(message)) {
+    return "Guncelleme kanalinda uygun bir desktop surumu bulunamadi. GitHub yavaslamis olabilir; birazdan tekrar dene.";
+  }
+  if (/ENOTFOUND|ETIMEDOUT|ECONNREFUSED|ECONNRESET|socket hang up/i.test(message)) {
+    return "GitHub sunucusuna baglanilamadi. Internet baglantini kontrol et ve tekrar dene.";
   }
   return message.replace(/\s*Data:\s*<!DOCTYPE html>[\s\S]*/i, "").slice(0, 240);
 }
@@ -128,6 +137,7 @@ class UpdateService {
       this.emit("ready", info);
     });
     autoUpdater.on("error", (error) => {
+      console.error("[UpdateService] autoUpdater error:", error?.message || error);
       this.emit("error", updateErrorDetail(error));
     });
   }
@@ -165,43 +175,12 @@ class UpdateService {
       return await autoUpdater.checkForUpdates();
     } catch (error) {
       const raw = rawUpdateError(error);
-      if (/status code 502|HttpError:\s*502|Unicorn|github\.com/i.test(raw)) {
+      console.error("[UpdateService] check error:", raw);
+      if (/status code 502|HttpError:\s*502|Unicorn|ENOTFOUND|ETIMEDOUT|ECONNRESET/i.test(raw)) {
         await sleep(1500);
         try {
           await this.prepareFeed();
           return await autoUpdater.checkForUpdates();
         } catch (retryError) {
-          const detail = updateErrorDetail(retryError);
-          this.emit("error", detail);
-          return { ok: false, ...detail };
-        }
-      }
-      const detail = updateErrorDetail(error);
-      this.emit("error", detail);
-      return { ok: false, ...detail };
-    }
-  }
-
-  async download() {
-    try {
-      await this.prepareFeed();
-      return await autoUpdater.downloadUpdate();
-    } catch (error) {
-      const detail = updateErrorDetail(error);
-      this.emit("error", detail);
-      return { ok: false, ...detail };
-    }
-  }
-
-  installNow() {
-    if (!this.readyToInstall) {
-      this.emit("error", { message: "Guncelleme henuz kuruluma hazir degil." });
-      return;
-    }
-    autoUpdater.quitAndInstall(false, true);
-  }
-}
-
-module.exports = {
-  UpdateService,
-};
+          console.error("[UpdateService] retry error:", rawUpdateError(retryError));
+          const detail = updateErrorDetail(

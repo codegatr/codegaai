@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
@@ -259,12 +259,29 @@ if (!aepOsFile.includes("AEPOS") || !aepOsFile.includes("initAEPOS") || !aepOsFi
 const preloadFile = readText(join(root, "src/main/preload.js"));
 if (!preloadFile.includes("aep:dashboard") || !preloadFile.includes("aep:genome:report")) throw new Error("preload.js AEP API eksik");
 
-if (pkg.version !== "6.0.0-alpha.25") throw new Error(`Desktop package version must be 6.0.0-alpha.25, got ${pkg.version}`);
+// ACE — Artificial Cognition Engine (alpha.26)
+const aceFiles = [
+  "cognitive-types.js", "life-graph.js", "sensory-memory.js", "working-memory.js",
+  "conversation-memory.js", "project-brain.js", "user-brain.js", "engineering-brain.js",
+  "goal-memory.js", "reference-resolver.js", "context-reconstructor.js", "self-reflector.js",
+  "ace-os.js", "ace-ipc.js",
+];
+for (const f of aceFiles) {
+  const p = join(root, "src/main/agent/ace", f);
+  if (!existsSync(p)) throw new Error("ACE dosyasi eksik: " + f);
+}
+const aceOsFile = readText(join(root, "src/main/agent/ace/ace-os.js"));
+if (!aceOsFile.includes("ACEOS") || !aceOsFile.includes("initACEOS")) throw new Error("ace-os.js is incomplete");
+const preloadFile2 = readText(join(root, "src/main/preload.js"));
+if (!preloadFile2.includes("ace:dashboard") || !preloadFile2.includes("ace:reflect")) throw new Error("preload.js ACE API eksik");
+const mainFile = readText(join(root, "src/main/main.js"));
+if (!mainFile.includes("registerACEIpc")) throw new Error("main.js ACE IPC kaydi eksik");
 
+if (pkg.version !== "6.0.0-alpha.26") throw new Error(`Desktop package version must be 6.0.0-alpha.26, got ${pkg.version}`);
 
-// macOS universal binary kontrolü (ARM64 Gatekeeper fix)
+// macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
 const hasUniversal = macTargets.some(t => (t.arch || []).includes("universal"));
 if (!hasUniversal) throw new Error("macOS build must target universal arch for ARM64 compatibility");
 
-console.log("CODEGA AI alpha.25 — AEP + Engineering Genome + CTO Dashboard OK");
+console.log("CODEGA AI alpha.26 -- ACE (Artificial Cognition Engine) + 7 Cognitive Layers + Life Graph OK");
