@@ -60,7 +60,8 @@
         "sha256"
       ],
       "verifyUpdateCodeSignature": false,
-      "sign": null
+      "sign": null,
+      "icon": "assets/icon.ico"
     },
     "mac": {
       "target": [
@@ -86,7 +87,9 @@
       "entitlementsInherit": "build/entitlements.mac.inherit.plist",
       "notarize": {
         "teamId": "${APPLE_TEAM_ID}"
-      }
+      },
+      "icon": "assets/icon.icns",
+      "artifactName": "CODEGA-AI-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -94,7 +97,14 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "CODEGA AI",
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
+      "installerSidebar": "assets/nsis-sidebar.bmp",
+      "uninstallerSidebar": "assets/nsis-sidebar.bmp",
+      "language": "1055",
+      "artifactName": "CODEGA-AI-Setup-${version}.exe"
     },
     "publish": [
       {
@@ -114,7 +124,8 @@
       "node_modules/pend/**",
       "node_modules/crc32-stream/**",
       "node_modules/readable-stream/**"
-    ]
+    ],
+    "icon": "assets/icon.png"
   },
   "jest": {
     "testEnvironment": "node",
