@@ -41,6 +41,7 @@ const { codegaDNA, initCodegaDNA } = require("./agent/evolution/codega-dna");
 const { contextEngine }            = require("./agent/context/context-engine");
 const { registerAEPIpc }              = require("./agent/aep/aep-ipc");
 const { registerACEIpc }              = require("./agent/ace/ace-ipc");
+const { initACEOS }                   = require("./agent/ace/ace-os");
 const inheritedOllamaModelsPath = String(process.env.OLLAMA_MODELS || "").trim();
 let activeModelStorage = null;
 let lastMcpHealth = null;
@@ -471,17 +472,27 @@ function registerIpc() {
   evolutionEngine.init().catch(e => console.warn("[Evolution] init:", e.message));
   initCodegaDNA(evoDataDir).catch(e => console.warn("[DNA] init:", e.message));
 
+  const aceDataDir = path.join(app.getPath("userData"), "ace");
+
   ipcMain.handle("chat:send", async (event, message, opts) => {
     lastActivityAt = Date.now();
 
+    // ─── ACE — Artificial Cognition Engine ─────────────────────────────────
+    // Her mesajdan önce: referans çözümle ("devam et" → aktif görev,
+    // "Ateş Fiat" → ProjectBrain'den o projeyi aktive et), sonra bu turun
+    // tüm bağlamını (kullanıcı + proje + hedef + life graph) inşa et.
+    // LLM'e ASLA boş bağlamla gidilmez.
+    const aceOS = await initACEOS(aceDataDir);
+    const aceIntake = aceOS.processIncoming(message, "default");
+    let resolvedMessage = aceIntake.message;
+
     // ─── Context Engine — Sprint 10 ───────────────────────────────────────
-    // Her mesajdan önce bağlam analizi yap.
+    // ACE'nin çözdüğü mesaj üzerinden ek bağlam analizi yap.
     // "devam", "tamam", "bunu yap" gibi kısa mesajlar önceki bağlamdan çözülür.
-    let resolvedMessage = message;
-    let contextPacket   = null;
+    let contextPacket = null;
     try {
-      contextPacket   = contextEngine.analyze(message);
-      resolvedMessage = contextPacket.resolvedMessage || message;
+      contextPacket   = contextEngine.analyze(resolvedMessage);
+      resolvedMessage = contextPacket.resolvedMessage || resolvedMessage;
       // Bağlam analizini renderer'a bildir (UI göstergesi için)
       try { event.sender.send("chat:context", {
         type:        contextPacket.type,
@@ -492,11 +503,18 @@ function registerIpc() {
     } catch (_e) {}
     // ─────────────────────────────────────────────────────────────────────
 
+    const aceContext = aceOS.buildContext({ userId: "default", topic: resolvedMessage });
+    const mergedContext = [
+      (opts && opts.context) || "",
+      contextPacket?.compressedContext || "",
+      aceContext.context || "",
+    ].filter(Boolean).join("\n\n");
+
     // Phoenix Core v2: intent sınıflandırması + görev başlatma
     const { taskId, chatId, intent } = phoenixRuntime.startChat(resolvedMessage, {
       chatId: (opts && opts.chatId) || "",
       regenerate: !!(opts && opts.regenerate),
-      context: (opts && opts.context) || (contextPacket?.compressedContext || ""),
+      context: mergedContext,
     });
 
     try { if (settingsStore.getSettings().debugLogging) logs.info("chat", `[${intent.intent}] ${String(message).slice(0, 60)}`); } catch (_e) {}
@@ -522,11 +540,11 @@ function registerIpc() {
 
     let result;
     try {
-      result = await modelManager.ask(message, {
+      result = await modelManager.ask(resolvedMessage, {
         onToken,
         onProgress,
         regenerate: !!(opts && opts.regenerate),
-        context: (opts && opts.context) || "",
+        context: mergedContext,
         chatId,
       });
     } catch (err) {
@@ -539,8 +557,13 @@ function registerIpc() {
 
     // Context Engine'e bu tur mesajları kaydet
     try {
-      contextEngine.push("user",      message);
+      contextEngine.push("user",      resolvedMessage);
       contextEngine.push("assistant", result?.text || "");
+    } catch (_e) {}
+
+    // ACE — bu turu ConversationMemory/ProjectBrain/LifeGraph'e işle.
+    try {
+      aceOS.recordTurn({ userId: "default", userMessage: resolvedMessage, assistantText: result?.text || "" });
     } catch (_e) {}
 
     return result;

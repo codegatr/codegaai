@@ -80,12 +80,14 @@ class ACEOS {
   /**
    * Gelen mesajı işle:
    * 1. Referans çözümle ("devam et" → gerçek görev)
-   * 2. Sensory memory'ye yaz
-   * 3. Working memory turn sayısını artır
+   * 2. Bilinen bir varlığa (proje/kişi) atıfta bulunuyorsa working memory'yi güncelle
+   *    ("Ateş Fiat" → o proje aktive edilir, mesajın metni değişmez ama bağlamı yüklenir)
+   * 3. Sensory memory'ye yaz
+   * 4. Working memory turn sayısını artır
    * @returns {{ message: string, resolved: boolean, context: object }}
    */
   processIncoming(rawMessage, userId="default") {
-    // Referans çözümleme
+    // Referans çözümleme ("devam et", "bunu", "tamam", "onay")
     let message = rawMessage;
     let resolved = false;
     let refCtx   = {};
@@ -97,6 +99,14 @@ class ACEOS {
         resolved = true;
         refCtx   = result.context;
       }
+    } else {
+      // Kalıp eşleşmedi — kısa mesaj bilinen bir proje/varlık ismi olabilir mi?
+      // "Ateş Fiat" gibi: ProjectBrain'de bu adla bir proje varsa onu aktive et.
+      const entityMatch = this._matchKnownEntity(rawMessage, userId);
+      if (entityMatch) {
+        resolved = true;
+        refCtx   = { type: "entity", entity: entityMatch };
+      }
     }
 
     // Sensory memory
@@ -107,6 +117,60 @@ class ACEOS {
     wm.incrementTurn();
 
     return { message, resolved, refCtx };
+  }
+
+  /**
+   * Kısa/öz mesajın bilinen bir projeye veya kişiye işaret edip etmediğini kontrol eder.
+   * Eşleşme varsa o projeyi aktive eder (workingMemory.activeProject), böylece
+   * buildContext() bir sonraki adımda otomatik olarak o projenin bağlamını çeker.
+   * Uzun/cümle yapısındaki mesajlar (soru, talimat) için çalışmaz — yanlış pozitif riskini azaltır.
+   */
+  _matchKnownEntity(rawMessage, userId) {
+    const text = String(rawMessage || "").trim();
+    if (!text || text.length > 40 || text.split(/\s+/).length > 4) return null;
+    if (/[.?!]$/.test(text)) return null; // tam cümle/soru — varlık ismi değil
+
+    const lower = text.toLowerCase();
+
+    // ProjectBrain'de tam/kısmi eşleşme ara
+    for (const project of this.projectBrain.list()) {
+      const label = String(project.label || "").toLowerCase();
+      if (label && (label === lower || label.includes(lower) || lower.includes(label))) {
+        this.workingMemory.setProject(project.label);
+        this.projectBrain.touch(project.label);
+        return { kind: "project", label: project.label };
+      }
+    }
+
+    // LifeGraph'te genel varlık araması (kişi, konu, vs.)
+    const hits = this.lifeGraph.search(text, { limit: 1 });
+    if (hits && hits.length) {
+      return { kind: "graph", node: hits[0] };
+    }
+
+    return null;
+  }
+
+  /**
+   * Her assistant cevabından sonra çağrılır.
+   * ConversationMemory'ye bu turu işler, aktif proje varsa ProjectBrain/LifeGraph'i tazeler.
+   */
+  recordTurn({ userId="default", userMessage="", assistantText="" }={}) {
+    const project = this.workingMemory.snapshot().activeProject;
+
+    const summary = `${String(userMessage).slice(0, 160)} → ${String(assistantText).slice(0, 160)}`;
+    this.conversationMemory.addTopic(summary);
+
+    if (project) {
+      this.projectBrain.touch(project);
+      this.lifeGraph.upsertNode({ id: project, type: "PROJECT", label: project, layer: "L4_PROJECT" });
+      if (!this.lifeGraph.getNode(userId)) {
+        this.lifeGraph.upsertNode({ id: userId, type: "PERSON", label: userId, layer: "L5_USER" });
+      }
+      this.lifeGraph.upsertEdge({ from: userId, to: project, type: "WORKED_ON" });
+    }
+
+    this.sensoryMemory.setMessage({ role: "assistant", content: assistantText });
   }
 
   /** Her konuşma sonunda çağır */
