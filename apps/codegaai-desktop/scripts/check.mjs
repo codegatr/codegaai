@@ -285,29 +285,56 @@ const hasUniversal = macTargets.some(t => (t.arch || []).includes("universal"));
 if (!hasUniversal) throw new Error("macOS build must target universal arch for ARM64 compatibility");
 
 
-// Kritik JS dosyalarında sözdizimi kontrolü
+// ── Sözdizimi/Bütünlük Kontrolü ───────────────────────────────────────────────
+// HER main-process JS dosyası `node --check` ile doğrulanır. Tek bir el-seçimi
+// liste DEĞİL — src/ altındaki tüm .js/.cjs/.mjs dosyaları taranır. Böylece
+// kesilmiş/bozuk (truncated, "Unexpected end of input") bir dosya ASLA release'e
+// çıkamaz. Bu, geçmişte kullanıcı makinesinde "A JavaScript error occurred in the
+// main process" çökmesine yol açan installer.js truncation'ı gibi hataları yakalar.
 import { execSync } from "node:child_process";
-const syntaxFiles = [
-  "src/main/main.js",
-  "src/main/preload.js",
-  "src/main/update-service.js",
-  "src/main/agent/ace/ace-os.js",
-  "src/main/agent/ace/ace-ipc.js",
-  "src/main/agent/aep/aep-os.js",
-  "src/main/agent/aep/aep-ipc.js",
-  "src/main/agent/aep/patch-generator.js",
-  "src/main/agent/aep/self-qa-agent.js",
-  "src/main/agent/mission/mission-ipc.js",
-  "src/renderer/renderer.js",
-  "src/renderer/phoenix-splash.js",
-  "src/renderer/renderer-hotfix.js",
-];
-for (const f of syntaxFiles) {
+import { statSync } from "node:fs";
+
+function walkJsFiles(dir) {
+  const out = [];
+  let entries;
+  try { entries = readdirSync(dir, { withFileTypes: true }); }
+  catch { return out; }
+  for (const entry of entries) {
+    if (entry.name === "node_modules" || entry.name === ".git") continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      out.push(...walkJsFiles(full));
+    } else if (/\.(c|m)?js$/.test(entry.name)) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+const srcRoot   = join(root, "src");
+const jsFiles   = walkJsFiles(srcRoot);
+
+// Güvenlik ağı: beklenenden çok az dosya bulunduysa tarama yanlış kökten
+// çalışıyordur — sessizce geçmek yerine başarısız ol.
+if (jsFiles.length < 50) {
+  throw new Error(`Syntax tarama şüpheli: src/ altında sadece ${jsFiles.length} JS dosyası bulundu (beklenen >=50). Yol yanlış olabilir.`);
+}
+
+const syntaxErrors = [];
+for (const f of jsFiles) {
+  // Boş dosya da bir truncation işareti olabilir — uyar.
   try {
-    execSync(`node --check "${join(root, f)}"`, { stdio: "pipe" });
+    if (statSync(f).size === 0) { syntaxErrors.push(`${f}: dosya boş (0 byte) — olası truncation`); continue; }
+  } catch { /* statSync hatası önemsiz */ }
+  try {
+    execSync(`node --check "${f}"`, { stdio: "pipe" });
   } catch (e) {
-    throw new Error(`Syntax error in ${f}:\n${e.stderr?.toString() || e.message}`);
+    syntaxErrors.push(`${f.replace(root, "")}:\n${e.stderr?.toString() || e.message}`);
   }
 }
 
-console.log("CODEGA AI alpha.26 -- ACE (Artificial Cognition Engine) + 7 Cognitive Layers + Life Graph OK");
+if (syntaxErrors.length) {
+  throw new Error(`Sözdizimi/bütünlük hatası (${syntaxErrors.length} dosya):\n\n${syntaxErrors.join("\n\n")}`);
+}
+
+console.log(`CODEGA AI check OK — ${jsFiles.length} JS dosyası sözdizimi doğrulandı, sürüm ${pkg.version}`);
