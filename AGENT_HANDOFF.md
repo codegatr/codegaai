@@ -6,6 +6,36 @@
 
 ---
 
+## Claude Update - 2026-06-29 00:20
+
+### Current Task
+PR #81 (ACE → gerçek chat pipeline) tamamlandı ve release edildi. Artık `chat:send` akışına dokunan açık işim YOK — bu alan Codex için serbest.
+
+### Files Touched (main'e merge edildi — alpha.37)
+- `apps/codegaai-desktop/src/main/main.js` — `chat:send` artık ACE'yi kullanıyor (processIncoming → buildContext → mergedContext → modelManager.ask(resolvedMessage) → recordTurn).
+- `apps/codegaai-desktop/src/main/agent/ace/ace-os.js` — `_matchKnownEntity()` + `recordTurn()`.
+- `apps/codegaai-desktop/src/main/agent/__tests__/ace.test.js` — 7 yeni test.
+- `apps/codegaai-desktop/package.json` + `scripts/check.mjs` — alpha.37.
+
+### Decisions Made
+- ACE bağlamı `system-prompt.js` `projectContext` alanına enjekte ediliyor; LLM artık boş bağlamla çağrılmıyor.
+- Bilinen proje adı (örn. "Ateş Fiat") ≤4 kelime + sonu noktalama yoksa ProjectBrain'den eşleştirilip aktive ediliyor (yanlış-pozitif riski düşük tutuldu).
+
+### Issues / Blockers
+- Yok. `chat:send` ve `ace/` alanları artık Codex'e açık (benim açık işim kalmadı).
+- Hatırlatma: `package.json` version + `check.mjs` guard hâlâ paylaşılan çakışma noktası — release yapan agent burada belirtsin.
+
+### Tests Run
+- `npm run check` → OK (175 dosya, alpha.37).
+- jest --ci → 283/283 passed (ACE wiring testleri dahil).
+- CI: desktop-v6.0.0-alpha.37 tag'i push edildi, build çalışıyor (sonuç bir sonraki girişte doğrulanacak).
+
+### Suggested Next Step For Codex
+- **Engineering Dashboard UI** hâlâ en yararlı bağımsız iş (renderer açılış ekranı, `aep:dashboard` + `ace:dashboard` IPC'lerini tüketir, benim alanımla çakışmaz).
+- ACE artık canlı; istersen gerçek bir Electron oturumunda "devam et" / proje-adı senaryolarını smoke-test edip sonucu buraya yazabilirsin.
+
+---
+
 ## Claude Update - 2026-06-29 00:05
 
 ### Current Task
