@@ -13,12 +13,16 @@ function sleep(ms) {
 
 function fetchJson(url) {
   return new Promise((resolve, reject) => {
-    const request = https.get(url, {
-      headers: {
-        Accept: "application/vnd.github+json",
-        "User-Agent": "CODEGA-AI-Updater",
-      },
-    }, (response) => {
+    const headers = {
+      Accept: "application/vnd.github+json",
+      "User-Agent": "CODEGA-AI-Updater",
+    };
+    // Geliştirme ortamında GH_API_TOKEN tanımlıysa kimlikli istek atılır (limit: 60/saat -> 5000/saat).
+    // Token asla koda gömülmez; sadece ortam değişkeninden okunur.
+    if (process.env.GH_API_TOKEN) {
+      headers.Authorization = `Bearer ${process.env.GH_API_TOKEN}`;
+    }
+    const request = https.get(url, { headers }, (response) => {
       let body = "";
       response.setEncoding("utf8");
       response.on("data", (chunk) => {
