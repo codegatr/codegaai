@@ -24,6 +24,7 @@ const { execSync } = require("node:child_process");
 
 const { generatePRContent, createGitHubPR } = require("./pr-agent");
 const { PROPOSAL_STATUS } = require("./improvement-planner");
+const { SelfQAAgent } = require("./self-qa-agent");
 
 // ── Durum Sabitleri ────────────────────────────────────────────────────────────
 
@@ -32,9 +33,11 @@ const PATCH_STATUS = Object.freeze({
   BRANCHING : "branching",
   PATCHING  : "patching",
   TESTING   : "testing",
+  QA_REVIEW : "qa_review",
   PR_READY  : "pr_ready",
   PR_OPEN   : "pr_open",
   FAILED    : "failed",
+  QA_BLOCKED: "qa_blocked",
   SKIPPED   : "skipped",
 });
 
@@ -60,6 +63,7 @@ class PatchGenerator {
     this._baseBranch  = baseBranch;
     this._generateFn  = generateFn;
     this._logPath     = path.join(dataDir, "patch-log.jsonl");
+    this._selfQA      = new SelfQAAgent();
   }
 
   // ── Ana Akış ────────────────────────────────────────────────────────────────
@@ -119,6 +123,20 @@ class PatchGenerator {
         throw new Error(`${result.testResults.failed} test başarısız oldu — patch reddedildi`);
       }
 
+      // 5b. Self QA Agent — ikinci, bağımsız ajan ilk ajanın kodunu denetler.
+      // Test yoksa / UTF-8 bozulduysa / test başarısızsa release bloklanır.
+      result.status = PATCH_STATUS.QA_REVIEW;
+      const qaReview = this._selfQA.review({
+        patches: patches,
+        testResults: result.testResults,
+      });
+      result.qaReview = qaReview;
+      if (!qaReview.ok) {
+        result.status = PATCH_STATUS.QA_BLOCKED;
+        const reasons = qaReview.blockers.map((b) => b.message).join("; ");
+        throw new Error(`Self QA Agent release'i bloke etti: ${reasons}`);
+      }
+
       // 6. PR oluştur
       result.status = PATCH_STATUS.PR_READY;
       const { title, body, labels } = generatePRContent({ task, proposal, patchResult: result });
@@ -143,7 +161,9 @@ class PatchGenerator {
       return result;
 
     } catch (e) {
-      result.status     = PATCH_STATUS.FAILED;
+      if (result.status !== PATCH_STATUS.QA_BLOCKED) {
+        result.status = PATCH_STATUS.FAILED;
+      }
       result.error      = e.message;
       result.completedAt = Date.now();
       this._log(result);
