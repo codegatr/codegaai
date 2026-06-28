@@ -331,4 +331,12 @@ module.exports = {
   ensureOllamaServing,
   findOllamaCommand,
   hasCommand,
-  headSiz
+  headSize,
+  installOllama,
+  modelSizeGb,
+  ollamaInstallerUrl,
+  persistOllamaModelsPath,
+  restartOllama,
+  stopOllama,
+  waitForOllama,
+};

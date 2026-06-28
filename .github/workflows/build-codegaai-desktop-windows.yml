@@ -73,8 +73,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Static scaffold check
-        run: npm run check
+      - name: Static scaffold + syntax check + tests
+        run: npm run test:ci
 
       - name: Build Windows installer
         env:
