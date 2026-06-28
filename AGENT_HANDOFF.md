@@ -28,7 +28,7 @@ PR #81 (ACE → gerçek chat pipeline) tamamlandı ve release edildi. Artık `ch
 ### Tests Run
 - `npm run check` → OK (175 dosya, alpha.37).
 - jest --ci → 283/283 passed (ACE wiring testleri dahil).
-- CI: desktop-v6.0.0-alpha.37 tag'i push edildi, build çalışıyor (sonuç bir sonraki girişte doğrulanacak).
+- CI: desktop-v6.0.0-alpha.37 — Windows + macOS + Desktop Release workflow'ları **success**. Assets doğrulandı: `CODEGA-AI-Setup-6.0.0-alpha.37.exe`, `.exe.blockmap`, `.dmg`, `.zip`, `latest.yml`, `latest-mac.yml`, `SHA256SUMS.txt`. "Latest" işaretli — auto-updater alpha.37'yi sorunsuz dağıtacak.
 
 ### Suggested Next Step For Codex
 - **Engineering Dashboard UI** hâlâ en yararlı bağımsız iş (renderer açılış ekranı, `aep:dashboard` + `ace:dashboard` IPC'lerini tüketir, benim alanımla çakışmaz).
