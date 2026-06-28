@@ -488,4 +488,45 @@ describe("ACEOS Integration", () => {
     expect(d.engineering).toBeDefined();
     expect(d.ready).toBe(true);
   });
+
+  // ── Gerçek chat pipeline entegrasyonu — kabul kriterleri ───────────────────
+
+  test("processIncoming: bilinen proje adı söylendiğinde (\"Ateş Fiat\") o projeyi aktive eder", () => {
+    ace.projectBrain.getOrCreate("Ateş Fiat");
+    const r = ace.processIncoming("Ateş Fiat", "yunus");
+    expect(r.resolved).toBe(true);
+    expect(ace.workingMemory.snapshot().activeProject).toBe("Ateş Fiat");
+  });
+
+  test("processIncoming: tanınmayan kısa mesaj projeyi değiştirmez", () => {
+    ace.workingMemory.setProject("CODEGA AI");
+    const r = ace.processIncoming("Konya", "yunus");
+    expect(r.resolved).toBe(false);
+    expect(ace.workingMemory.snapshot().activeProject).toBe("CODEGA AI");
+  });
+
+  test("processIncoming + buildContext: \"devam et\" sonrası bağlam asla boş olmaz", () => {
+    ace.activateProject("CODEGA AI", "yunus");
+    ace.workingMemory.setTask("Self QA Agent entegrasyonu");
+    const intake = ace.processIncoming("devam et", "yunus");
+    expect(intake.resolved).toBe(true);
+    expect(intake.message).toContain("Self QA Agent");
+
+    const { context } = ace.buildContext({ userId: "yunus", topic: intake.message });
+    expect(context.length).toBeGreaterThan(0);
+  });
+
+  test("recordTurn: ConversationMemory'ye turu ekler", () => {
+    ace.activateProject("CODEGA AI", "yunus");
+    ace.recordTurn({ userId: "yunus", userMessage: "test mesajı", assistantText: "test cevabı" });
+    expect(ace.conversationMemory.summary().currentTopics.length).toBeGreaterThan(0);
+  });
+
+  test("recordTurn: aktif proje varsa ProjectBrain'i ve LifeGraph'i tazeler", () => {
+    ace.activateProject("CODEGA AI", "yunus");
+    ace.recordTurn({ userId: "yunus", userMessage: "x", assistantText: "y" });
+    expect(ace.projectBrain.get("CODEGA AI").lastActivity).toBeGreaterThan(0);
+    const edges = ace.lifeGraph.outEdges("yunus");
+    expect(edges.some((e) => e.to === "CODEGA AI" && e.type === "WORKED_ON")).toBe(true);
+  });
 });

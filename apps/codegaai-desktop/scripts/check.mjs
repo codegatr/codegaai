@@ -277,7 +277,7 @@ if (!preloadFile2.includes("ace:dashboard") || !preloadFile2.includes("ace:refle
 const mainFile = readText(join(root, "src/main/main.js"));
 if (!mainFile.includes("registerACEIpc")) throw new Error("main.js ACE IPC kaydi eksik");
 
-if (pkg.version !== "6.0.0-alpha.36") throw new Error(`Desktop package version must be 6.0.0-alpha.36, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.37") throw new Error(`Desktop package version must be 6.0.0-alpha.37, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
