@@ -30,7 +30,7 @@
  *
  * Push kanallar:
  *   aep:cycle:start | aep:cycle:complete | aep:cycle:error
- *   aep:patch:start | aep:patch:pr_open  | aep:patch:failed
+ *   aep:patch:start | aep:patch:pr_open  | aep:patch:failed | aep:patch:qa_blocked
  *   aep:genome:update
  */
 
@@ -55,6 +55,7 @@ function registerAEPIpc(generateFn, githubConfig) {
       aepOS.on("patch:start",    d => _push("aep:patch:start",    d));
       aepOS.on("patch:pr_open",  d => _push("aep:patch:pr_open",  d));
       aepOS.on("patch:failed",   d => _push("aep:patch:failed",   d));
+      aepOS.on("patch:qa_blocked", d => _push("aep:patch:qa_blocked", d));
       aepOS.on("cycle:genome",   d => _push("aep:genome:update",  d));
     }).catch(e => console.warn("[AEP IPC] init:", e.message));
   }

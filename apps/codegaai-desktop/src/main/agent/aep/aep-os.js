@@ -179,9 +179,10 @@ class AEPOS extends EventEmitter {
       this.planner.update(proposalId, { status: PROPOSAL_STATUS.COMPLETED });
       this.emit("patch:pr_open", { prUrl: patchResult.prUrl, prNumber: patchResult.prNumber });
     } else {
-      this.backlog.addNote(task.id, `Patch başarısız: ${patchResult.error}`);
+      const isQaBlocked = patchResult.status === "qa_blocked";
+      this.backlog.addNote(task.id, `Patch ${isQaBlocked ? "QA tarafından bloklandı" : "başarısız"}: ${patchResult.error}`);
       this.planner.update(proposalId, { status: PROPOSAL_STATUS.DRAFT });
-      this.emit("patch:failed", { error: patchResult.error });
+      this.emit(isQaBlocked ? "patch:qa_blocked" : "patch:failed", { error: patchResult.error, qaReview: patchResult.qaReview });
     }
 
     return patchResult;
