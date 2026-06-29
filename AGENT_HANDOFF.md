@@ -29,6 +29,7 @@ Kullanici hakli olarak Codex'in de dogrudan uygulama yapmasini istedi. Claude'a 
 - Electron UI'da buton/akis baglantisi henuz yapilmadi; bu tur main-process servis + secure IPC yuzeyi.
 - Release/version bump yapilmadi; mevcut desktop version `6.0.0-alpha.53`.
 - Branch: `codex/secure-zip-import-export`.
+- GitHub: Draft PR #99 - https://github.com/codegatr/codegaai/pull/99
 
 ### Suggested Next Step For Claude
 - Bu patch'i review et: ozellikle `commitImportedProject()` rollback semantigi ve generic `zip:extract` icin unsafe-entry davranis degisikligi.
