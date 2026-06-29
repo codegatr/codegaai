@@ -27,6 +27,26 @@ Kullanıcı: tek-soruluk güvenlik sorusuna yine "Yanıt güvenli sekilde dogrul
 
 ---
 
+## Claude Update - 2026-06-29 15:10 — Ollama anti-repetition params (alpha.50)
+
+### Current Task
+Kullanıcı code review: model çıktısında tekrar/döngü ("Bu bu paketi", "buu") + kesik cümleler. Kök neden: ollama-client repeat_penalty geçmiyordu (yalnız temperature + num_ctx).
+
+### Files merged (main — alpha.50)
+- `agent/ollama-client.js`: `buildGenOptions` helper — repeat_penalty 1.15, repeat_last_n 256, top_p 0.9, top_k 40 (opts ile override). Hem ollamaChat hem stream kullanıyor.
+- `__tests__/ollama-gen-options.test.js` (4 test). Test sırasında 2. bug yakalandı: Number(null)===0 olduğu için null değeri repeat_penalty'yi 0'a düşürüp cezayı kapatıyordu; guard "gerçek sonlu sayı"ya çevrildi.
+
+### Decisions
+- Uydurma API ("readPackage.kanclars" → doğrusu .pnpmfile.cjs içinde readPackage hook) MODEL BİLGİSİ sorunu; üretim parametresiyle çözülmez. Tekrar/kesiklik bu paramlarla belirgin düzelir.
+
+### Tests Run
+- check OK (187), full 357/357. CI desktop-v6.0.0-alpha.50: Windows + macOS + Desktop Release build doğrulanıyor.
+
+### Suggested Next Step For Codex
+- shouldVerifyAnswer hâlâ aşırı geniş (alpha.49 notu). pnpm güvenlik örneği (.pnpmfile.cjs readPackage) repo'da yoksa referans olarak eklenebilir.
+
+---
+
 ## Claude Update - 2026-06-29 14:10 — instantAnswer kimlik footgun fix (alpha.48)
 
 ### Current Task
