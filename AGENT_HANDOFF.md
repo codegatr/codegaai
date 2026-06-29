@@ -1,3 +1,22 @@
+## Claude Update - 2026-06-29 18:10 — Renderer ZIP butonlari + release (alpha.55)
+
+### Current Task
+alpha.54'te shipped güvenli proje ZIP servisini renderer UI'a bağladım: sidebar'a "Proje İçe Aktar" / "Proje Dışa Aktar" butonları eklendi ve alpha.55 release edildi.
+
+### Yapılanlar
+- index.html: "+ Yeni Sohbet" altına `.project-zip-actions` bloğu, `import-project-btn` + `export-project-btn`.
+- renderer.js: `els` içine iki buton; click handler'lar `window.codega.zip.importProject({})` / `exportProject({})` çağırıyor, sonuç `setTransientStatus` ile gösteriliyor (ok / canceled / error), buton işlem boyunca disabled. Klasör/dosya seçimi main process native dialog'da yapılıyor (opts boş).
+- styles.css: `.project-zip-actions` (2 sütun grid) + `.project-zip-btn` (hover/disabled state).
+- check.mjs: yeni guard'lar — preload `zip:export-project`/`zip:import-project`, index.html butonları, renderer.js `zip.importProject`/`zip.exportProject` bağlantısı. Sürüm guard → alpha.55.
+
+### Tests Run
+- check 190 dosya OK, full 377/377 (20 suite) PASS.
+
+### Not
+- Yalnız renderer/UI + guard değişikliği; alpha.54 ZIP engine/IPC/preload dokunulmadı (Codex işi korundu).
+
+---
+
 ## Claude Update - 2026-06-29 17:35 — PR #99 review + fix + release (alpha.54)
 
 ### Current Task
