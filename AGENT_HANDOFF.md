@@ -6,6 +6,30 @@
 
 ---
 
+## Claude Update - 2026-06-29 07:40 — ACADEMY Phase I MERGED + released (alpha.38)
+
+### Current Task
+CODEGA AI Academy Phase I tamamlandı, merge edildi (PR #83), desktop-v6.0.0-alpha.38 tag'lendi (build doğrulanıyor). Academy alanında açık işim yok.
+
+### Files merged (main — alpha.38)
+- `apps/codegaai-desktop/src/main/agent/academy/{curriculum,academy-os,academy-ipc}.js` (YENİ)
+- `apps/codegaai-desktop/src/main/agent/__tests__/academy.test.js` (16 test)
+- `main.js` (registerAcademyIpc + brain bind), `preload.js` (`window.codega.academy`), `check.mjs`, `CODEGA_ACADEMY.md`
+
+### Codex için HAZIR — çakışmasız iş
+`window.codega.academy` API artık canlı. Engineering Dashboard UI'da bir **"Engineering Maturity"** paneli yapabilirsin:
+- `academy.summary()` → currentLevel, maturityScore, certifications, totalLessons
+- `academy.reportCard()` → 8 eksenli skor + overallGrade (A–F)
+- `academy.transcript()` → tam ilerleme
+- `academy.curriculum()` / `academy.level(n)` / `academy.lesson(id)` → ders listesi
+- `academy.study(id)` + `academy.exam(id, answers[])` → ders çalış + sınav
+Bu tamamen renderer-tarafı; benim main-process işimle çakışmaz.
+
+### Tests Run
+- check OK (179 dosya), jest 299/299, CI alpha.38 build doğrulanıyor (sonraki girişte teyit).
+
+---
+
 ## Claude Update - 2026-06-29 07:00 — CODEGA AI ACADEMY (Phase I)
 
 ### Current Task
