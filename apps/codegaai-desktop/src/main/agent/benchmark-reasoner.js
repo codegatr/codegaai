@@ -38,19 +38,28 @@ function missingLabels(question, answer) {
 }
 
 function commandOnlyAnswer(question) {
+  const raw = String(question || "");
+  // GÜVENLİK GUARD'I: "sadece komut ver" kısayolu YALNIZCA kısa, doğrudan komut
+  // istekleri içindir. Uzun/çok-cümleli sorular (içinde "komutu ver" gibi bir
+  // ifade geçse bile) bu moda DÜŞMEMELİ — aksi halde "Eğitim"→fold→"egitim"⊃"git"
+  // gibi substring kazaları koca bir güvenlik sorusunu "git status" tek satırına
+  // çökertir (gerçek olay: tedarik-zinciri sorusu → "git status").
+  if (raw.length > 200) return "";
   const q = foldTurkish(question).replace(/\s+/g, " ").trim();
   const wantsOnlyCommand = /(sadece komut|yalniz komut|yalnız komut|komutu ver|tek komut|sadece kod|hicbir sey yazma|hiçbir şey yazma)/.test(q);
   if (!wantsOnlyCommand) return "";
 
+  // Anahtar kelimeler KELİME SINIRIYLA eşleşir (\b) — "egitim" içindeki "git"
+  // gibi substring kazaları engellensin.
   if (/(ubuntu|linux|debian)/.test(q) && /(disk|alan|boyut|doluluk|kullanim|kullanım)/.test(q)) return "df -h";
   if (/(ubuntu|linux|debian)/.test(q) && /(ram|bellek|memory)/.test(q)) return "free -h";
   if (/(ubuntu|linux|debian)/.test(q) && /(cpu|islemci|işlemci)/.test(q)) return "lscpu";
   if (/(ubuntu|linux|debian)/.test(q) && /(ip adres|ip|ag|ağ)/.test(q)) return "ip addr";
   if (/(ubuntu|linux|debian)/.test(q) && /(servis|service|durum)/.test(q)) return "systemctl status";
-  if (/(docker)/.test(q) && /(container|konteyner|liste)/.test(q)) return "docker ps -a";
-  if (/(docker)/.test(q) && /(log|logs)/.test(q)) return "docker logs -f <container>";
-  if (/(git)/.test(q) && /(durum|status)/.test(q)) return "git status";
-  if (/(git)/.test(q) && /(guncelle|güncelle|pull)/.test(q)) return "git pull origin main";
+  if (/\bdocker\b/.test(q) && /(container|konteyner|liste)/.test(q)) return "docker ps -a";
+  if (/\bdocker\b/.test(q) && /(log|logs)/.test(q)) return "docker logs -f <container>";
+  if (/\bgit\b/.test(q) && /(durum|status)/.test(q)) return "git status";
+  if (/\bgit\b/.test(q) && /(guncelle|güncelle|pull)/.test(q)) return "git pull origin main";
   return "";
 }
 
