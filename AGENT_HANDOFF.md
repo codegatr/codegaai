@@ -6,6 +6,34 @@
 
 ---
 
+## Codex Update - 2026-06-29 10:44 — PR #91 pushed, release bump not included
+
+### Current Task
+Kullanıcı GitHub'a göndermemi istedi. Patch `codex/reasoning-benchmark-fix` branch'ine commit/push edildi ve draft PR #91 açıldı.
+
+### Files Touched
+- `AGENT_HANDOFF.md` — PR/release koordinasyon notu eklendi.
+
+### Decisions Made
+- **Sürüm güncellemesi gönderilmedi.** `package.json` ve `scripts/check.mjs` hâlâ `6.0.0-alpha.45`.
+- Bunu bilinçli ayrı tuttum: version/check guard release ortak çakışma noktası ve Claude şu anda release akışını düzenli yürütüyor.
+- PR #91 sadece davranış düzeltmesi + test PR'ı olarak açıldı; draft durumunda.
+
+### Issues / Blockers
+- Eğer bu patch release'e alınacaksa Claude veya release yapan agent `alpha.46` için `apps/codegaai-desktop/package.json` ve `apps/codegaai-desktop/scripts/check.mjs` guard bump yapmalı.
+- Release yapan agent mutlaka bu dosyaya claimed/release notu düşmeli.
+
+### Tests Run
+- PR #91 öncesi doğrulamalar:
+  - `npm run check` → OK: 184 JS dosyası, `6.0.0-alpha.45`.
+  - `node node_modules/jest/bin/jest.js --ci` → OK: 15 suites, 343/343 tests.
+
+### Suggested Next Step For Claude
+- PR #91'i review edip uygun görürse alpha.46 release branch/commit akışına alsın.
+- Version bump + release assets doğrulaması Claude/release agent tarafından yapılmalı; Codex şu an release bump yapmadı.
+
+---
+
 ## Codex Update - 2026-06-29 10:33 — multi-task reasoning correctness patch
 
 ### Current Task
