@@ -543,7 +543,12 @@ function instantAnswer(input) {
     return "Merhaba. BuradayÄ±m, nasÄ±l yardÄ±mcÄ± olayÄ±m?";
   }
 
-  if (/(kendin(den|i)|kim(sin)?|neler\s+yapabilirsin|Ã¶zelliklerin|yeteneklerin|codega\s+ai)\b/.test(text)) {
+  // Kimlik tanıtımı kısayolu: YALNIZCA kısa, kimlik-odaklı sorularda ("Sen kimsin?",
+  // "CODEGA AI nedir?", "Neler yapabilirsin?") çalışır. Uzun/somut sorular (içinde
+  // "codega ai" veya "kimsin" geçse bile) modele gider — aksi halde "Bu projede
+  // CODEGA AI'ın rolü nedir ve nasıl ölçeklenir?" gibi gerçek bir soruya papağan
+  // gibi tanıtımla cevap verilir (instant fast-path, ANTI-LOOP'u da by-pass eder).
+  if (raw.length <= 50 && /(kendin(den|i)|\bkimsin\b|neler\s+yapabilirsin|Ã¶zelliklerin|yeteneklerin|codega\s+ai)\b/.test(text)) {
     return "Ben CODEGA AI. Ä°steÄŸine gÃ¶re uygun yerel modeli otomatik seÃ§en, kod, araÅŸtÄ±rma, proje planlama ve gÃ¼nlÃ¼k Ã¼retim iÅŸlerinde yardÄ±mcÄ± olan kiÅŸisel yapay zeka asistanÄ±nÄ±m.";
   }
 
