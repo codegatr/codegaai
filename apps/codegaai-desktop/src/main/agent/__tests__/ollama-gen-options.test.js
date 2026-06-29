@@ -5,10 +5,10 @@
  *
  * Bug: ollama isteklerinde yalnız temperature/num_ctx geçiliyordu; repeat_penalty
  * yoktu. Küçük yerel modeller "Bu bu paketi…", "buu…" gibi döngü/tekrar üretiyordu.
- * buildGenOptions artık repeat_penalty + repeat_last_n + top_p/top_k ekler.
+ * buildGenOptions artık repeat_penalty + repeat_last_n + top_p/top_k + num_predict ekler.
  */
 
-const { buildGenOptions } = require("../ollama-client");
+const { buildGenOptions, DEFAULT_NUM_PREDICT } = require("../ollama-client");
 
 describe("buildGenOptions — anti-repetition / sampling", () => {
   test("varsayılanlar repeat_penalty ve sampling parametrelerini içerir", () => {
@@ -19,10 +19,11 @@ describe("buildGenOptions — anti-repetition / sampling", () => {
     expect(o.top_k).toBeGreaterThan(0);
     expect(o.temperature).toBe(0.4);
     expect(o.num_ctx).toBe(8192);
+    expect(o.num_predict).toBe(DEFAULT_NUM_PREDICT);
   });
 
-  test("num_predict yalnız sayı verilince eklenir", () => {
-    expect(buildGenOptions({}).num_predict).toBeUndefined();
+  test("num_predict varsayılan yüksek bütçeyle gelir ve sayı verilince override edilir", () => {
+    expect(buildGenOptions({}).num_predict).toBe(4096);
     expect(buildGenOptions({ numPredict: 512 }).num_predict).toBe(512);
   });
 
@@ -36,8 +37,9 @@ describe("buildGenOptions — anti-repetition / sampling", () => {
   });
 
   test("geçersiz değerler güvenli varsayılana düşer", () => {
-    const o = buildGenOptions({ temperature: "abc", repeatPenalty: null });
+    const o = buildGenOptions({ temperature: "abc", repeatPenalty: null, numPredict: -1 });
     expect(o.temperature).toBe(0.4);
     expect(o.repeat_penalty).toBe(1.15);
+    expect(o.num_predict).toBe(DEFAULT_NUM_PREDICT);
   });
 });

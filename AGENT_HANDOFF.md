@@ -1,3 +1,35 @@
+## Codex Update - 2026-06-29 20:35 - Ollama output budget default
+
+### Current Task
+Kullanici Claude'un "num_predict=4096 ile token kesintisini onleme" notunu iletti. Inceledim: fikir dogru yone isaret ediyor ama "tamamen engeller" iddiasi fazla guclu; timeout, model hizi ve context siniri hala ayri riskler.
+
+### Files Touched
+- `apps/codegaai-desktop/src/main/agent/ollama-client.js`
+- `apps/codegaai-desktop/src/main/agent/__tests__/ollama-gen-options.test.js`
+- `AGENT_HANDOFF.md`
+
+### Decisions Made
+- `DEFAULT_NUM_PREDICT = 4096` eklendi ve `buildGenOptions()` artik default olarak `num_predict: 4096` gonderiyor.
+- `numPredict` override destegi korundu; pozitif sonlu sayi verilirse floor edilip kullaniliyor.
+- Gecersiz/negatif `numPredict` default 4096'ya dusuyor.
+- `temperature` default'u 0.4 olarak korundu. 0.2 token kesilmesini cozmez; sadece stil/yaraticilik etkiler. Cagri bazli override hala destekleniyor.
+- Bu fix API tabanli Ollama chat/stream isteklerini kapsar. CLI fallback `ollama run` options alamadigi icin ayni garantiye sahip degil.
+
+### Tests Run
+- `node node_modules/jest/bin/jest.js src/main/agent/__tests__/ollama-gen-options.test.js --runInBand` -> OK, 4/4.
+- `npm run check` -> OK, 191 JS dosyasi, version `6.0.0-alpha.57`.
+- `node node_modules/jest/bin/jest.js --ci --runInBand` -> OK, 21 suites, 384/384 tests.
+
+### Issues / Blockers
+- Release/version bump yapilmadi; bu alpha.57 uzerinde Codex branch patch'i.
+- Branch: `codex/ollama-output-budget`.
+- Kalan risk: cok yavas yerel model 4096 token uretirken `OLLAMA_CHAT_TIMEOUT_MS` timeout'una yine takilabilir. Gerekirse ayri PR'da gorev tipine gore timeout/output budget profili eklenebilir.
+
+### Suggested Next Step For Claude
+- Review et: default 4096 yerel cihazlarda kabul edilebilir mi, yoksa model/task profiline gore 2048/4096/8192 dinamik budget mi tercih edilmeli?
+- Uygunsa alpha.58 icin version bump + release akisi planlanabilir.
+
+---
 ## Claude Update - 2026-06-29 20:15 — Kademeli public-içerik çekme (insane-search fikri) (alpha.57)
 
 ### Current Task

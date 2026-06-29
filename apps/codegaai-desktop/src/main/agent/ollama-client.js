@@ -14,27 +14,31 @@ const crypto = require("node:crypto");
  */
 
 const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://127.0.0.1:11434";
+const DEFAULT_NUM_PREDICT = 4096;
 
 /**
  * Ollama generation seçeneklerini kur. Önceden yalnız temperature/num_ctx
  * geçiliyordu; küçük yerel modellerde bu, tekrar/döngü ("Bu bu paketi…", "buu…")
  * ve kesik cümlelere yol açıyordu. repeat_penalty + repeat_last_n + top_p/top_k
- * bu kalite sorununu büyük ölçüde giderir. Hepsi opts ile geçersiz kılınabilir.
+ * bu kalite sorununu büyük ölçüde giderir. Uzun/toplu görevlerde Ollama'nın erken
+ * cevap kesmesini azaltmak için num_predict varsayılanı da yüksek tutulur.
+ * Hepsi opts ile geçersiz kılınabilir.
  */
 function buildGenOptions(opts = {}) {
   // Yalnız GERÇEK sonlu sayıyı kullan; null/undefined/"" varsayılana düşsün.
   // (Number(null)===0 olduğu için ham Number() guard'ı repeat_penalty'yi yanlışlıkla
   // 0'a düşürüp tekrar cezasını kapatabiliyordu.)
   const num = (v, def) => (typeof v === "number" && Number.isFinite(v) ? v : def);
+  const positiveInt = (v, def) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.floor(v) : def);
   const o = {
     temperature: num(opts.temperature, 0.4),
     num_ctx: num(opts.numCtx, 8192),
+    num_predict: positiveInt(opts.numPredict, DEFAULT_NUM_PREDICT),
     repeat_penalty: num(opts.repeatPenalty, 1.15),
     repeat_last_n: num(opts.repeatLastN, 256),
     top_p: num(opts.topP, 0.9),
     top_k: num(opts.topK, 40),
   };
-  if (typeof opts.numPredict === "number" && Number.isFinite(opts.numPredict)) o.num_predict = opts.numPredict;
   return o;
 }
 
@@ -311,6 +315,7 @@ async function ollamaDeleteModel(name, host = OLLAMA_HOST, timeoutMs = 8000) {
 
 module.exports = {
   buildGenOptions,
+  DEFAULT_NUM_PREDICT,
   ollamaChat,
   ollamaChatStream,
   ollamaReachable,
