@@ -116,4 +116,25 @@ describe("ZipEngine secure project import/export", () => {
     expect(() => zip._assertSafeEntryName("/tmp/evil.txt")).toThrow(/absolute/i);
     expect(() => zip._assertSafeEntryName("C:/tmp/evil.txt")).toThrow(/absolute/i);
   });
+
+  test("commit rollback: overwritten file restored on mid-commit failure, no temp leftover", async () => {
+    const source = path.join(dir, "src-commit");
+    const workspace = path.join(dir, "ws-commit");
+    await fsp.mkdir(source, { recursive: true });
+    await fsp.writeFile(path.join(source, "a.txt"), "new", "utf8");
+    await fsp.writeFile(path.join(source, "b.txt"), "new-b", "utf8");
+    // workspace: a.txt mevcut (dosya), b.txt bir KLASÖR → b.txt'i işlerken
+    // copyFile(dir → backup) hata fırlatır ve commit yarıda kalır.
+    await fsp.mkdir(workspace, { recursive: true });
+    await fsp.writeFile(path.join(workspace, "a.txt"), "orig", "utf8");
+    await fsp.mkdir(path.join(workspace, "b.txt"), { recursive: true });
+
+    await expect(zip.commitImportedProject(source, workspace)).rejects.toThrow();
+
+    // a.txt overwrite edilmişse rollback ile "orig"e dönmeli; hiç dokunulmadıysa zaten "orig".
+    expect(await fsp.readFile(path.join(workspace, "a.txt"), "utf8")).toBe("orig");
+    // Yarıda kalan staged temp dosyası workspace'te kalmamalı.
+    const leftovers = (await fsp.readdir(workspace)).filter((n) => n.includes(".codega_tmp_"));
+    expect(leftovers).toEqual([]);
+  }, 15000);
 });

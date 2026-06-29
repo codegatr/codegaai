@@ -311,6 +311,8 @@ async function commitImportedProject(tempDir, workspaceDir) {
   const backupDir = path.join(os.tmpdir(), `codega_import_backup_${crypto.randomUUID()}`);
   const copied = [];
   const backups = [];
+  // Yarıda kalan staged temp dosyası rollback'te workspace'te kalmasın diye izle.
+  let activeStaged = null;
   try {
     for (const file of await listFilesRecursive(sourceRoot)) {
       const target = path.resolve(targetRoot, file.rel);
@@ -327,14 +329,18 @@ async function commitImportedProject(tempDir, workspaceDir) {
         backups.push({ target, backup });
       }
       const staged = `${target}.codega_tmp_${crypto.randomUUID()}`;
+      activeStaged = staged;
       await fsp.copyFile(file.full, staged);
       await fsp.rm(target, { force: true });
       await fsp.rename(staged, target);
+      activeStaged = null; // rename başarılı → staged tüketildi
       copied.push({ target, existed });
     }
     await fsp.rm(backupDir, { recursive: true, force: true }).catch(() => {});
     return { workspaceDir: targetRoot, files: copied.length };
   } catch (err) {
+    // Yarıda kalan staged temp dosyasını temizle (rm/rename öncesi/sırasında patladıysa).
+    if (activeStaged) await fsp.rm(activeStaged, { force: true }).catch(() => {});
     for (const item of copied.reverse()) {
       if (!item.existed) await fsp.rm(item.target, { force: true }).catch(() => {});
     }
