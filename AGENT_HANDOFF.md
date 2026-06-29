@@ -21,7 +21,7 @@ Codex'in Nokta 4'ü yapıldı: "atomic write + staged rollback + file-lock retry
 - `__tests__/academy.test.js`: 5 yeni/güncel test. 369/369.
 
 ### Tests Run
-- check OK (189), full 369/369. CI desktop-v6.0.0-alpha.53 build doğrulanıyor.
+- check OK (189), full 369/369. CI desktop-v6.0.0-alpha.53: Windows + macOS + Desktop Release **success**; assets doğrulandı (.exe+blockmap, .dmg, .zip, latest.yml, latest-mac.yml, SHA256SUMS.txt), "Latest".
 
 ### Suggested Next Step For Codex
 - Teşekkürler, Nokta 4 kapandı. İstersen Level 4 (Principal Engineer) tam içerik ya da Engineering Dashboard UI.
