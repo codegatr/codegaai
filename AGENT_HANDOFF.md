@@ -1,3 +1,36 @@
+## Claude Update - 2026-06-29 21:10 — Mimari refactor: akış DOM + transaction'lı release.ps1 (alpha.58)
+
+### Current Task
+"Otonom özelliklerin mimari optimizasyonu" görevi. Yeni özellik yok; mevcut açıkları temizledim. Görevdeki 3 başlığı GERÇEK repoya göre değerlendirdim (bazı varsayımlar bu repoda yok — aşağıda dürüstçe).
+
+### 1) Monorepo / hoisting — DEĞİŞİKLİK YAPILMADI (bilinçli)
+- Repo'da root package.json/workspaces YOK; desktop app kendi `package-lock.json`'u ile izole ve CI `cd apps/codegaai-desktop && npm ci` ile kuruyor.
+- Görevdeki Yarn `nohoist`, npm `overrides` çakışması, version.php — bu repoda MEVCUT DEĞİL. Tek merkezi lock'a geçiş (root workspaces) çalışan Electron build'ini (native dep + electron-builder beklentileri) kırma riski taşır ve somut bir bug yok.
+- Karar: izolasyon zaten sağlıklı; riskli migration yapılmadı. İstenirse ayrı, dikkatli bir PR olarak ele alınır.
+
+### 2) Electron render perf / bellek — GERÇEK DÜZELTME
+- Tespit: streaming sırasında her rAF'te `renderConversation()` çağrılıp `els.conversation.innerHTML=""` ile TÜM konuşma yeniden inşa ediliyordu → uzun sohbette her karede O(n) DOM yıkıp kurma (jank, bellek baskısı).
+- Düzeltme: `createStreamView` artık canlı `.msg-body` düğümüne zayıf bağ (`_el`) tutuyor; `paint()` yalnız o düğümün `innerHTML`'ini günceller. Düğüm yoksa/koptuysa (`isConnected`) güvenli tam çizime düşer. Tamamlanınca yine tek tam `renderConversation()` (aksiyon barları için).
+- `dispose()` referansı sıfırlar (`_el=null`) → düğüm GC edilebilir.
+- Bull/Redis (sunucu kuyruğu) ve `delete chunk` gibi hatalı bellek kodları repo'da YOK (grep ile doğrulandı) — uydurma "düzeltme" eklenmedi. MessageChannel gereksiz: IPC zaten ipcRenderer üzerinden tek yönlü stream.
+
+### 3) release.ps1 — TRANSACTION KORUMASI (gerçek düzeltme)
+- Eski script yedek/rollback/lockfile içermiyordu.
+- Yeni: SSoT = `apps/codegaai-desktop/package.json` (+ `check.mjs` guard) ATOMIK küme. Akış: kilit al (.release.lock) → preflight tag → DEĞİŞİKLİKTEN ÖNCE in-memory yedek → güncelle → `npm run check` → commit/push/tag.
+- `catch`: commit ALINMADAN önceki herhangi bir hata → dosyalar yedekten geri yüklenir (rollback). Commit sonrası hata → yıkıcı git reset YAPILMAZ, kullanıcıya bırakılır (savunmacı).
+- `finally`: kilit HER KOŞULDA temizlenir. `.release.lock` .gitignore'a eklendi.
+- Set-StrictMode + ValidatePattern(semver) + UTF8 (TR karakter koruması).
+- Not: `inc/version.php` bu repoda yok; eski şablon yolu. Gerçek kaynak package.json.
+
+### Tests
+- check 191 dosya OK, full 384/384 (21 suite) PASS. release.ps1 parser ile sözdizimi doğrulandı (Parser.ParseFile → 0 hata).
+- check.mjs guard: msg-body/streamView.paint (akış optimizasyonu geri alınmasın) + sürüm alpha.58.
+
+### Sürüm
+- 6.0.0-alpha.58.
+
+---
+
 ## Codex Update - 2026-06-29 20:35 - Ollama output budget default
 
 ### Current Task

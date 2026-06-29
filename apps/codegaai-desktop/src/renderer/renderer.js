@@ -300,6 +300,7 @@ function createStreamView(placeholder) {
     answer: "",
     firstContent: true,
     disposed: false,
+    _el: null, // canlı .msg-body düğümüne zayıf bağ (her karede yeniden çizmemek için)
     apply(token) {
       if (this.disposed) return "ignored";
       if (isInvisibleProgressToken(token)) return "ignored";
@@ -312,6 +313,21 @@ function createStreamView(placeholder) {
       placeholder.text = this.answer;
       return "answer";
     },
+    // Akan tokenları TÜM konuşmayı yeniden çizmeden yalnız ilgili mesaj
+    // düğümüne yazar. Düğüm yoksa/koptuysa güvenli tam çizime düşer.
+    // Böylece uzun sohbetlerde her rAF'te O(n) DOM yeniden inşası yapılmaz.
+    paint() {
+      if (this.disposed) return;
+      if (!this._el || !this._el.isConnected) {
+        const bodies = els.conversation.querySelectorAll("article.message.assistant .msg-body");
+        this._el = bodies.length ? bodies[bodies.length - 1] : null;
+      }
+      if (this._el) {
+        this._el.innerHTML = escapeHtml(this.answer).replace(/\n/g, "<br>");
+      } else {
+        renderConversation();
+      }
+    },
     showSlowNotice() {
       if (!this.answer.trim()) setChatWorkingStatus(longThinkingNotice());
     },
@@ -322,6 +338,7 @@ function createStreamView(placeholder) {
       this.disposed = true;
       this.answer = "";
       this.firstContent = true;
+      this._el = null; // referansı sıfırla ki düğüm GC edilebilsin
     },
   };
 }
@@ -500,7 +517,7 @@ function renderConversation() {
     const tsText = ts ? ts.toLocaleString("tr-TR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }) : "";
     node.innerHTML = `
       <div class="role">${message.role === "user" ? "SEN" : "CODEGA AI"}</div>
-      <div>${escapeHtml(message.text).replace(/\n/g, "<br>")}</div>
+      <div class="msg-body">${escapeHtml(message.text).replace(/\n/g, "<br>")}</div>
       ${tsText ? `<div class="msg-time">${tsText}</div>` : ""}
     `;
     // Kullanıcı mesajları da kopyalanabilir (kullanıcı isteği).
@@ -1321,7 +1338,7 @@ async function regenerateLast() {
     }
     if (!rafPending) {
       rafPending = true;
-      rafId = requestAnimationFrame(() => { rafPending = false; rafId = 0; renderConversation(); scrollConversationToBottom(); });
+      rafId = requestAnimationFrame(() => { rafPending = false; rafId = 0; streamView.paint(); scrollConversationToBottom(); });
     }
   });
   const slowNotice = setTimeout(() => {
@@ -1429,7 +1446,7 @@ async function handleSubmit() {
       rafId = requestAnimationFrame(() => {
         rafPending = false;
         rafId = 0;
-        renderConversation();
+        streamView.paint();
         scrollConversationToBottom();
       });
     }
