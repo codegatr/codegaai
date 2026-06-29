@@ -417,6 +417,215 @@ const LEVEL2_LESSONS = [
   }),
 ];
 
+// ── Level 3 — Software Architect (Phase III, tam islenmis) ─────────────────────
+
+/** Genel ders kisayolu (herhangi seviye). */
+function lvl(level, idSuffix, title, fields) {
+  return {
+    id: `L${level}-${idSuffix}`,
+    level,
+    title,
+    goal: fields.goal,
+    theory: fields.theory,
+    examples: fields.examples || [],
+    rules: fields.rules || { do: [], dont: [], why: "" },
+    commonMistakes: fields.commonMistakes || [],
+    architectureNotes: fields.architectureNotes || "",
+    exercise: fields.exercise || "",
+    exam: { passScore: 70, questions: fields.questions || [] },
+    brainRules: fields.brainRules || [],
+  };
+}
+const l3 = (idSuffix, title, fields) => lvl(3, idSuffix, title, fields);
+
+const LEVEL3_LESSONS = [
+  l3("solid", "SOLID prensipleri", {
+    goal: "Bes SOLID prensibini, ozellikle SRP ve DIP'i pratikte uygulamayi ogrenmek.",
+    theory:
+      "SOLID: Single Responsibility (tek sorumluluk), Open/Closed, Liskov, Interface " +
+      "Segregation, Dependency Inversion (somuta degil soyuta bagimli ol). CODEGA'da Academy " +
+      "EngineeringBrain'e somut sinifa degil 'learn() arayuzune' bagimlidir (DIP) — bu yuzden " +
+      "test sahte brain ile calisir. self-qa-agent tek sorumluluga sahiptir (sadece release-gate).",
+    examples: ["DIP: AcademyOS({engineeringBrain}) — somut degil arayuz", "SRP: her ipc.js sadece kendi alanini kaydeder"],
+    rules: { do: ["Her modulu tek sorumlulukta tut", "Somuta degil soyuta/arayuze bagimli ol"],
+             dont: ["Tek sinifa cok sorumluluk yigma", "Ust seviye modulu dusuk seviye detaya baglamak"],
+             why: "Tek sorumluluk + bagimlilik tersine cevirme test edilebilirlik ve degisim kolayligi verir." },
+    commonMistakes: ["god object", "somut bagimlilik (test edilemez)"],
+    architectureNotes: "AcademyOS DIP ornegi: brain enjekte edilir; testte fake brain.",
+    exercise: "Somut bir bagimliligi enjekte edilen arayuze cevir, fake ile test et.",
+    questions: [
+      q("Dependency Inversion neye bagimli olmayi soyler?",
+        ["somut sinifa", "soyuta/arayuze", "global degiskene", "dosya yoluna"], 1),
+      q("Single Responsibility neyi onler?",
+        ["test", "tek modulde cok sorumluluk yigilmasini", "performansi", "logging"], 1),
+    ],
+    brainRules: [{ type: "arch_decision", title: "Depend on abstractions, keep single responsibility (SOLID)",
+      description: "Ust seviye modul somuta degil arayuze bagimli olmali (DIP); her modul tek sorumluluk (SRP). Enjeksiyon test edilebilirlik verir.",
+      tags: ["solid", "dip", "srp", "architecture"], confidence: 0.9, source: "codega-pattern" }],
+  }),
+  l3("ddd", "Domain-Driven Design", {
+    goal: "Kod yazmadan once domain analizi ve ortak dil (ubiquitous language) kurmayi ogrenmek.",
+    theory:
+      "DDD: once domain modeli (varliklar, deger nesneleri, agregalar, sinirli baglamlar) ve " +
+      "ortak dil. CODEGA mimari planlama sozlesmesi tam da bunu zorunlu kilar: Analiz → " +
+      "Varsayimlar → Domain Model → DB → API. Kod, domain anlasilmadan yazilmaz.",
+    examples: ["arac takip: vehicles, inspections, reminders agregalari", "ortak dil: kod ENG, aciklama TR"],
+    rules: { do: ["Once domain modeli cikar", "Ortak dil kullan (kod adlari ENG)"],
+             dont: ["Domain anlasilmadan kod yazma", "Teknik terimi domain terimiyle karistirma"],
+             why: "Yanlis domain modeli tum ust katmanlari bozar; once anlam, sonra kod." },
+    commonMistakes: ["anemic model", "domain dilini koda yansitmamak"],
+    architectureNotes: "CODEGA_CORE mimari planlama sozlesmesi: planning-only istekte kod uretme.",
+    exercise: "Bir domain icin varlik+iliski+sinirli baglam cikar (kod yazmadan).",
+    questions: [
+      q("DDD'de koddan once ne gelir?",
+        ["deployment", "domain modeli + ortak dil", "UI", "test"], 1),
+      q("Ortak dil (ubiquitous language) neyi saglar?",
+        ["hizli kod", "domain ve kod arasinda tutarli terimler", "daha az test", "performans"], 1),
+    ],
+    brainRules: [{ type: "arch_decision", title: "Model the domain before writing code (DDD)",
+      description: "Once domain modeli + ortak dil; kod domain anlasilmadan yazilmaz. Planning-only istekte kod uretme.",
+      tags: ["ddd", "domain", "planning"], confidence: 0.88, source: "codega-rule" }],
+  }),
+  l3("clean-architecture", "Clean Architecture — bagimlilik kurali", {
+    goal: "Bagimliliklarin daima ice (domain'e) dogru akmasi gerektigini ogrenmek.",
+    theory:
+      "Clean Architecture: katmanlar ice dogru bagimli (UI → use-case → entity). Ic katman " +
+      "dis katmani BILMEZ. Domain/is kurallari framework/DB/UI'dan bagimsizdir. Boylece dis " +
+      "detaylar (Electron, dosya, model) degisse de cekirdek korunur.",
+    examples: ["entity framework'u bilmez", "use-case IPC'yi bilmez, arayuz uzerinden cagrilir"],
+    rules: { do: ["Bagimliligi ice dogru tut", "Domain'i dis detaydan izole et"],
+             dont: ["Domain'i UI/DB/framework'e baglamak", "Ic katmandan dis katmani import etmek"],
+             why: "Ice akan bagimlilik dis detay degisimini cekirdege sizmadan emer." },
+    commonMistakes: ["domain'de framework import", "katman atlama"],
+    architectureNotes: "agent/* domain mantigi; ipc.js dis adaptor. Domain IPC'yi bilmez.",
+    exercise: "Bir use-case'i dis bagimliliktan arayuzle ayir.",
+    questions: [
+      q("Clean Architecture'da bagimliliklar hangi yone akar?",
+        ["disa dogru", "ice dogru (domain'e)", "rastgele", "asagidan yukari"], 1),
+      q("Ic (domain) katman dis katmani bilmeli mi?",
+        ["evet", "hayir", "bazen", "her zaman"], 1),
+    ],
+    brainRules: [{ type: "arch_decision", title: "Dependencies point inward; isolate domain from frameworks",
+      description: "Bagimliliklar ice (domain'e) akar; domain UI/DB/framework'u bilmez. Dis detay degisimi cekirdege sizmaz.",
+      tags: ["clean-architecture", "dependency-rule", "domain"], confidence: 0.9, source: "principle" }],
+  }),
+  l3("event-driven", "Event-Driven mimari", {
+    goal: "Bilesenleri olay (event) ile gevsek bagli tutmayi ogrenmek.",
+    theory:
+      "Event-driven: bilesenler dogrudan birbirini cagirmak yerine olay yayinlar/dinler. CODEGA " +
+      "phoenix-core EventBus (emit/subscribe) ve AEP/Academy event'leri (patch:start, " +
+      "cycle:complete, patch:qa_blocked) bunu kullanir. Gevsek baglilik = bagimsiz evrim.",
+    examples: ["aepOS.emit('patch:qa_blocked', d)", "renderer ipcRenderer.on(channel)"],
+    rules: { do: ["Gevsek baglilik icin olay kullan", "Olay adlarini net/namespaced tut"],
+             dont: ["Her seyi senkron dogrudan cagriyla baglamak", "Olay dinleyiciyi temizlemeyi unutmak"],
+             why: "Olaylar bilesenleri ayirir; biri degisince digeri kirilmaz." },
+    commonMistakes: ["leak olan listener", "asiri event (izlenemez akis)"],
+    architectureNotes: "phoenix-core/kernel/event-bus.js createEventBus + snapshot.",
+    exercise: "Iki modulu dogrudan cagri yerine bir event ile gevsek bagla.",
+    questions: [
+      q("Event-driven mimarinin temel kazanimi nedir?",
+        ["daha fazla kod", "gevsek baglilik / bagimsiz evrim", "daha yavas", "daha cok bellek"], 1),
+      q("CODEGA'da olaylar nerede yonetilir?",
+        ["renderer", "phoenix-core EventBus", "package.json", "preload"], 1),
+    ],
+    brainRules: [{ type: "arch_decision", title: "Prefer events for decoupling components",
+      description: "Bilesenleri dogrudan cagri yerine olay (emit/subscribe) ile gevsek bagla; listener'lari temizle. EventBus tek nokta.",
+      tags: ["event-driven", "eventbus", "decoupling"], confidence: 0.87, source: "codega-pattern" }],
+  }),
+  l3("layered-design", "Katmanli tasarim ve sinir disiplini", {
+    goal: "Katmanlar arasi tek yonlu bagimlilik ve sinir disiplinini ogrenmek.",
+    theory:
+      "Katmanli tasarim: her katman yalnizca alttakine bagimli (renderer → preload → main → " +
+      "agent). Ust katman alt katmani cagirir, tersi olmaz. Sinirlar IPC/arayuzle gecilir. " +
+      "Bu, sorumluluk ayrimini ve degistirilebilirligi korur.",
+    examples: ["renderer → preload(beyaz-liste) → main/agent", "agent main'i UI'a baglamaz"],
+    rules: { do: ["Bagimliligi tek yonlu (asagi) tut", "Sinirlari arayuz/IPC ile gec"],
+             dont: ["Alt katmandan ust katmani cagirmak", "Katman atlamak"],
+             why: "Tek yonlu bagimlilik dongu ve sizintiyi onler." },
+    commonMistakes: ["yukari bagimlilik", "katman sizintisi"],
+    architectureNotes: "main/agent moduler katman; her alt sistem ipc.js sinirinda.",
+    exercise: "Yukari bagimlilik olusturan bir cagri yerine event/callback koy.",
+    questions: [
+      q("Katmanli tasarimda bagimlilik yonu nasil olmali?",
+        ["iki yonlu", "tek yonlu (asagi dogru)", "rastgele", "yukari dogru"], 1),
+      q("Katman siniri nasil gecilir?",
+        ["dogrudan global", "arayuz/IPC", "kopyalama", "dosya yolu"], 1),
+    ],
+    brainRules: [{ type: "arch_decision", title: "Layers depend one-way (downward) across clear boundaries",
+      description: "Ust katman alttakine bagimli; ters bagimlilik ve katman atlama yok. Sinirlar arayuz/IPC ile gecilir.",
+      tags: ["layered", "boundaries", "architecture"], confidence: 0.88, source: "codega-pattern" }],
+  }),
+  l3("dependency-graph", "Bagimlilik grafi ve donguden kacinma", {
+    goal: "Modul bagimliliklarini graf olarak dusunup dairesel bagimliliktan kacinmayi ogrenmek.",
+    theory:
+      "Moduller bir yonlu graf olusturur. Dairesel bagimlilik (A→B→A) test, yukleme ve akil " +
+      "yurutmeyi bozar. CODEGA LifeGraph dugum/kenarlari yonlu tutar. Cozum: ortak parcayi " +
+      "ayri modul yapmak veya bagimliligi tersine cevirmek (arayuz).",
+    examples: ["dongu: a.js↔b.js → ortak c.js cikar", "LifeGraph yonlu kenar (DEPENDS_ON)"],
+    rules: { do: ["Bagimliligi yonlu/asiklik tut", "Ortak parcayi ayir"],
+             dont: ["Dairesel bagimlilik olusturmak", "Modulleri rastgele birbirine baglamak"],
+             why: "Dongu yukleme sirasini belirsiz kilar ve test izolasyonunu bozar." },
+    commonMistakes: ["circular require", "asiri capraz bagimlilik"],
+    architectureNotes: "evolution-engine IPC karmasikligini/bagimliligi analiz eder.",
+    exercise: "Iki modul arasi donguyu ucuncu bir modul cikararak kir.",
+    questions: [
+      q("Dairesel bagimliligin riski nedir?",
+        ["yok", "yukleme sirasi belirsiz + test izolasyonu bozulur", "daha hizli", "daha guvenli"], 1),
+      q("Donguyu kirmanin bir yolu nedir?",
+        ["daha cok require", "ortak parcayi ayri modul yapmak", "global degisken", "kopyalamak"], 1),
+    ],
+    brainRules: [{ type: "antipattern", title: "Avoid circular dependencies; keep the module graph acyclic",
+      description: "Modul grafini yonlu/asiklik tut; dongu (A→B→A) yukleme ve testi bozar. Ortak parcayi ayir veya bagimliligi tersine cevir.",
+      tags: ["dependency-graph", "circular", "modularity"], confidence: 0.9, source: "principle" }],
+  }),
+  l3("scalability", "Olceklenebilirlik: durumsuz ve sinirli", {
+    goal: "Olceklenir tasarimda durumsuzluk ve sinirli kaynak kullanimini ogrenmek.",
+    theory:
+      "Olceklenebilirlik: bilesen mumkun oldukca durumsuz (state disari, store'a), kaynaklar " +
+      "sinirli (bounded queue, max eszamanlilik), is parcalanabilir olmali. CODEGA model-manager " +
+      "foreground/queue ile eszamanliligi sinirler; mission scheduler isleri parcalar.",
+    examples: ["bounded concurrency (_activeForeground)", "is → mission/milestone/task parcalama"],
+    rules: { do: ["Durumu disari al (store)", "Kaynaklari sinirla (queue/limit)"],
+             dont: ["Sinirsiz eszamanlilik", "Bilesende gizli global durum biriktirmek"],
+             why: "Sinirsiz/durumlu tasarim yuk altinda cokup ongorulemez davranir." },
+    commonMistakes: ["sinirsiz paralellik", "gizli paylasilan durum"],
+    architectureNotes: "model-manager _queue + _activeForeground; mission-scheduler parcalama.",
+    exercise: "Sinirsiz bir paralel islemi bounded kuyruga cevir.",
+    questions: [
+      q("Olceklenir bilesen durumu nerede tutmali?",
+        ["bilesen icinde sinirsiz", "mumkun oldukca disarida/store'da", "global degiskende", "log dosyasinda"], 1),
+      q("Kaynak sinirlamasi neyi onler?",
+        ["test", "yuk altinda cokme/ongorulemezlik", "logging", "deployment"], 1),
+    ],
+    brainRules: [{ type: "arch_decision", title: "Design for scale: stateless components, bounded resources",
+      description: "Bilesenleri mumkun oldukca durumsuz tut, durumu store'a al; eszamanliligi/kaynagi sinirla (bounded). Isi parcalanabilir tasarla.",
+      tags: ["scalability", "stateless", "bounded"], confidence: 0.86, source: "codega-pattern" }],
+  }),
+  l3("plugin-architecture", "Plugin mimarisi: manifest + izolasyon", {
+    goal: "Eklenti sistemini manifest, kimlik dogrulama ve izolasyonla guvenli kurmayi ogrenmek.",
+    theory:
+      "Plugin mimarisi cekirdegi degistirmeden yetenek ekler. CODEGA plugin-store: her plugin " +
+      "bir manifest (plugin.json) ister; klasor adi ile manifest id ESLESMELI (eslesmezse " +
+      "atlanir), gecersiz manifest yuklenmez. Eklentiler izole ve dogrulanmis yuklenir.",
+    examples: ["plugin.json id == klasor adi", "gecersiz/eksik 'name' → yuklenmez"],
+    rules: { do: ["Manifest dogrula", "Klasor adi == id kontrolu yap, izole yukle"],
+             dont: ["Dogrulamadan eklenti yuklemek", "Eklentiye cekirdek yetkisi acmak"],
+             why: "Dogrulanmamis/izolasyonsuz eklenti cekirdek guvenligini ve kararliligini bozar." },
+    commonMistakes: ["manifest dogrulamasi atlamak", "id/klasor uyumsuzlugunu gormezden gelmek"],
+    architectureNotes: "plugin-store.js: manifest id != klasor → uyari + atla; gecersiz manifest → atla.",
+    exercise: "Bir plugin loader'a manifest + id-eslesme dogrulamasi ekle.",
+    questions: [
+      q("CODEGA plugin-store klasor adi ile manifest id eslesmezse ne yapar?",
+        ["yine yukler", "uyari verip atlar", "cokertir", "id'yi degistirir"], 1),
+      q("Plugin mimarisinin amaci nedir?",
+        ["cekirdegi sismek", "cekirdegi degistirmeden yetenek eklemek", "test silmek", "UI hizlandirmak"], 1),
+    ],
+    brainRules: [{ type: "arch_decision", title: "Plugins: validate manifest, match id to folder, isolate",
+      description: "Eklenti cekirdegi degistirmeden yetenek ekler; manifest dogrula, klasor adi==id kontrolu yap, gecersizi atla, izole yukle.",
+      tags: ["plugin", "manifest", "isolation", "security"], confidence: 0.9, source: "codega-pattern" }],
+  }),
+];
+
 // ── Ust seviyeler — yapilandirilmis ders basliklari (Phase I iskelet) ──────────
 // Her seviye icin ders basliklari + hedefleri tanimli. Tam icerik sonraki
 // Academy turlarinda islenir; iskelet, transcript/sertifika sisteminin tum
@@ -443,7 +652,7 @@ function lessonStub(level, idx, title, goal, brainRule) {
 const STUB_TOPICS = {
   1: [], // Level 1 tam islenmis derslerle dolduruluyor (asagida)
   2: [], // Level 2 tam islenmis (LEVEL2_LESSONS)
-  3: ["SOLID", "DDD", "Clean Architecture", "Event Driven", "Layered Design", "Dependency Graph", "Scalability", "Plugin Architecture"],
+  3: [], // Level 3 tam islenmis (LEVEL3_LESSONS)
   4: ["Technical Debt", "Benchmark", "Refactoring", "Migration", "Compatibility", "Performance Budget", "Engineering Metrics"],
   5: ["Roadmaps", "Risk Analysis", "Release Planning", "Engineering Budget", "Cost Analysis", "Architecture Decisions", "Rollback Strategies", "Competitive Analysis"],
   6: ["Self Review", "Self Criticism", "Self Testing", "Self Benchmark", "Self Optimization", "Patch Generation", "PR Generation"],
@@ -473,9 +682,10 @@ function buildCurriculum() {
     LESSON_RENDERER_NONBLOCK,
     LESSON_VERIFY_EXIT_AND_TESTS,
     ...LEVEL2_LESSONS,
+    ...LEVEL3_LESSONS,
   ];
 
-  for (let level = 3; level <= 8; level++) {
+  for (let level = 4; level <= 8; level++) {
     const topics = STUB_TOPICS[level] || [];
     topics.forEach((title, idx) => {
       const goal = `${LEVEL_TITLES[level]} seviyesinde "${title}" yetkinligini kazanmak.`;

@@ -44,6 +44,17 @@ describe("Academy curriculum", () => {
     }
   });
 
+  test("Level 3 tam islenmis: 8 ders (Architect), hepsinde sinav + brainRule", () => {
+    const l3 = lessonsForLevel(3);
+    expect(l3.length).toBe(8);
+    for (const lesson of l3) {
+      expect(lesson._stub).toBeFalsy();
+      expect(lesson.exam.questions.length).toBeGreaterThan(0);
+      expect(lesson.theory.length).toBeGreaterThan(0);
+      expect(lesson.brainRules.length).toBeGreaterThan(0);
+    }
+  });
+
   test("Level 2 tam islenmis: 9 ders, hepsinde sinav sorusu + brainRule", () => {
     const l2 = lessonsForLevel(2);
     expect(l2.length).toBe(9);
@@ -165,6 +176,12 @@ describe("AcademyOS", () => {
     const r = academy.takeExam("L2-zip", [1, 1]);
     expect(r.passed).toBe(true);
     expect(r.certification.level).toBe(2);
+  });
+
+  test("Level 3 dersinin sinavi calisir ve gecilir", () => {
+    const r = academy.takeExam("L3-solid", [1, 1]);
+    expect(r.passed).toBe(true);
+    expect(r.certification.level).toBe(3);
   });
 
   test("setEngineeringBrain sonradan baglanabilir", () => {

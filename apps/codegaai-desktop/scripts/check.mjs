@@ -284,7 +284,7 @@ const mainFile = readText(join(root, "src/main/main.js"));
 if (!mainFile.includes("registerACEIpc")) throw new Error("main.js ACE IPC kaydi eksik");
 if (!mainFile.includes("registerAcademyIpc")) throw new Error("main.js Academy IPC kaydi eksik");
 
-if (pkg.version !== "6.0.0-alpha.40") throw new Error(`Desktop package version must be 6.0.0-alpha.40, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.41") throw new Error(`Desktop package version must be 6.0.0-alpha.41, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
