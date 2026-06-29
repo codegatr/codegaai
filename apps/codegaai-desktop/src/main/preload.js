@@ -99,6 +99,8 @@ contextBridge.exposeInMainWorld("codega", {
     extract: (zipPath, destDir)           => ipcRenderer.invoke("zip:extract", zipPath, destDir),
     patch:   (zipPath, destZip, patches)  => ipcRenderer.invoke("zip:patch",   zipPath, destZip, patches),
     create:  (sourceDir, destZip)         => ipcRenderer.invoke("zip:create",  sourceDir, destZip),
+    exportProject: (opts)                 => ipcRenderer.invoke("zip:export-project", opts || {}),
+    importProject: (opts)                 => ipcRenderer.invoke("zip:import-project", opts || {}),
   },
 
   // Git Agent API

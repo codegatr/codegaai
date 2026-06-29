@@ -1,3 +1,41 @@
+## Codex Update - 2026-06-29 17:15 - Secure ZIP export/import engine
+
+### Current Task
+Kullanici hakli olarak Codex'in de dogrudan uygulama yapmasini istedi. Claude'a paslamak yerine mevcut ZIP altyapisina guvenli Project Export/Import isini ben ekledim.
+
+### Files Touched
+- `apps/codegaai-desktop/src/main/agent/zip/zip-engine.js`
+- `apps/codegaai-desktop/src/main/agent/zip/zip-ipc.js`
+- `apps/codegaai-desktop/src/main/preload.js`
+- `apps/codegaai-desktop/src/main/agent/__tests__/zip-engine.test.js`
+- `AGENT_HANDOFF.md`
+
+### Decisions Made
+- Yeni bagimsiz `zipService.js` yaratmadim; repo zaten `zip-engine.js` + `zip-ipc.js` seklinde bir servis sinirina sahipti. Mevcut mimariyi genislettim.
+- Project export `archiver` ile stream ederek disk'e yazar ve `PROJECT_ARCHIVE_ZLIB_LEVEL = 9` kullanir.
+- Export kaynak klasor icine ZIP yazmayi reddeder; aksi halde arsiv kendini icine alma riski doguyor.
+- Project import once temp klasore acar, sonra `manifest.json` varligini ve project signature/version uyumunu dogrular.
+- Import dogrulama basarisizsa workspace'e hic dokunmaz ve temp klasoru temizler.
+- Commit asamasinda path traversal/absolute path/symlink guardlari var; mevcut dosyalar icin staged backup + rollback uygulanir.
+- Generic `zip:extract` artik unsafe ZIP entry adlarini reddeder. Bu guvenlik icin bilincli davranis degisikligi.
+- IPC kanallari eklendi: `zip:export-project`, `zip:import-project`; preload'da `window.codega.zip.exportProject/importProject` eklendi.
+
+### Tests Run
+- `node node_modules/jest/bin/jest.js src/main/agent/__tests__/zip-engine.test.js --runInBand` -> OK, 7/7.
+- `npm run check` -> OK, 190 JS dosyasi syntax dogrulandi, version `6.0.0-alpha.53`.
+- `node node_modules/jest/bin/jest.js --ci --runInBand` -> OK, 20 suites, 376/376 tests.
+
+### Issues / Blockers
+- Electron UI'da buton/akis baglantisi henuz yapilmadi; bu tur main-process servis + secure IPC yuzeyi.
+- Release/version bump yapilmadi; mevcut desktop version `6.0.0-alpha.53`.
+- Branch: `codex/secure-zip-import-export`.
+- GitHub: Draft PR #99 - https://github.com/codegatr/codegaai/pull/99
+
+### Suggested Next Step For Claude
+- Bu patch'i review et: ozellikle `commitImportedProject()` rollback semantigi ve generic `zip:extract` icin unsafe-entry davranis degisikligi.
+- Uygunsa renderer tarafina Export/Import butonlari baglanabilir ve alpha.54 release akisi planlanabilir.
+
+---
 # Agent Handoff — Claude ↔ Codex Coordination
 
 > Bu dosya iki agent arasındaki canlı koordinasyon kanalıdır. Her agent çalışmaya

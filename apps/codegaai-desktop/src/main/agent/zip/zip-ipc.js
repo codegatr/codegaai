@@ -15,7 +15,7 @@
 const path = require("node:path");
 const os   = require("node:os");
 const crypto = require("node:crypto");
-const { ipcMain, dialog } = require("electron");
+const { ipcMain, dialog, BrowserWindow } = require("electron");
 const zipEngine   = require("./zip-engine");
 const zipAnalyzer = require("./zip-analyzer");
 
@@ -105,6 +105,76 @@ function registerZipIpc() {
       const out = destZip || path.join(os.tmpdir(), `codega_pack_${crypto.randomUUID()}.zip`);
       await zipEngine.create(out, sourceDir);
       return { ok: true, destZip: out };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  /**
+   * Güvenli proje export'u: workspace klasörünü level-9 ZIP olarak diske yazar.
+   * opts: { sourceDir?, destZip?, manifest?, projectSignature?, version? }
+   */
+  ipcMain.handle("zip:export-project", async (event, opts = {}) => {
+    try {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      let sourceDir = String(opts.sourceDir || "").trim();
+      if (!sourceDir) {
+        const picked = await dialog.showOpenDialog(win, {
+          title: "ZIP olarak dışa aktarılacak proje klasörünü seç",
+          properties: ["openDirectory"],
+        });
+        if (picked.canceled || !picked.filePaths?.[0]) return { ok: false, canceled: true };
+        sourceDir = picked.filePaths[0];
+      }
+
+      let destZip = String(opts.destZip || "").trim();
+      if (!destZip) {
+        const saved = await dialog.showSaveDialog(win, {
+          title: "Proje ZIP arşivini kaydet",
+          defaultPath: `${path.basename(sourceDir)}.zip`,
+          filters: [{ name: "ZIP arşivi", extensions: ["zip"] }],
+        });
+        if (saved.canceled || !saved.filePath) return { ok: false, canceled: true };
+        destZip = saved.filePath;
+      }
+
+      const result = await zipEngine.createProjectArchive(sourceDir, destZip, opts);
+      return { ok: true, ...result };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  /**
+   * Güvenli proje import'u: ZIP'i temp'e açar, manifest doğrular, sonra workspace'e işler.
+   * opts: { zipPath?, workspaceDir?, projectSignature?, version? }
+   */
+  ipcMain.handle("zip:import-project", async (event, opts = {}) => {
+    try {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      let zipPath = String(opts.zipPath || "").trim();
+      if (!zipPath) {
+        const picked = await dialog.showOpenDialog(win, {
+          title: "İçe aktarılacak proje ZIP arşivini seç",
+          properties: ["openFile"],
+          filters: [{ name: "ZIP arşivi", extensions: ["zip"] }],
+        });
+        if (picked.canceled || !picked.filePaths?.[0]) return { ok: false, canceled: true };
+        zipPath = picked.filePaths[0];
+      }
+
+      let workspaceDir = String(opts.workspaceDir || "").trim();
+      if (!workspaceDir) {
+        const picked = await dialog.showOpenDialog(win, {
+          title: "Projenin içe aktarılacağı workspace klasörünü seç",
+          properties: ["openDirectory", "createDirectory"],
+        });
+        if (picked.canceled || !picked.filePaths?.[0]) return { ok: false, canceled: true };
+        workspaceDir = picked.filePaths[0];
+      }
+
+      const result = await zipEngine.importProjectArchive(zipPath, workspaceDir, opts);
+      return { ok: true, ...result };
     } catch (err) {
       return { ok: false, error: err.message };
     }
