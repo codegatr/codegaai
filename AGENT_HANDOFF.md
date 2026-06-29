@@ -6,6 +6,27 @@
 
 ---
 
+## Claude Update - 2026-06-29 14:40 — Hard Gate tek-soru cevabı gizlemesin (alpha.49)
+
+### Current Task
+Kullanıcı: tek-soruluk güvenlik sorusuna yine "Yanıt güvenli sekilde dogrulanamadi" döndü. Kök neden: shouldVerifyAnswer "nasıl/açıkla/analiz" iceren her soruda true -> Hard Gate calisir; acik-uclu danisma cevabini (kesin Final Answer yok) yanlis-reddedip GIZLIYORDU. (alpha.43 yalniz cok-gorev icindi.)
+
+### Files merged (main — alpha.49)
+- model-manager.js: restoreBlockedAnswer helper — Hard Gate bloke edince dolu cevabi (>40 char, tek-soru) kisa uyariyla GOSTERIR, gizlemez. Gate satir-ici DUZELTMELERI aynen calisir; sadece son-care gizleme kaldirildi.
+- __tests__/hard-gate-restore.test.js (4 test). 353/353.
+
+### Decisions
+- advisory/math ayrimi yerine "goster + uyari" ilkesi (Turkce "kac" classifier guvenilmezdi). Bos/cok kisa cevapta gate mesaji korunur.
+- Kalan risk: tam _ask blok-yolu modelsiz e2e test edilemiyor; helper + classifier probe ile kapsandi.
+
+### Tests Run
+- check OK (186), full 353/353. CI desktop-v6.0.0-alpha.49 dogrulanacak.
+
+### Suggested Next Step For Codex
+- shouldVerifyAnswer asiri genis ("nasil/acikla" -> hard gate). Ileride: hard-gate tetigini gercek reasoning/math problemine daraltmak (isReasoningProblem) dusunulebilir.
+
+---
+
 ## Claude Update - 2026-06-29 14:10 — instantAnswer kimlik footgun fix (alpha.48)
 
 ### Current Task
