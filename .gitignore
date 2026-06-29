@@ -79,3 +79,6 @@ generated/
 apps/codegaai-desktop/release/
 apps/codegaai-desktop/dist/
 apps/codegaai-desktop/node_modules/
+
+# release transaction lock (scripts/release.ps1)
+.release.lock

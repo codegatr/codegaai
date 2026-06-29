@@ -1,3 +1,69 @@
+## Claude Update - 2026-06-29 21:10 — Mimari refactor: akış DOM + transaction'lı release.ps1 (alpha.58)
+
+### Current Task
+"Otonom özelliklerin mimari optimizasyonu" görevi. Yeni özellik yok; mevcut açıkları temizledim. Görevdeki 3 başlığı GERÇEK repoya göre değerlendirdim (bazı varsayımlar bu repoda yok — aşağıda dürüstçe).
+
+### 1) Monorepo / hoisting — DEĞİŞİKLİK YAPILMADI (bilinçli)
+- Repo'da root package.json/workspaces YOK; desktop app kendi `package-lock.json`'u ile izole ve CI `cd apps/codegaai-desktop && npm ci` ile kuruyor.
+- Görevdeki Yarn `nohoist`, npm `overrides` çakışması, version.php — bu repoda MEVCUT DEĞİL. Tek merkezi lock'a geçiş (root workspaces) çalışan Electron build'ini (native dep + electron-builder beklentileri) kırma riski taşır ve somut bir bug yok.
+- Karar: izolasyon zaten sağlıklı; riskli migration yapılmadı. İstenirse ayrı, dikkatli bir PR olarak ele alınır.
+
+### 2) Electron render perf / bellek — GERÇEK DÜZELTME
+- Tespit: streaming sırasında her rAF'te `renderConversation()` çağrılıp `els.conversation.innerHTML=""` ile TÜM konuşma yeniden inşa ediliyordu → uzun sohbette her karede O(n) DOM yıkıp kurma (jank, bellek baskısı).
+- Düzeltme: `createStreamView` artık canlı `.msg-body` düğümüne zayıf bağ (`_el`) tutuyor; `paint()` yalnız o düğümün `innerHTML`'ini günceller. Düğüm yoksa/koptuysa (`isConnected`) güvenli tam çizime düşer. Tamamlanınca yine tek tam `renderConversation()` (aksiyon barları için).
+- `dispose()` referansı sıfırlar (`_el=null`) → düğüm GC edilebilir.
+- Bull/Redis (sunucu kuyruğu) ve `delete chunk` gibi hatalı bellek kodları repo'da YOK (grep ile doğrulandı) — uydurma "düzeltme" eklenmedi. MessageChannel gereksiz: IPC zaten ipcRenderer üzerinden tek yönlü stream.
+
+### 3) release.ps1 — TRANSACTION KORUMASI (gerçek düzeltme)
+- Eski script yedek/rollback/lockfile içermiyordu.
+- Yeni: SSoT = `apps/codegaai-desktop/package.json` (+ `check.mjs` guard) ATOMIK küme. Akış: kilit al (.release.lock) → preflight tag → DEĞİŞİKLİKTEN ÖNCE in-memory yedek → güncelle → `npm run check` → commit/push/tag.
+- `catch`: commit ALINMADAN önceki herhangi bir hata → dosyalar yedekten geri yüklenir (rollback). Commit sonrası hata → yıkıcı git reset YAPILMAZ, kullanıcıya bırakılır (savunmacı).
+- `finally`: kilit HER KOŞULDA temizlenir. `.release.lock` .gitignore'a eklendi.
+- Set-StrictMode + ValidatePattern(semver) + UTF8 (TR karakter koruması).
+- Not: `inc/version.php` bu repoda yok; eski şablon yolu. Gerçek kaynak package.json.
+
+### Tests
+- check 191 dosya OK, full 384/384 (21 suite) PASS. release.ps1 parser ile sözdizimi doğrulandı (Parser.ParseFile → 0 hata).
+- check.mjs guard: msg-body/streamView.paint (akış optimizasyonu geri alınmasın) + sürüm alpha.58.
+
+### Sürüm
+- 6.0.0-alpha.58.
+
+---
+
+## Codex Update - 2026-06-29 20:35 - Ollama output budget default
+
+### Current Task
+Kullanici Claude'un "num_predict=4096 ile token kesintisini onleme" notunu iletti. Inceledim: fikir dogru yone isaret ediyor ama "tamamen engeller" iddiasi fazla guclu; timeout, model hizi ve context siniri hala ayri riskler.
+
+### Files Touched
+- `apps/codegaai-desktop/src/main/agent/ollama-client.js`
+- `apps/codegaai-desktop/src/main/agent/__tests__/ollama-gen-options.test.js`
+- `AGENT_HANDOFF.md`
+
+### Decisions Made
+- `DEFAULT_NUM_PREDICT = 4096` eklendi ve `buildGenOptions()` artik default olarak `num_predict: 4096` gonderiyor.
+- `numPredict` override destegi korundu; pozitif sonlu sayi verilirse floor edilip kullaniliyor.
+- Gecersiz/negatif `numPredict` default 4096'ya dusuyor.
+- `temperature` default'u 0.4 olarak korundu. 0.2 token kesilmesini cozmez; sadece stil/yaraticilik etkiler. Cagri bazli override hala destekleniyor.
+- Bu fix API tabanli Ollama chat/stream isteklerini kapsar. CLI fallback `ollama run` options alamadigi icin ayni garantiye sahip degil.
+
+### Tests Run
+- `node node_modules/jest/bin/jest.js src/main/agent/__tests__/ollama-gen-options.test.js --runInBand` -> OK, 4/4.
+- `npm run check` -> OK, 191 JS dosyasi, version `6.0.0-alpha.57`.
+- `node node_modules/jest/bin/jest.js --ci --runInBand` -> OK, 21 suites, 384/384 tests.
+
+### Issues / Blockers
+- Release/version bump yapilmadi; bu alpha.57 uzerinde Codex branch patch'i.
+- Branch: `codex/ollama-output-budget`.
+- GitHub: Draft PR #106 - https://github.com/codegatr/codegaai/pull/106
+- Kalan risk: cok yavas yerel model 4096 token uretirken `OLLAMA_CHAT_TIMEOUT_MS` timeout'una yine takilabilir. Gerekirse ayri PR'da gorev tipine gore timeout/output budget profili eklenebilir.
+
+### Suggested Next Step For Claude
+- Review et: default 4096 yerel cihazlarda kabul edilebilir mi, yoksa model/task profiline gore 2048/4096/8192 dinamik budget mi tercih edilmeli?
+- Uygunsa alpha.58 icin version bump + release akisi planlanabilir.
+
+---
 ## Claude Update - 2026-06-29 20:15 — Kademeli public-içerik çekme (insane-search fikri) (alpha.57)
 
 ### Current Task
