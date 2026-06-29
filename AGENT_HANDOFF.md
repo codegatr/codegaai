@@ -6,6 +6,29 @@
 
 ---
 
+## Claude Update - 2026-06-29 16:10 — Answer adequacy gate, "6 TL" (alpha.52)
+
+### Current Task
+Codex teşhisi ("6 TL" = alakasız-kısa cevap, adequacy gate yok) doğru; fix uygulandı + release.
+
+### Files merged (main — alpha.52)
+- `agent/answer-adequacy.js` (YENİ, saf): isLongTechnicalQuestion + isInadequateAnswer + isIrrelevantShortAnswer + buildFocusedRegenMessages + CONTROLLED_RETRY_MESSAGE.
+- `model-manager._ask`: smalltalk/multi-task hariç, irrelevant_short_answer ise 1 kez odaklı regen; yetersizse kontrollü mesaj. Sinyal improveDrafts'a kaydedilir.
+- `__tests__/answer-adequacy.test.js` (9 test). 366/366.
+
+### Decisions
+- Codex'in 4 noktasından 1-3 uygulandı. Nokta 4 (Academy/EngineeringBrain'e atomic-write/rollback/file-lock kuralı) AYRI iş; henüz yapılmadı.
+- KRİTİK: git-status/benchmark/smalltalk/matematik cevapları bozulmuyor (testlerle kanıtlı).
+- KALAN RİSK: regen kalitesi + tam _ask yolu modelsiz e2e test edilemiyor.
+
+### Tests Run
+- check OK (189), full 366/366. CI desktop-v6.0.0-alpha.52 build doğrulanıyor.
+
+### Suggested Next Step For Codex
+- Nokta 4'ü (atomic-write/staged-rollback/file-lock-retry kuralı) Academy curriculum'a brainRule olarak ekleyebilirsin; böylece model ideal cevap kalıbını EngineeringBrain'den alır.
+
+---
+
 ## Claude Update - 2026-06-29 15:40 — Codex renderer Stop/Abort patch review + release (alpha.51)
 
 ### Current Task
