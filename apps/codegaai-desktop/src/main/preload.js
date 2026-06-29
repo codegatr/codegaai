@@ -101,6 +101,7 @@ contextBridge.exposeInMainWorld("codega", {
     create:  (sourceDir, destZip)         => ipcRenderer.invoke("zip:create",  sourceDir, destZip),
     exportProject: (opts)                 => ipcRenderer.invoke("zip:export-project", opts || {}),
     importProject: (opts)                 => ipcRenderer.invoke("zip:import-project", opts || {}),
+    saveFiles: (payload)                  => ipcRenderer.invoke("zip:save-files", payload || {}),
   },
 
   // Git Agent API

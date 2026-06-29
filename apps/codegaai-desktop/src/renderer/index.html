@@ -16,16 +16,17 @@
         </div>
       </div>
       <button class="new-chat" id="new-chat">+ Yeni Sohbet</button>
-      <div class="project-zip-actions">
-        <button type="button" class="project-zip-btn" id="import-project-btn" title="Bir proje ZIP arşivini güvenle içe aktar">⬇ Proje İçe Aktar</button>
-        <button type="button" class="project-zip-btn" id="export-project-btn" title="Bir proje klasörünü ZIP olarak dışa aktar">⬆ Proje Dışa Aktar</button>
-      </div>
       <p class="section-label">Sohbet Geçmişi</p>
       <input type="search" id="history-search" placeholder="Sohbetlerde ara…" autocomplete="off" />
       <div class="history-list" id="history-list"></div>
     </aside>
 
     <main class="shell">
+      <div class="mode-tabs" id="mode-tabs" role="tablist" aria-label="Çalışma modu">
+        <button type="button" class="mode-tab active" data-mode="chat" role="tab" aria-selected="true" title="Sohbet: serbest soru-cevap ve fikir">Chat</button>
+        <button type="button" class="mode-tab" data-mode="cowork" role="tab" aria-selected="false" title="Birlikte Çalışma: proje planla ve adım adım birlikte yürüt">Cowork</button>
+        <button type="button" class="mode-tab" data-mode="code" role="tab" aria-selected="false" title="Kod: kod-öncelikli, dosya üreten yanıtlar">Code</button>
+      </div>
       <button class="settings-button" id="settings-button" title="Ayarlar">⚙</button>
 
       <section class="conversation" id="conversation">

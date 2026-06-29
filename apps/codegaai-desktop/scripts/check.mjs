@@ -287,10 +287,12 @@ if (!aceOsFile.includes("ACEOS") || !aceOsFile.includes("initACEOS")) throw new 
 const preloadFile2 = readText(join(root, "src/main/preload.js"));
 if (!preloadFile2.includes("ace:dashboard") || !preloadFile2.includes("ace:reflect")) throw new Error("preload.js ACE API eksik");
 if (!preloadFile2.includes("zip:export-project") || !preloadFile2.includes("zip:import-project")) throw new Error("preload.js güvenli proje ZIP API eksik");
+if (!preloadFile2.includes("zip:save-files")) throw new Error("preload.js chat ZIP indirme API eksik");
 const indexHtml = readText(join(root, "src/renderer/index.html"));
-if (!indexHtml.includes("import-project-btn") || !indexHtml.includes("export-project-btn")) throw new Error("index.html proje ZIP butonlari eksik");
+if (!indexHtml.includes("mode-tabs") || !indexHtml.includes('data-mode="cowork"') || !indexHtml.includes('data-mode="code"')) throw new Error("index.html Chat/Cowork/Code mod sekmeleri eksik");
 const rendererFile2 = readText(join(root, "src/renderer/renderer.js"));
-if (!rendererFile2.includes("zip.importProject") || !rendererFile2.includes("zip.exportProject")) throw new Error("renderer.js proje ZIP buton baglantisi eksik");
+if (!rendererFile2.includes("attachZipFromPath") || !rendererFile2.includes("zip.saveFiles")) throw new Error("renderer.js chat içi ZIP oku/indir baglantisi eksik");
+if (!rendererFile2.includes("MODE_DIRECTIVES")) throw new Error("renderer.js çalışma modu (MODE_DIRECTIVES) eksik");
 const mainFile = readText(join(root, "src/main/main.js"));
 if (!mainFile.includes("registerACEIpc")) throw new Error("main.js ACE IPC kaydi eksik");
 if (!mainFile.includes("registerAcademyIpc")) throw new Error("main.js Academy IPC kaydi eksik");
@@ -298,7 +300,7 @@ if (!mainFile.includes("seedCoreEngineeringRules")) throw new Error("main.js Aca
 const modelManagerFile = readText(join(root, "src/main/model-manager.js"));
 if (!modelManagerFile.includes("sanitizePrompt")) throw new Error("model-manager.js isim temizleme (sanitizePrompt) baglantisi eksik");
 
-if (pkg.version !== "6.0.0-alpha.55") throw new Error(`Desktop package version must be 6.0.0-alpha.55, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.56") throw new Error(`Desktop package version must be 6.0.0-alpha.56, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

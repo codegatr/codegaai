@@ -23,8 +23,7 @@ const els = {
   input: document.getElementById("prompt-input"),
   sendBtn: document.getElementById("send-btn"),
   stopBtn: document.getElementById("stop-btn"),
-  importProjectBtn: document.getElementById("import-project-btn"),
-  exportProjectBtn: document.getElementById("export-project-btn"),
+  modeTabs: document.getElementById("mode-tabs"),
   brainBtn: document.getElementById("brain-btn"),
   brainPanel: document.getElementById("brain-panel"),
   brainInput: document.getElementById("brain-input"),
@@ -443,6 +442,47 @@ function renderHistory() {
   });
 }
 
+// Asistan çıktısındaki ```dil yol/dosya.uzanti ... ``` kod bloklarını dosya
+// listesine çevirir (Code modunda üretilen projeyi ZIP indirmek için).
+function extractCodeFiles(text) {
+  const out = [];
+  const re = /```([^\n`]*)\n([\s\S]*?)```/g;
+  let m;
+  let i = 0;
+  const extByLang = { javascript: "js", js: "js", typescript: "ts", ts: "ts", python: "py", py: "py", php: "php", html: "html", css: "css", json: "json", bash: "sh", sh: "sh", sql: "sql", yaml: "yml", yml: "yml", go: "go", rust: "rs", java: "java", c: "c", cpp: "cpp", markdown: "md", md: "md" };
+  while ((m = re.exec(String(text || "")))) {
+    i++;
+    const info = (m[1] || "").trim().split(/\s+/).filter(Boolean);
+    const content = m[2];
+    // info: "<dil> [yol/dosya]" — ad varsa onu kullan, yoksa dilden üret
+    let name = "";
+    const lang = (info[0] || "").toLowerCase();
+    const maybePath = info.find((tok) => /[./]/.test(tok) && tok !== lang);
+    if (maybePath) name = maybePath;
+    if (!name) {
+      const ext = extByLang[lang] || "txt";
+      name = `dosya-${i}.${ext}`;
+    }
+    out.push({ name: name.replace(/^\/+/, ""), content });
+  }
+  return out;
+}
+
+function makeMiniButton(label, title, onClick) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "fb-btn";
+  b.textContent = label;
+  b.title = title;
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+async function copyToClipboard(text, okMsg = "Kopyalandı.") {
+  try { await navigator.clipboard.writeText(text); setTransientStatus(okMsg); }
+  catch (_e) { setTransientStatus("Kopyalanamadı."); }
+}
+
 function renderConversation() {
   const chat = currentChat();
   els.conversation.innerHTML = "";
@@ -463,6 +503,13 @@ function renderConversation() {
       <div>${escapeHtml(message.text).replace(/\n/g, "<br>")}</div>
       ${tsText ? `<div class="msg-time">${tsText}</div>` : ""}
     `;
+    // Kullanıcı mesajları da kopyalanabilir (kullanıcı isteği).
+    if (message.role === "user" && message.text) {
+      const ubar = document.createElement("div");
+      ubar.className = "feedback-bar";
+      ubar.appendChild(makeMiniButton("📋", "Mesajı kopyala", () => copyToClipboard(message.text, "Mesaj kopyalandı.")));
+      node.appendChild(ubar);
+    }
     // Asistan cevaplarına geri bildirim (👍/👎) — son cevap hâlâ yazılıyorsa ekleme
     const isLivePlaceholder = isSending && idx === chat.messages.length - 1;
     if (message.role === "assistant" && message.text && !isLivePlaceholder) {
@@ -500,6 +547,25 @@ function renderConversation() {
         }
       });
       bar.appendChild(copyBtn);
+      // Üretilen projeyi ZIP indir — yalnızca kod blokları içeren cevaplarda
+      const codeFiles = extractCodeFiles(message.text);
+      if (codeFiles.length && window.codega?.zip?.saveFiles) {
+        const zipBtn = makeMiniButton("⬇", `Projeyi ZIP indir (${codeFiles.length} dosya)`, async () => {
+          zipBtn.disabled = true;
+          setTransientStatus("ZIP hazırlanıyor…");
+          try {
+            const res = await window.codega.zip.saveFiles({ files: codeFiles, defaultName: chat.title || "codega-proje" });
+            if (res?.canceled) { setTransientStatus("İndirme iptal edildi."); return; }
+            if (res?.ok) setTransientStatus(`ZIP kaydedildi: ${res.files} dosya → ${res.destZip}`);
+            else setTransientStatus(`ZIP hatası: ${res?.error || "bilinmeyen hata"}`);
+          } catch (err) {
+            setTransientStatus(`ZIP hatası: ${err?.message || err}`);
+          } finally {
+            zipBtn.disabled = false;
+          }
+        });
+        bar.appendChild(zipBtn);
+      }
       // Yeniden üret — yalnızca son cevapta ve gönderim yokken
       if (idx === chat.messages.length - 1 && !isSending) {
         const regen = document.createElement("button");
@@ -1099,6 +1165,64 @@ function renderAttachChip() {
   chip.appendChild(x);
 }
 
+// ZIP eki: arşiv içeriğini okuyup (dosya ağacı + metin dosyalarının içeriği)
+// modele verilecek tek bir bağlam metni hazırlar. Tüm okuma main process'teki
+// güvenli zip motorunda yapılır (path traversal/symlink reddi orada).
+const ZIP_TEXT_EXTS = new Set([
+  "js","ts","jsx","tsx","vue","mjs","cjs","php","py","rb","go","rs","java","c","cpp","h","hpp",
+  "html","htm","css","scss","less","sql","sh","bash","yml","yaml","ini","toml","env","cfg",
+  "json","xml","md","txt","log","csv","tsv","gitignore","dockerfile","makefile",
+]);
+async function attachZipFromPath(zipPath, displayName) {
+  setTransientStatus("Zip arşivi okunuyor…");
+  try {
+    const listed = await window.codega.zip.list(zipPath);
+    if (!listed?.ok) { setTransientStatus(`Zip okunamadı: ${listed?.error || "bilinmeyen hata"}`); return; }
+    const entries = (listed.entries || []).filter((e) => e && !e.isDir);
+    if (!entries.length) { setTransientStatus("Zip boş görünüyor."); return; }
+
+    // Dosya ağacı (boyutlarla) — her zaman modele verilir.
+    const tree = entries
+      .slice(0, 400)
+      .map((e) => `  ${e.name}${typeof e.size === "number" ? ` (${e.size} B)` : ""}`)
+      .join("\n");
+
+    // Metin dosyalarını bütçe dolana kadar oku.
+    const isText = (name) => {
+      const base = String(name).split("/").pop().toLowerCase();
+      const x = base.includes(".") ? base.split(".").pop() : base;
+      return ZIP_TEXT_EXTS.has(x);
+    };
+    const textEntries = entries.filter((e) => isText(e.name));
+    let budget = ATTACH_MAX_CHARS;
+    const parts = [];
+    let readCount = 0;
+    for (const e of textEntries) {
+      if (budget <= 0) break;
+      const r = await window.codega.zip.read(zipPath, e.name);
+      if (!r?.ok || typeof r.content !== "string") continue;
+      let content = r.content;
+      if (content.length > budget) content = content.slice(0, budget) + "\n… (kısaltıldı)";
+      budget -= content.length;
+      readCount++;
+      parts.push(`--- ${e.name} ---\n${content}`);
+    }
+
+    const omitted = textEntries.length - readCount;
+    const note = omitted > 0 ? `\n\n(${omitted} metin dosyası bağlam sınırı nedeniyle atlandı.)` : "";
+    const text =
+      `ZIP arşivi: ${displayName} — ${entries.length} dosya.\n\n` +
+      `DOSYA AĞACI:\n${tree}\n\n` +
+      `DOSYA İÇERİKLERİ:\n${parts.join("\n\n")}${note}`;
+
+    attachedFile = { name: displayName, text, kind: { label: `ZIP · ${entries.length} dosya` } };
+    renderAttachChip();
+    setTransientStatus(`Zip hazır: ${entries.length} dosya, ${readCount} metin dosyası okundu.`);
+  } catch (err) {
+    setTransientStatus(`Zip okuma hatası: ${err?.message || err}`);
+  }
+}
+
 (function bindAttach() {
   const btn = document.getElementById("attach-btn");
   const input = document.getElementById("file-input");
@@ -1109,6 +1233,13 @@ function renderAttachChip() {
     input.value = ""; // aynı dosya tekrar seçilebilsin
     if (!file) return;
     const kind = detectFileKind(file.name);
+
+    // ZIP arşivi: güvenli zip motoruyla içeriği oku ve modele bağlam olarak hazırla.
+    const ext = String(file.name).split(".").pop().toLowerCase();
+    if (ext === "zip" && file.path && window.codega?.zip?.list) {
+      attachZipFromPath(file.path, file.name);
+      return;
+    }
 
     // Metin olmayan türler: okuma yerine doğru aracı öner
     if (!kind.readable) {
@@ -1257,9 +1388,10 @@ async function handleSubmit() {
   // Ek dosya varsa: ekranda kullanıcı metni + ek rozeti; modele dosya bağlamı eklenmiş metin
   const att = attachedFile;
   const displayText = att ? `${text}\n\n📎 ${att.name}` : text;
+  const modePreface = MODE_DIRECTIVES[currentMode] ? `${MODE_DIRECTIVES[currentMode]}\n\n` : "";
   const sendText = att
-    ? `Kullanıcı bir dosya ekledi: "${att.name}"\n\n--- DOSYA İÇERİĞİ ---\n${att.text}\n--- DOSYA SONU ---\n\nKullanıcının isteği: ${text}`
-    : text;
+    ? `${modePreface}Kullanıcı bir dosya ekledi: "${att.name}"\n\n--- DOSYA İÇERİĞİ ---\n${att.text}\n--- DOSYA SONU ---\n\nKullanıcının isteği: ${text}`
+    : `${modePreface}${text}`;
   attachedFile = null;
   renderAttachChip();
 
@@ -1383,49 +1515,43 @@ els.input.addEventListener("keydown", (event) => {
 
 document.getElementById("new-chat").addEventListener("click", () => createChat());
 
-// Güvenli Proje ZIP içe/dışa aktarma (alpha.54 servisi → alpha.55 UI).
-// Klasör/dosya seçimi main process tarafındaki dialog ile yapılır; burada yalnız
-// tetikleyip sonucu gösteririz.
-if (els.importProjectBtn) {
-  els.importProjectBtn.addEventListener("click", async () => {
-    if (!window.codega?.zip?.importProject) { setTransientStatus("Proje içe aktarma bu sürümde kullanılamıyor."); return; }
-    els.importProjectBtn.disabled = true;
-    setTransientStatus("Proje ZIP içe aktarılıyor…");
-    try {
-      const res = await window.codega.zip.importProject({});
-      if (res?.canceled) { setTransientStatus("İçe aktarma iptal edildi."); return; }
-      if (res?.ok) {
-        setTransientStatus(`Proje içe aktarıldı: ${res.files ?? "?"} dosya → ${res.workspaceDir || ""}`);
-      } else {
-        setTransientStatus(`İçe aktarma başarısız: ${res?.error || "bilinmeyen hata"}`);
-      }
-    } catch (err) {
-      setTransientStatus(`İçe aktarma hatası: ${err?.message || err}`);
-    } finally {
-      els.importProjectBtn.disabled = false;
-    }
+// Çalışma modu: Chat / Cowork / Code (Claude'daki üçlü gibi). Her mod modele
+// kısa bir yönlendirme ekler; seçim cihazda kalıcıdır.
+const MODE_DIRECTIVES = {
+  chat: "",
+  cowork: "ÇALIŞMA MODU: COWORK. Kullanıcıyla bir projeyi birlikte yürüten kıdemli bir takım arkadaşı gibi davran. Adımları planla, varsayımları açıkça belirt, sıradaki somut adımı öner ve gerektiğinde Proje Beyni bağlamını kullan.",
+  code: "ÇALIŞMA MODU: CODE. Kod-öncelikli yanıt ver. Açıklamayı kısa tut; üreteceğin her dosyayı ```dil yol/dosya.uzanti ... ``` biçiminde, yol/ad belirterek ayrı kod bloklarında ver ki tek ZIP olarak indirilebilsin.",
+};
+let currentMode = "chat";
+try {
+  const saved = localStorage.getItem("codega.mode");
+  if (saved && MODE_DIRECTIVES[saved]) currentMode = saved;
+} catch (_e) {}
+
+function applyModeUi() {
+  if (!els.modeTabs) return;
+  els.modeTabs.querySelectorAll(".mode-tab").forEach((tab) => {
+    const on = tab.dataset.mode === currentMode;
+    tab.classList.toggle("active", on);
+    tab.setAttribute("aria-selected", on ? "true" : "false");
   });
 }
-
-if (els.exportProjectBtn) {
-  els.exportProjectBtn.addEventListener("click", async () => {
-    if (!window.codega?.zip?.exportProject) { setTransientStatus("Proje dışa aktarma bu sürümde kullanılamıyor."); return; }
-    els.exportProjectBtn.disabled = true;
-    setTransientStatus("Proje ZIP olarak dışa aktarılıyor…");
-    try {
-      const res = await window.codega.zip.exportProject({});
-      if (res?.canceled) { setTransientStatus("Dışa aktarma iptal edildi."); return; }
-      if (res?.ok) {
-        setTransientStatus(`Proje dışa aktarıldı: ${res.destZip || ""}`);
-      } else {
-        setTransientStatus(`Dışa aktarma başarısız: ${res?.error || "bilinmeyen hata"}`);
-      }
-    } catch (err) {
-      setTransientStatus(`Dışa aktarma hatası: ${err?.message || err}`);
-    } finally {
-      els.exportProjectBtn.disabled = false;
-    }
+function setMode(mode) {
+  if (!MODE_DIRECTIVES[mode] && mode !== "chat") return;
+  currentMode = mode;
+  try { localStorage.setItem("codega.mode", mode); } catch (_e) {}
+  applyModeUi();
+}
+if (els.modeTabs) {
+  els.modeTabs.querySelectorAll(".mode-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      setMode(tab.dataset.mode);
+      const label = tab.textContent.trim();
+      setTransientStatus(`Mod: ${label}.`);
+      focusComposer();
+    });
   });
+  applyModeUi();
 }
 
 // Kaydırma: kullanıcı yukarı kayarsa "dibe yapış" kapanır ve buton görünür; dibe inince geri açılır.
