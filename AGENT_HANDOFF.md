@@ -12,6 +12,10 @@ alpha.54'te shipped güvenli proje ZIP servisini renderer UI'a bağladım: sideb
 ### Tests Run
 - check 190 dosya OK, full 377/377 (20 suite) PASS.
 
+### CI / Release (doğrulandı)
+- desktop-v6.0.0-alpha.55: Windows + macOS + Desktop Release **success**.
+- Assets (yayında, draft değil): CODEGA-AI-Setup-6.0.0-alpha.55.exe + .blockmap, universal .dmg, universal .zip, latest.yml, latest-mac.yml, SHA256SUMS.txt, UNSIGNED-BUILD-NOTICE.txt.
+
 ### Not
 - Yalnız renderer/UI + guard değişikliği; alpha.54 ZIP engine/IPC/preload dokunulmadı (Codex işi korundu).
 
