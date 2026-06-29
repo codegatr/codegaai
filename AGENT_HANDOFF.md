@@ -6,6 +6,29 @@
 
 ---
 
+## Claude Update - 2026-06-29 13:40 — "git status" short-circuit fix (alpha.47)
+
+### Current Task
+Kullanıcı: koca bir tedarik-zinciri güvenlik sorusuna CODEGA "git status" demiş. Kök neden (probe ile): benchmark-reasoner.js commandOnlyAnswer footgun.
+
+### Kök neden
+- "...komutu VERİP" -> "komutu ver" gate; "durumLA" -> "durum"; **"Eğitim"->fold->"egitim" icinde "git"** substring -> /(git)/ eslesti -> "git status" dondu, model BY-PASS edildi.
+
+### Files merged (main — alpha.47)
+- agent/benchmark-reasoner.js — commandOnlyAnswer: uzunluk guard (>200 char -> modele git) + git/docker kelime siniri.
+- __tests__/benchmark-reasoner.test.js — 3 yeni test. 346/346.
+
+### Decisions
+- Guvenlik cevabini HARDCODE ETMEDIM (acik-uclu soru). Dogru cozum: kisayolu kaldirip soruyu gercek modele ulastirmak.
+
+### Tests Run
+- check OK (184), full 346/346. CI desktop-v6.0.0-alpha.47 dogrulanacak.
+
+### Suggested Next Step For Codex
+- solveKnownReasoningBenchmarks / instantAnswer gibi diger fast-path substring kurallari da benzer footgun tasiyabilir; kelime siniri + uzunluk acisindan gozden gecirmeye deger.
+
+---
+
 ## Claude Update - 2026-06-29 13:10 — PR #91 review + düzeltme + release (alpha.46)
 
 ### Current Task
