@@ -55,9 +55,9 @@ describe("Academy curriculum", () => {
     }
   });
 
-  test("Level 2 tam islenmis: 9 ders, hepsinde sinav sorusu + brainRule", () => {
+  test("Level 2 tam islenmis: 10 ders, hepsinde sinav sorusu + brainRule", () => {
     const l2 = lessonsForLevel(2);
-    expect(l2.length).toBe(9);
+    expect(l2.length).toBe(10);
     for (const lesson of l2) {
       expect(lesson._stub).toBeFalsy();
       expect(lesson.exam.questions.length).toBeGreaterThan(0);
@@ -83,6 +83,29 @@ describe("AcademyOS", () => {
   test("studyLesson dersi calisma listesine ekler", () => {
     academy.studyLesson("L1-utf8-integrity");
     expect(academy.transcript().lessonsStudied).toContain("L1-utf8-integrity");
+  });
+
+  test("atomic-file-transaction dersi var ve brainRule iceriyor", () => {
+    const lesson = academy.getLesson("L2-atomic-file-transaction");
+    expect(lesson).toBeTruthy();
+    expect(lesson.exam.questions.length).toBeGreaterThan(0);
+    expect(lesson.brainRules.some((r) => /atomic.*staged rollback/i.test(r.title))).toBe(true);
+  });
+
+  test("seedCoreEngineeringRules atomik dosya kuralini EngineeringBrain'e seed eder", () => {
+    const seeded = academy.seedCoreEngineeringRules();
+    expect(seeded).toBeGreaterThan(0);
+    expect(brainLearned.some((r) => /Dependent file updates must be atomic/i.test(r.title))).toBe(true);
+    expect(brainLearned.some((r) => /file-lock/i.test((r.tags || []).join(",")))).toBe(true);
+  });
+
+  test("seed idempotenttir (dedup brain'de sayı sabit kalir)", () => {
+    const seen = new Set();
+    const dedupBrain = { learn: (r) => { if (!seen.has(r.title)) seen.add(r.title); return r; } };
+    const a2 = new AcademyOS({ dataDir: fs.mkdtempSync(path.join(os.tmpdir(), "acad-seed2-")), engineeringBrain: dedupBrain }).init();
+    const n1 = a2.seedCoreEngineeringRules();
+    a2.seedCoreEngineeringRules();
+    expect(seen.size).toBe(n1); // ikinci seed yeni kural eklemez
   });
 
   test("studyLesson bilinmeyen ders icin hata firlatir", () => {
