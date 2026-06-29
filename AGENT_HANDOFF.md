@@ -6,6 +6,67 @@
 
 ---
 
+## Claude Update - 2026-06-29 15:40 — Codex renderer Stop/Abort patch review + release (alpha.51)
+
+### Current Task
+Codex'in renderer Stop/Abort cleanup patch'ini (uncommitted, ortak working tree) review ettim ve release'e alıyorum. Onay: patch DOĞRU.
+
+### Review sonucu (POSITIVE)
+- `cancelled` flag + `activeChatRunCleanup`: Stop'ta timer/RAF temizliği, IPC listener sökme, partial cevabı koruma + not, `streamView.dispose()` (geç token'lar yok sayılır), `isSending`/UI anında reset. Doğru sıralama (önce partial koru, sonra dispose). `if (cancelled) return` ile abort sonrası gelen sonuç placeholder'ı ezmiyor. Stop cleanupRun + finally çift-çalışması idempotent (offStream/dispose/clear no-op tekrarlar).
+- Referans edilen tüm fonksiyonlar mevcut (focusComposer, finishInterruptedPlaceholder, clearActiveChatRunCleanup, ...). node --check + check.mjs OK.
+
+### Benim eklediğim sertleştirme
+- Stop butonu handler'ı: `activeChatRunCleanup(...)` artık try/catch içinde — cleanup bir DOM/state hatasıyla patlasa bile `window.codega.abortChat()` MUTLAKA çalışır (yoksa model arka planda üretmeye devam ederdi). Codex patch'ine küçük review iyileştirmesi.
+
+### Files (release — alpha.51)
+- `src/renderer/renderer.js` (Codex patch + Claude stop-handler try/catch sertleştirmesi)
+- `package.json` + `check.mjs` guard → alpha.51
+
+### Tests Run
+- node --check renderer.js OK, check OK (187 dosya), full 357/357. CI alpha.51 doğrulanacak.
+- KALAN RİSK: canlı Electron UI smoke testi (stream başlat → Stop → UI reset + "Yanıt kullanıcı tarafından durduruldu." + geç token placeholder'ı bozmasın) bu ortamda çalıştırılamadı (Electron + Ollama gerekiyor). Kod review + fonksiyon-varlığı + syntax + regresyon ile kapsandı; canlı UI testini kullanıcı/Codex yapmalı (Codex'in önerdiği adımlarla).
+
+### Not (Codex'e)
+- Teşekkürler — eksik halka teşhisin (main AbortController değil renderer state reset) doğruydu, patch temizdi. Sadece stop-handler'a abort-her-zaman-çalışsın guard'ı ekledim.
+
+---
+
+## Codex Update - 2026-06-29 14:44 — renderer stream abort/state reset patch
+
+### Current Task
+Kullanıcının ekran görüntüsündeki uzun streaming sorusunda CODEGA AI "Düşünüyorum..."da kalma/Stop sonrası toparlanamama riskini inceledim. Alpha.50 model tekrar parametreleri ayrı bir katman; burada renderer lifecycle boşluğu vardı.
+
+### Files Touched
+- `apps/codegaai-desktop/src/renderer/renderer.js` — aktif chat run cleanup/state reset eklendi.
+- `AGENT_HANDOFF.md` — Codex koordinasyon notu eklendi.
+
+### Decisions Made
+- Main/Ollama tarafında `AbortController` zaten var (`chat:abort` → `modelManager.abortCurrent()` → Ollama stream signal).
+- Eksik halka renderer tarafındaydı: Stop butonu sadece `abortChat()` çağırıyordu; placeholder, `chat:stream`/`chat:status` listener'ları, pending `requestAnimationFrame`, timer'lar ve `isSending` UI state'i promise dönene kadar canlı kalabiliyordu.
+- `createStreamView.dispose()` eklendi; disposed stream token'ları yok sayılıyor ve buffer referansı bırakılıyor.
+- Her submit/regenerate akışı artık `activeChatRunCleanup` kuruyor. Stop anında:
+  - slow/status timer'ları temizlenir,
+  - pending RAF iptal edilir,
+  - IPC stream/status listener'ları sökülür,
+  - partial answer varsa korunup "Yanıt kullanıcı tarafından durduruldu." notu eklenir,
+  - stream buffer dispose edilir,
+  - `isSending=false`, send/stop UI reset, chat kaydı ve render anında yapılır.
+
+### Issues / Blockers
+- Blocker yok.
+- Bu patch renderer state reset'i kapsar; gerçek Electron UI smoke testi henüz yapılmadı.
+- Sürüm bump/release yapılmadı; mevcut sürüm `6.0.0-alpha.50`.
+
+### Tests Run
+- `node --check apps/codegaai-desktop/src/renderer/renderer.js` → OK.
+- `npm run check` → OK: 187 JS dosyası sözdizimi doğrulandı, sürüm `6.0.0-alpha.50`.
+
+### Suggested Next Step For Claude
+- Bu patch review edilip uygunsa alpha.51 release'e alınabilir.
+- Ek smoke önerisi: uzun Ollama streaming cevabı başlat, 1-2 token geldikten sonra Durdur'a bas; UI hemen yeni prompt almalı, son mesaj "Yanıt kullanıcı tarafından durduruldu." durumuna geçmeli, geç gelen token placeholder'ı değiştirmemeli.
+
+---
+
 ## Claude Update - 2026-06-29 14:40 — Hard Gate tek-soru cevabı gizlemesin (alpha.49)
 
 ### Current Task
