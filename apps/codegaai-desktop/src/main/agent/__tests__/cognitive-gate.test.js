@@ -110,6 +110,23 @@ describe("cognitive gate — multi-task false-block protection", () => {
     }
   });
 
+  test("sıralı çözücü çıktısı (**Test N – Etiket** başlıkları) korunur, çöp eklenmez", async () => {
+    // Çok-görevli sıralı çözücü her görevi ayrı çözüp "**Test N – Etiket**\nCevap: ..."
+    // biçiminde birleştirir. Bu biçim de çökmeden, çöp "Final Answer: ..." satırı
+    // eklenmeden gösterilmeli.
+    const assembled = [
+      "**Test 1 – Dikkat**", "Cevap: 6 inek kaldi.", "",
+      "**Test 2 – Mantık**", "Cevap: Kazazedeler gomulmez.", "",
+      "**Test 6 – Kediler**", "Cevap: 3 kedi cember olusturur.", "",
+      "**Test 10 – Top**", "Cevap: 4 top.",
+    ].join("\n");
+    const { res } = await runGate(MULTI_INPUT, assembled);
+    for (const needle of ["6 inek", "gomulmez", "3 kedi", "4 top"]) {
+      expect(res.answer).toContain(needle);
+    }
+    expect(res.answer).not.toMatch(/Final Answer:\s*Test 1:\s*\*\*/);
+  });
+
   test("tek soru girdisinde sanity kapısı sıkı kalır (applicable=false)", () => {
     const ctx = kernel.createContext("2+2 kaç eder?");
     kernel.runIntake(ctx);

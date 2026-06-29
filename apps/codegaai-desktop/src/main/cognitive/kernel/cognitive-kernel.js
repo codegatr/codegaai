@@ -196,10 +196,20 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
     return { ok: true, confidence: explained.changed ? 100 : null, detail: { changed: !!explained.changed } };
   });
 
+  // Registry mergeIntoAnswer yalnız EKSİK cevap eklerse uygulanır; cevap zaten
+  // tamsa (çok-görevli çözücü çıktısı gibi) yeniden-birleştirme atlanır —
+  // brittle hidrasyon aksi halde çöp "Final Answer: ..." satırı ekliyor/çökertiyor.
+  const mergeIfImproves = (txt) => {
+    if (!context.taskRegistry) return txt;
+    const before = finalAnswerSanitizer.countAnswerSections(txt);
+    const merged = context.taskRegistry.mergeIntoAnswer(txt);
+    return finalAnswerSanitizer.countAnswerSections(merged) > before ? merged : txt;
+  };
+
   if (context.taskReport && context.taskReport.applicable) {
     await runStage(context, "task-registry:register", async () => {
       const summary = context.taskRegistry.hydrateFromAnswer(finalText);
-      if (summary.complete) finalText = context.taskRegistry.mergeIntoAnswer(finalText);
+      if (summary.complete) finalText = mergeIfImproves(finalText);
       return {
         ok: true,
         confidence: summary.complete ? 100 : Math.max(0, Math.round((summary.answered / summary.expected) * 100)),
@@ -209,7 +219,7 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
 
     await runStage(context, "sacv:semantic-completeness", async () => {
       if (context.taskRegistry && context.taskRegistry.isComplete()) {
-        finalText = context.taskRegistry.mergeIntoAnswer(finalText);
+        finalText = mergeIfImproves(finalText);
       }
       let coverage = sacv.validateSemanticCompleteness(finalText, context.taskReport);
       if (!coverage.ok && typeof generate === "function") {
@@ -224,7 +234,7 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
         }
         if (context.taskRegistry) {
           const summary = context.taskRegistry.hydrateFromAnswer(finalText);
-          if (summary.complete) finalText = context.taskRegistry.mergeIntoAnswer(finalText);
+          if (summary.complete) finalText = mergeIfImproves(finalText);
         }
         coverage = sacv.validateSemanticCompleteness(finalText, context.taskReport);
       }
