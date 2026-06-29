@@ -293,6 +293,8 @@ if (!indexHtml.includes("mode-tabs") || !indexHtml.includes('data-mode="cowork"'
 const rendererFile2 = readText(join(root, "src/renderer/renderer.js"));
 if (!rendererFile2.includes("attachZipFromPath") || !rendererFile2.includes("zip.saveFiles")) throw new Error("renderer.js chat içi ZIP oku/indir baglantisi eksik");
 if (!rendererFile2.includes("MODE_DIRECTIVES")) throw new Error("renderer.js çalışma modu (MODE_DIRECTIVES) eksik");
+const toolsFile = readText(join(root, "src/main/agent/tools.js"));
+if (!toolsFile.includes("fetchTextResilient") || !toolsFile.includes("AUTH_WALL_RE")) throw new Error("tools.js kademeli public-içerik çekme (fetchTextResilient/AUTH_WALL_RE) eksik");
 const mainFile = readText(join(root, "src/main/main.js"));
 if (!mainFile.includes("registerACEIpc")) throw new Error("main.js ACE IPC kaydi eksik");
 if (!mainFile.includes("registerAcademyIpc")) throw new Error("main.js Academy IPC kaydi eksik");
@@ -300,7 +302,7 @@ if (!mainFile.includes("seedCoreEngineeringRules")) throw new Error("main.js Aca
 const modelManagerFile = readText(join(root, "src/main/model-manager.js"));
 if (!modelManagerFile.includes("sanitizePrompt")) throw new Error("model-manager.js isim temizleme (sanitizePrompt) baglantisi eksik");
 
-if (pkg.version !== "6.0.0-alpha.56") throw new Error(`Desktop package version must be 6.0.0-alpha.56, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.57") throw new Error(`Desktop package version must be 6.0.0-alpha.57, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

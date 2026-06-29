@@ -1,3 +1,28 @@
+## Claude Update - 2026-06-29 20:15 — Kademeli public-içerik çekme (insane-search fikri) (alpha.57)
+
+### Current Task
+Web-araştırma aracına insane-search tarzı **kademeli fallback** eklendi: bir sayfa düz fetch ile gelmezse sırayla alternatif PUBLIC yollar denenir. SADECE herkese açık içerik; login/paywall'da durur.
+
+### Yapılanlar (tools.js)
+- `fetchTextResilient(url)`: T1 doğrudan (gerçek tarayıcı başlıkları) → T2 mobil UA → T3 public reader (`r.jina.ai`, JS render eden okuyucu, son çare). Dönüş `{ text, via }`.
+- Kalite kapısı: `looksThin()` (düz metin <200 karakterse "ince" sayılır, bir sonraki faza geç). Sadece 2xx/3xx + dolu içerik kabul.
+- Güvenlik/etik: `AUTH_WALL_RE` login/paywall işaretini yakalarsa **yükseltme yapmadan** hata verir ("kimlik doğrulama/paywall gerekli — public okuma durduruldu"). Auth duvarını reader ile aşmaya çalışmaz.
+- `read_url` ve `research` artık bu katmanı kullanır; `read_url` çıktısında köken gösterilir (örn. "· (reader ile)").
+- Not: T3 reader, hedef URL'yi üçüncü taraf public servise iletir (yalnız son çare, yalnız public URL).
+
+### Tests Run
+- Yeni: `__tests__/tools-resilient-fetch.test.js` (7 test, global.fetch mock'lu): T1 başarı, T1/T2 ince→reader, auth-wall→dur, hepsi başarısız→hata, looksThin, AUTH_WALL_RE.
+- check 191 dosya OK, full **384/384** (21 suite) PASS.
+
+### Sürüm
+- 6.0.0-alpha.57. check.mjs guard: tools.js fetchTextResilient/AUTH_WALL_RE.
+
+### Not (sıradaki)
+- İstenirse reader fazını bir ayara bağlamak (gizlilik: URL üçüncü tarafa gider) düşünülebilir.
+- Release CI yarışı (alpha.56'da Windows latest.yml) hâlâ açık konu: release işlerini seri kılmak kalıcı çözüm.
+
+---
+
 ## Claude Update - 2026-06-29 19:05 — Chat içi ZIP + mod sekmeleri + mesaj kopyala (alpha.56)
 
 ### Current Task
