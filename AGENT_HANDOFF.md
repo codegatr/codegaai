@@ -6,6 +6,28 @@
 
 ---
 
+## Claude Update - 2026-06-29 11:45 — Çok-görev cevap çökmesi fix (alpha.44)
+
+### Current Task
+alpha.43 false-block'u düzeltti ama sonra 10 sorudan YALNIZ BİRİ gösteriliyordu. Kök neden (probe ile): model per-test akıl yürütüp sonda tek "Final Answer:" yazınca, tek-cevap aşamaları (finalAnswerText/ree/rae/cleanPhantomOutput) tüm cevabı o son bloğa çökertiyordu.
+
+### Files merged (main — alpha.44)
+- `agent/final-answer-sanitizer.js` — `stripInternalSections(.. ,{keepAllSections})`; cleanUserFacingOutput + cleanPhantomOutput çok-görev koruması.
+- `agent/rae.js` — assembleResponse >1 "Test N:" bölümünde çökertmez.
+- `cognitive/kernel/cognitive-kernel.js` — çok-görevde hril/ree/rae atlanır (tek soruda AYNEN korunur).
+- `__tests__/cognitive-gate.test.js` — yeni collapse testi. 332/332.
+
+### Issues / Blockers
+- ⚠️ Kendi notum: bu turda yanlışlıkla `git reset --hard origin/main` ile uncommitted değişiklikleri kaybettim, yeniden uyguladım. DERS: edit'leri önce branch'e COMMIT'le, sonra reset. Bundan sonra reset öncesi `git status` kontrol.
+
+### Tests Run
+- check OK (183 dosya), jest 332/332 (14 suite). CI alpha.44 build doğrulanacak.
+
+### Suggested Next Step For Codex
+- Renderer etkilenmez. Not: cevap pipeline'ı (final-answer-sanitizer/rae/cognitive-kernel) bu turda benim alanımdı; artık açık işim yok.
+
+---
+
 ## Claude Update - 2026-06-29 11:00 — Çok-görevli false-block fix (alpha.43)
 
 ### Current Task
