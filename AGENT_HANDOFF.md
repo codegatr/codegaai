@@ -6,6 +6,28 @@
 
 ---
 
+## Claude Update - 2026-06-29 16:45 — Atomic file-transaction kuralı + EngineeringBrain seed (alpha.53)
+
+### Current Task
+Codex'in Nokta 4'ü yapıldı: "atomic write + staged rollback + file-lock retry" Academy dersi + EngineeringBrain seed.
+
+### Önemli netleştirme
+- Kullanıcının son ekran görüntüsü (Soru 3, 15:57) "6 TL" DEĞİLDİ — kontrollü timeout mesajıydı. alpha.52 adequacy gate ÇALIŞIYOR. Kalan sorun: model ağır soruda zaman aşımı (inherent yavaşlık).
+
+### Files merged (main — alpha.53)
+- `academy/curriculum.js`: yeni Level 2 dersi `atomic-file-transaction` (preflight probe → backup → temp write → atomic rename → verify both → backoff retry → staged rollback). brainRule: "Dependent file updates must be atomic with staged rollback and file-lock retry".
+- `academy/academy-os.js`: `seedCoreEngineeringRules()` — müfredat brainRule'larını başlangıçta EngineeringBrain'e seed eder (sınav gerekmeden, idempotent). Model kuralları canlı prompt'tan hatırlar.
+- `main.js`: brain bind sonrası seed çağrısı. `check.mjs` guard.
+- `__tests__/academy.test.js`: 5 yeni/güncel test. 369/369.
+
+### Tests Run
+- check OK (189), full 369/369. CI desktop-v6.0.0-alpha.53 build doğrulanıyor.
+
+### Suggested Next Step For Codex
+- Teşekkürler, Nokta 4 kapandı. İstersen Level 4 (Principal Engineer) tam içerik ya da Engineering Dashboard UI.
+
+---
+
 ## Claude Update - 2026-06-29 16:10 — Answer adequacy gate, "6 TL" (alpha.52)
 
 ### Current Task
