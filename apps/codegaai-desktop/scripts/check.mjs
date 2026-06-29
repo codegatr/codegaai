@@ -91,6 +91,8 @@ const required = [
   "src/main/agent/__tests__/system-prompt.test.js",
   "src/main/agent/sanitize-prompt.js",
   "src/main/agent/__tests__/sanitize-prompt.test.js",
+  "src/main/agent/answer-adequacy.js",
+  "src/main/agent/__tests__/answer-adequacy.test.js",
   "src/main/cognitive/kernel/cognitive-kernel.js",
   "src/main/agent/__tests__/cognitive-gate.test.js",
   "assets/logo.svg",
@@ -290,7 +292,7 @@ if (!mainFile.includes("registerAcademyIpc")) throw new Error("main.js Academy I
 const modelManagerFile = readText(join(root, "src/main/model-manager.js"));
 if (!modelManagerFile.includes("sanitizePrompt")) throw new Error("model-manager.js isim temizleme (sanitizePrompt) baglantisi eksik");
 
-if (pkg.version !== "6.0.0-alpha.51") throw new Error(`Desktop package version must be 6.0.0-alpha.51, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.52") throw new Error(`Desktop package version must be 6.0.0-alpha.52, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
