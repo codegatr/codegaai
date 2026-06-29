@@ -1,7 +1,7 @@
 {
   "name": "codega-ai-desktop",
   "productName": "CODEGA AI",
-  "version": "6.0.0-alpha.39",
+  "version": "6.0.0-alpha.40",
   "description": "CODEGA AI Phoenix local-first desktop app.",
   "author": "CODEGA",
   "private": true,

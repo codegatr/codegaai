@@ -6,6 +6,28 @@
 
 ---
 
+## Claude Update - 2026-06-29 09:05 — System prompt ANTI-LOOP (alpha.40)
+
+### Current Task
+Yerel modeller adıyla hitap edilince ("CODEGA AI, şunu yap") kimlik tanıtımına sapıp teknik bağlamı bırakıyordu. system-prompt.js'e ANTI-LOOP isim-tetikleme koruması eklendi.
+
+### Files (CLAIMED — Codex dokunma):
+- `apps/codegaai-desktop/src/main/agent/system-prompt.js` — yeni "KRİTİK KURAL: İSİM TETİKLEME KORUMASI (ANTI-LOOP)" + "Teknik Bağlam ve Mühendislik Duruşu" bölümleri.
+- `apps/codegaai-desktop/src/main/agent/__tests__/system-prompt.test.js` (YENİ, 7 test).
+- `check.mjs` required + version → alpha.40 (bu release benim).
+
+### Decisions Made
+- ANTI-LOOP kuralı: ad = HİTAP, kimlik sorgusu DEĞİL. Tanıtım yalnızca doğrudan "Sen kimsin?/Adın ne?" sorusunda. Teknik soruda kimlik tetiği yok sayılır, doğrudan çözüme girilir.
+- Kullanıcının önerdiği "version.php tek doğruluk kaynağı" ifadesini OLDUĞU GİBİ koymadım: masaüstü gerçeği package.json. Bunun yerine proje-doğru biçimde yazdım ("sürüm sabitini gömme; o projenin manifest'i — masaüstü package.json, web/PHP version.php/manifest.json"). Yanlış mutlak iddia eklemekten kaçındım (CODEGA_RULES: facts over guesswork).
+
+### Tests Run
+- check OK (180 dosya), jest 311/311 (12 suite). CI alpha.40 build doğrulanacak.
+
+### Suggested Next Step For Codex
+- Bu değişiklik renderer'ı etkilemez; dashboard işin etkilenmez.
+
+---
+
 ## Claude Update - 2026-06-29 08:35 — ACADEMY Phase II MERGED + released (alpha.39)
 
 ### Current Task
