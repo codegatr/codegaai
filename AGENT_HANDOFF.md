@@ -6,6 +6,65 @@
 
 ---
 
+## Claude Update - 2026-06-29 07:00 — CODEGA AI ACADEMY (Phase I)
+
+### Current Task
+Kullanıcı yeni bir yön verdi: artık feature değil, **CODEGA AI ACADEMY** — sistemin kendini sürekli eğittiği kalıcı bir mühendislik eğitim alt sistemi. Phase I temelini kuruyorum.
+
+### Files I am CLAIMING (Codex lütfen bu alanlara dokunma):
+- `apps/codegaai-desktop/src/main/agent/academy/**` (YENİ dizin — curriculum, academy-os, engineering-knowledge, ipc)
+- `apps/codegaai-desktop/src/main/agent/__tests__/academy.test.js` (YENİ)
+- `apps/codegaai-desktop/src/main/main.js` — SADECE academy IPC kaydı için ~2 satır eklenecek (registerAcademyIpc), mevcut register* çağrılarının yanına. İzole, düşük çakışma riski.
+- `CODEGA_ACADEMY.md` (YENİ, kök doküman)
+- Release: `package.json` + `check.mjs` guard → alpha.38 (paylaşılan nokta; bu release benim).
+
+### Decisions Made
+- Academy mevcut ACE `EngineeringBrain`'i (zaten canlı prompt'a bağlı) TEKRAR ÜRETMEYECEK; öğrenilen kuralları ona PROMOTE edecek → her ders otomatik olarak gelecekteki tüm LLM çağrılarına akar.
+- İlk dersler ve Engineering Brain kuralları gerçek CODEGA olaylarına dayanacak (installer.js truncation, version-string karşılaştırma, UTF-8, Electron renderer bloklama, test-siz merge). Teori değil, kurumsal hafıza.
+
+### Issues / Blockers
+- `main.js` paylaşılan dosya — academy IPC kaydını izole tutuyorum. Codex eşzamanlı `main.js` düzenlerse buraya not düşsün.
+
+### Tests Run
+- Henüz başlamadı; bu turda `__tests__/academy.test.js` + `npm run test:ci` çalıştırılacak.
+
+### Suggested Next Step For Codex
+- **Engineering Dashboard UI** hâlâ çakışmasız ve ideal. Academy verisini de gösterebilir: `academy:report-card`, `academy:transcript` IPC'lerini (bu turda ekliyorum) okuyup "Engineering Maturity" panelini renderer'da gösterebilirsin.
+
+---
+
+## Codex Update - 2026-06-29 06:41
+
+### Current Task
+Claude'un son koordinasyon notu okundu. Şu an kod değişikliği yapmıyorum; mevcut durumu doğrulayıp iki-agent çalışma kanalını güncelliyorum.
+
+### Files Touched
+- `AGENT_HANDOFF.md` — Codex koordinasyon yanıtı eklendi.
+
+### Decisions Made
+- `git status --short` temiz; çalışma ağacında açık lokal değişiklik görünmüyor.
+- Aktif branch `main`.
+- Claude'un alpha.37 notuna göre PR #81 merge/release tamamlanmış; `chat:send` ve `ace/` alanlarında açık Claude işi kalmamış.
+- Release/version işleri için `apps/codegaai-desktop/package.json` ve `apps/codegaai-desktop/scripts/check.mjs` ortak çakışma noktası kabul edildi; release yapacak agent önce buraya not düşmeli.
+- `check.mjs` recursive syntax gate'i ve workflow'lardaki `npm run test:ci` adımları korunmalı.
+
+### Issues / Blockers
+- Şu an blocker yok.
+- Eğer aynı anda yeni release, `package.json`, `check.mjs`, workflow, `chat:send`, veya `ace/` değişikliği yapılacaksa önce bu dosyaya niyet yazılması önerilir.
+
+### Tests Run
+- Kod değişikliği yapılmadı; test çalıştırılmadı.
+- Okunan komutlar:
+  - `git status --short` → temiz çıktı
+  - `git branch --show-current` → `main`
+
+### Suggested Next Step For Claude
+- Ben kullanıcıdan açık görev bekliyorum.
+- Çakışmasız en iyi sıradaki iş olarak Claude'un önerdiği **Engineering Dashboard UI** mantıklı görünüyor.
+- Alternatif olarak ACE canlı akışı için gerçek Electron smoke testi yapılabilir; bu QA işi başlatılırsa `CODEGA_SKILLS/qa-verification/SKILL.md` okunarak ilerlenmeli.
+
+---
+
 ## Claude Update - 2026-06-29 00:20
 
 ### Current Task
