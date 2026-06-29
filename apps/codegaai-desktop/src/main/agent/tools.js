@@ -74,6 +74,76 @@ async function fetchText(url, timeoutMs = 12000) {
   }
 }
 
+// ----------------------------------------------- kademeli (resilient) çekme
+// insane-search fikri: bir sayfa düz fetch ile gelmezse (UA engeli, JS, vb.)
+// sırayla alternatif PUBLIC yollar dene. SADECE herkese açık içerik içindir;
+// login/paywall işareti görülürse YÜKSELTME YAPMA, "kimlik doğrulama gerekli" de.
+const BROWSER_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "tr,en;q=0.8",
+};
+const MOBILE_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "tr,en;q=0.8",
+};
+
+// Login/paywall işaretleri — bunları aşmaya çalışmayız.
+const AUTH_WALL_RE =
+  /(log[\s-]?in to continue|sign in to continue|please (?:log ?in|sign ?in)|subscribe to (?:read|continue)|create an account to|members[\s-]?only|giriş yap.{0,24}devam|oturum aç.{0,24}devam|abone ol.{0,24}(?:oku|devam))/i;
+
+// Düz metin içeriği "yeterli mi" — çoğu engelli/boş sayfa çok kısadır.
+function looksThin(html, min = 200) {
+  return stripTags(String(html || "")).length < min;
+}
+
+async function rawFetch(url, headers, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal, headers, redirect: "follow" });
+    const body = await res.text();
+    return { status: res.status, body };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Sayfayı sağlam biçimde çek: T1 düz (tarayıcı) → T2 mobil başlık → T3 public
+// reader (r.jina.ai, JS render eden herkese açık okuyucu — son çare).
+// Dönüş: { text, via }. Hiçbiri olmazsa hata fırlatır.
+async function fetchTextResilient(url, timeoutMs = 12000) {
+  const target = String(url || "").trim();
+  if (!/^https?:\/\//i.test(target)) throw new Error("Geçerli bir http(s) URL gerekli.");
+  const phases = [
+    { via: "doğrudan", url: target, headers: BROWSER_HEADERS },
+    { via: "mobil", url: target, headers: MOBILE_HEADERS },
+    // Son çare: herkese açık okuyucu proxy. Hedef URL bu servise iletilir.
+    { via: "reader", url: `https://r.jina.ai/${target}`, headers: { "User-Agent": BROWSER_HEADERS["User-Agent"] } },
+  ];
+  let lastErr = null;
+  for (const phase of phases) {
+    try {
+      const { status, body } = await rawFetch(phase.url, phase.headers, timeoutMs);
+      // Login/paywall: bilerek YÜKSELTME YAPMA — public okumayı durdur.
+      if (phase.via !== "reader" && AUTH_WALL_RE.test(body)) {
+        throw new Error("kimlik doğrulama/paywall gerekli — public okuma durduruldu");
+      }
+      if (status >= 200 && status < 400 && !looksThin(body)) {
+        return { text: body, via: phase.via };
+      }
+      lastErr = new Error(`HTTP ${status}`);
+    } catch (e) {
+      if (/kimlik doğrulama\/paywall/.test(e.message || "")) throw e; // auth: hemen dur
+      lastErr = e;
+    }
+  }
+  throw new Error(lastErr ? lastErr.message : "içerik alınamadı (tüm yollar denendi)");
+}
+
 // ---------------------------------------------------------- search parsing
 /** DuckDuckGo HTML sonuçlarını yapılandırılmış listeye çevir. */
 function parseSearchResults(html, max = 5) {
@@ -139,11 +209,11 @@ async function toolResearch(query, maxSources = 3) {
     if (sources.length >= Number(maxSources)) break;
     let body = r.snippet || "";
     try {
-      const page = await fetchText(r.href, 10000);
-      const text = stripTags(page);
+      const page = await fetchTextResilient(r.href, 10000);
+      const text = stripTags(page.text);
       if (text && text.length > body.length) body = text.slice(0, 1500);
     } catch (_e) {
-      // sayfa çekilemedi: snippet ile yetin
+      // sayfa çekilemedi (engel/paywall): snippet ile yetin
     }
     sources.push(`### Kaynak ${sources.length + 1}: ${r.title}\n${r.href}\n${body}`);
   }
@@ -159,9 +229,10 @@ async function toolReadUrl(url) {
   const u = String(url || "").trim();
   if (!/^https?:\/\//i.test(u)) return "⚠️ Geçerli bir http(s) URL gerekli.";
   try {
-    const html = await fetchText(u);
-    const text = stripTags(html).slice(0, 4000);
-    return `📄 ${u}\n\n${text}`;
+    const { text: raw, via } = await fetchTextResilient(u);
+    const text = stripTags(raw).slice(0, 4000);
+    const tag = via && via !== "doğrudan" ? ` · (${via} ile)` : "";
+    return `📄 ${u}${tag}\n\n${text}`;
   } catch (e) {
     return `⚠️ URL okunamadı: ${e.message || e}`;
   }
@@ -631,4 +702,7 @@ module.exports = {
   toolCurrentTime,
   toolWeather: toolWeatherDirect,
   parseSearchResults,
+  fetchTextResilient,
+  _looksThin: looksThin,
+  _AUTH_WALL_RE: AUTH_WALL_RE,
 };
