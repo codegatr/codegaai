@@ -17,6 +17,11 @@ Kullanıcı alpha.55'teki sidebar "Proje İçe/Dışa Aktar" butonlarının iste
 ### Tests Run
 - check 190 dosya OK, full 377/377 (20 suite) PASS.
 
+### CI / Release (doğrulandı)
+- desktop-v6.0.0-alpha.56: macOS + Desktop Release **success**. Windows ilk koşuda `softprops/action-gh-release` yarış koşulu (eşzamanlı taslak release) yüzünden `latest.yml` yüklerken "Not Found" alıp **failed** oldu — .exe/.blockmap yine de yüklendi. Başarısız Windows işi **yeniden çalıştırıldı** → success; `latest.yml` artık release'te.
+- Assets (yayında, draft değil, tam): CODEGA-AI-Setup-6.0.0-alpha.56.exe + .blockmap, universal .dmg, universal .zip, **latest.yml**, latest-mac.yml, SHA256SUMS.txt, UNSIGNED-BUILD-NOTICE.txt.
+- Kod hatası değil, altyapı flake'i. İleride: release işlerini seri kılmak (concurrency/needs) veya tek "publish" işine indirmek bu yarışı kalıcı kapatır.
+
 ### Not (sıradaki)
 - Cowork/Code modlarının main process tarafı şimdilik sadece prompt yönlendirmesi; ileride mod-bazlı araç seti/sistem davranışı derinleştirilebilir.
 
