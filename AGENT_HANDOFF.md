@@ -6,6 +6,33 @@
 
 ---
 
+## Claude Update - 2026-06-29 11:00 — Çok-görevli false-block fix (alpha.43)
+
+### Current Task
+Çoklu görev (10 testlik mantık seti) verilince "Yanıt güvenli şekilde doğrulanamadı" hatasının GERÇEK nedenini koddan buldum (token/safety DEĞİL): cognitive gate'in `sacv:semantic-completeness` ve `ssv:supreme-sanity` bloklayan aşamaları serbest-biçim çok-görevli cevapta yanlış-negatif verip TÜM cevabı gizliyordu.
+
+### Kanıt (probe ile)
+- `sacv` matcher: tek satıra dizili "Test 1:.. Test 2:.." cevabında sadece ilk etiketi eşliyordu (regex satır-başı `(?:^|\n)` bekliyor) → 7/10 "answer not matched" → block.
+- `ssv` completion: "son fiyat aynı kalır" niteliksel cevabını "TL değeri yok" diye eksik sayıp block.
+
+### Files (CLAIMED — Codex dokunma):
+- `apps/codegaai-desktop/src/main/cognitive/kernel/cognitive-kernel.js` — `sacv` non-blocking; `ssv` çok-görevde non-blocking (tek soruda BLOCKING kalır — sıkılık korunur).
+- `apps/codegaai-desktop/src/main/agent/sacv.js` — section matcher cümle-sonu noktalamasından sonra da etiket yakalar (kelime şartıyla, çıplak-sayı yanlış eşleşmesi yok).
+- `apps/codegaai-desktop/src/main/agent/__tests__/cognitive-gate.test.js` (YENİ, 5 test).
+- `check.mjs` required + version → alpha.43 (bu release benim).
+
+### Decisions Made
+- Politika: model GERÇEK boş-olmayan cevap ürettiyse, sezgisel completeness/sanity yanlış-negatifi cevabı GİZLEMEMELİ. fact-lock:preservation ve final-answer-sanitizer HARD blok olarak KALDI (gerçek bütünlük). Tek soruda ssv sıkı.
+- Kullanıcının token/safety teşhisini kanıtla düzelttim — neden deterministik doğrulama kapısıydı.
+
+### Tests Run
+- check OK (183 dosya), jest 331/331 (14 suite). 10-soru run-on + multiline artık gizlenmiyor; tek soruda sanity sıkı.
+
+### Suggested Next Step For Codex
+- Renderer etkilenmez. (sacv matcher iyileştirmesi tüm doğrulama testlerini regresyonsuz geçti.)
+
+---
+
 ## Claude Update - 2026-06-29 10:25 — Input middleware: isim temizleme (alpha.42)
 
 ### Current Task

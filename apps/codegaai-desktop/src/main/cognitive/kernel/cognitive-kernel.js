@@ -236,7 +236,13 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
           registry: context.taskRegistry ? context.taskRegistry.summary() : null,
         },
       };
-    }, { blocking: true });
+    // NON-BLOCKING: Tamamlanma eşleştiricisi serbest-biçim çıktıda yanlış-negatif
+    // verebiliyor (örn. tek satıra dizilmiş "Test 1: ... Test 2: ..." cevapları
+    // satır-başı bekleyen section matcher'a takılır). Bu aşama başarısız olduğunda
+    // BOŞ olmayan gerçek cevabı GİZLEMEK ("Yanıt güvenli şekilde doğrulanamadı")
+    // kullanıcı için en kötü sonuçtur. Bu yüzden bloklamıyoruz: yukarıdaki repair
+    // adımı eksikleri gerçekten doldurmaya çalışır; sonra cevap yine de gösterilir.
+    }, { blocking: false });
   }
 
   await runStage(context, "final-answer-sanitizer", async () => {
@@ -282,6 +288,12 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
   }
 
   if (!context.blocked) {
+    // SSV tek soruda güvenilir bir sanity kapısıdır → bloklar. Ama ÇOK-GÖREVLİ
+    // girdilerde (10 testlik mantık seti gibi) görev-başı sezgileri (completion/
+    // consistency) yanlış-negatif verir (örn. "son fiyat aynı kalır" niteliksel
+    // cevabı TL değeri içermediği için 'eksik' sanılır). Çok-görevli durumda
+    // bloklamıyoruz: gerçek, boş-olmayan cevabı gizlemek en kötü sonuçtur.
+    const ssvBlocking = !(context.taskReport && context.taskReport.applicable);
     await runStage(context, "ssv:supreme-sanity", async () => {
       let sanity = ssv.validateSupremeSanity(context.input, finalText, context.taskReport, {
         factLock: context.factLock,
@@ -298,7 +310,7 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
         errors: sanity.errors,
         detail: { scores: sanity.scores, corrections: sanity.corrections },
       };
-    }, { blocking: true });
+    }, { blocking: ssvBlocking });
   }
 
   context.answer = context.blocked ? blockedAnswer(context) : finalText;
