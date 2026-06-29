@@ -14,8 +14,8 @@ describe("benchmark reasoner — dikkat ve muhakeme seti", () => {
     },
     {
       q: "Bir göletteki nilüferler her gün iki katına çıkıyor. Göl 40. günde tamamen doluyor. Gölün dörtte üçü hangi gün dolmuştur?",
-      must: [/40\. gün içinde/i, /39,42/i],
-      mustNot: [/^39\. gün\.?$/i],
+      must: [/39,58/i, /39\. ile 40\. gün/i],
+      mustNot: [/^39\. gün\.?$/i, /39,42/i],
     },
     {
       q: "Bir sayı düşün. 5 ile çarp. 20 ekle. 5'e böl. Başlangıç sayısını çıkar. Sonuç kaçtır?",
