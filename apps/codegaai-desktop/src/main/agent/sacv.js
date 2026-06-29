@@ -125,8 +125,15 @@ function buildSectionMap(finalText, tasks) {
   for (const task of tasks) {
     const id = String(task.id || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     if (!id) continue;
-    // "Test 1" / "Soru 1" / "Görev 1" / "1:" / "1." / "1)" başlıkları
-    const re = new RegExp(`(?:^|\\n)\\s*(?:\\*\\*)?(?:test|soru|g[oö]rev|task)?\\s*${id}\\s*[:).\\-–]`, "i");
+    // "Test 1" / "Soru 1" / "Görev 1" / "1:" / "1." / "1)" başlıkları.
+    // İki konum: (a) satır başında (anahtar kelime opsiyonel — "1:" da olur),
+    // (b) cümle sonu noktalamasından sonra (anahtar kelime ZORUNLU — tek satıra
+    // dizilmiş "...gömülmez. Test 3:" gibi run-on cevapları yakalar; çıplak sayı
+    // yanlış eşleşmesini önlemek için kelime şart).
+    const re = new RegExp(
+      `(?:(?:^|\\n)\\s*(?:\\*\\*)?(?:test|soru|g[oö]rev|task)?|[.!?;]\\s+(?:\\*\\*)?(?:test|soru|g[oö]rev|task))\\s*${id}\\s*[:).\\-–]`,
+      "i"
+    );
     const m = text.match(re);
     if (m && m.index != null) positions.push({ id: String(task.id), start: m.index });
   }
