@@ -18,6 +18,7 @@ const { runReact } = require("./agent/agent-loop");
 const { TOOLS: AGENT_TOOLS } = require("./agent/tools");
 const logs = require("./agent/logs");
 const { buildSystemPrompt } = require("./agent/system-prompt");
+const { sanitizePrompt } = require("./agent/sanitize-prompt");
 const { getSettings } = require("./agent/settings-store");
 const { recall, remember, extractDurableFacts } = require("./agent/memory");
 const learningStore = require("./agent/learning-store");
@@ -1089,6 +1090,11 @@ class ModelManager {
   }
 
   ask(input, opts = {}) {
+    // Girdi-katmanı: yerel modelin kendi adını görüp ezberlenmiş "Ben CODEGA AI..."
+    // personasına sapmasını önlemek için, modele giden kopyadan asistan adını
+    // (hitap konumunda) temizle. Kimlik soruları korunur. Transcript değişmez;
+    // yalnızca modele/geçmişe giden metin temizlenir.
+    input = sanitizePrompt(input);
     const run = async () => {
       this._activeForeground += 1;
       try {
