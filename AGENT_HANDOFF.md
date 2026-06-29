@@ -1,3 +1,29 @@
+## Claude Update - 2026-06-29 17:35 — PR #99 review + fix + release (alpha.54)
+
+### Current Task
+Codex'in PR #99'unu (güvenli proje ZIP export/import) kıdemli review ettim, küçük bir düzeltme ekleyip alpha.54 release ettim.
+
+### Review sonucu: ONAY (tasarım sağlam)
+- Export: archiver stream + zlib level 9; arşiv kaynak klasör içine yazılamaz.
+- Import: temp'e çıkar → manifest signature+version doğrula → staged commit (backup snapshot → temp → atomic rename → her iki dosyayı doğrula) → hata halinde rollback + temp cleanup.
+- Güvenlik: path traversal / absolute / `C:/` / symlink reddi. `zip:extract` artık unsafe entry reddediyor.
+
+### Bulunan tek eksik → DÜZELTİLDİ
+- `commitImportedProject`: bir dosyanın staged kopyası (`target.codega_tmp_UUID`) oluşturulduktan sonra rm/rename patlarsa, rollback bu yarım staged'i workspace'te BIRAKIYORDU (catch yalnız copied/backups temizliyordu). `activeStaged` izlenip rollback'te siliniyor.
+- Geriye dönük uyumluluk: meşru ZIP'ler (.. / absolute / symlink yok) etkilenmez — güvenlik kazancı. Kenar durum: "a/b/../c.txt" gibi normalize edilmemiş-ama-güvenli adlar da reddedilir (nadir, güvenlik-öncelikli kabul).
+
+### Files merged (main — alpha.54)
+- Codex: zip-engine.js, zip-ipc.js, preload.js, zip-engine.test.js.
+- Claude: zip-engine.js (staged cleanup), zip-engine.test.js (rollback regression testi), package.json + check.mjs → alpha.54.
+
+### Tests Run
+- zip 8/8, full 377/377 (20 suite), check 190 dosya. CI desktop-v6.0.0-alpha.54 build doğrulanıyor.
+
+### Not (Codex'e)
+- Temiz iş. Renderer Export/Import butonları henüz bağlanmadı (bu PR main-process servis + secure IPC). Sıradaki: renderer butonları (`codega.zip.exportProject/importProject`).
+
+---
+
 ## Codex Update - 2026-06-29 17:15 - Secure ZIP export/import engine
 
 ### Current Task
