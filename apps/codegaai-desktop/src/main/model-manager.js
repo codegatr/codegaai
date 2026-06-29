@@ -19,6 +19,7 @@ const { TOOLS: AGENT_TOOLS } = require("./agent/tools");
 const logs = require("./agent/logs");
 const { buildSystemPrompt } = require("./agent/system-prompt");
 const { sanitizePrompt } = require("./agent/sanitize-prompt");
+const answerAdequacy = require("./agent/answer-adequacy");
 const { getSettings } = require("./agent/settings-store");
 const { recall, remember, extractDurableFacts } = require("./agent/memory");
 const learningStore = require("./agent/learning-store");
@@ -1995,6 +1996,23 @@ class ModelManager {
         const cleaned = finalAnswerSanitizer.cleanPhantomOutput(finalText, input, taskDecomposition);
         if (cleaned && cleaned.changed && String(cleaned.answer || "").trim()) finalText = String(cleaned.answer).trim();
       } catch (_e) { /* temizleme cevabÄ± bozmasÄ±n */ }
+    }
+
+    // YETERLİLİK KAPISI: uzun mimari/operasyonel soruya model alakasız-kısa cevap
+    // ürettiyse (örn. "6 TL"), bunu final olarak gösterme. Bir kez ODAKLI yeniden
+    // üretim dene; o da yetersizse kontrollü bir mesaj göster. (Codex teşhisi.)
+    if (agent.stoppedReason !== "smalltalk" && !isMultiTask &&
+        answerAdequacy.isIrrelevantShortAnswer(input, finalText)) {
+      try { improveDrafts.recordSignal({ kind: "irrelevant_short_answer", subject: String(finalText).slice(0, 60) }); } catch (_e) {}
+      let regen = "";
+      try {
+        regen = String(await this.generate(selectedModel, answerAdequacy.buildFocusedRegenMessages(input), attemptModels) || "").trim();
+      } catch (_e) { regen = ""; }
+      if (regen && !answerAdequacy.isIrrelevantShortAnswer(input, regen)) {
+        finalText = regen;
+      } else {
+        finalText = answerAdequacy.CONTROLLED_RETRY_MESSAGE;
+      }
     }
 
     finalProgress?.emit?.("finalizing", { reason: "history-and-stats" });
