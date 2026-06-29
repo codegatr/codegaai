@@ -415,6 +415,55 @@ const LEVEL2_LESSONS = [
       description: "Sadece desktop-v* gercek installer pipeline'ini tetikler. Actions bitmeden + asset/latest.yml dogrulanmadan basarili deme.",
       tags: ["release", "ci", "updater", "tags"], confidence: 0.95, source: "codega-incident" }],
   }),
+  l2("atomic-file-transaction", "Bagimli dosya guncelleme: atomic write + rollback + file-lock retry", {
+    goal: "Birden cok bagimli dosyayi (ornek package.json + inc/version.php) tutarli, atomik ve geri-alinabilir sekilde guncellemeyi ogrenmek.",
+    theory:
+      "Iki bagimli dosya es zamanli guncellenirken biri kilitliyse (file lock) surec yarida " +
+      "kalip surum cakismasi/veri tutarsizligi uretir. Cozum iki-asamali + atomik bir transaction'dir: " +
+      "(1) preflight lock/read probe — her iki dosya da okunabilir/yazilabilir mi kontrol et; " +
+      "(2) backup snapshot al (rollback icin); (3) temp dosyaya yaz; (4) atomic rename (os-level " +
+      "yer degistirme — yarim yazma olmaz); (5) HER IKI dosyayi da dogrula (sürüm eslesmesi); " +
+      "kilitli dosyada exponential backoff ile unlock-retry (max attempt). Herhangi bir asama " +
+      "basarisizsa STAGED ROLLBACK: backup'tan geri yukle. Iki dosya da dogrulanmadan transaction " +
+      "ASLA complete sayilmaz.",
+    examples: [
+      "preflight: fs.open(version.php, 'r+') -> EBUSY/EACCES ise henuz yazma",
+      "atomic: temp'e yaz -> fs.rename(temp, hedef) (atomik); dogrula; hata -> backup restore",
+    ],
+    rules: {
+      do: [
+        "Once preflight lock/read probe yap (iki dosya da hazir mi)",
+        "Yazmadan once backup snapshot al",
+        "Temp dosyaya yaz, sonra atomic rename ile degistir",
+        "Iki dosyayi da (surum eslesmesi) dogrula",
+        "Kilitli dosyada exponential backoff + max attempt ile retry",
+      ],
+      dont: [
+        "Tek dosya yazildi diye transaction'i complete sayma",
+        "Dogrudan hedef dosyaya yari-yari yazma (atomik degil)",
+        "Hata olunca yarim durumu birakma (rollback sart)",
+      ],
+      why: "Atomik olmayan/yarim guncelleme surum cakismasi ve kalici veri tutarsizligi birakir; staged rollback bunu onler.",
+    },
+    commonMistakes: ["dogrudan hedefe yazip yarida kalmak", "rollback'siz hata", "tek dosya dogrulayip bitmis saymak"],
+    architectureNotes: "Project Brain bagimli dosya guncellemesini tek atomik transaction olarak ele almali; preflight -> temp -> atomic rename -> verify -> (hata) staged rollback.",
+    exercise: "package.json + version.php icin: preflight probe -> backup -> temp write -> atomic rename -> verify -> hata olursa rollback akisini tasarla.",
+    questions: [
+      q("Iki bagimli dosyadan biri kilitliyse surec yarida kalirsa ne riski olusur?",
+        ["risk yok", "surum cakismasi + veri tutarsizligi", "daha hizli", "otomatik duzelir"], 1),
+      q("Yarim yazmayi onlemenin dogru yolu nedir?",
+        ["dogrudan hedefe yaz", "temp'e yaz + atomic rename", "iki kez yaz", "kilidi yok say"], 1),
+      q("Transaction ne zaman complete sayilir?",
+        ["ilk dosya yazilinca", "iki dosya da dogrulaninca", "rename baslayinca", "backup alininca"], 1),
+    ],
+    brainRules: [{
+      type: "arch_decision",
+      title: "Dependent file updates must be atomic with staged rollback and file-lock retry",
+      description: "Bagimli dosyalari (ornek package.json + version.php) tek transaction olarak guncelle: preflight lock/read probe -> backup snapshot -> temp write -> atomic rename -> HER IKI dosyayi dogrula -> kilitli dosyada exponential backoff retry. Herhangi bir asama basarisizsa staged rollback (backup restore). Iki dosya da dogrulanmadan transaction complete sayma.",
+      tags: ["atomic-write", "rollback", "file-lock", "transaction", "version-sync", "consistency"],
+      confidence: 0.95, source: "codega-pattern",
+    }],
+  }),
 ];
 
 // ── Level 3 — Software Architect (Phase III, tam islenmis) ─────────────────────

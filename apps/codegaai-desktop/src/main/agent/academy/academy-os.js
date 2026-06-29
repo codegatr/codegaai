@@ -64,6 +64,36 @@ class AcademyOS {
   /** EngineeringBrain'i sonradan bagla (ACE async init sonrasi). */
   setEngineeringBrain(brain) { this._brain = brain || this._brain; return this; }
 
+  /**
+   * Cekirdek muhendislik kurallarini EngineeringBrain'e SEED et — sinav gecmeden,
+   * baslangicta. Boylece kritik mimari kalipları (ornek atomik dosya transaction'i)
+   * model her zaman canli prompt'tan hatirlar. brain.learn baslik-bazli dedup
+   * yaptigi icin idempotent (her acilista tekrar cagrilabilir).
+   * @returns {number} seed edilen kural sayisi
+   */
+  seedCoreEngineeringRules() {
+    if (!this._brain || typeof this._brain.learn !== "function") return 0;
+    let count = 0;
+    for (const lesson of CURRICULUM) {
+      for (const rule of (lesson.brainRules || [])) {
+        if (!rule || rule.source === "principle") continue; // yalnız somut/olaya-dayalı kurallar
+        try {
+          this._brain.learn({
+            type: rule.type, title: rule.title, description: rule.description,
+            tags: rule.tags || [], confidence: rule.confidence || 0.85,
+            source: `academy-seed:${lesson.id}`,
+          });
+          if (!this._transcript.promotedRules.includes(rule.title)) {
+            this._transcript.promotedRules.push(rule.title);
+          }
+          count++;
+        } catch (_e) { /* seed bir kuralı atlasa da devam */ }
+      }
+    }
+    this._saveTranscript();
+    return count;
+  }
+
   // ── Persistans yardimcilari ─────────────────────────────────────────────────
 
   _saveTranscript() {

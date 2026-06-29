@@ -469,7 +469,15 @@ function registerIpc() {
   // baglanir, boylece gecilen derslerin kurallari canli chat prompt'una akar.
   registerAcademyIpc(null);
   initACEOS(path.join(app.getPath("userData"), "ace"))
-    .then((aceOS) => { try { getAcademy()?.setEngineeringBrain(aceOS.engineeringBrain); } catch (_e) {} })
+    .then((aceOS) => {
+      try {
+        const academy = getAcademy();
+        academy?.setEngineeringBrain(aceOS.engineeringBrain);
+        // Çekirdek mühendislik kurallarını canlı prompt'a seed et (idempotent dedup).
+        const seeded = academy?.seedCoreEngineeringRules?.() || 0;
+        if (seeded) console.log(`[Academy] ${seeded} çekirdek mühendislik kuralı EngineeringBrain'e seed edildi.`);
+      } catch (_e) {}
+    })
     .catch((e) => console.warn("[Academy] brain bind:", e.message));
 
   // Evolution Engine + CODEGA DNA init — Sprint 11

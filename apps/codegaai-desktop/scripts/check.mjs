@@ -289,10 +289,11 @@ if (!preloadFile2.includes("ace:dashboard") || !preloadFile2.includes("ace:refle
 const mainFile = readText(join(root, "src/main/main.js"));
 if (!mainFile.includes("registerACEIpc")) throw new Error("main.js ACE IPC kaydi eksik");
 if (!mainFile.includes("registerAcademyIpc")) throw new Error("main.js Academy IPC kaydi eksik");
+if (!mainFile.includes("seedCoreEngineeringRules")) throw new Error("main.js Academy çekirdek kural seed çağrisi eksik");
 const modelManagerFile = readText(join(root, "src/main/model-manager.js"));
 if (!modelManagerFile.includes("sanitizePrompt")) throw new Error("model-manager.js isim temizleme (sanitizePrompt) baglantisi eksik");
 
-if (pkg.version !== "6.0.0-alpha.52") throw new Error(`Desktop package version must be 6.0.0-alpha.52, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.53") throw new Error(`Desktop package version must be 6.0.0-alpha.53, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
