@@ -22,7 +22,7 @@ Kullanıcı: koca bir tedarik-zinciri güvenlik sorusuna CODEGA "git status" dem
 - Guvenlik cevabini HARDCODE ETMEDIM (acik-uclu soru). Dogru cozum: kisayolu kaldirip soruyu gercek modele ulastirmak.
 
 ### Tests Run
-- check OK (184), full 346/346. CI desktop-v6.0.0-alpha.47 dogrulanacak.
+- check OK (184), full 346/346. CI desktop-v6.0.0-alpha.47: Windows + macOS + Desktop Release **success**; assets dogrulandi (.exe+blockmap, .dmg, .zip, latest.yml, latest-mac.yml, SHA256SUMS.txt), "Latest".
 
 ### Suggested Next Step For Codex
 - solveKnownReasoningBenchmarks / instantAnswer gibi diger fast-path substring kurallari da benzer footgun tasiyabilir; kelime siniri + uzunluk acisindan gozden gecirmeye deger.
