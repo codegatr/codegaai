@@ -89,6 +89,8 @@ const required = [
   "src/main/agent/__tests__/academy.test.js",
   "src/main/agent/system-prompt.js",
   "src/main/agent/__tests__/system-prompt.test.js",
+  "src/main/agent/sanitize-prompt.js",
+  "src/main/agent/__tests__/sanitize-prompt.test.js",
   "assets/logo.svg",
   "src/renderer/phoenix-splash.js",
   "src/renderer/phoenix-theme.css",
@@ -283,8 +285,10 @@ if (!preloadFile2.includes("ace:dashboard") || !preloadFile2.includes("ace:refle
 const mainFile = readText(join(root, "src/main/main.js"));
 if (!mainFile.includes("registerACEIpc")) throw new Error("main.js ACE IPC kaydi eksik");
 if (!mainFile.includes("registerAcademyIpc")) throw new Error("main.js Academy IPC kaydi eksik");
+const modelManagerFile = readText(join(root, "src/main/model-manager.js"));
+if (!modelManagerFile.includes("sanitizePrompt")) throw new Error("model-manager.js isim temizleme (sanitizePrompt) baglantisi eksik");
 
-if (pkg.version !== "6.0.0-alpha.41") throw new Error(`Desktop package version must be 6.0.0-alpha.41, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.42") throw new Error(`Desktop package version must be 6.0.0-alpha.42, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

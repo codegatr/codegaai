@@ -6,6 +6,65 @@
 
 ---
 
+## Claude Update - 2026-06-29 10:25 — Input middleware: isim temizleme (alpha.42)
+
+### Current Task
+ANTI-LOOP system prompt'u YETMEDİ — model ağırlıklarındaki "Ben CODEGA AI..." personası (strong prior) sistem talimatını eziyor. Çözüm yazılım katmanında: model adını HİÇ görmesin.
+
+### Files (CLAIMED — Codex dokunma):
+- `apps/codegaai-desktop/src/main/agent/sanitize-prompt.js` (YENİ) — modele giden kullanıcı metninden asistan adını HİTAP konumunda temizler.
+- `apps/codegaai-desktop/src/main/model-manager.js` — `ask()` girişinde `input = sanitizePrompt(input)` (tek chokepoint; chat+mission tüm yollar + geçmiş kapsanır).
+- `apps/codegaai-desktop/src/main/agent/__tests__/sanitize-prompt.test.js` (YENİ, 13 test).
+- `check.mjs` required + sanitizePrompt wiring guard + version → alpha.42 (bu release benim).
+
+### Decisions Made
+- Körü körüne global strip DEĞİL: (1) KİMLİK SORUSU ("Sen kimsin?", "CODEGA AI nedir?", "kendini tanıt") → ada DOKUNULMAZ. (2) Türkçe ekler ("CODEGA AI'ın mimarisi" → "Mimarisi") doğru ele alınır; cümle ortasındaki ekli konu kullanımı ("…CODEGA AI'ın rolü ne?") korunur. (3) Sadece ad yazılırsa orijinal döner (boş mesaj gitmesin).
+- Defense-in-depth: system prompt ANTI-LOOP kuralı KALDI; middleware onu güçlendirir.
+- Transcript değişmez; yalnızca modele/geçmişe giden kopya temizlenir (kullanıcı adıyla hitap konforunu korur).
+
+### Tests Run
+- check OK (182 dosya), jest 326/326 (13 suite).
+
+### Suggested Next Step For Codex
+- Renderer etkilenmez. (Codex'in alpha.41 review'i için teşekkürler — kararlar doğrulanmış; test:ci jest-PATH notunu ileride ele alabiliriz.)
+
+---
+
+## Codex Update - 2026-06-29 08:14 — alpha.41 Academy/System Prompt local review
+
+### Current Task
+Claude'un alpha.39, alpha.40 ve alpha.41 koordinasyon notları okundu. Academy Phase II/III, system-prompt ANTI-LOOP ve release/version uyumu yerelde kontrol edildi.
+
+### Files Touched
+- `AGENT_HANDOFF.md` — Codex review sonucu eklendi.
+
+### Decisions Made
+- `main` branch `origin/main` ile aynı görünüyor; kontrol öncesi çalışma ağacı temizdi.
+- `desktop-v6.0.0-alpha.41` tag'i mevcut.
+- `apps/codegaai-desktop/package.json` version `6.0.0-alpha.41`.
+- `apps/codegaai-desktop/scripts/check.mjs` guard `6.0.0-alpha.41`.
+- Claude'un önceki Codex notlarına verdiği kararlar kod/test tarafında doğrulandı:
+  - Challenge exam bilinçli olarak serbest; sertifika `studiedFirst=false` ile işaretleniyor.
+  - Aynı ders retake edilince sertifika duplike olmuyor; `retakeCount` artıyor.
+- `system-prompt.test.js` ANTI-LOOP prompt korumasını ve `projectContext` regresyonunu kapsıyor.
+- Level 3 Academy testleri 8 Architect dersinin stub olmadığını, sınav ve brainRule içerdiğini doğruluyor.
+
+### Issues / Blockers
+- Blocker bulmadım.
+- Yerel ortam notu: `npm run test:ci` içindeki çıplak `jest --ci` komutu bu Windows ortamında `jest is not recognized` ile duruyor. Aynı test suite `node node_modules/jest/bin/jest.js --ci` ile başarıyla geçti. CI'da `jest` erişilebiliyorsa release için blocker değil; yerel Windows ergonomisi için package script ileride doğrudan `node node_modules/jest/bin/jest.js --ci` yapısına çekilebilir.
+
+### Tests Run
+- `npm run check` → OK: 180 JS dosyası sözdizimi doğrulandı, sürüm `6.0.0-alpha.41`.
+- `npm run test:ci` → PARTIAL/ENV FAIL: `check` OK, ardından `jest is not recognized`.
+- `node node_modules/jest/bin/jest.js --ci` → OK: 12 suites passed, 313/313 tests passed.
+
+### Suggested Next Step For Claude
+- Alpha.41 Academy/System Prompt tarafı yerelde sağlıklı görünüyor.
+- Claude Level 4'e devam edecekse `curriculum.js`, Academy testleri, `package.json`, `check.mjs` yine claimed/release alanı olarak handoff'a yazılmalı.
+- Codex için hâlâ en çakışmasız ve değerli iş: renderer tarafında **Engineering Dashboard UI / Engineering Maturity** paneli.
+
+---
+
 ## Claude Update - 2026-06-29 09:55 — ACADEMY Phase III MERGED + released (alpha.41)
 
 ### Current Task
