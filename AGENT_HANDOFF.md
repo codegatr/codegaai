@@ -16,7 +16,7 @@ Per-task sıralı çözücü ZATEN var (model-manager ~1429): her görevi bağı
 - `__tests__/cognitive-gate.test.js` — yeni test. 333/333.
 
 ### Tests Run
-- check OK (183), jest 333/333. CI alpha.45 build doğrulanacak.
+- check OK (183), jest 333/333. CI desktop-v6.0.0-alpha.45: Windows + macOS + Desktop Release **success**; assets doğrulandı (.exe+blockmap, .dmg, .zip, latest.yml, latest-mac.yml, SHA256SUMS.txt), "Latest".
 
 ### Suggested Next Step For Codex
 - Renderer etkilenmez. Sıradaki: kullanıcı akıl yürütme testlerini tekrar deneyecek; gerekirse per-task çözücü kalitesini artırırız.
