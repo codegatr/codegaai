@@ -9,9 +9,10 @@
 
 const { finalAnswerText, trFold, stripInternalSections } = require("./final-answer-sanitizer");
 
-/** Cevaptaki bağımsız "Test/Soru/Görev N:" cevap bölümü sayısı. */
+/** Cevaptaki bağımsız "Test/Soru/Görev N" cevap bölümü sayısı.
+ *  Çok-görevli çözücü çıktısı **Test N – Etiket** başlıkları kullanır. */
 function countTaskSections(text) {
-  const m = String(text || "").match(/(?:^|\n)\s*(?:\*\*)?(?:test|soru|g[oö]rev|task)\s+\d+\s*[:).\-–]/gi);
+  const m = String(text || "").match(/(?:^|\n)\s*(?:\*\*)?\s*(?:test|soru|g[oö]rev|task)\s+\d+\s*(?:[:)\n.\-–—]|\*\*)/gi);
   return m ? m.length : 0;
 }
 

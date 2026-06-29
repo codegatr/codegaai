@@ -212,7 +212,10 @@ function countProvidedTasks(question, taskReport = null) {
 }
 
 function countAnswerSections(answer) {
-  const labels = String(answer || "").match(/(?:^|\n)\s*(?:test|soru|görev|gorev|task)\s+\d+\s*[:\n]/gi);
+  // "Test N:", "Test N\n", "**Test N – Etiket**", "Görev N)", "Soru N -" hepsini
+  // yakalar. Çok-görevli sıralı çözücü çıktısı **Test N – Etiket** başlıkları
+  // kullanır; bu başlıkların da görev bölümü sayılması preservation için şart.
+  const labels = String(answer || "").match(/(?:^|\n)\s*(?:\*\*)?\s*(?:test|soru|görev|gorev|task)\s+\d+\s*(?:[:)\n\-–—]|\*\*)/gi);
   return labels && labels.length ? labels.length : 1;
 }
 
