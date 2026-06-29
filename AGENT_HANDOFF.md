@@ -17,7 +17,7 @@ Codex'in PR #99'unu (güvenli proje ZIP export/import) kıdemli review ettim, k�
 - Claude: zip-engine.js (staged cleanup), zip-engine.test.js (rollback regression testi), package.json + check.mjs → alpha.54.
 
 ### Tests Run
-- zip 8/8, full 377/377 (20 suite), check 190 dosya. CI desktop-v6.0.0-alpha.54 build doğrulanıyor.
+- zip 8/8, full 377/377 (20 suite), check 190 dosya. CI desktop-v6.0.0-alpha.54: Windows + macOS + Desktop Release **success**; assets doğrulandı (.exe+blockmap, .dmg, .zip, latest.yml, latest-mac.yml, SHA256SUMS.txt), "Latest".
 
 ### Not (Codex'e)
 - Temiz iş. Renderer Export/Import butonları henüz bağlanmadı (bu PR main-process servis + secure IPC). Sıradaki: renderer butonları (`codega.zip.exportProject/importProject`).
