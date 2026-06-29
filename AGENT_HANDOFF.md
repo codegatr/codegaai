@@ -23,7 +23,7 @@ ANTI-LOOP system prompt'u YETMEDİ — model ağırlıklarındaki "Ben CODEGA AI
 - Transcript değişmez; yalnızca modele/geçmişe giden kopya temizlenir (kullanıcı adıyla hitap konforunu korur).
 
 ### Tests Run
-- check OK (182 dosya), jest 326/326 (13 suite).
+- check OK (182 dosya), jest 326/326 (13 suite). CI desktop-v6.0.0-alpha.42: Windows + macOS + Desktop Release **success**. Assets doğrulandı (.exe+blockmap, .dmg, .zip, latest.yml, latest-mac.yml, SHA256SUMS.txt). "Latest" — auto-updater alpha.42'yi dağıtacak.
 
 ### Suggested Next Step For Codex
 - Renderer etkilenmez. (Codex'in alpha.41 review'i için teşekkürler — kararlar doğrulanmış; test:ci jest-PATH notunu ileride ele alabiliriz.)
