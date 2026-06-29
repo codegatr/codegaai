@@ -33,13 +33,18 @@ function stripInternalLabel(text) {
     .trim();
 }
 
-function stripInternalSections(answer) {
+function stripInternalSections(answer, opts = {}) {
   let text = String(answer || "").trim();
   if (!text) return text;
 
   text = text.replace(TEST_REPORT_RE, "").trim();
-  const final = finalAnswerText(text);
-  if (final) return stripInternalLabel(final);
+  // ÇOK-GÖREVLİ koruma: keepAllSections=true ise tek "Final Answer:" bloğuna
+  // ÇÖKERTME (aksi halde 10 cevaptan yalnız sonuncusu gösterilir). İç-akıl
+  // satırlarını temizler ama tüm "Test N:" cevaplarını korur.
+  if (!opts.keepAllSections) {
+    const final = finalAnswerText(text);
+    if (final) return stripInternalLabel(final);
+  }
 
   if (INTERNAL_SECTION_RE.test(text)) {
     const lines = text.split(/\r?\n/);
@@ -156,6 +161,17 @@ function cleanUserFacingOutput(answer, question = "", taskReport = null) {
   const placeholderFix = sanitizePlaceholderCommandAnswer(original, question);
   if (placeholderFix.changed) return { changed: true, answer: repairMojibake(stripInternalSections(placeholderFix.answer)), candidates: [placeholderFix.answer] };
 
+  // ÇOK-GÖREVLİ koruma: girdi birden çok bağımsız görevse VE cevap birden çok
+  // "Test N:" bölümü içeriyorsa, tek bir trailing "Final Answer:" bloğuna
+  // çökertme — tüm bölümleri koru (iç-akıl satırları temizlenir).
+  const multiTask = !!(taskReport && taskReport.applicable && Number(taskReport.count || taskReport.tasks?.length || 0) > 1);
+  if (multiTask && countAnswerSections(original) > 1) {
+    const cleanedAll = repairMojibake(stripInternalSections(original, { keepAllSections: true }));
+    if (cleanedAll && countAnswerSections(cleanedAll) > 1) {
+      return { changed: cleanedAll !== String(answer || "").trim(), answer: cleanedAll, candidates: [] };
+    }
+  }
+
   const final = finalAnswerText(original);
   const hasInternal = INTERNAL_SECTION_RE.test(original) || /(?:^|[\n|])\s*(?:TEST(?:\s+[A-Z])?|MLVC|ARL|SSV|SACV|İnsan Yorumu|Human Comment)\s*:/im.test(original);
   const hasPipeDump = Boolean(final && final.includes("|"));
@@ -204,7 +220,11 @@ function cleanPhantomOutput(answer, question, taskReport = null) {
   const original = repairMojibake(String(answer || "").trim());
   const scoped = scopeAnswerToQuestion(original, question);
   const source = scoped.changed ? scoped.answer : original;
-  const cleaned = repairMojibake(stripInternalSections(source));
+  // ÇOK-GÖREVLİ koruma: birden çok görev + birden çok "Test N:" bölümü varsa
+  // tek "Final Answer:" bloğuna çökertme; tüm cevapları koru.
+  const multiTask = !!(taskReport && taskReport.applicable && Number(taskReport.count || taskReport.tasks?.length || 0) > 1);
+  const keepAll = multiTask && countAnswerSections(source) > 1;
+  const cleaned = repairMojibake(stripInternalSections(source, { keepAllSections: keepAll }));
   return { changed: cleaned !== original, answer: cleaned, removed: [], providedTaskCount: countProvidedTasks(question, taskReport), answerSectionCount: countAnswerSections(cleaned) };
 }
 

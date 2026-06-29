@@ -62,6 +62,10 @@ function runIntake(context) {
 async function runPostValidation(context, draftAnswer, opts = {}) {
   let finalText = String(draftAnswer || "").trim();
   context.answer = finalText;
+  // ÇOK-GÖREVLİ girdi: tek-cevap için tasarlanmış yeniden-biçimlendirme aşamaları
+  // (hril/ree/rae) çok-görevli cevabı tek bir "Final Answer:" bloğuna çökertir
+  // (10 cevaptan biri kalır). Bu aşamaları çok-görevde atlıyoruz.
+  const multiTask = !!(context.taskReport && context.taskReport.applicable);
   context.mlvc = opts.mlvc || context.mlvc || null;
   const stoppedReason = opts.stoppedReason || "";
   const isSmalltalk = stoppedReason === "smalltalk";
@@ -179,12 +183,14 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
   }, { blocking: true });
 
   await runStage(context, "hril", async () => {
+    if (multiTask) return { ok: true, detail: { skipped: "multi-task" } };
     const interpreted = hril.interpret(context.input, finalText, { mlvc: context.mlvc });
     if (interpreted.answer && interpreted.answer.trim()) applyCorrection(interpreted.answer.trim(), "hril");
     return { ok: true, confidence: interpreted.changed ? 100 : null, detail: { changed: !!interpreted.changed } };
   });
 
   await runStage(context, "ree", async () => {
+    if (multiTask) return { ok: true, detail: { skipped: "multi-task" } };
     const explained = ree.explain(context.input, finalText);
     if (explained.answer && explained.answer.trim()) applyCorrection(explained.answer.trim(), "ree");
     return { ok: true, confidence: explained.changed ? 100 : null, detail: { changed: !!explained.changed } };
@@ -279,7 +285,8 @@ async function runPostValidation(context, draftAnswer, opts = {}) {
     });
   }
 
-  if (!context.blocked) {
+  if (!context.blocked && !multiTask) {
+    // rae tek-cevap birleştiricidir; çok-görevde atlanır (yukarıdaki multiTask notu).
     await runStage(context, "rae:response-assembly", async () => {
       const assembled = rae.assembleResponse(context.input, finalText, context.taskRegistry);
       if (assembled.answer && assembled.answer.trim()) applyCorrection(assembled.answer.trim(), "rae");
