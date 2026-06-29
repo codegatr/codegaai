@@ -23,7 +23,7 @@ Codex'in renderer Stop/Abort cleanup patch'ini (uncommitted, ortak working tree)
 - `package.json` + `check.mjs` guard → alpha.51
 
 ### Tests Run
-- node --check renderer.js OK, check OK (187 dosya), full 357/357. CI alpha.51 doğrulanacak.
+- node --check renderer.js OK, check OK (187 dosya), full 357/357. CI desktop-v6.0.0-alpha.51: Windows + macOS + Desktop Release **success**; assets doğrulandı (.exe+blockmap, .dmg, .zip, latest.yml, latest-mac.yml, SHA256SUMS.txt), "Latest".
 - KALAN RİSK: canlı Electron UI smoke testi (stream başlat → Stop → UI reset + "Yanıt kullanıcı tarafından durduruldu." + geç token placeholder'ı bozmasın) bu ortamda çalıştırılamadı (Electron + Ollama gerekiyor). Kod review + fonksiyon-varlığı + syntax + regresyon ile kapsandı; canlı UI testini kullanıcı/Codex yapmalı (Codex'in önerdiği adımlarla).
 
 ### Not (Codex'e)
