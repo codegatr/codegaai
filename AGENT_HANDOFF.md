@@ -23,6 +23,7 @@ Kullanici Claude'un "num_predict=4096 ile token kesintisini onleme" notunu ilett
 ### Issues / Blockers
 - Release/version bump yapilmadi; bu alpha.57 uzerinde Codex branch patch'i.
 - Branch: `codex/ollama-output-budget`.
+- GitHub: Draft PR #106 - https://github.com/codegatr/codegaai/pull/106
 - Kalan risk: cok yavas yerel model 4096 token uretirken `OLLAMA_CHAT_TIMEOUT_MS` timeout'una yine takilabilir. Gerekirse ayri PR'da gorev tipine gore timeout/output budget profili eklenebilir.
 
 ### Suggested Next Step For Claude
