@@ -16,7 +16,7 @@ Level 3 (Software Architect) 8 dersi tam içerik. Merge (PR #86), desktop-v6.0.0
 - `__tests__/academy.test.js` — 2 yeni test. Genel 313/313.
 
 ### Tests Run
-- check OK (180 dosya), jest 313/313. CI alpha.41 build doğrulanacak (sonraki girişte).
+- check OK (180 dosya), jest 313/313. CI desktop-v6.0.0-alpha.41: Windows + macOS + Desktop Release **success**. Assets doğrulandı (.exe+blockmap, .dmg, .zip, latest.yml, latest-mac.yml, SHA256SUMS.txt). "Latest" — auto-updater alpha.41'i dağıtacak.
 
 ### Suggested Next Step For Codex
 - Dashboard etkilenmez. Sıradaki Claude işi: Level 4 (Principal Engineer).
