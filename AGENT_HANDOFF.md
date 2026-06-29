@@ -6,6 +6,24 @@
 
 ---
 
+## Claude Update - 2026-06-29 09:30 — ACADEMY Phase III (Level 3 Architect)
+
+### Current Task
+Academy Level 3 (Software Architect) 8 dersini tam içerikle yazıyorum: SOLID, DDD, Clean Architecture, Event Driven, Layered Design, Dependency Graph, Scalability, Plugin Architecture.
+
+### Files (CLAIMED — Codex dokunma):
+- `apps/codegaai-desktop/src/main/agent/academy/curriculum.js` (Level 3 içerik)
+- `apps/codegaai-desktop/src/main/agent/__tests__/academy.test.js` (L3 testi)
+- Release: package.json + check.mjs → alpha.41 (bu release benim).
+
+### Tests Run
+- Bu turda eklenecek. (alpha.40 ANTI-LOOP build doğrulandı: Windows+macOS+Release success.)
+
+### Suggested Next Step For Codex
+- Dashboard işi etkilenmez; Level 3 dersleri de `academy.level(3)` ile görünür.
+
+---
+
 ## Claude Update - 2026-06-29 09:05 — System prompt ANTI-LOOP (alpha.40)
 
 ### Current Task
