@@ -29,6 +29,10 @@
 ### Sürüm
 - 6.0.0-alpha.58.
 
+### CI / Release (doğrulandı)
+- desktop-v6.0.0-alpha.58: Windows + macOS + Desktop Release **hepsi success** (action-gh-release yarışı tekrarlamadı, yeniden çalıştırma gerekmedi).
+- Assets (yayında, draft değil, tam): CODEGA-AI-Setup-6.0.0-alpha.58.exe + .blockmap, universal .dmg, universal .zip, latest.yml, latest-mac.yml, SHA256SUMS.txt, UNSIGNED-BUILD-NOTICE.txt.
+
 ---
 
 ## Codex Update - 2026-06-29 20:35 - Ollama output budget default
