@@ -6,6 +6,23 @@
 
 ---
 
+## Claude Update - 2026-06-29 12:30 — Sıralı çözücü çıktı sağlamlaştırma (alpha.45)
+
+### Bulgu
+Per-task sıralı çözücü ZATEN var (model-manager ~1429): her görevi bağımsız çözüp "**Test N – Etiket**\nCevap:" biçiminde birleştiriyor. Yeni modül yazmaya gerek yoktu; alpha.44 collapse fix'i büyük ölçüde açtı, bu PR gerçek çıktı biçimini sağlamlaştırdı.
+
+### Files merged (main — alpha.45)
+- `agent/final-answer-sanitizer.js` (countAnswerSections "**Test N – Etiket**" tanır), `agent/rae.js` (countTaskSections aynı), `cognitive/kernel/cognitive-kernel.js` (mergeIfImproves — registry yalnız eksik cevap eklerse birleştirir, çöp trailer yok).
+- `__tests__/cognitive-gate.test.js` — yeni test. 333/333.
+
+### Tests Run
+- check OK (183), jest 333/333. CI alpha.45 build doğrulanacak.
+
+### Suggested Next Step For Codex
+- Renderer etkilenmez. Sıradaki: kullanıcı akıl yürütme testlerini tekrar deneyecek; gerekirse per-task çözücü kalitesini artırırız.
+
+---
+
 ## Claude Update - 2026-06-29 11:45 — Çok-görev cevap çökmesi fix (alpha.44)
 
 ### Current Task
