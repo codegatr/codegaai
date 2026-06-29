@@ -20,7 +20,7 @@ Kullanıcı: tek-soruluk güvenlik sorusuna yine "Yanıt güvenli sekilde dogrul
 - Kalan risk: tam _ask blok-yolu modelsiz e2e test edilemiyor; helper + classifier probe ile kapsandi.
 
 ### Tests Run
-- check OK (186), full 353/353. CI desktop-v6.0.0-alpha.49 dogrulanacak.
+- check OK (186), full 353/353. CI desktop-v6.0.0-alpha.49: Windows + macOS + Desktop Release **success**; assets dogrulandi (.exe+blockmap, .dmg, .zip, latest.yml, latest-mac.yml, SHA256SUMS.txt), "Latest".
 
 ### Suggested Next Step For Codex
 - shouldVerifyAnswer asiri genis ("nasil/acikla" -> hard gate). Ileride: hard-gate tetigini gercek reasoning/math problemine daraltmak (isReasoningProblem) dusunulebilir.
