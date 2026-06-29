@@ -17,6 +17,10 @@ Web-araştırma aracına insane-search tarzı **kademeli fallback** eklendi: bir
 ### Sürüm
 - 6.0.0-alpha.57. check.mjs guard: tools.js fetchTextResilient/AUTH_WALL_RE.
 
+### CI / Release (doğrulandı)
+- desktop-v6.0.0-alpha.57: Windows + macOS + Desktop Release **hepsi success** (bu sefer action-gh-release yarışı tekrarlamadı, yeniden çalıştırma gerekmedi).
+- Assets (yayında, draft değil, tam): CODEGA-AI-Setup-6.0.0-alpha.57.exe + .blockmap, universal .dmg, universal .zip, latest.yml, latest-mac.yml, SHA256SUMS.txt, UNSIGNED-BUILD-NOTICE.txt.
+
 ### Not (sıradaki)
 - İstenirse reader fazını bir ayara bağlamak (gizlilik: URL üçüncü tarafa gider) düşünülebilir.
 - Release CI yarışı (alpha.56'da Windows latest.yml) hâlâ açık konu: release işlerini seri kılmak kalıcı çözüm.
