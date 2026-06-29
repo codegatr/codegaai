@@ -1,6 +1,22 @@
 "use strict";
 
-const { solveKnownReasoningBenchmarks } = require("../benchmark-reasoner");
+const { solveKnownReasoningBenchmarks, commandOnlyAnswer } = require("../benchmark-reasoner");
+
+describe("commandOnlyAnswer — uzun soruyu komuta çökertmemeli", () => {
+  test("uzun güvenlik sorusu 'git status'a çökmez (gerçek olay)", () => {
+    const security = `CODEGA AI, monorepo yapımızda kritik bir durumla karşı karşıyayız. apps/codegaai-desktop package.json'a npm paketi ekledik; transitive dependency üzerinden .env sızdırma şüphesi var. release.ps1 veya npm run check bunu statik analizle nasıl yakalar? Eğitim Sorumlusu Notu: Model sadece npm audit komutu verip mi geçecek?`;
+    expect(commandOnlyAnswer(security)).toBe("");
+  });
+
+  test("'Eğitim' (egitim⊃git) substring'i komut tetiklemez", () => {
+    expect(commandOnlyAnswer("Eğitim durumu nedir, sadece komut")).toBe("");
+  });
+
+  test("gerçek kısa komut istekleri korunur", () => {
+    expect(commandOnlyAnswer("git durumunu göster, sadece komut")).toBe("git status");
+    expect(commandOnlyAnswer("Ubuntu disk doluluğu, sadece komut")).toBe("df -h");
+  });
+});
 
 describe("benchmark reasoner — dikkat ve muhakeme seti", () => {
   const cases = [
