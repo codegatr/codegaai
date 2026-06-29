@@ -14,6 +14,7 @@
 
 const path = require("node:path");
 const os   = require("node:os");
+const fs   = require("node:fs/promises");
 const crypto = require("node:crypto");
 const { ipcMain, dialog, BrowserWindow } = require("electron");
 const zipEngine   = require("./zip-engine");
@@ -107,6 +108,46 @@ function registerZipIpc() {
       return { ok: true, destZip: out };
     } catch (err) {
       return { ok: false, error: err.message };
+    }
+  });
+
+  /**
+   * Chat içi "üretilen projeyi ZIP indir": renderer'dan gelen { name, content }
+   * dosya listesini güvenli adlarla temp klasöre yazar, save dialog ile seçilen
+   * yola ZIP'ler. Disk dışından okuma yok; entry adları assertSafeEntryName ile
+   * doğrulanır (path traversal/absolute reddi).
+   * payload: { files: Array<{ name, content }>, defaultName? }
+   */
+  ipcMain.handle("zip:save-files", async (event, payload = {}) => {
+    let tmpDir = "";
+    try {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      const files = Array.isArray(payload.files) ? payload.files : [];
+      if (!files.length) return { ok: false, error: "Kaydedilecek dosya bulunamadı." };
+
+      const saved = await dialog.showSaveDialog(win, {
+        title: "Üretilen projeyi ZIP olarak kaydet",
+        defaultPath: String(payload.defaultName || "codega-proje").replace(/[^\w.\-]+/g, "_") + ".zip",
+        filters: [{ name: "ZIP arşivi", extensions: ["zip"] }],
+      });
+      if (saved.canceled || !saved.filePath) return { ok: false, canceled: true };
+
+      tmpDir = path.join(os.tmpdir(), `codega_pack_${crypto.randomUUID()}`);
+      await fs.mkdir(tmpDir, { recursive: true });
+      let written = 0;
+      for (const f of files) {
+        const safe = zipEngine._assertSafeEntryName(f && f.name);
+        const dest = path.join(tmpDir, safe);
+        await fs.mkdir(path.dirname(dest), { recursive: true });
+        await fs.writeFile(dest, String((f && f.content) || ""), "utf8");
+        written++;
+      }
+      await zipEngine.create(saved.filePath, tmpDir);
+      return { ok: true, destZip: saved.filePath, files: written };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    } finally {
+      if (tmpDir) { try { await fs.rm(tmpDir, { recursive: true, force: true }); } catch (_e) {} }
     }
   });
 

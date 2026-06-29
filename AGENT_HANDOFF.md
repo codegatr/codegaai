@@ -1,3 +1,27 @@
+## Claude Update - 2026-06-29 19:05 — Chat içi ZIP + mod sekmeleri + mesaj kopyala (alpha.56)
+
+### Current Task
+Kullanıcı alpha.55'teki sidebar "Proje İçe/Dışa Aktar" butonlarının istenmediğini söyledi. Gerçek istek: ZIP yetenekleri **sohbet penceresinin içinde** (Claude gibi) + her mesajı kopyalama + Chat/Cowork/Code modları. alpha.56 bunu yapıyor.
+
+### Yapılanlar
+- Sidebar `project-zip-actions` butonları KALDIRILDI (yanlış anlaşılan alpha.55 işi); zip motoru/IPC korundu.
+- Üstte **Chat / Cowork / Code** mod sekmeleri (`#mode-tabs`). Seçim localStorage'da kalıcı; her mod modele kısa bir yönlendirme ekler (MODE_DIRECTIVES → sendText önekine). Cowork=birlikte proje yürütme, Code=kod-öncelikli + yol etiketli kod blokları.
+- **Chat içi ZIP oku:** 📎 ataç ile `.zip` seçilince `attachZipFromPath` → güvenli zip motoruyla (`zip.list`/`zip.read`) dosya ağacı + metin dosyalarının içeriği bağlam bütçesi (16k) dahilinde okunur, ek olarak modele verilir.
+- **Üretilen projeyi ZIP indir:** asistan cevabındaki ```dil yol/dosya``` kod blokları `extractCodeFiles` ile ayrıştırılır; ⬇ butonu yeni `zip:save-files` IPC'sine gönderir (temp'e güvenli adlarla yazıp save-dialog ile ZIP'ler, sonra temp temizlenir).
+- **Mesaj kopyala:** artık kullanıcı mesajlarında da 📋 kopyala (önce sadece asistanda vardı).
+- check.mjs: alpha.55 guard'ları yenileriyle değişti (zip:save-files, mode-tabs, attachZipFromPath/zip.saveFiles/MODE_DIRECTIVES). Sürüm → alpha.56.
+
+### Güvenlik
+- `zip:save-files` entry adları `_assertSafeEntryName` ile doğrulanır (path traversal/absolute reddi); renderer'dan disk erişimi yok, yalnız {name,content} listesi. Okuma da main process güvenli motorunda.
+
+### Tests Run
+- check 190 dosya OK, full 377/377 (20 suite) PASS.
+
+### Not (sıradaki)
+- Cowork/Code modlarının main process tarafı şimdilik sadece prompt yönlendirmesi; ileride mod-bazlı araç seti/sistem davranışı derinleştirilebilir.
+
+---
+
 ## Claude Update - 2026-06-29 18:10 — Renderer ZIP butonlari + release (alpha.55)
 
 ### Current Task

@@ -89,33 +89,38 @@ textarea {
   padding: 0 18px;
 }
 
-.project-zip-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-top: 8px;
+.mode-tabs {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  z-index: 5;
 }
 
-.project-zip-btn {
-  min-height: 34px;
-  border-radius: 10px;
-  border: 1px solid var(--line);
+.mode-tab {
+  border: 0;
+  background: transparent;
   color: var(--muted);
-  background: var(--panel);
   cursor: pointer;
   font-size: 12px;
-  padding: 0 8px;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 6px 16px;
+  border-radius: 999px;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
-.project-zip-btn:hover:not(:disabled) {
-  color: var(--text);
-  border-color: var(--accent, #f5a623);
-}
+.mode-tab:hover { color: var(--text); }
 
-.project-zip-btn:disabled {
-  opacity: 0.55;
-  cursor: default;
+.mode-tab.active {
+  color: var(--bg, #0b0b0d);
+  background: var(--accent, #f5a623);
 }
 
 .section-label {
