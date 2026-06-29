@@ -235,6 +235,19 @@ contextBridge.exposeInMainWorld("codega", {
     },
     off: (channel, fn) => ipcRenderer.removeListener(channel, fn),
   },
+  // CODEGA AI Academy API — Phase I (Artificial Software Engineer egitimi)
+  academy: {
+    summary:        ()              => ipcRenderer.invoke("academy:summary"),
+    transcript:     ()              => ipcRenderer.invoke("academy:transcript"),
+    curriculum:     ()              => ipcRenderer.invoke("academy:curriculum"),
+    level:          (level)         => ipcRenderer.invoke("academy:level",       level),
+    lesson:         (id)            => ipcRenderer.invoke("academy:lesson",      id),
+    study:          (id)            => ipcRenderer.invoke("academy:study",       id),
+    exam:           (id, answers)   => ipcRenderer.invoke("academy:exam",        id, answers),
+    reportCard:     ()              => ipcRenderer.invoke("academy:report-card"),
+    knowledge:      ()              => ipcRenderer.invoke("academy:knowledge"),
+  },
+
   ace: {
     dashboard:        ()             => ipcRenderer.invoke("ace:dashboard"),
     context:          (opts)         => ipcRenderer.invoke("ace:context",          opts),
