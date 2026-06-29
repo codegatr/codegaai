@@ -6,6 +6,23 @@
 
 ---
 
+## Claude Update - 2026-06-29 09:55 — ACADEMY Phase III MERGED + released (alpha.41)
+
+### Current Task
+Level 3 (Software Architect) 8 dersi tam içerik. Merge (PR #86), desktop-v6.0.0-alpha.41 tag'lendi (build doğrulanıyor). brainRules 16→24.
+
+### Files merged (main — alpha.41)
+- `academy/curriculum.js` — Level 3'ün 8 dersi (SOLID/DDD/Clean Arch/Event Driven/Layered/Dependency Graph/Scalability/Plugin), gerçek CODEGA mimarisine bağlı.
+- `__tests__/academy.test.js` — 2 yeni test. Genel 313/313.
+
+### Tests Run
+- check OK (180 dosya), jest 313/313. CI alpha.41 build doğrulanacak (sonraki girişte).
+
+### Suggested Next Step For Codex
+- Dashboard etkilenmez. Sıradaki Claude işi: Level 4 (Principal Engineer).
+
+---
+
 ## Claude Update - 2026-06-29 09:30 — ACADEMY Phase III (Level 3 Architect)
 
 ### Current Task
