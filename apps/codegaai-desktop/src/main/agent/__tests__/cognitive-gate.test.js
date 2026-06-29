@@ -88,6 +88,28 @@ describe("cognitive gate — multi-task false-block protection", () => {
     expect(sacv).toBeDefined();
   });
 
+  test("model per-test reasoning + tek 'Final Answer:' yazsa bile cevaplar ÇÖKMEZ", async () => {
+    // Bug: model her test için akıl yürütüp sonda tek "Final Answer: 3 kedi"
+    // yazınca, finalAnswerText yalnız son bloğu alıp 10 cevaptan 9'unu siliyordu.
+    const raw = [
+      "Test 1: 6'si haric hepsi oldu, 6 kaldi.",
+      "Test 2: Kazazedeler saglardir, gomulmez.",
+      "Test 3: 39. gun.",
+      "Test 4: 4.",
+      "Test 5: 7.5 derece.",
+      "Test 6: Uc kedi cember olusturur; cevap 3 kedidir.",
+      "Test 7: Ayni kalir.",
+      "Test 8: Ikinci.",
+      "Test 9: 1 erkek kardes.",
+      "Test 10: 4 top.",
+      "Final Answer: 3 kedi",
+    ].join("\n");
+    const { res } = await runGate(MULTI_INPUT, raw);
+    for (const needle of ["6 kaldi", "gomulmez", "39", "7.5 derece", "3 kedi", "Ayni kalir", "4 top"]) {
+      expect(res.answer).toContain(needle);
+    }
+  });
+
   test("tek soru girdisinde sanity kapısı sıkı kalır (applicable=false)", () => {
     const ctx = kernel.createContext("2+2 kaç eder?");
     kernel.runIntake(ctx);

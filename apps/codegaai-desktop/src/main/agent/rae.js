@@ -7,7 +7,13 @@
  * no duplicated human interpretation, and no raw engine labels leaking through.
  */
 
-const { finalAnswerText, trFold } = require("./final-answer-sanitizer");
+const { finalAnswerText, trFold, stripInternalSections } = require("./final-answer-sanitizer");
+
+/** Cevaptaki bağımsız "Test/Soru/Görev N:" cevap bölümü sayısı. */
+function countTaskSections(text) {
+  const m = String(text || "").match(/(?:^|\n)\s*(?:\*\*)?(?:test|soru|g[oö]rev|task)\s+\d+\s*[:).\-–]/gi);
+  return m ? m.length : 0;
+}
 
 const SECTION_NAMES = [
   "Anlama",
@@ -105,6 +111,16 @@ function mergeCommentary(yorum, human) {
 function assembleResponse(question, answer, taskRegistry = null) {
   const original = String(answer || "").trim();
   if (!original) return { changed: false, answer: original, confidence: 100 };
+
+  // ÇOK-GÖREVLİ koruma: cevap birden çok "Test N:" bölümü içeriyorsa, tek bir
+  // "Final Answer:" bloğuna çökertme (aksi halde 10 cevaptan yalnız sonuncusu
+  // kalır). İç-akıl satırlarını temizleyip tüm görev cevaplarını koru.
+  if (countTaskSections(original) > 1) {
+    const preserved = stripInternalSections(original, { keepAllSections: true });
+    if (preserved && countTaskSections(preserved) > 1) {
+      return { changed: preserved !== original, answer: preserved, confidence: 100 };
+    }
+  }
 
   const registryFinal = taskRegistry && taskRegistry.isComplete && taskRegistry.isComplete()
     ? taskRegistry.toFinalAnswerString()
