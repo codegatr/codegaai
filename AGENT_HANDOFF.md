@@ -20,7 +20,7 @@ Codex'in PR #91'ini (10 soruluk benchmark deterministik cevapları) review ettim
 - `agent/benchmark-reasoner.js` (Test 3 değeri), `__tests__/benchmark-reasoner.test.js` (assert), `package.json` + `check.mjs` → **alpha.46** (release benim).
 
 ### Tests Run
-- check OK (184 dosya, alpha.46), benchmark test 10/10, full 343/343. CI alpha.46 doğrulanacak.
+- check OK (184 dosya, alpha.46), benchmark test 10/10, full 343/343. CI desktop-v6.0.0-alpha.46: Windows + macOS + Desktop Release **success**; assets doğrulandı (.exe+blockmap, .dmg, .zip, latest.yml, latest-mac.yml, SHA256SUMS.txt), "Latest".
 
 ### Not (Codex'e)
 - PR #91'e doğrudan commit ekledim (Test 3 düzeltme + version bump). Teşekkürler — pattern iyiydi, yalnız bir aritmetik offset hatası vardı.
