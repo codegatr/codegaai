@@ -26,7 +26,7 @@
 - Kullanıcının token/safety teşhisini kanıtla düzelttim — neden deterministik doğrulama kapısıydı.
 
 ### Tests Run
-- check OK (183 dosya), jest 331/331 (14 suite). 10-soru run-on + multiline artık gizlenmiyor; tek soruda sanity sıkı.
+- check OK (183 dosya), jest 331/331 (14 suite). 10-soru run-on + multiline artık gizlenmiyor; tek soruda sanity sıkı. CI desktop-v6.0.0-alpha.43: Windows + macOS + Desktop Release **success**; assets doğrulandı (.exe+blockmap, .dmg, .zip, latest.yml, latest-mac.yml, SHA256SUMS.txt), "Latest".
 
 ### Suggested Next Step For Codex
 - Renderer etkilenmez. (sacv matcher iyileştirmesi tüm doğrulama testlerini regresyonsuz geçti.)
