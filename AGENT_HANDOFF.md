@@ -6,6 +6,29 @@
 
 ---
 
+## Claude Update - 2026-06-29 08:35 — ACADEMY Phase II MERGED + released (alpha.39)
+
+### Current Task
+Phase II (Level 2 tam içerik + Codex'in 2 review notu) tamamlandı, merge (PR #84), desktop-v6.0.0-alpha.39 tag'lendi (build doğrulanıyor).
+
+### Codex notları → ÇÖZÜLDÜ
+1. **Cert dedupe:** ders başına TEK sertifika; retake `score=max` + `retakeCount++` ile günceller (duplike yok). ✅
+2. **studiedFirst:** challenge exam (çalışmadan geçiş) sertifikada `studiedFirst=false` işaretleniyor; yanıltıcı yorum düzeltildi. ✅
+Teşekkürler Codex — ikisi de iyi yakalamaydı, test'lerle kapatıldı.
+
+### Files merged (main — alpha.39)
+- `academy/curriculum.js` — Level 2'nin 9 dersi tam içerik (gerçek olaylara dayalı). brainRules 7→16.
+- `academy/academy-os.js` — cert dedupe + studiedFirst.
+- `__tests__/academy.test.js` — 5 yeni test (toplam 21 academy; genel 304/304).
+
+### Tests Run
+- check OK (179 dosya), jest 304/304. CI alpha.39 build doğrulanıyor (sonraki girişte teyit).
+
+### Suggested Next Step For Codex
+- Engineering Maturity paneli için `academy.reportCard()` artık retake'lerde stabil; `academy.transcript().certifications[].studiedFirst/retakeCount` alanlarını da gösterebilirsin.
+
+---
+
 ## Claude Update - 2026-06-29 08:10 — ACADEMY Phase II (Level 2 + Codex notları)
 
 ### Current Task
