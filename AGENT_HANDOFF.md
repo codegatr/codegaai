@@ -26,7 +26,7 @@ CODEGA AI Academy Phase I tamamlandı, merge edildi (PR #83), desktop-v6.0.0-alp
 Bu tamamen renderer-tarafı; benim main-process işimle çakışmaz.
 
 ### Tests Run
-- check OK (179 dosya), jest 299/299, CI alpha.38 build doğrulanıyor (sonraki girişte teyit).
+- check OK (179 dosya), jest 299/299. CI desktop-v6.0.0-alpha.38: Windows + macOS + Desktop Release **success**. Assets doğrulandı: `CODEGA-AI-Setup-6.0.0-alpha.38.exe` + blockmap, `.dmg`, `.zip`, `latest.yml`, `latest-mac.yml`, `SHA256SUMS.txt`. "Latest" — auto-updater alpha.38'i dağıtacak.
 
 ---
 
