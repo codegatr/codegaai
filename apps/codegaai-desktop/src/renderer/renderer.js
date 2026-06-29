@@ -23,6 +23,8 @@ const els = {
   input: document.getElementById("prompt-input"),
   sendBtn: document.getElementById("send-btn"),
   stopBtn: document.getElementById("stop-btn"),
+  importProjectBtn: document.getElementById("import-project-btn"),
+  exportProjectBtn: document.getElementById("export-project-btn"),
   brainBtn: document.getElementById("brain-btn"),
   brainPanel: document.getElementById("brain-panel"),
   brainInput: document.getElementById("brain-input"),
@@ -1380,6 +1382,51 @@ els.input.addEventListener("keydown", (event) => {
 });
 
 document.getElementById("new-chat").addEventListener("click", () => createChat());
+
+// Güvenli Proje ZIP içe/dışa aktarma (alpha.54 servisi → alpha.55 UI).
+// Klasör/dosya seçimi main process tarafındaki dialog ile yapılır; burada yalnız
+// tetikleyip sonucu gösteririz.
+if (els.importProjectBtn) {
+  els.importProjectBtn.addEventListener("click", async () => {
+    if (!window.codega?.zip?.importProject) { setTransientStatus("Proje içe aktarma bu sürümde kullanılamıyor."); return; }
+    els.importProjectBtn.disabled = true;
+    setTransientStatus("Proje ZIP içe aktarılıyor…");
+    try {
+      const res = await window.codega.zip.importProject({});
+      if (res?.canceled) { setTransientStatus("İçe aktarma iptal edildi."); return; }
+      if (res?.ok) {
+        setTransientStatus(`Proje içe aktarıldı: ${res.files ?? "?"} dosya → ${res.workspaceDir || ""}`);
+      } else {
+        setTransientStatus(`İçe aktarma başarısız: ${res?.error || "bilinmeyen hata"}`);
+      }
+    } catch (err) {
+      setTransientStatus(`İçe aktarma hatası: ${err?.message || err}`);
+    } finally {
+      els.importProjectBtn.disabled = false;
+    }
+  });
+}
+
+if (els.exportProjectBtn) {
+  els.exportProjectBtn.addEventListener("click", async () => {
+    if (!window.codega?.zip?.exportProject) { setTransientStatus("Proje dışa aktarma bu sürümde kullanılamıyor."); return; }
+    els.exportProjectBtn.disabled = true;
+    setTransientStatus("Proje ZIP olarak dışa aktarılıyor…");
+    try {
+      const res = await window.codega.zip.exportProject({});
+      if (res?.canceled) { setTransientStatus("Dışa aktarma iptal edildi."); return; }
+      if (res?.ok) {
+        setTransientStatus(`Proje dışa aktarıldı: ${res.destZip || ""}`);
+      } else {
+        setTransientStatus(`Dışa aktarma başarısız: ${res?.error || "bilinmeyen hata"}`);
+      }
+    } catch (err) {
+      setTransientStatus(`Dışa aktarma hatası: ${err?.message || err}`);
+    } finally {
+      els.exportProjectBtn.disabled = false;
+    }
+  });
+}
 
 // Kaydırma: kullanıcı yukarı kayarsa "dibe yapış" kapanır ve buton görünür; dibe inince geri açılır.
 function _onScrollActivity() {

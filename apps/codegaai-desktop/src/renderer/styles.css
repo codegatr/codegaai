@@ -89,6 +89,35 @@ textarea {
   padding: 0 18px;
 }
 
+.project-zip-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.project-zip-btn {
+  min-height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: var(--panel);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 8px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.project-zip-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent, #f5a623);
+}
+
+.project-zip-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .section-label {
   margin: 28px 8px 10px;
   color: var(--muted);
