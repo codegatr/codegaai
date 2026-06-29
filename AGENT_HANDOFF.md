@@ -21,7 +21,7 @@ alpha.43 false-block'u düzeltti ama sonra 10 sorudan YALNIZ BİRİ gösteriliyo
 - ⚠️ Kendi notum: bu turda yanlışlıkla `git reset --hard origin/main` ile uncommitted değişiklikleri kaybettim, yeniden uyguladım. DERS: edit'leri önce branch'e COMMIT'le, sonra reset. Bundan sonra reset öncesi `git status` kontrol.
 
 ### Tests Run
-- check OK (183 dosya), jest 332/332 (14 suite). CI alpha.44 build doğrulanacak.
+- check OK (183 dosya), jest 332/332 (14 suite). CI desktop-v6.0.0-alpha.44: Windows + macOS + Desktop Release **success**; assets doğrulandı (.exe+blockmap, .dmg, .zip, latest.yml, latest-mac.yml, SHA256SUMS.txt), "Latest".
 
 ### Suggested Next Step For Codex
 - Renderer etkilenmez. Not: cevap pipeline'ı (final-answer-sanitizer/rae/cognitive-kernel) bu turda benim alanımdı; artık açık işim yok.
