@@ -411,6 +411,22 @@ const READY_STATES = {
 
 const MAX_REGENERATION_ATTEMPTS = 3;
 const PROGRESS_HEARTBEAT_MS = 5000;
+
+const HARD_GATE_CAVEAT = "— Not: Bu yanıtı otomatik olarak tam doğrulayamadım; özellikle sayısal/teknik ayrıntıları kontrol et.";
+
+/**
+ * Hard Gate bloke ettiyse: model GERÇEK/doluca bir cevap ürettiyse onu
+ * "Yanıt güvenli şekilde doğrulanamadı" duvarıyla GİZLEME — cevabı kısa bir dürüst
+ * uyarıyla göster. Boş/çok kısa cevaplarda (veya çok-görevli akışta) null döner ve
+ * gate'in davranışı korunur. Saf/test edilebilir karar fonksiyonu.
+ * @returns {string|null} gösterilecek metin, ya da null (değişiklik yok)
+ */
+function restoreBlockedAnswer({ hardGateBlocked, isMultiTask, preGateText } = {}) {
+  if (!hardGateBlocked || isMultiTask) return null;
+  const text = String(preGateText || "").trim();
+  if (text.length <= 40) return null;
+  return `${text}\n\n${HARD_GATE_CAVEAT}`;
+}
 const HEARTBEAT_TOKEN = "\u200b";
 
 function progressLabel(stage, scope, meta = {}) {
@@ -1945,6 +1961,21 @@ class ModelManager {
 
     // multi_task gÃ¼vencesi: herhangi bir geÃ§ aÅŸama (Hard Gate dahil) cevabÄ± boÅŸalttÄ±ysa,
     // gÃ¶revâ†’cevap eÅŸlemeli birleÅŸtirmeyi geri yÃ¼kle. ASLA boÅŸ bubble dÃ¶ndÃ¼rme.
+    // CEVABI GİZLEME: Hard Gate, model gerçek/doluca bir cevap ürettiyse onu
+    // "Yanıt güvenli şekilde doğrulanamadı" duvarıyla GİZLEMEMELİ. Açık-uçlu
+    // danışma soruları ("nasıl/açıkla/analiz") shouldVerifyAnswer'ı tetikleyip
+    // gate'e girer ama kesin doğrulanabilir tek bir sonucu yoktur; gate'in
+    // sezgileri bunları yanlış-reddeder. Gate'in satır-içi DÜZELTMELERİ zaten
+    // çalıştı; burada yalnız son-çare GİZLEME'yi kaldırıyoruz: cevabı kısa, dürüst
+    // bir uyarıyla gösteriyoruz (kullanıcı özellikle sayısal/teknik detayı kontrol
+    // etsin). Boş/çok kısa cevaplarda gate'in mesajı korunur.
+    const restored = restoreBlockedAnswer({ hardGateBlocked, isMultiTask, preGateText });
+    if (restored) {
+      finalText = restored;
+      hardGateBlocked = false;
+      try { logs.warn("verification", "hard-gate restore: substantial answer shown with caveat instead of block wall"); } catch (_e) {}
+    }
+
     if (isMultiTask && multiTaskAssembled && multiTaskAssembled.trim() && !finalText.trim()) {
       finalText = multiTaskAssembled.trim();
     }
@@ -2123,6 +2154,7 @@ module.exports = {
   READY_STATES,
   literalOnlyAnswer,
   instantAnswer,
+  restoreBlockedAnswer,
   detectTask,
   repairTaskBoundaryLeak,
   hashTaskBody,
