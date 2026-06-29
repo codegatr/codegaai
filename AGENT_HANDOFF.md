@@ -16,7 +16,7 @@ Fast-path footgun denetimi (git-status olayının devamı). instantAnswer "Ben C
 - __tests__/instant-answer.test.js (3 test). solveKnownReasoningBenchmarks denetlendi, çok-koşullu, düşük risk, dokunulmadı.
 
 ### Tests Run
-- check OK (185), full 349/349. CI desktop-v6.0.0-alpha.48 dogrulanacak.
+- check OK (185), full 349/349. CI desktop-v6.0.0-alpha.48: Windows + macOS + Desktop Release **success**; assets dogrulandi (.exe+blockmap, .dmg, .zip, latest.yml, latest-mac.yml, SHA256SUMS.txt), "Latest".
 
 ### Suggested Next Step For Codex
 - Yavaslik (uzun/zor soruda ilk-token gecikmesi) inherent yerel-model konusu; perf icin model secimi/lean-prompt onerildi (kullanici onayi bekleniyor).
