@@ -42,6 +42,7 @@ const { contextEngine }            = require("./agent/context/context-engine");
 const { registerAEPIpc }              = require("./agent/aep/aep-ipc");
 const { registerACEIpc }              = require("./agent/ace/ace-ipc");
 const { initACEOS }                   = require("./agent/ace/ace-os");
+const { registerAcademyIpc, getAcademy } = require("./agent/academy/academy-ipc");
 const inheritedOllamaModelsPath = String(process.env.OLLAMA_MODELS || "").trim();
 let activeModelStorage = null;
 let lastMcpHealth = null;
@@ -462,6 +463,14 @@ function registerIpc() {
 
   // ACE — Artificial Cognition Engine — Sprint ACE (alpha.26)
   registerACEIpc(missionGenerateFn);
+
+  // CODEGA AI Academy — kalici muhendislik egitim alt sistemi (Phase I).
+  // IPC handler'lari hemen kaydedilir; ACE EngineeringBrain async init bitince
+  // baglanir, boylece gecilen derslerin kurallari canli chat prompt'una akar.
+  registerAcademyIpc(null);
+  initACEOS(path.join(app.getPath("userData"), "ace"))
+    .then((aceOS) => { try { getAcademy()?.setEngineeringBrain(aceOS.engineeringBrain); } catch (_e) {} })
+    .catch((e) => console.warn("[Academy] brain bind:", e.message));
 
   // Evolution Engine + CODEGA DNA init — Sprint 11
   const evoDataDir = path.join(app.getPath("userData"), "evolution");

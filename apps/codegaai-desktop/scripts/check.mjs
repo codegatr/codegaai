@@ -83,6 +83,10 @@ const required = [
   "src/main/agent/evolution/evolution-engine.js",
   "src/main/agent/evolution/codega-dna.js",
   "src/main/agent/context/context-engine.js",
+  "src/main/agent/academy/curriculum.js",
+  "src/main/agent/academy/academy-os.js",
+  "src/main/agent/academy/academy-ipc.js",
+  "src/main/agent/__tests__/academy.test.js",
   "assets/logo.svg",
   "src/renderer/phoenix-splash.js",
   "src/renderer/phoenix-theme.css",
@@ -276,8 +280,9 @@ const preloadFile2 = readText(join(root, "src/main/preload.js"));
 if (!preloadFile2.includes("ace:dashboard") || !preloadFile2.includes("ace:reflect")) throw new Error("preload.js ACE API eksik");
 const mainFile = readText(join(root, "src/main/main.js"));
 if (!mainFile.includes("registerACEIpc")) throw new Error("main.js ACE IPC kaydi eksik");
+if (!mainFile.includes("registerAcademyIpc")) throw new Error("main.js Academy IPC kaydi eksik");
 
-if (pkg.version !== "6.0.0-alpha.37") throw new Error(`Desktop package version must be 6.0.0-alpha.37, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.38") throw new Error(`Desktop package version must be 6.0.0-alpha.38, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
