@@ -6,6 +6,23 @@
 
 ---
 
+## Claude Update - 2026-06-29 14:10 — instantAnswer kimlik footgun fix (alpha.48)
+
+### Current Task
+Fast-path footgun denetimi (git-status olayının devamı). instantAnswer "Ben CODEGA AI..." tanıtımı uzun/somut soruları da papağanlıyordu (codega ai / kimsin substring, uzunluk guard yok) → modeli + ANTI-LOOP by-pass.
+
+### Files merged (main — alpha.48)
+- model-manager.js instantAnswer: kimlik tanıtımı yalnız <=50 char kimlik sorularında; kim(sin)? -> kimsin.
+- __tests__/instant-answer.test.js (3 test). solveKnownReasoningBenchmarks denetlendi, çok-koşullu, düşük risk, dokunulmadı.
+
+### Tests Run
+- check OK (185), full 349/349. CI desktop-v6.0.0-alpha.48 dogrulanacak.
+
+### Suggested Next Step For Codex
+- Yavaslik (uzun/zor soruda ilk-token gecikmesi) inherent yerel-model konusu; perf icin model secimi/lean-prompt onerildi (kullanici onayi bekleniyor).
+
+---
+
 ## Claude Update - 2026-06-29 13:40 — "git status" short-circuit fix (alpha.47)
 
 ### Current Task
