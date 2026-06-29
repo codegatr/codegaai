@@ -87,7 +87,11 @@ class AcademyOS {
 
   // ── Ders calisma ────────────────────────────────────────────────────────────
 
-  /** Bir dersi calis (teoriyi gormus say). Sinav icin on kosul. */
+  /**
+   * Bir dersi calis (teoriyi gormus say). ONERILIR ama sinav icin ZORUNLU DEGIL:
+   * challenge exam'a izin verilir. Calismadan gecilen sinav sertifikada
+   * studiedFirst=false olarak isaretlenir.
+   */
   studyLesson(lessonId) {
     const lesson = getLesson(lessonId);
     if (!lesson) throw new Error(`Ders bulunamadi: ${lessonId}`);
@@ -137,8 +141,22 @@ class AcademyOS {
     if (!this._transcript.examsPassed.includes(lesson.id)) {
       this._transcript.examsPassed.push(lesson.id);
     }
-    const cert = { lessonId: lesson.id, title: lesson.title, level: lesson.level, score, at: Date.now() };
-    this._transcript.certifications.push(cert);
+
+    // Ders calisilmadan gecildiyse "challenge exam" olarak isaretle (seffaflik).
+    const studiedFirst = this._transcript.lessonsStudied.includes(lesson.id);
+
+    // Ders basina TEK sertifika: retake'te yeni kayit ekleme, mevcudu guncelle.
+    let cert = this._transcript.certifications.find((c) => c.lessonId === lesson.id);
+    if (cert) {
+      cert.score = Math.max(cert.score, score);
+      cert.retakeCount = (cert.retakeCount || 0) + 1;
+      cert.studiedFirst = cert.studiedFirst || studiedFirst;
+      cert.at = Date.now();
+    } else {
+      cert = { lessonId: lesson.id, title: lesson.title, level: lesson.level,
+               score, retakeCount: 0, studiedFirst, at: Date.now() };
+      this._transcript.certifications.push(cert);
+    }
 
     // brainRule'lari kalici bilgiye PROMOTE et
     const promoted = this._promoteBrainRules(lesson);

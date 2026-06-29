@@ -188,6 +188,235 @@ const LESSON_VERIFY_EXIT_AND_TESTS = {
   ],
 };
 
+// ── Level 2 — Senior Developer (Phase II, tam islenmis) ────────────────────────
+
+/** Level 2 dersi kisayolu — ortak alanlari doldurur. */
+function l2(idSuffix, title, fields) {
+  return {
+    id: `L2-${idSuffix}`,
+    level: 2,
+    title,
+    goal: fields.goal,
+    theory: fields.theory,
+    examples: fields.examples || [],
+    rules: fields.rules || { do: [], dont: [], why: "" },
+    commonMistakes: fields.commonMistakes || [],
+    architectureNotes: fields.architectureNotes || "",
+    exercise: fields.exercise || "",
+    exam: { passScore: 70, questions: fields.questions || [] },
+    brainRules: fields.brainRules || [],
+  };
+}
+
+const LEVEL2_LESSONS = [
+  l2("architecture", "Katmanli mimari ve IPC sinirlari", {
+    goal: "main/renderer/agent ayrimini ve IPC sinirlarinin neden onemli oldugunu kavramak.",
+    theory:
+      "CODEGA Electron uygulamasi katmanlidir: renderer (UI) -> preload (kopru) -> main " +
+      "(is mantigi, dosya, model). Agir is ve gizli yetenekler main'de; renderer sadece " +
+      "mesaj gonderir. Bu sinir guvenligi ve test edilebilirligi saglar.",
+    examples: ["renderer asla fs/child_process kullanmaz", "preload sadece beyaz-liste IPC sunar"],
+    rules: { do: ["Is mantigini main'e koy", "preload'da yetenekleri beyaz-listele"],
+             dont: ["renderer'a node yetkisi acma", "IPC sinirini atlama"],
+             why: "Sinir, hem guvenligi hem de moduler test edilebilirligi korur." },
+    commonMistakes: ["nodeIntegration acmak", "is mantigini renderer'a sizdirmak"],
+    architectureNotes: "main/agent/* moduler; her alt sistem kendi ipc.js'iyle kayit olur.",
+    exercise: "Bir yetenegi preload beyaz-listesine ekleyip renderer'dan IPC ile cagir.",
+    questions: [
+      q("Agir is ve dosya erisimi hangi katmanda olmali?",
+        ["renderer", "preload", "main process", "fark etmez"], 2),
+      q("preload'un gorevi nedir?",
+        ["UI render", "beyaz-listeli IPC kopru", "model calistirma", "dosya yazma"], 1),
+    ],
+    brainRules: [{ type: "arch_decision", title: "Keep heavy work and capabilities in main, not renderer",
+      description: "Is mantigi/dosya/model main'de; renderer sadece IPC mesaji gonderir. preload yetenekleri beyaz-listeler.",
+      tags: ["electron", "architecture", "ipc", "security"], confidence: 0.9, source: "principle" }],
+  }),
+  l2("performance", "Olcmeden optimize etme", {
+    goal: "Performans degisikliklerinin once olculmesi gerektigini ogrenmek.",
+    theory:
+      "Optimizasyon tahminle degil olcumle yapilir. Once benchmark/baseline al, darbogazi " +
+      "kanitla, sonra degistir, sonra tekrar olc. Aksi halde okunabilirligi bozup hicbir " +
+      "kazanc saglamayabilirsin.",
+    examples: ["YANLIS: 'bu yavas olabilir' deyip refactor", "DOGRU: baseline ms -> degisiklik -> yeni ms kiyas"],
+    rules: { do: ["Once benchmark al", "Degisiklik sonrasi tekrar olc"],
+             dont: ["Tahminle optimize etme", "Olcumsuz 'hizlandirdim' deme"],
+             why: "Olcumsuz optimizasyon cogu zaman karmasiklik ekler, kazanc getirmez." },
+    commonMistakes: ["mikro-optimizasyon", "yanlis darbogazi hedeflemek"],
+    architectureNotes: "self-qa-agent perf regresyonunu baseline'a gore uyari olarak isaretler.",
+    exercise: "Bir fonksiyonun baseline suresini olc, degistir, kiyasla.",
+    questions: [
+      q("Optimizasyona baslarken ilk adim nedir?",
+        ["hemen refactor", "baseline/benchmark olcumu", "kutuphane degistir", "cache ekle"], 1),
+      q("Olcumsuz optimizasyonun riski nedir?",
+        ["yok", "karmasiklik ekler, kazanc belirsiz", "her zaman hizlandirir", "test gerekmez"], 1),
+    ],
+    brainRules: [{ type: "perf_insight", title: "Always benchmark before optimization",
+      description: "Once baseline al, darbogazi kanitla, degistir, tekrar olc. Tahminle optimize etme.",
+      tags: ["performance", "benchmark"], confidence: 0.9, source: "principle" }],
+  }),
+  l2("async", "Async: yarisi onle, hatayi yutma", {
+    goal: "Promise/await tuzaklarini ve yaris kosullarini guvenli ele almayi ogrenmek.",
+    theory:
+      "Fire-and-forget promise'ler (await/.catch olmadan) hatayi sessizce yutar. Async init " +
+      "yaris kosulu olusturabilir; bagimliligi hazir olmadan kullanma. CODEGA'da Academy " +
+      "EngineeringBrain'i ACE async init bitince setEngineeringBrain ile race-free baglandi.",
+    examples: ["YANLIS: doStuff(); // promise yutuldu", "DOGRU: await doStuff().catch(handle)"],
+    rules: { do: [".catch veya try/await kullan", "Async bagimliligi hazir olunca bagla"],
+             dont: ["Promise'i yutma", "Init bitmeden bagimliligi kullanma"],
+             why: "Yutulan hata teshisi imkansiz kilar; yaris kosulu kararsiz davranis uretir." },
+    commonMistakes: ["unhandled rejection", "init tamamlanmadan erisim"],
+    architectureNotes: "registerAcademyIpc senkron handler kaydeder; brain sonradan baglanir.",
+    exercise: "Bir async init'i, bagimliligi .then icinde baglayacak sekilde race-free yaz.",
+    questions: [
+      q("await/.catch olmadan cagrilan promise ne riski tasir?",
+        ["daha hizli", "hatayi sessizce yutar", "bellek temizler", "risksiz"], 1),
+      q("Async init yaris kosulu nasil onlenir?",
+        ["rastgele bekle", "bagimlilik hazir olunca bagla (then/await)", "senkron yap", "gormezden gel"], 1),
+    ],
+    brainRules: [{ type: "antipattern", title: "Never swallow async errors; bind async deps race-free",
+      description: "Promise'leri await/.catch ile ele al; async bagimliligi init bitince bagla (yaris kosulunu onle).",
+      tags: ["async", "promise", "race-condition"], confidence: 0.9, source: "codega-incident" }],
+  }),
+  l2("memory", "Kalici hafiza: sinirli ve append-only", {
+    goal: "Durum kalicilastirmada sinirli diziler ve append-only loglarin onemini ogrenmek.",
+    theory:
+      "Kalici hafiza buyumeyi kontrol etmeli: diziler sinirlanmali (ornek son N), olay loglari " +
+      "append-only JSONL olmali. CODEGA project-brain _append her alanda max sinir uygular; " +
+      "Academy learning-history.jsonl append-only'dir.",
+    examples: ["sinirli: arr.push(x); if(arr.length>max) arr.shift()", "append-only: fs.appendFileSync(jsonl, line)"],
+    rules: { do: ["Buyuyen dizileri sinirla", "Olaylari append-only logla"],
+             dont: ["Sinirsiz birikim", "Tum durumu her seferinde rewrite edip sismek"],
+             why: "Sinirsiz hafiza disk/bellek sismesine ve yavaslamaya yol acar." },
+    commonMistakes: ["sinirsiz array push", "buyuk JSON'u surekli rewrite"],
+    architectureNotes: "transcript.json kucuk durum; buyuyen olaylar ayri jsonl dosyalarda.",
+    exercise: "Son 50 ile sinirli bir kayit listesi + append-only log yaz.",
+    questions: [
+      q("Buyuyen olay kayitlari icin uygun bicim nedir?",
+        ["tek buyuk JSON rewrite", "append-only JSONL", "bellekte tutup kaybetmek", "her olay icin yeni dosya"], 1),
+      q("Sinirsiz buyuyen dizinin riski?",
+        ["yok", "bellek/disk sismesi ve yavaslama", "daha hizli", "daha guvenli"], 1),
+    ],
+    brainRules: [{ type: "arch_decision", title: "Bound growing arrays; persist events append-only",
+      description: "Durum dizilerini sinirla (son N), olaylari append-only JSONL ile yaz. Buyuk JSON'u surekli rewrite etme.",
+      tags: ["memory", "persistence", "jsonl"], confidence: 0.88, source: "codega-pattern" }],
+  }),
+  l2("builder", "Builder Engine: stack -> proje -> ZIP", {
+    goal: "Builder'in girdi/stack'ten dogrulanmis proje ciktisi uretme akisini kavramak.",
+    theory:
+      "Builder Engine bir stack secip dosya manifesti uretir ve ciktiyi paketler. Cikti " +
+      "dogrulanmali (beklenen dosyalar var mi) ve guvenli paketlenmeli (ZIP). Uretilen kod " +
+      "da CODEGA kurallarina uymali (orn. UTF-8, test).",
+    examples: ["stack -> file-manifest -> ZIP", "uretilen projede README + calisma talimati"],
+    rules: { do: ["Cikti dosyalarini dogrula", "Guvenli paketleme kullan"],
+             dont: ["Dogrulamadan teslim etme", "Eksik manifest ile ZIP'leme"],
+             why: "Dogrulanmamis cikti kullaniciya bozuk proje teslim eder." },
+    commonMistakes: ["manifest dogrulamasi atlamak", "bos/eksik ZIP"],
+    architectureNotes: "builder-engine + zip-engine; archiver lazy-require ile yuklenir.",
+    exercise: "Bir stack icin minimal manifest + ZIP cikti akisi tasarla.",
+    questions: [
+      q("Builder ciktisi teslimden once ne yapilmali?",
+        ["hemen gonder", "beklenen dosyalari dogrula", "sil", "yeniden adlandir"], 1),
+      q("Builder hangi modulle paketler?",
+        ["model-manager", "zip-engine", "update-service", "preload"], 1),
+    ],
+    brainRules: [{ type: "test_strategy", title: "Validate builder output before delivery",
+      description: "Builder ciktisini (beklenen dosyalar) dogrula, guvenli paketle; eksik manifestle ZIP'leme.",
+      tags: ["builder", "zip", "validation"], confidence: 0.85, source: "codega-pattern" }],
+  }),
+  l2("zip", "ZIP Engine: agir bagimligi lazy-require et", {
+    goal: "Startup cokmesini onlemek icin agir/opsiyonel bagimliliklarin lazy yuklenmesini ogrenmek.",
+    theory:
+      "Gercek CODEGA olayi: archiver'in tepe-seviye require'i uygulamayi acilista cokertti. " +
+      "Cozum: archiver'i sadece kullanildigi anda (fonksiyon icinde) require et + asarUnpack " +
+      "ile asar disina cikar. Agir/native bagimliliklar lazy yuklenmeli.",
+    examples: ["YANLIS: const archiver = require('archiver') // tepe seviye", "DOGRU: packToZip icinde require('archiver')"],
+    rules: { do: ["Agir bagimliligi fonksiyon icinde require et", "Native dep'i asarUnpack'e ekle"],
+             dont: ["Agir/native dep'i tepe-seviye require etme", "asar icinde native binary cagirma"],
+             why: "Tepe-seviye agir require startup'i cokertir; lazy-require bunu onler." },
+    commonMistakes: ["startup'ta tum dep'leri yuklemek", "asarUnpack'i unutmak"],
+    architectureNotes: "check.mjs archiver'in asarUnpack'te oldugunu dogrular.",
+    exercise: "Bir agir modulu lazy-require eden bir fonksiyon yaz.",
+    questions: [
+      q("archiver startup cokmesinin cozumu neydi?",
+        ["kaldirmak", "lazy-require + asarUnpack", "yeni surum", "renderer'a tasimak"], 1),
+      q("Native bagimlilik asar ile nasil calisir?",
+        ["calismaz", "asarUnpack ile asar disina cikarilir", "her zaman calisir", "renderer'da"], 1),
+    ],
+    brainRules: [{ type: "bug_pattern", title: "Lazy-require heavy/native deps; asarUnpack them",
+      description: "Agir/native bagimliligi tepe-seviye require etme (startup cokebilir); kullanildigi yerde require et + asarUnpack.",
+      tags: ["zip", "archiver", "startup", "asar"], confidence: 0.95, source: "codega-incident" }],
+  }),
+  l2("git-agent", "Git Agent: branch izolasyonu, main'e otomatik merge yok", {
+    goal: "Otonom kod degisikliginin branch izolasyonu ve insan onayi gerektirdigini ogrenmek.",
+    theory:
+      "Otonom gelistirme non-default branch'te calisir, sadece kapsanan dosyalari degistirir, " +
+      "draft PR acar ve CI + insan onayi ister. Sistem main'e ASLA kendi merge etmez.",
+    examples: ["aep/<task>-<slug> branch", "draft PR + Self QA Agent gate"],
+    rules: { do: ["Non-default branch kullan", "Draft PR ac, insan onayi bekle"],
+             dont: ["main'e otomatik merge", "Kapsam disi dosyalara dokunma"],
+             why: "Denetimsiz mutasyon production'i bozar; izolasyon + onay guvenligi saglar." },
+    commonMistakes: ["main'e dogrudan commit", "kapsam disi degisiklik"],
+    architectureNotes: "patch-generator draft PR uretir; self-qa-agent release-gate.",
+    exercise: "Bir patch akisini branch + draft PR + onay olarak tasarla.",
+    questions: [
+      q("Otonom sistem main'e ne yapar?",
+        ["otomatik merge", "asla kendi merge etmez, insan onayi ister", "force push", "rebase"], 1),
+      q("Otonom degisiklik nerede yapilir?",
+        ["main", "non-default branch", "detached HEAD", "tag"], 1),
+    ],
+    brainRules: [{ type: "arch_decision", title: "Autonomous changes: branch-isolated, never self-merge to main",
+      description: "Otonom kod non-default branch'te, kapsanan dosyalarda, draft PR + CI + insan onayi ile. Main'e otomatik merge yok.",
+      tags: ["git", "autonomous", "safety", "pr"], confidence: 0.95, source: "codega-rule" }],
+  }),
+  l2("qa", "QA: Self QA Agent release-gate", {
+    goal: "Yazilan kodu bagimsiz ikinci bir ajanin denetlemesi ve release'i bloklayabilmesini ogrenmek.",
+    theory:
+      "CODEGA Self QA Agent: ilk ajanin urettigi patch'i bagimsiz denetler. Test yoksa / UTF-8 " +
+      "bozuksa / test basarisizsa PR acilmaz (qa_blocked). Kod yazan ajan kendi kodunun tek " +
+      "yargici olamaz.",
+    examples: ["patch -> SelfQAAgent.review() -> ok? PR : qa_blocked", "test yok -> blok"],
+    rules: { do: ["Bagimsiz QA gate calistir", "Test/UTF-8/sonuc kontrolu zorunlu kil"],
+             dont: ["Kendi kodunu tek yargic yapma", "Gate'i atlayip release etme"],
+             why: "Kendi kodunu denetleyen tek ajan kor noktalari kaciri; bagimsiz gate yakalar." },
+    commonMistakes: ["QA'yi atlamak", "sadece happy-path test"],
+    architectureNotes: "self-qa-agent.js patch-generator'a release-gate olarak bagli.",
+    exercise: "Bir patch icin test-var/UTF-8/test-gecti kontrolu yapan bir gate yaz.",
+    questions: [
+      q("Self QA Agent ne zaman PR'i engeller?",
+        ["asla", "test yok / UTF-8 bozuk / test basarisiz", "her zaman", "rastgele"], 1),
+      q("Neden ikinci bagimsiz ajan?",
+        ["maliyet", "kod yazan ajan kendi kor noktasini goremez", "hiz", "gereksiz"], 1),
+    ],
+    brainRules: [{ type: "test_strategy", title: "An independent QA agent must gate releases",
+      description: "Kodu yazan ajan tek yargic olamaz; bagimsiz QA gate test/UTF-8/sonuc kontrolu yapip release'i bloklayabilmeli.",
+      tags: ["qa", "self-review", "release-gate"], confidence: 0.93, source: "codega-incident" }],
+  }),
+  l2("release", "Release: dogru tag, dogrulanmis asset", {
+    goal: "Release'in dogru tag formatini ve asset/updater dogrulamasini gerektirdigini ogrenmek.",
+    theory:
+      "CODEGA'da sadece desktop-v* tag'i gercek Windows/macOS installer pipeline'ini tetikler " +
+      "(.exe/.dmg/latest.yml uretir). Duz v* sadece ilgisiz Linux tarball uretir ve auto-updater " +
+      "kullanamaz. Release 'basarili' denmeden once Actions bitmeli + asset'ler dogrulanmali.",
+    examples: ["desktop-v6.0.0-alpha.38 -> gercek installer", "v6.0.0-... -> sadece tarball (YANLIS)"],
+    rules: { do: ["desktop-v* tag kullan", "Actions bitince asset+latest.yml dogrula"],
+             dont: ["Actions bitmeden 'basarili' deme", "Yanlis tag formatiyla release"],
+             why: "Yanlis tag updater'in goremedigi bos release uretir; kullanici manuel kalir." },
+    commonMistakes: ["v* tag kullanmak", "asset dogrulamadan duyurmak"],
+    architectureNotes: "3 workflow desktop-v* push'ta tetiklenir; test:ci gate'i build oncesi.",
+    exercise: "Bir release'i tag -> build -> asset dogrulama olarak adimla.",
+    questions: [
+      q("Hangi tag gercek installer pipeline'ini tetikler?",
+        ["v*", "desktop-v*", "release-*", "herhangi"], 1),
+      q("Release ne zaman 'basarili' sayilir?",
+        ["tag push edilince", "Actions bitince + asset/latest.yml dogrulaninca", "commit'te", "PR acilinca"], 1),
+    ],
+    brainRules: [{ type: "test_strategy", title: "Release tags must be desktop-v*; verify assets before success",
+      description: "Sadece desktop-v* gercek installer pipeline'ini tetikler. Actions bitmeden + asset/latest.yml dogrulanmadan basarili deme.",
+      tags: ["release", "ci", "updater", "tags"], confidence: 0.95, source: "codega-incident" }],
+  }),
+];
+
 // ── Ust seviyeler — yapilandirilmis ders basliklari (Phase I iskelet) ──────────
 // Her seviye icin ders basliklari + hedefleri tanimli. Tam icerik sonraki
 // Academy turlarinda islenir; iskelet, transcript/sertifika sisteminin tum
@@ -213,7 +442,7 @@ function lessonStub(level, idx, title, goal, brainRule) {
 
 const STUB_TOPICS = {
   1: [], // Level 1 tam islenmis derslerle dolduruluyor (asagida)
-  2: ["Architecture", "Performance", "Async", "Memory", "Builder", "ZIP", "Git Agent", "QA", "Release"],
+  2: [], // Level 2 tam islenmis (LEVEL2_LESSONS)
   3: ["SOLID", "DDD", "Clean Architecture", "Event Driven", "Layered Design", "Dependency Graph", "Scalability", "Plugin Architecture"],
   4: ["Technical Debt", "Benchmark", "Refactoring", "Migration", "Compatibility", "Performance Budget", "Engineering Metrics"],
   5: ["Roadmaps", "Risk Analysis", "Release Planning", "Engineering Budget", "Cost Analysis", "Architecture Decisions", "Rollback Strategies", "Competitive Analysis"],
@@ -243,9 +472,10 @@ function buildCurriculum() {
     LESSON_UTF8_INTEGRITY,
     LESSON_RENDERER_NONBLOCK,
     LESSON_VERIFY_EXIT_AND_TESTS,
+    ...LEVEL2_LESSONS,
   ];
 
-  for (let level = 2; level <= 8; level++) {
+  for (let level = 3; level <= 8; level++) {
     const topics = STUB_TOPICS[level] || [];
     topics.forEach((title, idx) => {
       const goal = `${LEVEL_TITLES[level]} seviyesinde "${title}" yetkinligini kazanmak.`;

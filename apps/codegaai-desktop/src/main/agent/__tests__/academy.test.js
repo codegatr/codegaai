@@ -43,6 +43,20 @@ describe("Academy curriculum", () => {
       }
     }
   });
+
+  test("Level 2 tam islenmis: 9 ders, hepsinde sinav sorusu + brainRule", () => {
+    const l2 = lessonsForLevel(2);
+    expect(l2.length).toBe(9);
+    for (const lesson of l2) {
+      expect(lesson._stub).toBeFalsy();
+      expect(lesson.exam.questions.length).toBeGreaterThan(0);
+      expect(lesson.theory.length).toBeGreaterThan(0);
+      expect(lesson.brainRules.length).toBeGreaterThan(0);
+      for (const q of lesson.exam.questions) {
+        expect(q.options[q.correctIndex]).toBeDefined();
+      }
+    }
+  });
 });
 
 describe("AcademyOS", () => {
@@ -126,6 +140,31 @@ describe("AcademyOS", () => {
     const r = a.takeExam("L1-utf8-integrity", [1, 1]);
     expect(r.passed).toBe(true);
     expect(a.engineeringKnowledge().length).toBeGreaterThan(0);
+  });
+
+  test("ayni ders tekrar gecilince sertifika duplike OLMAZ, retakeCount artar", () => {
+    academy.takeExam("L1-utf8-integrity", [1, 1]);
+    academy.takeExam("L1-utf8-integrity", [1, 1]); // retake
+    const certs = academy.transcript().certifications.filter((c) => c.lessonId === "L1-utf8-integrity");
+    expect(certs.length).toBe(1);
+    expect(certs[0].retakeCount).toBe(1);
+  });
+
+  test("calismadan gecilen sinav sertifikada studiedFirst=false isaretlenir", () => {
+    const r = academy.takeExam("L1-utf8-integrity", [1, 1]); // study YOK
+    expect(r.certification.studiedFirst).toBe(false);
+  });
+
+  test("once calisilip sonra gecilen sinav studiedFirst=true olur", () => {
+    academy.studyLesson("L1-utf8-integrity");
+    const r = academy.takeExam("L1-utf8-integrity", [1, 1]);
+    expect(r.certification.studiedFirst).toBe(true);
+  });
+
+  test("Level 2 dersinin sinavi calisir ve gecilir", () => {
+    const r = academy.takeExam("L2-zip", [1, 1]);
+    expect(r.passed).toBe(true);
+    expect(r.certification.level).toBe(2);
   });
 
   test("setEngineeringBrain sonradan baglanabilir", () => {
