@@ -298,7 +298,9 @@ function createStreamView(placeholder) {
   return {
     answer: "",
     firstContent: true,
+    disposed: false,
     apply(token) {
+      if (this.disposed) return "ignored";
       if (isInvisibleProgressToken(token)) return "ignored";
       const text = String(token || "");
       if (this.firstContent) {
@@ -314,6 +316,11 @@ function createStreamView(placeholder) {
     },
     showOneMinuteNotice() {
       if (!this.answer.trim()) setChatWorkingStatus(oneMinuteStatusNotice());
+    },
+    dispose() {
+      this.disposed = true;
+      this.answer = "";
+      this.firstContent = true;
     },
   };
 }
@@ -1162,11 +1169,13 @@ async function regenerateLast() {
   const placeholder = msgs[msgs.length - 1];
 
   const streamView = createStreamView(placeholder);
+  let cancelled = false;
   const offStatus = window.codega.onChatStatus((status) => {
     setChatWorkingStatus(status);
     if (_kickWatchdog) _kickWatchdog();
   });
   let rafPending = false;
+  let rafId = 0;
   const offStream = window.codega.onChatStream((token) => {
     const kind = streamView.apply(token);
     if (kind === "ignored") {
@@ -1179,7 +1188,7 @@ async function regenerateLast() {
     }
     if (!rafPending) {
       rafPending = true;
-      requestAnimationFrame(() => { rafPending = false; renderConversation(); scrollConversationToBottom(); });
+      rafId = requestAnimationFrame(() => { rafPending = false; rafId = 0; renderConversation(); scrollConversationToBottom(); });
     }
   });
   const slowNotice = setTimeout(() => {
@@ -1191,22 +1200,46 @@ async function regenerateLast() {
     renderConversation();
     scrollConversationToBottom();
   }, 60000);
+  const cleanupRun = (message = "Yanıt durduruldu.") => {
+    if (cancelled) return;
+    cancelled = true;
+    clearTimeout(slowNotice);
+    clearTimeout(statusNotice);
+    if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+    offStream();
+    offStatus();
+    finishInterruptedPlaceholder(placeholder, streamView, message);
+    streamView.dispose();
+    isSending = false;
+    setSendingUi(false);
+    saveChats();
+    renderConversation();
+    scrollConversationToBottom();
+    focusComposer();
+    clearActiveChatRunCleanup(cleanupRun);
+  };
+  activeChatRunCleanup = cleanupRun;
   try {
     const answer = await sendMessageWithWatchdog(userText, {
       regenerate: true,
       context: (currentChat().context || ""),
       chatId: currentChat().id,
     });
+    if (cancelled) return;
     placeholder.text = cleanStoredAssistantOutput(answer.text);
   } catch (error) {
+    if (cancelled) return;
     placeholder.text = `Bir aksama oldu: ${error.message || error}`;
   } finally {
     clearTimeout(slowNotice);
     clearTimeout(statusNotice);
+    if (rafId) cancelAnimationFrame(rafId);
     offStream();
     offStatus();
+    streamView.dispose();
     isSending = false;
     setSendingUi(false);
+    clearActiveChatRunCleanup(cleanupRun);
   }
   saveChats();
   renderConversation();
@@ -1240,11 +1273,13 @@ async function handleSubmit() {
   const placeholder = chat.messages[chat.messages.length - 1];
   // Streaming: token geldikçe placeholder'ı canlı güncelle (akış kapalıysa hiç gelmez)
   const streamView = createStreamView(placeholder);
+  let cancelled = false;
   const offStatus = window.codega.onChatStatus((status) => {
     setChatWorkingStatus(status);
     if (_kickWatchdog) _kickWatchdog();
   });
   let rafPending = false;
+  let rafId = 0;
   const offStream = window.codega.onChatStream((token) => {
     const kind = streamView.apply(token);
     if (kind === "ignored") {
@@ -1257,8 +1292,9 @@ async function handleSubmit() {
     }
     if (!rafPending) {
       rafPending = true;
-      requestAnimationFrame(() => {
+      rafId = requestAnimationFrame(() => {
         rafPending = false;
+        rafId = 0;
         renderConversation();
         scrollConversationToBottom();
       });
@@ -1274,25 +1310,49 @@ async function handleSubmit() {
     renderConversation();
     scrollConversationToBottom();
   }, 60000);
+  const cleanupRun = (message = "Yanıt durduruldu.") => {
+    if (cancelled) return;
+    cancelled = true;
+    clearTimeout(slowNotice);
+    clearTimeout(statusNotice);
+    if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+    offStream();
+    offStatus();
+    finishInterruptedPlaceholder(placeholder, streamView, message);
+    streamView.dispose();
+    isSending = false;
+    setSendingUi(false);
+    saveChats();
+    renderConversation();
+    scrollConversationToBottom();
+    focusComposer();
+    clearActiveChatRunCleanup(cleanupRun);
+  };
+  activeChatRunCleanup = cleanupRun;
   try {
     const answer = await sendMessageWithWatchdog(sendText, {
       context: (currentChat().context || ""),
       chatId: currentChat().id,
     });
+    if (cancelled) return;
     placeholder.text = cleanStoredAssistantOutput(answer.text); // final cevap otorite
     if (agentSettings && agentSettings.notifications && !document.hasFocus()) {
       window.codega.sendNotification({ title: "CODEGA AI", body: "Yanit hazir." }).catch(() => {});
     }
     await refreshModels();
   } catch (error) {
+    if (cancelled) return;
     placeholder.text = `Bir aksama oldu: ${error.message || error}`;
   } finally {
     clearTimeout(slowNotice);
     clearTimeout(statusNotice);
+    if (rafId) cancelAnimationFrame(rafId);
     offStream();
     offStatus();
+    streamView.dispose();
     isSending = false;
     setSendingUi(false);
+    clearActiveChatRunCleanup(cleanupRun);
   }
   saveChats(); // final cevabı diske yaz; yoksa kapatıp açınca "Düşünüyorum..." kalıyordu
   renderConversation();
@@ -1336,6 +1396,18 @@ if (els.scrollBottomBtn) els.scrollBottomBtn.addEventListener("click", () => {
 if (els.historySearch) els.historySearch.addEventListener("input", () => { historyQuery = els.historySearch.value; renderHistory(); });
 let _metricsTimer = null;
 let _kickWatchdog = null; // akışta her gerçek token geldiğinde idle watchdog'u sıfırlar
+let activeChatRunCleanup = null;
+
+function finishInterruptedPlaceholder(placeholder, streamView, message) {
+  const partial = String(streamView?.answer || "").trim();
+  placeholder.text = partial
+    ? `${cleanStoredAssistantOutput(partial)}\n\n(${message})`
+    : message;
+}
+
+function clearActiveChatRunCleanup(cleanup) {
+  if (activeChatRunCleanup === cleanup) activeChatRunCleanup = null;
+}
 
 // İki katmanlı koruma: cevap tokenları ile motorun ilerleme/heartbeat sinyalleri idle
 // sayacını sıfırlar. hardMs ise takılan bir işi her durumda sonlandıran kesin üst sınırdır.
@@ -2633,6 +2705,11 @@ function setSendingUi(on) {
 if (els.stopBtn) els.stopBtn.addEventListener("click", async () => {
   els.stopBtn.disabled = true;
   setTransientStatus("Durduruluyor…");
+  // Renderer state reset cleanup'ı bir DOM/state hatasıyla patlasa bile backend
+  // abort'u MUTLAKA çalışmalı (yoksa model arka planda üretmeye devam eder).
+  try {
+    if (activeChatRunCleanup) activeChatRunCleanup("Yanıt kullanıcı tarafından durduruldu.");
+  } catch (_e) { /* cleanup hatası abort'u engellemesin */ }
   try { await window.codega.abortChat(); } catch (_e) {}
   els.stopBtn.disabled = false;
 });
