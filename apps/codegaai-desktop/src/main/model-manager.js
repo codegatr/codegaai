@@ -801,6 +801,24 @@ function candidateModelsForTask(task, installed) {
   ]).filter((model) => installedSet.has(model));
 }
 
+// Model adından parametre boyutunu (milyar) çıkar: "qwen3.5:9b"→9, "...:0.8b"→0.8,
+// "qwen2.5-coder:3b-instruct"→3. Bulunamazsa 0.
+function modelParamSize(name) {
+  const m = String(name || "").match(/(\d+(?:\.\d+)?)\s*b\b/i);
+  return m ? Number(m[1]) : 0;
+}
+
+// Kurulu modeller içinde en büyük (en güçlü) olanı döndür.
+function strongestInstalledModel(installed) {
+  let best = null;
+  let bestSize = -1;
+  for (const m of installed || []) {
+    const s = modelParamSize(m);
+    if (s > bestSize) { bestSize = s; best = m; }
+  }
+  return { model: best, size: bestSize };
+}
+
 function buildPrompt(task, input) {
   return [
     "Sen CODEGA AI'sÄ±n. TÃ¼rkÃ§e, net, samimi ve uygulanabilir cevap ver.",
@@ -1374,12 +1392,30 @@ class ModelManager {
       attemptModels = candidateModelsForTask(task, installed);
       // KullanÄ±cÄ±nÄ±n seÃ§tiÄŸi varsayÄ±lan model KURULUYSA en Ã¶ne al â€” Cookbook "VarsayÄ±lan Yap"
       // seÃ§imi gerÃ§ekten etki etsin (aksi halde yalnÄ±z gÃ¶reve gÃ¶re seÃ§iliyordu).
+      const nrm = (x) => String(x || "").toLowerCase();
       const userDefault = settings.defaultModel || settings.model || "";
       if (userDefault) {
-        const nrm = (x) => String(x || "").toLowerCase();
         const isInst = installed.some((x) => nrm(x) === nrm(userDefault) || nrm(x) === `${nrm(userDefault)}:latest`);
         if (isInst) attemptModels = [userDefault, ...attemptModels.filter((m) => nrm(m) !== nrm(userDefault))];
       }
+
+      // OTOMATİK MODEL YÜKSELTME: ağır/uzun/çok-soru promptlarda küçük varsayılan
+      // (örn. 4B) dejenere olabiliyor. Kurulu daha güçlü bir model (örn. 9B) varsa
+      // bu tür promptlarda onu öne al — küçük model hızı hafif işler için korunur.
+      // settings.autoModelEscalation=false ile kapatılır.
+      try {
+        const heavyPrompt = answerAdequacy.isLongTechnicalQuestion(input)
+          || finalAnswerSanitizer.isMultiQuestionInput(input);
+        if (heavyPrompt && settings.autoModelEscalation !== false) {
+          const strong = strongestInstalledModel(installed);
+          const curSize = modelParamSize(attemptModels[0] || userDefault);
+          if (strong.model && strong.size > curSize) {
+            attemptModels = [strong.model, ...attemptModels.filter((m) => nrm(m) !== nrm(strong.model))];
+            try { logs.info("model_route", `heavy prompt → ${strong.model} (${strong.size}B > ${curSize}B) seçildi`); } catch (_e) {}
+          }
+        }
+      } catch (_e) {}
+
       attemptModels = attemptModels.slice(0, 4);
       selectedModel = attemptModels[0] || chooseModelForTask(task, installed);
       if (!attemptModels.length) {
@@ -2266,6 +2302,8 @@ module.exports = {
   extractResearchQuery,
   candidateModelsForTask,
   chooseModelForTask,
+  modelParamSize,
+  strongestInstalledModel,
   TASK_MODELS,
   missingModelReply,
   parsePullProgress,
