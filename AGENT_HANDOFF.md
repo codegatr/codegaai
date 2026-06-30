@@ -1,3 +1,27 @@
+## Claude Update - 2026-06-30 10:45 — "0.75" 2. tur: uyarlanır num_ctx + teşhis logu (alpha.61)
+
+### Durum / dürüstlük
+- Kullanıcı "Prompt Chunking Middleware async kuyruğu çöküyor" diyor — ama repoda ÖYLE BİR KATMAN YOK. Hiç yazılmadı. "0.75" bir chunk-queue çökmesi değil.
+- Kullanıcının test ekranı **alpha.59**'du (sanitizer fix'i alpha.60'tan ÖNCE). alpha.60'taki isMultiQuestionInput guard'ı bu girdiyi (köşeli etiketli 12 soru) zaten koruyor (model-manager.js:1126 cleanUserFacingOutput → keepAll).
+- Geriye kalan tek gerçekçi sebep (alpha.60'ta): modelin KENDİSİ "0.75" üretmesi → büyük prompt num_ctx 8192'yi aşıp Ollama tarafından BUDANIYOR, küçük model dejenere oluyor.
+
+### Bu sürümdeki gerçek düzeltmeler
+1. **Uyarlanır num_ctx (ollama-client.js)**: `adaptiveNumCtx(messages, requested, numPredict)` — numCtx açıkça verilmediyse, tahmini girdi token'ı + num_predict 8192*0.85'i aşarsa **16384**'e çıkar (cap). ollamaChat + ollamaChatStream ikisinde de devrede. Büyük çok-soru prompt'unun budanmasını → dejenerasyonu engeller. estimateMessagesTokens (~3.2 char/token TR).
+2. **Teşhis logu (model-manager.js ask)**: debugLogging açıkken sanitizer öncesi/sonrası `raw_len/clean_len/changed/multiQ/rawHead` loglanır; ham >200 ama temiz <40 ise WARN ("shrunk"). Böylece "0.75" kaynağı (model mi sanitizer mı) KANITLANIR.
+
+### Test/sürüm
+- adaptiveNumCtx 3 test (ollama-gen-options.test.js). check 193 OK, full 398/398 (23 suite). Sürüm alpha.61. Guard: adaptiveNumCtx.
+
+### Kullanıcıya söylenecek
+- alpha.61'i kur, Ayarlar→debugLogging aç, 12 soruluk testi tekrar çalıştır. Log Merkezi'nde "answer_sanitize" satırına bak:
+  - raw_len büyük + clean_len küçük → sanitizer hâlâ kırpıyor (bana logu gönder).
+  - raw_len de küçük (~5) → model gerçekten "0.75" üretmiş → num_ctx/model meselesi (adaptiveNumCtx yardımcı olur; yetmezse daha büyük model veya GERÇEK prompt-splitter).
+
+### 📌 CODEX NOTU
+- GERÇEK prompt-splitter (soruları 3-4'erli ardışık gönder + aggregate) hâlâ YOK ve bilinçli olarak eklenmedi: (a) auto-continuation + adaptiveNumCtx çoğu durumu çözer, (b) splitter sorular-arası bağlamı kaybettirir, (c) streaming/watchdog pipeline'ına yüksek riskli. Loglar modelin gerçekten dejenere olduğunu gösterirse, splitter'ı model-manager seviyesinde ayrı bir opt-in olarak değerlendirebiliriz.
+
+---
+
 ## Claude Update - 2026-06-30 10:05 — "0.75" çökme bug'ı: çok-soru sanitizer koruması (alpha.60)
 
 ### Bulgu (kök neden)

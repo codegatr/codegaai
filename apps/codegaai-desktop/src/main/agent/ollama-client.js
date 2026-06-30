@@ -29,6 +29,25 @@ const DEFAULT_MAX_CONTINUATIONS = 3;
  * cevap kesmesini azaltmak için num_predict varsayılanı da yüksek tutulur.
  * Hepsi opts ile geçersiz kılınabilir.
  */
+// Mesajların kabaca token sayısını tahmin et (TR ~3.2 karakter/token).
+function estimateMessagesTokens(messages) {
+  let chars = 0;
+  for (const m of messages || []) chars += String((m && m.content) || "").length;
+  return Math.ceil(chars / 3.2);
+}
+
+// Bağlam penceresini girdi boyutuna göre uyarla. Büyük/çok-soru prompt'larında
+// (örn. 12 soruluk test) varsayılan 8192 aşılırsa Ollama promptu BUDAR ve küçük
+// model "0.75" gibi dejenere çıktı üretir. numCtx açıkça verilmediyse, girdi +
+// çıktı bütçesi 8192'yi zorluyorsa 16384'e çıkar (RAM dostu üst sınır).
+const MAX_ADAPTIVE_NUM_CTX = 16384;
+function adaptiveNumCtx(messages, requested, numPredict) {
+  if (typeof requested === "number" && Number.isFinite(requested) && requested > 0) return requested;
+  const needed = estimateMessagesTokens(messages) + (Number(numPredict) || DEFAULT_NUM_PREDICT);
+  if (needed > 8192 * 0.85) return Math.min(MAX_ADAPTIVE_NUM_CTX, 16384);
+  return 8192;
+}
+
 function buildGenOptions(opts = {}) {
   // Yalnız GERÇEK sonlu sayıyı kullan; null/undefined/"" varsayılana düşsün.
   // (Number(null)===0 olduğu için ham Number() guard'ı repeat_penalty'yi yanlışlıkla
@@ -83,7 +102,7 @@ async function ollamaChat(model, messages, opts = {}) {
         messages,
         stream: false,
         think,
-        options: buildGenOptions(opts),
+        options: buildGenOptions({ ...opts, numCtx: adaptiveNumCtx(messages, opts.numCtx, opts.numPredict) }),
       }),
       signal: controller.signal,
     });
@@ -219,7 +238,8 @@ async function ollamaChatStream(model, messages, opts = {}) {
     ? Math.floor(opts.maxContinuations)
     : DEFAULT_MAX_CONTINUATIONS;
   // genOptions bir kez kurulur; her tur aynı parametrelerle çalışır.
-  const genOptions = buildGenOptions(opts);
+  // numCtx girdi boyutuna göre uyarlanır (büyük prompt budanmasın → dejenerasyon).
+  const genOptions = buildGenOptions({ ...opts, numCtx: adaptiveNumCtx(messages, opts.numCtx, opts.numPredict) });
 
   let convo = Array.isArray(messages) ? messages.slice() : [];
   let full = "";
@@ -376,6 +396,8 @@ async function ollamaDeleteModel(name, host = OLLAMA_HOST, timeoutMs = 8000) {
 
 module.exports = {
   buildGenOptions,
+  adaptiveNumCtx,
+  estimateMessagesTokens,
   DEFAULT_NUM_PREDICT,
   DEFAULT_TEMPERATURE,
   DEFAULT_MAX_CONTINUATIONS,

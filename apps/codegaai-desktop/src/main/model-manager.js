@@ -1124,6 +1124,17 @@ class ModelManager {
         if (!result || typeof result.text !== "string") return result;
         const taskReport = tde.decomposeTasks(input);
         const cleaned = finalAnswerSanitizer.cleanUserFacingOutput(result.text, input, taskReport);
+        // Teşhis: ham model çıktısı ile sanitizer sonrası kıyaslanır. "0.75" gibi
+        // çökmelerin kaynağını (model mi, sanitizer mı) kanıtlamak için.
+        try {
+          if (getSettings().debugLogging) {
+            const raw = String(result.text || "");
+            const out = cleaned.changed ? String(cleaned.answer || "") : raw;
+            const shrunk = raw.length >= 200 && out.length < 40;
+            logs[shrunk ? "warn" : "info"]("answer_sanitize",
+              `raw_len=${raw.length} clean_len=${out.length} changed=${cleaned.changed} multiQ=${finalAnswerSanitizer.isMultiQuestionInput(input)} rawHead=${raw.slice(0, 80).replace(/\s+/g, " ")}`);
+          }
+        } catch (_e) {}
         return cleaned.changed ? { ...result, text: cleaned.answer } : result;
       } finally {
         this._activeForeground = Math.max(0, this._activeForeground - 1);
