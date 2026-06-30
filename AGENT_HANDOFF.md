@@ -15,6 +15,9 @@ Kullanıcının 10-görevlik "engineering maturity" vizyonu geldi. Denetim sonuc
 ### Test/sürüm
 - engineering-timeline.test.js (7 test). check 201 dosya OK, full 423/423 (28 suite). Sürüm alpha.65. Guard: aep-os EngineeringTimeline/this.timeline + 3 yeni dosya required[].
 
+### CI / Release (doğrulandı)
+- desktop-v6.0.0-alpha.65: Windows + macOS + Desktop Release **hepsi success** (action-gh-release yarışı tekrarlamadı). Assets tam (latest.yml dahil), draft değil.
+
 ### 📌 CODEX NOTU
 - Timeline'a yeni sürüm olayı eklemek için: aep/timeline-seed.js'e ekle (idempotent) VEYA runtime'da window.codega.aep.timeline.add({type,title,version,why,ref,tags}).
 - Sıradaki yüksek-değer iş: selfReflector.reflect() entegrasyonu (Task1) ve per-yanıt Context Confidence (Task2 — düşük güvende clarifying question). ceg.js Genome'dur, confidence engine DEĞİL; karıştırma.
