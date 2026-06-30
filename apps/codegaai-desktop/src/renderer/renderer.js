@@ -1374,6 +1374,10 @@ async function regenerateLast() {
       regenerate: true,
       context: (currentChat().context || ""),
       chatId: currentChat().id,
+      history: currentChat().messages
+        .filter((m) => (m.role === "user" || m.role === "assistant") && m.text)
+        .slice(-10)
+        .map((m) => ({ role: m.role, text: m.text })),
     });
     if (cancelled) return;
     placeholder.text = cleanStoredAssistantOutput(answer.text);
@@ -1411,6 +1415,13 @@ async function handleSubmit() {
     : `${modePreface}${text}`;
   attachedFile = null;
   renderAttachChip();
+
+  // BAĞLAM SÜREKLİLİĞİ: yeni mesajı eklemeden ÖNCE önceki turları yakala ki
+  // main, yeniden başlatma sonrası boş bellek-içi geçmişi bununla tohumlasın.
+  const priorTurns = currentChat().messages
+    .filter((m) => (m.role === "user" || m.role === "assistant") && m.text)
+    .slice(-10)
+    .map((m) => ({ role: m.role, text: m.text }));
 
   setSendingUi(true);
   stickToBottom = true; // yeni soru: en alta in
@@ -1484,6 +1495,7 @@ async function handleSubmit() {
     const answer = await sendMessageWithWatchdog(sendText, {
       context: (currentChat().context || ""),
       chatId: currentChat().id,
+      history: priorTurns,
     });
     if (cancelled) return;
     placeholder.text = cleanStoredAssistantOutput(answer.text); // final cevap otorite
