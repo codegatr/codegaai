@@ -308,6 +308,32 @@ CODEGA AI artık harici plugin'leri destekliyor. ZIP dosyasından kur, anında e
 
 ---
 
+## 🖥️ Masaüstü Ajan — Güncel Yetenekler (v6.0.0-alpha)
+
+Son sürümlerde masaüstü ajanı (Electron + Ollama) kararlılık ve UX açısından üretim seviyesine taşındı:
+
+| Yetenek | Açıklama | Sürüm |
+|---------|----------|-------|
+| **Chat / Cowork / Code modları** | Üstteki sekmelerle çalışma modu; her mod modele farklı davranış yönergesi verir (sohbet · birlikte proje yürütme · kod-öncelikli). | alpha.56 |
+| **Sohbet içi ZIP** | 📎 ile `.zip` yükle → arşiv içeriği (dosya ağacı + metin) güvenli motorla okunup modele verilir; üretilen proje kod blokları tek `.zip` olarak indirilir. | alpha.56 |
+| **Mesaj kopyalama** | Hem asistan hem kullanıcı mesajlarında 📋 kopyala. | alpha.56 |
+| **Kademeli web çekme** | `read_url`/`research` artık düz fetch → mobil UA → public reader (r.jina.ai) sırasıyla dener. **Yalnız herkese açık içerik**; login/paywall'da durur. | alpha.57 |
+| **Akış DOM optimizasyonu** | Streaming her karede tüm konuşmayı değil yalnız ilgili mesaj düğümünü günceller (uzun sohbette jank/bellek baskısı giderildi). | alpha.58 |
+| **Transaction'lı release** | `release.ps1`: lockfile + yedek/rollback + `finally` temizliği; PHP-regex & SemVer fail-fast guard. | alpha.58–59 |
+| **Çıktı-tavanı koruması** | Model `done_reason:"length"` ile yarıda kesilirse otomatik "kaldığın yerden devam et" turları + stream aggregation; `temperature` strict 0.2, `num_predict` 4096. | alpha.59 |
+| **Anti-tekrar + bilişsel doğrulama** | `repeat_penalty`/`repeat_last_n`/`top_p`/`top_k`; fact-lock/SACV/SSV doğrulama kapıları; ACE bağlam motoru ve Academy müfredatı. | alpha.50+ |
+
+### 🎯 Hedefler / Yapılacaklar (Roadmap)
+
+- [ ] **Mod-bazlı derin davranış** — Cowork/Code modlarına moda özel araç seti ve sistem davranışı (şu an prompt yönlendirmesi düzeyinde).
+- [ ] **Reader gizlilik ayarı** — kademeli web çekmedeki public-reader fazını opsiyonel/varsayılan-kapalı yapan ayar (URL üçüncü tarafa gittiği için).
+- [ ] **Release CI yarışını kapatma** — `action-gh-release` eşzamanlılık yarışını seri (concurrency/needs) hale getirip Windows `latest.yml` kaçaklarını kalıcı önleme.
+- [ ] **Monorepo workspaces değerlendirmesi** — root npm workspaces'e geçiş ayrı, dikkatli bir PR olarak (Electron build kırma riski nedeniyle aceleye getirilmeyecek).
+- [ ] **Görsel ek desteği** — vision modeli (örn. llava) ile chat'e görsel ekleme.
+- [ ] **`inc/version.php` SemVer pipeline** — PHP sürüm dosyası eklendiğinde release.ps1'deki SemVer/regex guard tam devreye girer (altyapı hazır).
+
+---
+
 <p align="center">
   <strong>CODEGA AI - yerel, hafızalı, araç kullanan ve federe ağ ile büyüyen otonom yapay zeka platformu.</strong>
 </p>

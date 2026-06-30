@@ -17,7 +17,7 @@ describe("buildGenOptions — anti-repetition / sampling", () => {
     expect(o.repeat_last_n).toBeGreaterThanOrEqual(64);
     expect(o.top_p).toBeGreaterThan(0);
     expect(o.top_k).toBeGreaterThan(0);
-    expect(o.temperature).toBe(0.4);
+    expect(o.temperature).toBe(0.2);   // strict/kararlı varsayılan
     expect(o.num_ctx).toBe(8192);
     expect(o.num_predict).toBe(DEFAULT_NUM_PREDICT);
   });
@@ -38,7 +38,7 @@ describe("buildGenOptions — anti-repetition / sampling", () => {
 
   test("geçersiz değerler güvenli varsayılana düşer", () => {
     const o = buildGenOptions({ temperature: "abc", repeatPenalty: null, numPredict: -1 });
-    expect(o.temperature).toBe(0.4);
+    expect(o.temperature).toBe(0.2);
     expect(o.repeat_penalty).toBe(1.15);
     expect(o.num_predict).toBe(DEFAULT_NUM_PREDICT);
   });

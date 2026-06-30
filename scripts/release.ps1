@@ -18,11 +18,18 @@
 
 .PARAMETER Version
   Semver sürüm (örn. 6.0.0-alpha.58). Başına prefix eklenmez; tag "desktop-v$Version" olur.
+
+.PARAMETER PhpVersionFile
+  (Opsiyonel) PHP sürüm/sabit dosyası. Verilmezse bilinen adaylar denenir
+  (inc\version.php, public_html\inc\version.php). Dosya yoksa ilgili kontrol
+  no-op'tur; varsa el-ile sabitlenmiş kritik sabitleri ve SemVer uyumunu denetler.
 #>
 param(
   [Parameter(Mandatory = $true)]
   [ValidatePattern('^[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.]+)?$')]
-  [string]$Version
+  [string]$Version,
+
+  [string]$PhpVersionFile = ""
 )
 
 Set-StrictMode -Version Latest
@@ -51,6 +58,47 @@ function Invoke-Step {
   & $Script
   if ($LASTEXITCODE -ne 0) {
     throw "$Name başarısız (exit $LASTEXITCODE)"
+  }
+}
+
+# Bir PHP define('NAME', '...') sabitinin DEĞERİNİ döndürür (yoksa $null).
+function Get-PhpDefineValue {
+  param([string]$Content, [string]$Name)
+  $pattern = "define\(\s*['""]" + [regex]::Escape($Name) + "['""]\s*,\s*['""]?([^'"")]+?)['""]?\s*\)"
+  $m = [regex]::Match($Content, $pattern)
+  if ($m.Success) { return $m.Groups[1].Value.Trim() }
+  return $null
+}
+
+# [Soru 10] PHP sürüm/sabit bütünlüğü:
+#   (a) Kritik dinamik sabitlerin (TOPLAM_MODUL_SAYISI) el-ile statik sayıya
+#       gömülmesini regex ile yakalar → Fail-Fast.
+#   (b) PHP VERSION/APP_VERSION ile manifest.json SemVer uyumunu denetler.
+# Dosya yoksa no-op (repo'da henüz version.php yok; ileride eklenince zorlar).
+function Test-PhpVersionIntegrity {
+  param([string]$RepoRoot, [string]$ManifestPath, [string[]]$Candidates)
+  foreach ($rel in $Candidates) {
+    if ([string]::IsNullOrWhiteSpace($rel)) { continue }
+    $path = if ([System.IO.Path]::IsPathRooted($rel)) { $rel } else { Join-Path $RepoRoot $rel }
+    if (-not (Test-Path $path)) { continue }
+
+    Write-Host "==> PHP bütünlük denetimi: $rel" -ForegroundColor Cyan
+    $content = Get-Content $path -Raw -Encoding UTF8
+
+    # (a) Fail-Fast: dinamik fonksiyon yerine elle gömülmüş sayı.
+    if ([regex]::IsMatch($content, "define\(\s*['""]TOPLAM_MODUL_SAYISI['""]\s*,\s*[0-9]+\s*\)")) {
+      throw "Fail-Fast: $rel içinde TOPLAM_MODUL_SAYISI elle statik sayı olarak tanımlanmış. Dinamik bir kaynak (örn. count(get_modules())) kullanın."
+    }
+
+    # (b) SemVer tutarlılığı: PHP sürümü ile manifest.json eşleşmeli.
+    $phpVer = Get-PhpDefineValue -Content $content -Name "VERSION"
+    if (-not $phpVer) { $phpVer = Get-PhpDefineValue -Content $content -Name "APP_VERSION" }
+    if ($phpVer -and (Test-Path $ManifestPath)) {
+      $manifest = Get-Content $ManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+      if ($manifest.version -and ($manifest.version -ne $phpVer)) {
+        throw "SemVer uyumsuzluğu: manifest.json ($($manifest.version)) ≠ $rel ($phpVer). Rollback tetikleniyor."
+      }
+    }
   }
 }
 
@@ -96,6 +144,16 @@ try {
     'pkg\.version !== "[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.]+)?"', `
     ('pkg.version !== "' + $Version + '"')
   Write-Utf8NoBom $check $checkContent
+
+  # --- [Soru 10] PHP regex + SemVer fail-fast (yazımdan SONRA: uyumsuzlukta
+  #     catch bloğu version dosyalarını yedekten geri yükler = gerçek rollback) ---
+  $manifestPath = Join-Path $repoRoot "manifest.json"
+  $phpCandidates = if ([string]::IsNullOrWhiteSpace($PhpVersionFile)) {
+    @("inc\version.php", "public_html\inc\version.php")
+  } else {
+    @($PhpVersionFile)
+  }
+  Test-PhpVersionIntegrity -RepoRoot $repoRoot -ManifestPath $manifestPath -Candidates $phpCandidates
 
   # --- Doğrula: check başarısızsa catch rollback yapar (henüz commit yok) ---
   Push-Location "apps\codegaai-desktop"

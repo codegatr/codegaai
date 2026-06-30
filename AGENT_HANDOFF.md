@@ -1,3 +1,38 @@
+## Claude Update - 2026-06-30 09:30 — Çıktı-tavanı devam koruması + strict temp + PHP/SemVer release guard (alpha.59)
+
+### Current Task
+"10 soruluk ağır testte model 9'un ortasında çıktı token tavanına çarpıp 10'u dışarıda bıraktı" sorununu çözmek + görevdeki diğer maddeler. 4 maddeyi GERÇEK repoya göre uyguladım (bazı varsayımlar repoda yok — dürüstçe aşağıda).
+
+### 1) Çıktı token tavanı koruması (asıl çözüm) — ollama-client.js
+- `ollamaChatStream` artık tek-tur `streamChatOnce`'ı sarıp `done_reason:"length"` (model yarıda kesildi) tespit edince OTOMATİK "kaldığın yerden devam et" turu atıyor; akışlar TEK yanıt gibi birleştiriliyor (sequential request + stream aggregation).
+- Neden "prompt'u 3'erli bölme" değil: bölmek sorular-arası bağlamı kaybettirir. Çıktı-temelli devam tüm bağlamı korur, daha güvenli.
+- Sonsuz döngü/maliyet koruması: `maxContinuations` (vars. 3) tavanı + bir tur boş ilerleme üretirse kır.
+- Yeni test: ollama-continuation.test.js (6 test, global.fetch + sahte NDJSON stream): stop→devam etmez, length→birleştirir, devam gövdesi önceki yanıt+yönerge, max tavan, boş-ilerleme kır.
+
+### 2) Parametrik context — ollama-client.js
+- `num_predict` zaten 4096 (Codex). `temperature` strict varsayılan **0.2** (DEFAULT_TEMPERATURE). gen-options testi 0.4→0.2 güncellendi.
+
+### 3) "delete chunk / Bull-Redis / MessageChannel" — repoda YOK
+- grep ile doğrulandı; uydurma değişiklik yok. Akış DOM optimizasyonu (rAF + ref-null) alpha.58'de zaten yapıldı.
+
+### 4) [Soru 10] PHP regex + SemVer pipeline — release.ps1
+- `Test-PhpVersionIntegrity`: (a) `define('TOPLAM_MODUL_SAYISI', <sayı>)` elle sabit → Fail-Fast throw. (b) PHP VERSION/APP_VERSION ↔ manifest.json SemVer uyumsuzluğu → throw.
+- Yazımdan SONRA çağrılır → uyumsuzlukta catch version dosyalarını yedekten geri yükler (gerçek rollback). Dosya yoksa no-op (`inc/version.php` repoda yok; opsiyonel -PhpVersionFile param'ı + aday liste). Parser + regex fonksiyonel test edildi.
+
+### README
+- "🖥️ Masaüstü Ajan — Güncel Yetenekler" tablosu (alpha.56–59) + "🎯 Hedefler/Yapılacaklar" roadmap eklendi.
+
+### Tests / Sürüm
+- check 192 dosya OK, full 390/390 (22 suite) PASS. Sürüm 6.0.0-alpha.59. check.mjs guard: streamChatOnce/done_reason.
+
+### 📌 CODEX İÇİN NOT
+- ollamaChatStream artık çok-turlu olabilir (length→devam). Eğer model-manager.js veya başka yerde tur sayısını/maliyeti sınırlamak istersen `maxContinuations` opts'u geçir. Per-tur timeout aynı `timeoutMs` ile uygulanıyor (her tur ayrı pencere) — toplam süre tur×timeout olabilir, dikkat.
+- temperature varsayılanı 0.2'ye düştü; eğer bir akışta daha yaratıcı çıktı isteniyorsa opts.temperature ile override edin.
+- release.ps1'deki PHP guard şu an no-op (version.php yok). PHP sürüm dosyası eklersen guard otomatik devreye girer; tag prefix `desktop-v`.
+- Açık iş: action-gh-release CI yarışı (Windows latest.yml) hâlâ seri hale getirilmedi.
+
+---
+
 ## Codex Update - 2026-06-30 00:20 - alpha.58 review + release.ps1 tag prefix fix
 
 ### Current Task
