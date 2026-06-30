@@ -31,14 +31,36 @@ function calculatorAnswer(text) {
   return "";
 }
 
+// Yaygın selamlaşma/nezaket ifadeleri → modele GİTMEDEN anında yanıt.
+// q: normalize edilmiş (küçük harf, TR karakter ascii'ye katlanmış, tek boşluk).
+// "Günaydın" gibi ifadeler buraya girmediğinde küçük modelde "Düşünüyorum"da
+// asılıyordu — bu yüzden burada kapsanır.
+function greetingAnswer(q) {
+  if (/^(merhaba|selam|sa|slm|hello|hi|hey|hola)( nasilsin)?$/.test(q)) {
+    return "Merhaba! Buradayım — nasıl yardımcı olabilirim?";
+  }
+  if (/^gun ?aydin$/.test(q)) return "Günaydın! Bugün sana nasıl yardımcı olabilirim?";
+  if (/^iyi (gunler|sabahlar)$/.test(q)) return "İyi günler! Nasıl yardımcı olabilirim?";
+  if (/^iyi (aksamlar|geceler)$/.test(q)) return "İyi akşamlar! Nasıl yardımcı olabilirim?";
+  if (/^(nasilsin|naber|ne haber|nasil gidiyor)$/.test(q)) {
+    return "İyiyim, teşekkürler! Sen nasılsın — ne üzerinde çalışalım?";
+  }
+  if (/^(tesekkurler|tesekkur ederim|tesekkur|sagol|sag ol|eyvallah|cok tesekkurler)$/.test(q)) {
+    return "Rica ederim! Başka bir konuda yardımcı olayım mı?";
+  }
+  if (/^(gorusuruz|hosca kal|hoscakal|iyi calismalar|kendine iyi bak|iyi gunler dilerim)$/.test(q)) {
+    return "Görüşürüz! İyi çalışmalar.";
+  }
+  return "";
+}
+
 function fastPathAnswer(input) {
   const q = normalize(input).replace(/[?.!]+$/g, "");
   const calc = calculatorAnswer(input);
   if (calc) return { hit: true, intent: "math.simple", answer: calc };
 
-  if (/^(merhaba|selam|sa|hello|hi|hey)$/.test(q) || /^merhaba\s+nasilsin$/.test(q)) {
-    return { hit: true, intent: "chat.greeting", answer: "Merhaba. Buradayım, nasıl yardımcı olayım?" };
-  }
+  const greet = greetingAnswer(q);
+  if (greet) return { hit: true, intent: "chat.greeting", answer: greet };
   if (/^php\s+nedir$/.test(q)) {
     return { hit: true, intent: "knowledge.simple", answer: "PHP, özellikle web uygulamaları geliştirmek için kullanılan açık kaynaklı, sunucu taraflı bir programlama dilidir." };
   }
@@ -57,4 +79,5 @@ function fastPathAnswer(input) {
 module.exports = {
   normalize,
   fastPathAnswer,
+  greetingAnswer,
 };
