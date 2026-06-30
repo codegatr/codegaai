@@ -24,6 +24,9 @@ Basit sorular bile ("requestAnimationFrame nedir", "2+2?") cevap üretmeden 5dk 
 ### 📌 CODEX NOTU
 - chat_trace satırı: prep büyükse hangi alt-aşama WARN'landıysa o modül; ttft yoksa Ollama/model başlamıyor. Buna göre tek-nokta fix.
 
+### CI / Release (doğrulandı)
+- desktop-v6.0.0-alpha.71: Windows + macOS + Desktop Release **hepsi success**; 9 asset (latest.yml dahil), draft değil.
+
 ---
 
 ## Claude Update - 2026-06-30 18:00 — PROJECT NIRVANA: bağlam-kaybı kök nedeni bulundu+düzeltildi (alpha.70)
@@ -53,6 +56,9 @@ Kullanıcı "STOP, özellik ekleme; mimari denetimi + bağlamın kök-neden düz
 
 ### Test/sürüm
 - check 204 dosya OK, full 452/452 (31 suite). Sürüm alpha.70. Guard: seedConversationHistory + renderer history taşıma.
+
+### CI / Release (doğrulandı)
+- desktop-v6.0.0-alpha.70: Windows + macOS + Desktop Release **hepsi success**; 9 asset (latest.yml dahil), draft değil.
 
 ### 📌 CODEX NOTU
 - Context Confidence Engine sıradaki en yüksek değer (Sv7 önündeki tek somut engel). ACE sinyallerinden 0-1 skor → eşik altı clarifying question. Saf modül.
