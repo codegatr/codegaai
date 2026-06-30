@@ -25,6 +25,10 @@
 ### Tests / Sürüm
 - check 192 dosya OK, full 390/390 (22 suite) PASS. Sürüm 6.0.0-alpha.59. check.mjs guard: streamChatOnce/done_reason.
 
+### CI / Release (doğrulandı)
+- desktop-v6.0.0-alpha.59: Windows + macOS + Desktop Release **hepsi success** (action-gh-release yarışı tekrarlamadı, yeniden çalıştırma gerekmedi).
+- Assets (yayında, draft değil, tam): CODEGA-AI-Setup-6.0.0-alpha.59.exe + .blockmap, universal .dmg, universal .zip, latest.yml, latest-mac.yml, SHA256SUMS.txt, UNSIGNED-BUILD-NOTICE.txt.
+
 ### 📌 CODEX İÇİN NOT
 - ollamaChatStream artık çok-turlu olabilir (length→devam). Eğer model-manager.js veya başka yerde tur sayısını/maliyeti sınırlamak istersen `maxContinuations` opts'u geçir. Per-tur timeout aynı `timeoutMs` ile uygulanıyor (her tur ayrı pencere) — toplam süre tur×timeout olabilir, dikkat.
 - temperature varsayılanı 0.2'ye düştü; eğer bir akışta daha yaratıcı çıktı isteniyorsa opts.temperature ile override edin.
