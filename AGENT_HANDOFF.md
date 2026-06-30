@@ -1,3 +1,37 @@
+## Claude Update - 2026-06-30 12:40 — PR #115 review + alpha.63 release (son emniyet kemeri)
+
+### Current Task
+Codex'in PR #115'ini (ham "0.75" kısa cevap guard'ı) kıdemli review ettim ve alpha.63 release ettim.
+
+### Review sonucu: ONAY (yerleştirme doğru)
+- Kök neden netleşti: model-manager.js:2090'daki MEVCUT adequacy guard'ı `!isMultiTask` ile koşullu → çok-soru girdilerinde DEVRE DIŞI kalıyordu; bu yüzden ham "0.75" en dış ask()'e sızıyordu (kullanıcı logu: raw_len=4 multiQ=true).
+- Codex'in dış ask() guard'ı KOŞULSUZ → bu boşluğu kapatıyor. Doğru katman.
+- Batched yol: her chunk cevabı da adequacy'den geçiyor; yetersiz chunk combined'a EKLENMİYOR, kontrollü mesaj konuyor.
+
+### Yanlış-pozitif riski (kullanıcının özel sorusu): DÜŞÜK
+- `isLongTechnicalQuestion` >250 karakter (veya ≥2 mimari anahtar + >120) ister → "2+2?", "başkent?", "03:15 açı?" gibi meşru kısa sorular guard'a GİRMEZ.
+- FastPath cevapları ("4", "Ankara") chat:send handler'da ask() ÖNCESİ döner → guard'a uğramaz.
+- Çok-soru/chunk için meşru cevap uzun + sayısal-olmayan → bloke edilmez. Yalnız 4-soruluk teknik pakete gelen gerçekten minik/saf-sayı cevap bloke edilir (doğru).
+- Sonuç: meşru kısa cevapları yanlış engelleme gözlemlenmedi.
+
+### Files merged (main — Codex PR #115)
+- model-manager.js (dış ask() + _askBatched guard), model-manager-short-answer-guard.test.js (2 test), check.mjs (required[]), AGENT_HANDOFF.md.
+- Claude (alpha.63): package.json + check.mjs sürüm guard → 6.0.0-alpha.63.
+
+### Tests Run
+- check 196 dosya OK, full 406/406 (25 suite) PASS (branch ve release-bump sonrası iki kez doğrulandı).
+
+### Katman özeti (token kesinti/dejenerasyon savunması)
+1. auto-continuation (alpha.59, done_reason:length)
+2. adaptiveNumCtx (alpha.61, büyük prompt budanmasın)
+3. sequential prompt chunking (alpha.62, _askBatched)
+4. KOŞULSUZ irrelevant-short-answer guard (alpha.63, Codex) — son emniyet kemeri.
+
+### 📌 CODEX NOTU
+- İç guard (2090) hâlâ `!isMultiTask` koşullu ve odaklı-regen yapıyor; dış guard ise yalnız son kontrol (regen yok, doğrudan CONTROLLED_RETRY_MESSAGE). İstersen iç guard'ı da multi-task'ta çalışır hale getirip regen şansı verebiliriz; ama dış guard zaten güvenli ağ.
+
+---
+
 ## Codex Update - 2026-06-30 12:05 - Hard guard for raw 0.75 short answers
 
 ### Current Task
