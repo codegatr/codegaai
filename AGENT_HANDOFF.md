@@ -1,3 +1,30 @@
+## Claude Update - 2026-06-30 11:20 — GERÇEK Prompt Chunking: ardışık çok-soru kuyruğu (alpha.62)
+
+### Bağlam
+Kullanıcı 3. kez "prompt chunking middleware'i düzelt" dedi. Önceki turlarda böyle bir katman YOKTU (dürüstçe söyledim). Bu turda kullanıcının istediği splitter'ı GERÇEKTEN inşa ettim — çünkü model devasa 12-soru prompt'unda dejenere olabiliyor; küçük paketler modelin işini kolaylaştırır.
+
+### alpha.61 CI (doğrulandı)
+- desktop-v6.0.0-alpha.61: Windows+macOS+Desktop Release hepsi success; tüm asset'ler (latest.yml dahil) yayında.
+
+### Yeni: prompt-splitter.js + model-manager._askBatched (alpha.62)
+- **prompt-splitter.js**: `splitQuestions` (yalnız AÇIK başlık: "1." "1)" "1-" "[Etiket]" "Soru/Test/Görev N" — düz \n ile BÖLMEZ). `chunkQuestions`: ≥5 segment VE yarıdan çoğu "?" ise 4'erli paketlere böler, yoksa null (yanlış-pozitif koruması: ?'siz numaralı liste/kod bloğu bölünmez).
+- **model-manager.ask**: `getSettings().promptChunking !== false` (varsayılan AÇIK) ve chunkQuestions ≥2 paket dönerse `_askBatched` çalışır.
+- **_askBatched**: `for` ile ARDIŞIK (Promise.all YOK). Her paket kendi `_ask` turunu (kendi timeout/abort) çalıştırır; tokenlar aynı onToken ile CANLI yayınlanır; tüm metin tek buffer'da birleşir; "## Sorular 1–4" başlıklarıyla. Fail-safe: boş/hata/timeout → o paketi pas geç (continue), AbortError üst akışa taşınır. Bitince tek `cleanUserFacingOutput` (çok-soru → keepAll).
+- Ayar: `promptChunking=false` ile kapatılır.
+
+### Neden bu GERÇEK çözüm
+- Büyük prompt → küçük paketler → model her paketi tam yanıtlar → "0.75" dejenerasyonu engellenir. Auto-continuation (alpha.59) + adaptiveNumCtx (alpha.61) ile birlikte 3 katmanlı koruma.
+- Bağlam kaybı riski: sorular BAĞIMSIZ olduğu için (yük testi) paketleme güvenli. Bağımlı çok-dosya kod üretiminde ?'siz olduğu için tetiklenmez.
+
+### Test/sürüm
+- prompt-splitter.test.js (6 test). check 195 OK, full 404/404 (24 suite). Sürüm alpha.62. Guard: _askBatched/chunkQuestions.
+
+### 📌 CODEX NOTU
+- Chunking opt-in ayar `promptChunking` (settings). Varsayılan açık. UI'da bir toggle istenirse settings paneline eklenebilir.
+- _askBatched her paket için tam _ask pipeline'ını (cognitive/verify) çalıştırır → 12 soru = 3 ağır tur, süre uzar ama dejenerasyon yok. İstenirse paket başına hafif mod (verify kapalı) düşünülebilir.
+
+---
+
 ## Claude Update - 2026-06-30 10:45 — "0.75" 2. tur: uyarlanır num_ctx + teşhis logu (alpha.61)
 
 ### Durum / dürüstlük

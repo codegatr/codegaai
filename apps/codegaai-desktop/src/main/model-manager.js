@@ -45,6 +45,7 @@ const hril = require("./agent/hril");
 const ree = require("./agent/ree");
 const tde = require("./agent/tde");
 const finalAnswerSanitizer = require("./agent/final-answer-sanitizer");
+const { chunkQuestions } = require("./agent/prompt-splitter");
 const cognitiveKernel = require("./cognitive/kernel/cognitive-kernel");
 const factLock = require("./agent/fact-lock");
 const cvl = require("./agent/cvl");
@@ -1120,7 +1121,16 @@ class ModelManager {
     const run = async () => {
       this._activeForeground += 1;
       try {
-        const result = await this._ask(input, opts);
+        // Çok-soruluk (5+) yük testi: küçük modelin devasa tek prompt'ta dejenere
+        // olmaması için soruları ardışık paketler halinde gönder (opt-in, varsayılan
+        // açık; promptChunking=false ile kapatılır).
+        let batch = null;
+        try {
+          if (getSettings().promptChunking !== false) batch = chunkQuestions(input);
+        } catch (_e) {}
+        const result = (batch && batch.chunks.length > 1)
+          ? await this._askBatched(input, batch, opts)
+          : await this._ask(input, opts);
         if (!result || typeof result.text !== "string") return result;
         const taskReport = tde.decomposeTasks(input);
         const cleaned = finalAnswerSanitizer.cleanUserFacingOutput(result.text, input, taskReport);
@@ -1146,6 +1156,58 @@ class ModelManager {
       () => undefined
     );
     return result;
+  }
+
+  /**
+   * Çok-soruluk yük testini ARDIŞIK (sequential) işler: her soru paketini sırayla
+   * modele gönderir, akan tokenları aynı onToken üzerinden canlı yayınlar ve tüm
+   * metni tek bir tampon (buffer) içinde birleştirir. Paralel YOK (Promise.all
+   * yerel donanımı kilitler). Bir paket boş döner veya hata/timeout alırsa, o
+   * paketi pas geçip (continue) sıradakine devam eder — tüm akış çökmez.
+   *
+   * @param {string} input  ham çok-soruluk girdi (log/teşhis için)
+   * @param {{chunks:Array,questionCount:number}} batch  chunkQuestions çıktısı
+   * @param {object} opts  ask opts (onToken/onProgress/regenerate/...)
+   * @returns {Promise<{text:string, source:string, batched:object}>}
+   */
+  async _askBatched(input, batch, opts = {}) {
+    const onToken = typeof opts.onToken === "function" ? opts.onToken : null;
+    const emit = (s) => { if (onToken) { try { onToken(s); } catch (_e) {} } };
+
+    try { logs.info("prompt_chunking", `questions=${batch.questionCount} chunks=${batch.chunks.length}`); } catch (_e) {}
+
+    let combined = "";
+    let okChunks = 0;
+    for (let i = 0; i < batch.chunks.length; i += 1) {
+      const chunk = batch.chunks[i];
+      const header = `${i > 0 ? "\n\n" : ""}## ${chunk.label}\n\n`;
+      emit(header);
+      combined += header;
+      try {
+        // Her paket KENDİ _ask turunu çalıştırır (kendi timeout/abort'u ile). Küçük
+        // prompt → model dejenere olmaz. opts.signal varsa iptal yayılır.
+        const r = await this._ask(chunk.text, { ...opts, onToken });
+        const text = r && typeof r.text === "string" ? r.text.trim() : "";
+        if (!text) {
+          const note = `_(Bu paket boş döndü, atlandı.)_\n`;
+          emit(note);
+          combined += note;
+          continue;
+        }
+        combined += text;
+        okChunks += 1;
+      } catch (err) {
+        // Durdurma (AbortError) üst akışa taşınır; diğer hatalarda fail-safe continue.
+        if (err && err.name === "AbortError") throw err;
+        const note = `_(Bu paket işlenemedi (${err && err.message ? err.message : err}), sonraki pakete geçiliyor.)_\n`;
+        emit(note);
+        combined += note;
+        try { logs.warn("prompt_chunking", `chunk ${i + 1}/${batch.chunks.length} failed: ${err && err.message ? err.message : err}`); } catch (_e) {}
+        continue;
+      }
+    }
+
+    return { text: combined.trim(), source: "batched", batched: { questionCount: batch.questionCount, chunks: batch.chunks.length, okChunks } };
   }
 
   async _ask(input, opts = {}) {
