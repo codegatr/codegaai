@@ -1236,6 +1236,47 @@ class ModelManager {
   }
 
   /**
+   * BASİT MOD — yalın doğrudan üretim. ACE bağlam şişirme, chunking, model
+   * yükseltme, bilişsel doğrulama ve çok-aşamalı pipeline YOK. Yalnızca:
+   * system + (son geçmiş) + user → stream. Hızlı ve güvenilir cevap için.
+   * Stop butonu için this._abort kurulur. Kuyruğa girmez (renderer zaten seri).
+   */
+  async askDirect(input, opts = {}) {
+    const text0 = sanitizePrompt(String(input || ""));
+    const s = getSettings();
+    let installed = [];
+    try { installed = await this.installedModels(); } catch (_e) { installed = []; }
+    const model = s.defaultModel || s.model || chooseModelForTask("chat", installed) || DEFAULT_MODEL;
+
+    const history = this.historyFor(opts.chatId);
+    if (history.length === 0) seedConversationHistory(history, opts.history, MAX_HISTORY_MESSAGES);
+
+    const messages = [
+      { role: "system", content: "Sen CODEGA AI'sın. Kullanıcının sorusuna Türkçe, net ve DOĞRUDAN cevap ver. Gereksiz uzatma, konu dışına çıkma, soruyu tekrar etme." },
+      ...history.slice(-MAX_HISTORY_MESSAGES),
+      { role: "user", content: text0 },
+    ];
+
+    this._abort = new AbortController();
+    this._aborted = false;
+    let text = "";
+    try {
+      text = String(await this.generate(model, messages, [], opts.onToken || null) || "").trim();
+    } catch (err) {
+      if (this._aborted || (err && err.name === "AbortError")) { this._abort = null; throw err; }
+      this._abort = null;
+      return { text: `Yanıt üretilemedi: ${err && err.message ? err.message : err}. Ollama açık mı, model kurulu mu kontrol et.`, model, source: "direct_error" };
+    }
+    this._abort = null;
+
+    if (!text) text = "Şu an yanıt üretemedim. Ollama'nın açık ve bir modelin kurulu olduğundan emin olup tekrar dener misin?";
+    history.push({ role: "user", content: text0 });
+    history.push({ role: "assistant", content: text });
+    if (history.length > MAX_HISTORY_MESSAGES) history.splice(0, history.length - MAX_HISTORY_MESSAGES);
+    return { text, model, source: "direct" };
+  }
+
+  /**
    * Çok-soruluk yük testini ARDIŞIK (sequential) işler: her soru paketini sırayla
    * modele gönderir, akan tokenları aynı onToken üzerinden canlı yayınlar ve tüm
    * metni tek bir tampon (buffer) içinde birleştirir. Paralel YOK (Promise.all

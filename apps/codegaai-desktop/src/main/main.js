@@ -551,38 +551,44 @@ function registerIpc() {
     // "Ateş Fiat" → ProjectBrain'den o projeyi aktive et), sonra bu turun
     // tüm bağlamını (kullanıcı + proje + hedef + life graph) inşa et.
     // LLM'e ASLA boş bağlamla gidilmez.
+    // BASİT MOD (varsayılan AÇIK): ağır bilişsel katmanları atla — güvenilir,
+    // doğrudan cevap. Yalnız ACE referans çözümü + fast-path korunur; context
+    // şişirme, chunking, doğrulama, model yükseltme YOK. simpleMode=false ile
+    // tam bilişsel pipeline'a dönülür.
+    const simpleMode = settingsStore.getSettings().simpleMode !== false;
+
     const aceOS = await initACEOS(aceDataDir);
     _t = _step("ace_init", _t);
     const aceIntake = aceOS.processIncoming(message, "default");
     _t = _step("ace_intake", _t);
     let resolvedMessage = aceIntake.message;
 
-    // ─── Context Engine — Sprint 10 ───────────────────────────────────────
-    // ACE'nin çözdüğü mesaj üzerinden ek bağlam analizi yap.
-    // "devam", "tamam", "bunu yap" gibi kısa mesajlar önceki bağlamdan çözülür.
     let contextPacket = null;
-    try {
-      contextPacket   = contextEngine.analyze(resolvedMessage);
-      resolvedMessage = contextPacket.resolvedMessage || resolvedMessage;
-      // Bağlam analizini renderer'a bildir (UI göstergesi için)
-      try { event.sender.send("chat:context", {
-        type:        contextPacket.type,
-        reason:      contextPacket.reason,
-        confidence:  contextPacket.confidence,
-        resolved:    resolvedMessage !== message,
-      }); } catch (_e) {}
-    } catch (_e) {}
-    _t = _step("context_engine", _t);
-    // ─────────────────────────────────────────────────────────────────────
+    let mergedContext = "";
+    if (!simpleMode) {
+      // ─── Context Engine — Sprint 10 (yalnız tam modda) ──────────────────
+      try {
+        contextPacket   = contextEngine.analyze(resolvedMessage);
+        resolvedMessage = contextPacket.resolvedMessage || resolvedMessage;
+        try { event.sender.send("chat:context", {
+          type:        contextPacket.type,
+          reason:      contextPacket.reason,
+          confidence:  contextPacket.confidence,
+          resolved:    resolvedMessage !== message,
+        }); } catch (_e) {}
+      } catch (_e) {}
+      _t = _step("context_engine", _t);
 
-    const aceContext = aceOS.buildContext({ userId: "default", topic: resolvedMessage });
-    _t = _step("ace_build_context", _t);
-    const mergedContext = [
-      (opts && opts.context) || "",
-      contextPacket?.compressedContext || "",
-      aceContext.context || "",
-    ].filter(Boolean).join("\n\n");
+      const aceContext = aceOS.buildContext({ userId: "default", topic: resolvedMessage });
+      _t = _step("ace_build_context", _t);
+      mergedContext = [
+        (opts && opts.context) || "",
+        contextPacket?.compressedContext || "",
+        aceContext.context || "",
+      ].filter(Boolean).join("\n\n");
+    }
     _trace.context_chars = mergedContext.length;
+    _trace.simple = simpleMode;
 
     // Phoenix Core v2: intent sınıflandırması + görev başlatma
     const { taskId, chatId, intent } = phoenixRuntime.startChat(resolvedMessage, {
@@ -619,16 +625,19 @@ function registerIpc() {
 
     let result;
     try {
-      result = await modelManager.ask(resolvedMessage, {
-        onToken,
-        onProgress,
-        regenerate: !!(opts && opts.regenerate),
-        context: mergedContext,
-        chatId,
-        // Bağlam sürekliliği: renderer kalıcı sohbet geçmişini taşır. Main'in
-        // bellek-içi geçmişi (yeniden başlatma/eski sohbet) boşsa bununla tohumlanır.
-        history: Array.isArray(opts && opts.history) ? opts.history : [],
-      });
+      const histOpt = Array.isArray(opts && opts.history) ? opts.history : [];
+      result = simpleMode
+        ? await modelManager.askDirect(resolvedMessage, { onToken, chatId, history: histOpt })
+        : await modelManager.ask(resolvedMessage, {
+            onToken,
+            onProgress,
+            regenerate: !!(opts && opts.regenerate),
+            context: mergedContext,
+            chatId,
+            // Bağlam sürekliliği: renderer kalıcı sohbet geçmişini taşır. Main'in
+            // bellek-içi geçmişi (yeniden başlatma/eski sohbet) boşsa bununla tohumlanır.
+            history: histOpt,
+          });
     } catch (err) {
       try { logs.warn("chat_trace", `FAILED prep=${_modelStartedAt - _trace.startedAt}ms ttft=${_ttft || "—"} total=${Date.now() - _trace.startedAt}ms reason=${err?.message || err}`); } catch (_e) {}
       phoenixRuntime.abortChat(taskId, chatId, err?.message || "model_error");
