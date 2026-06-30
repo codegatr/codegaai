@@ -323,7 +323,7 @@ if (!mainFile.includes("seedCoreEngineeringRules")) throw new Error("main.js Aca
 const modelManagerFile = readText(join(root, "src/main/model-manager.js"));
 if (!modelManagerFile.includes("sanitizePrompt")) throw new Error("model-manager.js isim temizleme (sanitizePrompt) baglantisi eksik");
 
-if (pkg.version !== "6.0.0-alpha.70") throw new Error(`Desktop package version must be 6.0.0-alpha.70, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.71") throw new Error(`Desktop package version must be 6.0.0-alpha.71, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
