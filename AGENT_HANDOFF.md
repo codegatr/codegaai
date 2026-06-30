@@ -13,6 +13,9 @@ Kullanıcı "Günaydın" yazdı, "Düşünüyorum..."ta asıldı (slow-notice). 
 ### Not
 - Bu, 12-soru/model-kapasite konusundan AYRI bir UX bug'ı. Selamlar artık ~anında.
 
+### CI / Release (doğrulandı)
+- desktop-v6.0.0-alpha.68: Windows + macOS + Desktop Release **hepsi success**; assets tam (latest.yml dahil), draft değil.
+
 ---
 
 ## Claude Update - 2026-06-30 15:35 — alpha.66 CI kırılmasını düzelt + actionable model mesajı (alpha.67)
@@ -35,6 +38,9 @@ alpha.66 (PR #124) CI'da 3 build de FAILED. Sebep: yeni "kapasite mesajı" kodu 
 
 ### Test/sürüm
 - model-manager-short-answer-guard.test.js 3 test (idi 2). check 201 OK, full 425/425 (28 suite). Sürüm alpha.67.
+
+### CI / Release (doğrulandı)
+- desktop-v6.0.0-alpha.67: Windows + macOS + Desktop Release **hepsi success** (alpha.66 fail'i giderildi); assets tam (latest.yml dahil), draft değil.
 
 ### DERS (önemli)
 - "Lokalde full suite geçti" ≠ "CI geçer". installedModels gibi ortam-bağımlı çağrılar testte MOCK'lanmalı. Bundan sonra ask()/installedModels'a dokunan testlerde mock zorunlu.
