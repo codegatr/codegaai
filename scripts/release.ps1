@@ -155,10 +155,10 @@ try {
   }
   Test-PhpVersionIntegrity -RepoRoot $repoRoot -ManifestPath $manifestPath -Candidates $phpCandidates
 
-  # --- Doğrula: check başarısızsa catch rollback yapar (henüz commit yok) ---
+  # --- Doğrula: test:ci başarısızsa catch rollback yapar (henüz commit yok) ---
   Push-Location "apps\codegaai-desktop"
   try {
-    Invoke-Step "npm run check" { npm run check }
+    Invoke-Step "npm run test:ci" { npm run test:ci }
   } finally {
     Pop-Location
   }
