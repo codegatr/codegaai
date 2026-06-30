@@ -1,3 +1,20 @@
+## Claude Update - 2026-06-30 15:10 — Kök neden: güçlü model KURULU DEĞİL + actionable mesaj (alpha.66)
+
+### Teşhis (nihai)
+Kullanıcı 12-soru testinde hâlâ CONTROLLED_RETRY_MESSAGE alıyor. Ekran görüntüsü kanıtı: Model panelinde Qwen3.5 9B "Pasif / Boyut bilinmiyor" = İNDİRİLMEMİŞ (katalog girdisi). Gerçekten kurulu: yalnız 4B (~2.5GB) + coder:3b (~1.9GB). Yani auto-escalation (alpha.64) çalışıyor ama yükseltecek ≥7B model YOK → 4B'de kalıyor → 4B 12 soruyu kaldıramıyor → guard çöp yerine "yapamadım" diyor (doğru ama yanıltıcı mesaj).
+
+### Düzeltme (model-manager.js ask outer guard)
+- Guard ateşlenince: prompt ağır (isLongTechnicalQuestion || isMultiQuestionInput) VE kurulu en güçlü model <7B ise, generic "soruyu böl" yerine ACTIONABLE mesaj: "kurulu en güçlü model (X, ~NB) kapasiteyi aşıyor; Model panelinden qwen2.5:7b-instruct / llama3.1:8b indir; kurulunca otomatik ona geçerim."
+- logs.warn ile strongest-installed her zaman loglanıyor (teşhis sinyali).
+
+### Test/sürüm
+- model-escalation.test.js +1 (sadece küçük modelde size<7). check 201 OK, full 424/424. Sürüm alpha.66.
+
+### Kullanıcıya
+- Asıl çözüm onun tarafında: gerçek 7-9B modeli İNDİRMESİ lazım ("ollama pull qwen2.5:7b-instruct" veya panelden). 4B ile bu test geçilmez; kod katmanları yalnız çöpü engeller.
+
+---
+
 ## Claude Update - 2026-06-30 14:30 — Mühendislik olgunluğu: denetim + Engineering Timeline + Manifesto (alpha.65)
 
 ### Çerçeve (dürüstlük)

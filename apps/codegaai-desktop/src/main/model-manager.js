@@ -1188,8 +1188,24 @@ class ModelManager {
         const finalText = cleaned.changed ? String(cleaned.answer || "") : String(result.text || "");
         if (answerAdequacy.isIrrelevantShortAnswer(input, finalText)) {
           try { improveDrafts.recordSignal({ kind: "irrelevant_short_answer", subject: finalText.slice(0, 60) }); } catch (_e) {}
-          try { logs.warn("answer_sanitize", `outer adequacy blocked short answer: ${finalText.slice(0, 80)}`); } catch (_e) {}
-          return { ...result, text: answerAdequacy.CONTROLLED_RETRY_MESSAGE };
+          let msg = answerAdequacy.CONTROLLED_RETRY_MESSAGE;
+          // KÖK NEDEN AYRIMI: ağır prompt + kurulu güçlü model yoksa, kullanıcıya
+          // "soruyu böl" demek yanıltıcı — asıl sorun model kapasitesi. Gerçek nedeni
+          // ve çözümü (daha büyük model indir) söyle. Kurulunca otomatik o modele geçilir.
+          try {
+            const heavy = answerAdequacy.isLongTechnicalQuestion(input) || finalAnswerSanitizer.isMultiQuestionInput(input);
+            if (heavy) {
+              const installed = await this.installedModels();
+              const strong = strongestInstalledModel(installed);
+              if (!strong.model || strong.size < 7) {
+                msg = `Bu ağır mühendislik/muhakeme testi, kurulu en güçlü modelin (${strong.model || "yok"}, ~${strong.size || 0}B) kapasitesini aşıyor — ` +
+                  `bu yüzden tutarlı bir yanıt üretemiyorum. Model panelinden daha büyük bir model indir ` +
+                  `(öneri: qwen2.5:7b-instruct veya llama3.1:8b). Kurulduğunda ağır sorularda otomatik olarak ona geçerim.`;
+              }
+              try { logs.warn("answer_sanitize", `adequacy blocked; strongest installed=${strong.model || "none"} (${strong.size || 0}B), heavy=${heavy}`); } catch (_e) {}
+            }
+          } catch (_e) {}
+          return { ...result, text: msg };
         }
         return cleaned.changed ? { ...result, text: cleaned.answer } : result;
       } finally {
