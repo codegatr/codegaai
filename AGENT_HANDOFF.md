@@ -19,6 +19,9 @@ Kullanıcı model panelini gösterdi: kurulu modeller qwen3.5:4b (AKTİF), qwen2
 ### Test/sürüm
 - model-escalation.test.js (5 test, saf helper). check 197 OK, full 411/411 (26 suite). Sürüm alpha.64. Guard: strongestInstalledModel/autoModelEscalation.
 
+### CI / Release (doğrulandı)
+- desktop-v6.0.0-alpha.64: Windows + macOS + Desktop Release **hepsi success** (action-gh-release yarışı tekrarlamadı). Assets tam (latest.yml dahil), draft değil.
+
 ### 📌 CODEX NOTU
 - Renderer'da Ayarlar'a "Ağır işlerde güçlü modele otomatik geç" toggle'ı (autoModelEscalation) eklenebilir; şimdilik settings.json ile, varsayılan AÇIK.
 - İstersen model-router-ai.js'i de gerçek seçime bağlamayı düşünebiliriz; ama _ask seviyesindeki escalation daha doğrudan ve test edildi.
