@@ -17,12 +17,19 @@
   geçerli değildir. Sürümün gerçek kaynağı package.json'dır.
 
 .PARAMETER Version
-  Semver sürüm (örn. 6.0.0-alpha.58). Başına "v" eklenmez; tag "v$Version" olur.
+  Semver sürüm (örn. 6.0.0-alpha.58). Başına prefix eklenmez; tag "desktop-v$Version" olur.
+
+.PARAMETER PhpVersionFile
+  (Opsiyonel) PHP sürüm/sabit dosyası. Verilmezse bilinen adaylar denenir
+  (inc\version.php, public_html\inc\version.php). Dosya yoksa ilgili kontrol
+  no-op'tur; varsa el-ile sabitlenmiş kritik sabitleri ve SemVer uyumunu denetler.
 #>
 param(
   [Parameter(Mandatory = $true)]
   [ValidatePattern('^[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.]+)?$')]
-  [string]$Version
+  [string]$Version,
+
+  [string]$PhpVersionFile = ""
 )
 
 Set-StrictMode -Version Latest
@@ -33,6 +40,7 @@ Set-Location $repoRoot
 
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $lockFile  = Join-Path $repoRoot ".release.lock"
+$releaseTag = "desktop-v$Version"
 
 # Atomik küme — sürüm bu iki dosyada birlikte güncellenir.
 $pkg     = Join-Path $repoRoot "apps\codegaai-desktop\package.json"
@@ -53,6 +61,47 @@ function Invoke-Step {
   }
 }
 
+# Bir PHP define('NAME', '...') sabitinin DEĞERİNİ döndürür (yoksa $null).
+function Get-PhpDefineValue {
+  param([string]$Content, [string]$Name)
+  $pattern = "define\(\s*['""]" + [regex]::Escape($Name) + "['""]\s*,\s*['""]?([^'"")]+?)['""]?\s*\)"
+  $m = [regex]::Match($Content, $pattern)
+  if ($m.Success) { return $m.Groups[1].Value.Trim() }
+  return $null
+}
+
+# [Soru 10] PHP sürüm/sabit bütünlüğü:
+#   (a) Kritik dinamik sabitlerin (TOPLAM_MODUL_SAYISI) el-ile statik sayıya
+#       gömülmesini regex ile yakalar → Fail-Fast.
+#   (b) PHP VERSION/APP_VERSION ile manifest.json SemVer uyumunu denetler.
+# Dosya yoksa no-op (repo'da henüz version.php yok; ileride eklenince zorlar).
+function Test-PhpVersionIntegrity {
+  param([string]$RepoRoot, [string]$ManifestPath, [string[]]$Candidates)
+  foreach ($rel in $Candidates) {
+    if ([string]::IsNullOrWhiteSpace($rel)) { continue }
+    $path = if ([System.IO.Path]::IsPathRooted($rel)) { $rel } else { Join-Path $RepoRoot $rel }
+    if (-not (Test-Path $path)) { continue }
+
+    Write-Host "==> PHP bütünlük denetimi: $rel" -ForegroundColor Cyan
+    $content = Get-Content $path -Raw -Encoding UTF8
+
+    # (a) Fail-Fast: dinamik fonksiyon yerine elle gömülmüş sayı.
+    if ([regex]::IsMatch($content, "define\(\s*['""]TOPLAM_MODUL_SAYISI['""]\s*,\s*[0-9]+\s*\)")) {
+      throw "Fail-Fast: $rel içinde TOPLAM_MODUL_SAYISI elle statik sayı olarak tanımlanmış. Dinamik bir kaynak (örn. count(get_modules())) kullanın."
+    }
+
+    # (b) SemVer tutarlılığı: PHP sürümü ile manifest.json eşleşmeli.
+    $phpVer = Get-PhpDefineValue -Content $content -Name "VERSION"
+    if (-not $phpVer) { $phpVer = Get-PhpDefineValue -Content $content -Name "APP_VERSION" }
+    if ($phpVer -and (Test-Path $ManifestPath)) {
+      $manifest = Get-Content $ManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+      if ($manifest.version -and ($manifest.version -ne $phpVer)) {
+        throw "SemVer uyumsuzluğu: manifest.json ($($manifest.version)) ≠ $rel ($phpVer). Rollback tetikleniyor."
+      }
+    }
+  }
+}
+
 # Defensive: transaction durum bayrakları (her şey try'dan ÖNCE init edilir).
 $lockCreated = $false
 $committed   = $false
@@ -68,14 +117,14 @@ try {
   $lockCreated = $true
 
   # --- Pre-flight: tag çakışması (yerel + uzak) ---
-  $localTags = git tag --list "v$Version"
-  if ($localTags -contains "v$Version") {
-    throw "Tag v$Version yerelde zaten var. Yeni bir sürüm numarası kullanın."
+  $localTags = git tag --list $releaseTag
+  if ($localTags -contains $releaseTag) {
+    throw "Tag $releaseTag yerelde zaten var. Yeni bir sürüm numarası kullanın."
   }
   Invoke-Step "git fetch --tags" { git fetch origin --tags }
-  $remoteTag = git ls-remote --tags origin "refs/tags/v$Version"
+  $remoteTag = git ls-remote --tags origin "refs/tags/$releaseTag"
   if ($remoteTag) {
-    throw "Uzak tag v$Version zaten var. Yeni bir sürüm numarası kullanın."
+    throw "Uzak tag $releaseTag zaten var. Yeni bir sürüm numarası kullanın."
   }
 
   # --- Yedek al (rollback kaynağı) — DEĞİŞİKLİKTEN ÖNCE ---
@@ -96,6 +145,16 @@ try {
     ('pkg.version !== "' + $Version + '"')
   Write-Utf8NoBom $check $checkContent
 
+  # --- [Soru 10] PHP regex + SemVer fail-fast (yazımdan SONRA: uyumsuzlukta
+  #     catch bloğu version dosyalarını yedekten geri yükler = gerçek rollback) ---
+  $manifestPath = Join-Path $repoRoot "manifest.json"
+  $phpCandidates = if ([string]::IsNullOrWhiteSpace($PhpVersionFile)) {
+    @("inc\version.php", "public_html\inc\version.php")
+  } else {
+    @($PhpVersionFile)
+  }
+  Test-PhpVersionIntegrity -RepoRoot $repoRoot -ManifestPath $manifestPath -Candidates $phpCandidates
+
   # --- Doğrula: check başarısızsa catch rollback yapar (henüz commit yok) ---
   Push-Location "apps\codegaai-desktop"
   try {
@@ -115,10 +174,10 @@ try {
     Invoke-Step "git push"   { git push origin HEAD }
   }
 
-  Invoke-Step "git tag"      { git tag "v$Version" }
-  Invoke-Step "git push tag" { git push origin "v$Version" }
+  Invoke-Step "git tag"      { git tag $releaseTag }
+  Invoke-Step "git push tag" { git push origin $releaseTag }
 
-  Write-Host "✅ Desktop release v$Version gönderildi. Asset'ler için GitHub Actions'a bakın." -ForegroundColor Green
+  Write-Host "✅ Desktop release $releaseTag gönderildi. Asset'ler için GitHub Actions'a bakın." -ForegroundColor Green
 }
 catch {
   Write-Host "❌ HATA: $($_.Exception.Message)" -ForegroundColor Red

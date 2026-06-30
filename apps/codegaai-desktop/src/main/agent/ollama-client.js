@@ -15,6 +15,11 @@ const crypto = require("node:crypto");
 
 const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://127.0.0.1:11434";
 const DEFAULT_NUM_PREDICT = 4096;
+// Strict/kararlı çıktı için düşük varsayılan sıcaklık (uydurma/hallucination azalır).
+const DEFAULT_TEMPERATURE = 0.2;
+// Çıktı token tavanına (done_reason:"length") çarpıldığında kaç kez otomatik
+// "kaldığın yerden devam et" turu atılacağı. Yarıda kesilmeyi yazılımsal engeller.
+const DEFAULT_MAX_CONTINUATIONS = 3;
 
 /**
  * Ollama generation seçeneklerini kur. Önceden yalnız temperature/num_ctx
@@ -31,7 +36,7 @@ function buildGenOptions(opts = {}) {
   const num = (v, def) => (typeof v === "number" && Number.isFinite(v) ? v : def);
   const positiveInt = (v, def) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.floor(v) : def);
   const o = {
-    temperature: num(opts.temperature, 0.4),
+    temperature: num(opts.temperature, DEFAULT_TEMPERATURE),
     num_ctx: num(opts.numCtx, 8192),
     num_predict: positiveInt(opts.numPredict, DEFAULT_NUM_PREDICT),
     repeat_penalty: num(opts.repeatPenalty, 1.15),
@@ -50,7 +55,7 @@ function buildGenOptions(opts = {}) {
  */
 async function ollamaChat(model, messages, opts = {}) {
   const {
-    temperature = 0.4,
+    temperature = DEFAULT_TEMPERATURE,
     timeoutMs = 90000,
     host = OLLAMA_HOST,
     numCtx = 8192,
@@ -101,19 +106,17 @@ async function ollamaChat(model, messages, opts = {}) {
 }
 
 /**
- * Akışlı (streaming) chat tamamlaması. Token geldikçe onToken(token) çağrılır,
- * sonunda tüm metni döndürür. Akış başarısız olursa hata fırlatır (çağıran
- * taraf bloklayıcı ollamaChat'e/CLI'ye düşebilir).
+ * TEK turluk akışlı istek. Token geldikçe onToken(token) çağrılır; sonunda
+ * { text, doneReason } döner. doneReason === "length" → model çıktı token
+ * tavanına çarptı (yanıt yarıda kesildi). Akış/timeout/abort hataları fırlatılır.
  */
-async function ollamaChatStream(model, messages, opts = {}) {
+async function streamChatOnce(model, messages, opts = {}) {
   const {
-    temperature = 0.4,
     timeoutMs = 120000,
     host = OLLAMA_HOST,
-    numCtx = 8192,
-    numPredict = null,
     think = false,
     onToken = null,
+    genOptions = null,
   } = opts;
 
   const controller = new AbortController();
@@ -127,7 +130,8 @@ async function ollamaChatStream(model, messages, opts = {}) {
     if (opts.signal.aborted) controller.abort();
     else opts.signal.addEventListener("abort", abortFromParent, { once: true });
   }
-  let full = "";
+  let text = "";
+  let doneReason = null;
   try {
     const res = await fetch(`${host}/api/chat`, {
       method: "POST",
@@ -137,7 +141,7 @@ async function ollamaChatStream(model, messages, opts = {}) {
         messages,
         stream: true,
         think,
-        options: buildGenOptions(opts),
+        options: genOptions || buildGenOptions(opts),
       }),
       signal: controller.signal,
     });
@@ -161,15 +165,14 @@ async function ollamaChatStream(model, messages, opts = {}) {
             const obj = JSON.parse(line);
             const tok = obj && obj.message && obj.message.content;
             if (tok) {
-              full += tok;
+              text += tok;
               if (onToken) { try { onToken(tok); } catch (_e) { /* yut */ } }
             }
+            if (obj && obj.done && obj.done_reason) doneReason = obj.done_reason;
           } catch (_e) { /* yarım satır olabilir, yoksay */ }
         }
       }
     } catch (e) {
-      // Durdurma ve zaman aşımı üst katmana taşınır; aksi halde CLI fallback
-      // aynı isteği bir 90 saniye daha çalıştırıp arayüzü yeniden kilitliyordu.
       if (e && e.name === "AbortError" && timedOut) {
         const timeout = new Error(`Ollama ${Math.round(timeoutMs / 1000)} saniye içinde yanıt vermedi.`);
         timeout.name = "TimeoutError";
@@ -177,7 +180,7 @@ async function ollamaChatStream(model, messages, opts = {}) {
       }
       throw e;
     }
-    return full;
+    return { text, doneReason };
   } catch (error) {
     if (error && error.name === "AbortError" && timedOut) {
       const timeout = new Error(`Ollama ${Math.round(timeoutMs / 1000)} saniye içinde yanıt vermedi.`);
@@ -189,6 +192,64 @@ async function ollamaChatStream(model, messages, opts = {}) {
     clearTimeout(timer);
     if (opts.signal) opts.signal.removeEventListener("abort", abortFromParent);
   }
+}
+
+/**
+ * Akışlı (streaming) chat tamamlaması — çıktı token tavanına karşı korumalı.
+ *
+ * Devasa/çok-bölümlü isteklerde model `done_reason:"length"` ile yarıda kesilirse
+ * (örn. 10 soruluk testin 9'unun ortasında), otomatik olarak "kaldığın yerden
+ * devam et" turları atılır ve gelen akışlar TEK yanıt gibi birleştirilir
+ * (sequential request + stream aggregation). Bu, prompt'u sorulara bölmekten
+ * daha güvenlidir: tüm bağlam korunur, sorular arası tutarlılık kaybolmaz.
+ *
+ * Sonsuz döngü / aşırı maliyet koruması: en fazla `maxContinuations` tur, ve
+ * bir tur hiç ilerleme üretmezse (boş/whitespace) döngü kırılır.
+ *
+ * @returns {Promise<string>} birleştirilmiş tam metin
+ */
+async function ollamaChatStream(model, messages, opts = {}) {
+  const {
+    host = OLLAMA_HOST,
+    think = false,
+    onToken = null,
+  } = opts;
+  const perRoundTimeoutMs = typeof opts.timeoutMs === "number" ? opts.timeoutMs : 120000;
+  const maxContinuations = (typeof opts.maxContinuations === "number" && opts.maxContinuations >= 0)
+    ? Math.floor(opts.maxContinuations)
+    : DEFAULT_MAX_CONTINUATIONS;
+  // genOptions bir kez kurulur; her tur aynı parametrelerle çalışır.
+  const genOptions = buildGenOptions(opts);
+
+  let convo = Array.isArray(messages) ? messages.slice() : [];
+  let full = "";
+  let continuations = 0;
+
+  for (;;) {
+    const { text, doneReason } = await streamChatOnce(model, convo, {
+      host,
+      think,
+      onToken,
+      signal: opts.signal,
+      timeoutMs: perRoundTimeoutMs,
+      genOptions,
+    });
+    full += text;
+
+    // Normal bitiş (stop / null) → tamam.
+    if (doneReason !== "length") break;
+    // Güvenlik tavanı veya ilerleme yok → döngüyü kır (sonsuz devam etmesin).
+    if (continuations >= maxContinuations || !text.trim()) break;
+    continuations += 1;
+
+    // Kaldığı yerden devam ettir: şimdiye kadarki yanıtı asistan mesajı olarak
+    // bağlama koy, tekrar etmeden sürdürmesini iste.
+    convo = convo.concat(
+      { role: "assistant", content: full },
+      { role: "user", content: "Önceki yanıtın çıktı sınırında kesildi. Kaldığın yerden, hiçbir şeyi tekrar etmeden devam et." }
+    );
+  }
+  return full;
 }
 
 /** Ollama HTTP servisi ayakta mı? */
@@ -316,8 +377,11 @@ async function ollamaDeleteModel(name, host = OLLAMA_HOST, timeoutMs = 8000) {
 module.exports = {
   buildGenOptions,
   DEFAULT_NUM_PREDICT,
+  DEFAULT_TEMPERATURE,
+  DEFAULT_MAX_CONTINUATIONS,
   ollamaChat,
   ollamaChatStream,
+  streamChatOnce,
   ollamaReachable,
   ollamaListModels,
   ollamaListModelDetails,
