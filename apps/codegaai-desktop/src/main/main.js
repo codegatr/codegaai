@@ -599,6 +599,9 @@ function registerIpc() {
         regenerate: !!(opts && opts.regenerate),
         context: mergedContext,
         chatId,
+        // Bağlam sürekliliği: renderer kalıcı sohbet geçmişini taşır. Main'in
+        // bellek-içi geçmişi (yeniden başlatma/eski sohbet) boşsa bununla tohumlanır.
+        history: Array.isArray(opts && opts.history) ? opts.history : [],
       });
     } catch (err) {
       phoenixRuntime.abortChat(taskId, chatId, err?.message || "model_error");

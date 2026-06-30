@@ -803,6 +803,21 @@ function candidateModelsForTask(task, installed) {
 
 // Model adından parametre boyutunu (milyar) çıkar: "qwen3.5:9b"→9, "...:0.8b"→0.8,
 // "qwen2.5-coder:3b-instruct"→3. Bulunamazsa 0.
+// Bağlam sürekliliği: renderer'dan gelen kalıcı geçmişi ({role,text|content})
+// main'in {role,content} biçimine çevirip hedef diziye (yalnız boşken) tohumlar.
+// Saf + test edilebilir. Hedefi mutasyonla doldurur, eklenen adet döner.
+function seedConversationHistory(target, incoming, max = 12) {
+  if (!Array.isArray(target) || target.length > 0) return 0;
+  if (!Array.isArray(incoming) || !incoming.length) return 0;
+  const seeded = incoming
+    .filter((m) => m && (m.role === "user" || m.role === "assistant") && (m.content || m.text))
+    .map((m) => ({ role: m.role, content: String(m.content || m.text || "").trim() }))
+    .filter((m) => m.content)
+    .slice(-max);
+  for (const m of seeded) target.push(m);
+  return seeded.length;
+}
+
 function modelParamSize(name) {
   const m = String(name || "").match(/(\d+(?:\.\d+)?)\s*b\b/i);
   return m ? Number(m[1]) : 0;
@@ -1315,6 +1330,13 @@ class ModelManager {
     // uzun doÄŸrulama/Ã§ok-gÃ¶rev turlarÄ±nda watchdog (90sn idle) cevabÄ± yarÄ±da KESMESÄ°N.
     const keepAlive = opts.onToken || null;
     const conversationHistory = this.historyFor(opts.chatId);
+    // BAĞLAM SÜREKLİLİĞİ (Nirvana kök-neden): sessionHistories bellek-içidir ve
+    // yeniden başlatmada boşalır. Renderer kalıcı geçmişi opts.history ile taşır;
+    // main'in geçmişi boşsa onunla tohumla → "devam et"/"Konya"/"Ateş Fiat" eski
+    // sohbette de bağlamı korur. Yalnız BOŞKEN tohumla (oturum-içi tekrarı önle).
+    if (conversationHistory.length === 0) {
+      seedConversationHistory(conversationHistory, opts.history, MAX_HISTORY_MESSAGES);
+    }
     // Yeniden Ã¼retim: Ã¶nceki turu (user+assistant) geÃ§miÅŸten Ã§Ä±kar ki baÄŸlam tekrarlanmasÄ±n
     if (opts.regenerate) {
       if (conversationHistory.length && conversationHistory[conversationHistory.length - 1].role === "assistant") conversationHistory.pop();
@@ -2337,6 +2359,7 @@ module.exports = {
   chooseModelForTask,
   modelParamSize,
   strongestInstalledModel,
+  seedConversationHistory,
   prioritizeStrongModelForHeavyPrompt,
   TASK_MODELS,
   missingModelReply,

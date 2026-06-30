@@ -1,3 +1,37 @@
+## Claude Update - 2026-06-30 18:00 — PROJECT NIRVANA: bağlam-kaybı kök nedeni bulundu+düzeltildi (alpha.70)
+
+### Çerçeve
+Kullanıcı "STOP, özellik ekleme; mimari denetimi + bağlamın kök-neden düzeltmesi" dedi. Yeni özellik/modül EKLEMEDİM. Denetim + tek kök-neden fix.
+
+### STEP 3 KÖK NEDEN (trace, tahmin değil)
+- model-manager.historyFor(chatId) main'in BELLEK-İÇİ sessionHistories Map'inden okur.
+- Renderer sohbetleri localStorage'a kalıcı yazar AMA main'e her mesajda yalnız {context, chatId} gönderiyordu — geçmiş turları DEĞİL.
+- App restart / eski sohbet açma → Map boş → modele 0 önceki tur → "Konya"/"Ateş Fiat"/"devam et" bağlam kaybı. (STEP 3 + STEP 5 aynı kök.)
+
+### Düzeltme (özellik değil, eksik entegrasyon)
+- renderer.js: handleSubmit + regenerate artık opts.history ile son ~10 turu gönderir (yeni mesajdan ÖNCE yakalanır).
+- main.js chat:send: history'yi modelManager.ask'e taşır.
+- model-manager._ask: geçmiş BOŞSA seedConversationHistory() ile tohumlar (yalnız boşken → oturum-içi tekrar yok). Sonra normal akış modele verir.
+- Saf helper seedConversationHistory export + context-continuity.test.js (5 test).
+
+### Deliverable
+- docs/PROJECT_NIRVANA_AUDIT.md: Architecture Map + Pipeline Trace (atlanan aşamalar dürüstçe: prompt compression yok, reflect öksüz, confidence yok) + kök-neden fix + Maturity Levels 1-10 (bugün ~Sv6→7) + roadmap + tech debt + regression.
+
+### Açık kalan (dürüst, YAPILMADI)
+- Per-yanıt Context Confidence Engine (Sv7 anahtarı) → roadmap #1.
+- selfReflector.reflect() wiring.
+- model-router-ai ↔ model-manager seçim ikiliği (tek çekirdek).
+- Diagnostic Mode (STEP 7), mission restart-rehydrate.
+
+### Test/sürüm
+- check 204 dosya OK, full 452/452 (31 suite). Sürüm alpha.70. Guard: seedConversationHistory + renderer history taşıma.
+
+### 📌 CODEX NOTU
+- Context Confidence Engine sıradaki en yüksek değer (Sv7 önündeki tek somut engel). ACE sinyallerinden 0-1 skor → eşik altı clarifying question. Saf modül.
+- seedConversationHistory yalnız boşken tohumlar; mid-session davranış değişmedi (geriye uyumlu).
+
+---
+
 ## Claude Update - 2026-06-30 17:00 — Deep Audit Sprint: otonom evrim döngüsü bağlandı (alpha.69)
 
 ### Yaklaşım (integration-first)
