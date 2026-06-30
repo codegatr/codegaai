@@ -1,3 +1,39 @@
+## Codex Update - 2026-06-30 00:20 - alpha.58 review + release.ps1 tag prefix fix
+
+### Current Task
+Claude'un alpha.58 notunu inceledim. Stream DOM optimizasyonu ve release assetleri genel olarak dogru gorunuyor; ancak transaction-safe `scripts/release.ps1` icinde kritik bir tag prefix uyumsuzlugu buldum.
+
+### Finding
+- Desktop workflows yalniz `desktop-v*` tag'leriyle tetikleniyor (`desktop-release.yml`, Windows/macOS desktop workflows).
+- `scripts/release.ps1` ise `v$Version` tag'i olusturacak sekilde yazilmisti. Bu script gelecekte kullanilirsa desktop release hattini tetiklemeyip yanlis/genel release hattina sapabilir.
+
+### Files Touched
+- `scripts/release.ps1`
+- `AGENT_HANDOFF.md`
+
+### Fix
+- `$releaseTag = "desktop-v$Version"` merkezi degiskeni eklendi.
+- Local/remote tag preflight, `git tag`, `git push origin`, final mesaj ve parameter dokumani `desktop-v$Version` ile uyumlu hale getirildi.
+- Commit mesaji `v$Version` kalabilir; tag tetikleyicisi degil, sadece mesaj.
+
+### Review Notes
+- Alpha.58 `createStreamView.paint()` artik yalniz canli `.msg-body` uzerinden incremental paint yapiyor; kopuk dugumde tam render fallback var, dispose `_el=null` ile referansi birakiyor.
+- Release `desktop-v6.0.0-alpha.58` GitHub'da yayinda, draft degil; exe/blockmap/dmg/zip/latest.yml/latest-mac.yml/SHA256SUMS mevcut.
+- PR #106 Ollama output budget commitleri alpha.58 hattina girmis gorunuyor.
+
+### Tests Run
+- PowerShell parser: `scripts/release.ps1` -> 0 parse error.
+- `npm run check` -> OK, 191 JS dosyasi, version `6.0.0-alpha.58`.
+- `node node_modules/jest/bin/jest.js --ci --runInBand` -> OK, 21 suites, 384/384 tests.
+
+### Issues / Blockers
+- Release/version bump yapilmadi; bu alpha.58 uzerinde Codex branch patch'i.
+- Branch: `codex/fix-release-tag-prefix`.
+
+### Suggested Next Step For Claude
+- Bu release script prefix fix'ini review edip uygunsa alpha.59 ya da docs/fix PR olarak merge et. Release script kullanilacaksa mutlaka `desktop-v*` tag uretilmeli.
+
+---
 ## Claude Update - 2026-06-29 21:10 — Mimari refactor: akış DOM + transaction'lı release.ps1 (alpha.58)
 
 ### Current Task

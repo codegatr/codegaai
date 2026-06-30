@@ -17,7 +17,7 @@
   geçerli değildir. Sürümün gerçek kaynağı package.json'dır.
 
 .PARAMETER Version
-  Semver sürüm (örn. 6.0.0-alpha.58). Başına "v" eklenmez; tag "v$Version" olur.
+  Semver sürüm (örn. 6.0.0-alpha.58). Başına prefix eklenmez; tag "desktop-v$Version" olur.
 #>
 param(
   [Parameter(Mandatory = $true)]
@@ -33,6 +33,7 @@ Set-Location $repoRoot
 
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $lockFile  = Join-Path $repoRoot ".release.lock"
+$releaseTag = "desktop-v$Version"
 
 # Atomik küme — sürüm bu iki dosyada birlikte güncellenir.
 $pkg     = Join-Path $repoRoot "apps\codegaai-desktop\package.json"
@@ -68,14 +69,14 @@ try {
   $lockCreated = $true
 
   # --- Pre-flight: tag çakışması (yerel + uzak) ---
-  $localTags = git tag --list "v$Version"
-  if ($localTags -contains "v$Version") {
-    throw "Tag v$Version yerelde zaten var. Yeni bir sürüm numarası kullanın."
+  $localTags = git tag --list $releaseTag
+  if ($localTags -contains $releaseTag) {
+    throw "Tag $releaseTag yerelde zaten var. Yeni bir sürüm numarası kullanın."
   }
   Invoke-Step "git fetch --tags" { git fetch origin --tags }
-  $remoteTag = git ls-remote --tags origin "refs/tags/v$Version"
+  $remoteTag = git ls-remote --tags origin "refs/tags/$releaseTag"
   if ($remoteTag) {
-    throw "Uzak tag v$Version zaten var. Yeni bir sürüm numarası kullanın."
+    throw "Uzak tag $releaseTag zaten var. Yeni bir sürüm numarası kullanın."
   }
 
   # --- Yedek al (rollback kaynağı) — DEĞİŞİKLİKTEN ÖNCE ---
@@ -115,10 +116,10 @@ try {
     Invoke-Step "git push"   { git push origin HEAD }
   }
 
-  Invoke-Step "git tag"      { git tag "v$Version" }
-  Invoke-Step "git push tag" { git push origin "v$Version" }
+  Invoke-Step "git tag"      { git tag $releaseTag }
+  Invoke-Step "git push tag" { git push origin $releaseTag }
 
-  Write-Host "✅ Desktop release v$Version gönderildi. Asset'ler için GitHub Actions'a bakın." -ForegroundColor Green
+  Write-Host "✅ Desktop release $releaseTag gönderildi. Asset'ler için GitHub Actions'a bakın." -ForegroundColor Green
 }
 catch {
   Write-Host "❌ HATA: $($_.Exception.Message)" -ForegroundColor Red
