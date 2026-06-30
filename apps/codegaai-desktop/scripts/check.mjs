@@ -302,6 +302,7 @@ if (!ollamaClientFile.includes("streamChatOnce") || !ollamaClientFile.includes("
 if (!ollamaClientFile.includes("adaptiveNumCtx")) throw new Error("ollama-client.js uyarlanır bağlam penceresi (adaptiveNumCtx) eksik");
 const mmFile = readText(join(root, "src/main/model-manager.js"));
 if (!mmFile.includes("_askBatched") || !mmFile.includes("chunkQuestions")) throw new Error("model-manager.js ardışık çok-soru kuyruğu (_askBatched/chunkQuestions) eksik");
+if (!mmFile.includes("strongestInstalledModel") || !mmFile.includes("autoModelEscalation")) throw new Error("model-manager.js otomatik model yükseltme (strongestInstalledModel/autoModelEscalation) eksik");
 const fasFile = readText(join(root, "src/main/agent/final-answer-sanitizer.js"));
 if (!fasFile.includes("isMultiQuestionInput")) throw new Error("final-answer-sanitizer.js çok-soru çökme koruması (isMultiQuestionInput) eksik");
 const mainFile = readText(join(root, "src/main/main.js"));
@@ -311,7 +312,7 @@ if (!mainFile.includes("seedCoreEngineeringRules")) throw new Error("main.js Aca
 const modelManagerFile = readText(join(root, "src/main/model-manager.js"));
 if (!modelManagerFile.includes("sanitizePrompt")) throw new Error("model-manager.js isim temizleme (sanitizePrompt) baglantisi eksik");
 
-if (pkg.version !== "6.0.0-alpha.63") throw new Error(`Desktop package version must be 6.0.0-alpha.63, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.64") throw new Error(`Desktop package version must be 6.0.0-alpha.64, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

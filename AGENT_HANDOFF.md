@@ -1,3 +1,31 @@
+## Claude Update - 2026-06-30 13:10 — Otomatik model yükseltme: ağır promptta güçlü modeli kendisi seçer (alpha.64)
+
+### Bağlam / kullanıcı içgörüsü
+Kullanıcı model panelini gösterdi: kurulu modeller qwen3.5:4b (AKTİF), qwen2.5-coder:3b, qwen3.5:0.8b, **qwen3.5:9b (pasif, "güçlü muhakeme")**. Donanım: RTX 3060 Laptop 6GB VRAM + 24GB RAM. Soru: "7B/8B yok; ayrıca sistem zor soruda modeli kendisi seçmesi gerekmez mi?"
+
+### Tespit
+- `model-router-ai.js` (classifyPrompt/routeModels) yalnız Model Router PANELİNE (router:info/router:test) bağlı; GERÇEK üretim seçimine bağlı DEĞİL.
+- Gerçek seçim `_ask`'te: candidateModelsForTask + kullanıcı varsayılanı (4B) HER ZAMAN öne alınıyor → ağır promptlar hep 4B'de koşup dejenere oluyordu. 9B kurulu olsa bile kullanılmıyordu.
+
+### Düzeltme (model-manager.js)
+- `modelParamSize(name)` ("qwen3.5:9b"→9, "0.8b"→0.8) + `strongestInstalledModel(installed)`.
+- `_ask` seçim akışına OTOMATİK YÜKSELTME: prompt ağırsa (`answerAdequacy.isLongTechnicalQuestion` VEYA `finalAnswerSanitizer.isMultiQuestionInput`) ve kurulu daha büyük model varsa, onu attemptModels'in başına al. Hafif promptlar küçük/hızlı modelde kalır. `settings.autoModelEscalation=false` ile kapatılır. logs.info("model_route", ...).
+- 12-soru testi: isMultiQuestionInput=true → 9B kurulu → otomatik 9B'ye yükseltir.
+
+### Not (dürüstlük)
+- 9B, 6GB VRAM'a tam sığmaz → CPU offload (24GB RAM) → DAHA YAVAŞ ama çalışır ve kalite çok daha iyi. Kullanıcının istediği "model kendisi seçsin" davranışı bu.
+- Kullanıcının "7B yok" doğru ama 9B var; artık manuel "Varsayılan Yap" gerekmiyor, ağır promptta otomatik seçilir.
+
+### Test/sürüm
+- model-escalation.test.js (5 test, saf helper). check 197 OK, full 411/411 (26 suite). Sürüm alpha.64. Guard: strongestInstalledModel/autoModelEscalation.
+
+### 📌 CODEX NOTU
+- Renderer'da Ayarlar'a "Ağır işlerde güçlü modele otomatik geç" toggle'ı (autoModelEscalation) eklenebilir; şimdilik settings.json ile, varsayılan AÇIK.
+- İstersen model-router-ai.js'i de gerçek seçime bağlamayı düşünebiliriz; ama _ask seviyesindeki escalation daha doğrudan ve test edildi.
+- Kullanıcı modeli: bkz memory codega-local-model (4B aktif; ağır testte 9B önerilir — artık otomatik).
+
+---
+
 ## Claude Update - 2026-06-30 12:40 — PR #115 review + alpha.63 release (son emniyet kemeri)
 
 ### Current Task
