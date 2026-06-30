@@ -1,3 +1,27 @@
+## Claude Update - 2026-06-30 10:05 — "0.75" çökme bug'ı: çok-soru sanitizer koruması (alpha.60)
+
+### Bulgu (kök neden)
+12 soruluk teste model "0.75" döndü. Sebep MODEL değil, SANITIZER çökmesi:
+- TDE (`tde.decomposeTasks`) görevleri YALNIZ açık "Soru/Test/Görev N" başlıklarından sayar. Kullanıcı prompt'u "[Mantık] … [Güvenlik] …" KÖŞELİ etiketler kullanıyor → `taskReport.applicable=false`.
+- Bu yüzden `final-answer-sanitizer.cleanUserFacingOutput` çok-görev korumasını ATLAYIP cevabı son tek "Final Answer:" bloğuna çökertiyordu. Modelin bir alt-soru için yazdığı "Final Answer: 0.75" (3/4) tüm 12 cevabı silip "0.75" bıraktı.
+
+### Düzeltme — final-answer-sanitizer.js
+- Yeni `isMultiQuestionInput(question)`: ≥3 köşeli etiket ([Mantık]…), ≥2 "Soru/Test N" başlığı, ≥3 numaralı satır (1) 2) 3)), veya ≥4 "?" → çok-soru.
+- `cleanUserFacingOutput` ve `cleanPhantomOutput`: çok-soru (rapor VEYA isMultiQuestionInput) ise tek "Final Answer"a ÇÖKERTMEZ → `stripInternalSections(..., {keepAllSections:true})` ile tüm bölümleri korur (yalnız Anlama/İşlem/Doğrulama iç-akıl satırları temizlenir).
+- `countAnswerSections` artık köşeli-etiket başlıklarını da bölüm sayar.
+- Tek-soru davranışı KORUNDU (regresyon testi: "3/4 kaçtır?" → hâlâ "0.75").
+
+### Önemli dürüstlük notu
+- Bu düzeltme, iyi bir çok-bölümlü cevabın PIPELINE tarafından yok edilmesini engeller. EĞER yerel model gerçekten yalnız "0.75" ürettiyse (bağlam taşması / küçük model degenerasyonu), sanitizer bunu düzeltemez — o durumda num_ctx (8192) artırımı / daha büyük model / gerçek prompt-chunking gerekir. Ham model çıktısını görmek için debugLogging açılıp tekrar denenebilir.
+
+### Tests / Sürüm
+- Yeni: final-answer-multiquestion.test.js (5 test). check 193 dosya OK, full 395/395 (23 suite) PASS. Sürüm alpha.60. check.mjs guard: isMultiQuestionInput.
+
+### 📌 CODEX NOTU
+- TDE'yi köşeli-etiket ([Mantık]) başlıklarını da görev sayacak şekilde genişletmek istersen `tde.headingTasks`'a bracket desteği ekleyebilirsin; o zaman taskReport.applicable doğrudan true olur ve formatTaskContext modele "12 görev" bağlamı verir (daha iyi yanıt formatı). Şimdilik sanitizer-seviyesi koruma yeterli.
+
+---
+
 ## Claude Update - 2026-06-30 09:30 — Çıktı-tavanı devam koruması + strict temp + PHP/SemVer release guard (alpha.59)
 
 ### Current Task

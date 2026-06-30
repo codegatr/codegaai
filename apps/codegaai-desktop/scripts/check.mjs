@@ -298,6 +298,8 @@ if (!toolsFile.includes("fetchTextResilient") || !toolsFile.includes("AUTH_WALL_
 if (!rendererFile2.includes("msg-body") || !rendererFile2.includes("streamView.paint")) throw new Error("renderer.js akış DOM mikro-güncelleme (msg-body/streamView.paint) optimizasyonu eksik");
 const ollamaClientFile = readText(join(root, "src/main/agent/ollama-client.js"));
 if (!ollamaClientFile.includes("streamChatOnce") || !ollamaClientFile.includes("done_reason")) throw new Error("ollama-client.js çıktı-tavanı devam koruması (streamChatOnce/done_reason) eksik");
+const fasFile = readText(join(root, "src/main/agent/final-answer-sanitizer.js"));
+if (!fasFile.includes("isMultiQuestionInput")) throw new Error("final-answer-sanitizer.js çok-soru çökme koruması (isMultiQuestionInput) eksik");
 const mainFile = readText(join(root, "src/main/main.js"));
 if (!mainFile.includes("registerACEIpc")) throw new Error("main.js ACE IPC kaydi eksik");
 if (!mainFile.includes("registerAcademyIpc")) throw new Error("main.js Academy IPC kaydi eksik");
@@ -305,7 +307,7 @@ if (!mainFile.includes("seedCoreEngineeringRules")) throw new Error("main.js Aca
 const modelManagerFile = readText(join(root, "src/main/model-manager.js"));
 if (!modelManagerFile.includes("sanitizePrompt")) throw new Error("model-manager.js isim temizleme (sanitizePrompt) baglantisi eksik");
 
-if (pkg.version !== "6.0.0-alpha.59") throw new Error(`Desktop package version must be 6.0.0-alpha.59, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.60") throw new Error(`Desktop package version must be 6.0.0-alpha.60, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
