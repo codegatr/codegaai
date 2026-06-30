@@ -40,6 +40,7 @@ const { EvolutionEngine }          = require("./agent/evolution/evolution-engine
 const { codegaDNA, initCodegaDNA } = require("./agent/evolution/codega-dna");
 const { contextEngine }            = require("./agent/context/context-engine");
 const { registerAEPIpc }              = require("./agent/aep/aep-ipc");
+const { aepOS }                       = require("./agent/aep/aep-os");
 const { registerACEIpc }              = require("./agent/ace/ace-ipc");
 const { initACEOS }                   = require("./agent/ace/ace-os");
 const { registerAcademyIpc, getAcademy } = require("./agent/academy/academy-ipc");
@@ -286,6 +287,9 @@ function scheduleAgentWatch() {
 }
 
 let lastAutoPropose = null;
+let evolutionEngineRef = null;     // otonom evrim döngüsü için modül-seviyesi referans
+let lastEvolutionCycleAt = 0;
+const EVOLUTION_CYCLE_INTERVAL_MS = 6 * 60 * 60 * 1000; // en sık 6 saatte bir
 async function maybeAutoPropose() {
   try {
     const s = settingsStore.getSettings();
@@ -379,9 +383,40 @@ async function maybeAutonomousDevelop(trigger = "scheduled") {
   }
 }
 
+// OTONOM EVRİM DÖNGÜSÜ (Deep Audit Sprint bulgusu): EvolutionEngine.analyze() ve
+// aepOS.runCycle() yalnız renderer IPC'sinden erişilebiliyordu — kendiliğinden
+// HİÇ çalışmıyordu. Burada analiz → AEP cycle (backlog/genome/intel/timeline)
+// bağlanır. ÖNERİ-ONLY: asla otomatik merge/patch yok; yalnız backlog/öneri üretir.
+// 6 saatte bir throttle; ayarla kapatılabilir.
+async function maybeRunEvolutionCycle() {
+  try {
+    if (settingsStore.getSettings().evolutionCycleEnabled === false) return;
+    if (!evolutionEngineRef || !aepOS.isInitialized()) return;
+    if (Date.now() - lastEvolutionCycleAt < EVOLUTION_CYCLE_INTERVAL_MS) return;
+    lastEvolutionCycleAt = Date.now();
+
+    const report = await evolutionEngineRef.analyze();
+    const version = app.getVersion();
+    const result = await aepOS.runCycle(report, version);
+    // Zaman çizelgesine kalıcı olay (kendi geçmişini bilsin).
+    try {
+      aepOS.timeline.add({
+        type: "decision",
+        title: `Otonom evrim döngüsü: +${result?.tasksAdded || 0} görev, +${result?.proposalsAdded || 0} öneri`,
+        version,
+        why: "Periyodik self-analiz; backlog/genome/competitive-intel güncellendi (öneri-only).",
+        tags: ["evolution", "autonomous"],
+      });
+    } catch (_e) {}
+  } catch (_e) {
+    /* otonom evrim hatası uygulamayı/akışı etkilemesin */
+  }
+}
+
 async function runMaintenanceAutomations() {
   if (settingsStore.getSettings().scheduledTasksEnabled === false) return;
   await doMaintenance();
+  await maybeRunEvolutionCycle();
   const development = await maybeAutonomousDevelop("maintenance");
   if (!development) await maybeAutoPropose();
 }
@@ -487,6 +522,7 @@ function registerIpc() {
     evoDataDir
   );
   evolutionEngine.init().catch(e => console.warn("[Evolution] init:", e.message));
+  evolutionEngineRef = evolutionEngine; // otonom evrim döngüsü erişebilsin
   initCodegaDNA(evoDataDir).catch(e => console.warn("[DNA] init:", e.message));
 
   const aceDataDir = path.join(app.getPath("userData"), "ace");

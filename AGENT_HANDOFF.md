@@ -1,3 +1,32 @@
+## Claude Update - 2026-06-30 17:00 — Deep Audit Sprint: otonom evrim döngüsü bağlandı (alpha.69)
+
+### Yaklaşım (integration-first)
+"Deep Audit" sprint'i. Yeni özellik yığmadım. Her büyük alt-sistemin canlı path'e GERÇEKTEN bağlı olup olmadığını kod okuyarak kanıtladım → docs/DEEP_AUDIT_REPORT.md.
+
+### Doğrulanan (gerçekten çalışıyor)
+- ACE (processIncoming/buildContext/recordTurn) ✅, Builder GERÇEK dosya yazıyor (fsp.writeFile builder-engine:63) ✅, Self QA patch'i bloke ediyor (patch-generator:129 → QA_BLOCKED) ✅, MissionOS "devam et" → activeMission ✅, ZIP/Git/routing/escalation/chunking/guard ✅, Timeline ✅.
+
+### Bulunan açık → DÜZELTİLDİ: Otonom evrim döngüsü öksüzdü
+- Kök neden: evolutionEngine.analyze() ve aepOS.runCycle() YALNIZ renderer IPC'sinden erişilebiliyordu; hiçbir zamanlayıcı ikisini bağlamıyordu → analiz→backlog→genome→intel→timeline kendiliğinden HİÇ çalışmıyordu ("Evolution var ama backlog üretmiyor" tam buydu).
+- Düzeltme (main.js): maybeRunEvolutionCycle() — runMaintenanceAutomations içinden, 6sa throttle, evolutionCycleEnabled ayarıyla kapatılır. analyze()→aepOS.runCycle()→backlog/genome/intel + timeline'a decision olayı. ÖNERİ-ONLY (otomatik merge/patch YOK; patch yine runPatch+SelfQA gate).
+- Kanıt testi: aep-cycle-integration.test.js (3) — düşük skorlu rapor GERÇEK backlog görevi üretiyor; dashboard timeline içeriyor.
+
+### Açık kalan (dürüst roadmap — YAPILMADI olarak işaretlendi)
+- selfReflector.reflect() yanıt-sonrası bağlı değil (Task: meta-öğrenme).
+- Per-yanıt Context Confidence Engine (Task 4) yok; answer-adequacy kısmi proxy. alpha.70 adayı.
+- Engineering Maturity Dashboard UI paneli yok (veri katmanı TAM: aep:dashboard).
+- 1000-satır Laravel + uzun-streaming/window-focus testleri: manuel QA (birim teste uygun değil).
+
+### Test/sürüm
+- check 203 dosya OK, full 447/447 (30 suite). Sürüm alpha.69. Guard: main.js maybeRunEvolutionCycle/aepOS.runCycle + aep-cycle-integration.test required[].
+- Not: nirvana-regression.test.js main'de (Codex) — korundu.
+
+### 📌 CODEX NOTU
+- Sıradaki en yüksek değer: Context Confidence Engine (ACE sinyallerinden 0-1 skor → düşük güvende clarifying question). Saf modül + test, additive. ceg.js Genome'dur, confidence DEĞİL.
+- selfReflector.reflect() wiring'i recordTurn yanında fire-and-forget olarak eklenebilir (davranış değiştirmeden).
+
+---
+
 ## Claude Update - 2026-06-30 16:05 — Selamlaşmalar fast-path'e eklendi: "Günaydın" artık asılmıyor (alpha.68)
 
 ### Sorun
@@ -1288,5 +1317,27 @@ Kullanici alpha.64 sonrasi "gercek muhendislik sinavi" istedi: 5 kritik regressi
 - Versiyon bump/release yapilmadi; alpha.64 uzerine regression gate patch'i.
 - PR acildiginda review odagi: false-positive riski (kisa "Konya" yeni konu mu devam mi?) ve Self QA placeholder blocker etkisi.
 - Bundan sonraki ortaklik notlari hem Claude hem ChatGPT icin bu dosyada tutulacak.
+
+---
+## Codex Update - 2026-06-30 - Follow-up: chunking proof + corrected stress answer key
+
+### Current Task
+Kullanici ChatGPT notu ekledi: yerel modelin "Konya/0.75/parcalara bol" refleksleri tekrar goruluyor; not, chunking middleware'in 12 soruyu tek paket gonderiyor olabilecegini ve cevap anahtarinin Project Brain'e eklenmesini oneriyordu.
+
+### Action
+- `nirvana-regression.test.js` icine `[prompt-chunking]` katmani eklendi: 12 baslikli stres promptu `chunkQuestions` ile 3 sequential chunk'a (4/4/4) ayrilmak zorunda. Bu, "Main Process hala tek paket mi gonderiyor?" suphesini deterministik regression'a cevirir.
+- Ekli cevap anahtari Project Brain'e dogru kabul edilmedi; iki nokta duzeltildi ve regression'a sabitlendi:
+  - 3 kedi sorusunda duz cizgi her kedi icin 2 on/2 arka saglamaz; dairesel/cember yorumu korunur.
+  - Nilufelerde `3/4` tam olarak 39. gun degildir; surekli modelde yaklasik 39.585. gun, ayrik gun sonu modelinde 39. gun yarim ve 40. gun tamdir.
+
+### Tests
+- `node node_modules/jest/bin/jest.js src/main/agent/__tests__/nirvana-regression.test.js --runInBand` -> PASS, 7/7.
+- `npm run check` -> PASS, 202 JS dosyasi, version 6.0.0-alpha.68.
+- `node node_modules/jest/bin/jest.js --ci --runInBand` -> PASS, 29 suites, 444/444.
+- `npm run release:prepare` -> PASS, check + 29 suites, 444/444.
+
+### Notes For Claude + ChatGPT
+- Bu patch, alpha.68 main uzerine acilan follow-up branch'tedir: `codex/harden-chunking-answer-key`.
+- Onceki PR #121 merge edildigi icin eski branch'e force push yapmak yeterli degildi; alpha.65-68 degisikliklerini geri almamak icin yeni main tabanli branch acildi.
 
 ---
