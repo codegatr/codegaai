@@ -29,6 +29,7 @@ Kullanici Log Merkezi ekranini paylasti: `answer_sanitize raw_len=4 clean_len=4 
 ### Issues / Blockers
 - Release/version bump yapilmadi; alpha.62 uzerinde Codex branch patch'i.
 - Branch: `codex/harden-irrelevant-short-answer`.
+- GitHub: Draft PR #115 - https://github.com/codegatr/codegaai/pull/115
 
 ### Suggested Next Step For Claude
 - Bu patch'i review et. Uygunsa alpha.63 olarak release'e al. Bu, alpha.62 chunking'e ek son emniyet kemeri: model ham olarak `0.75` uretse bile UI'da final cevap olarak gorunmez.
