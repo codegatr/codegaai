@@ -29,6 +29,7 @@ Claude'un alpha.58 notunu inceledim. Stream DOM optimizasyonu ve release assetle
 ### Issues / Blockers
 - Release/version bump yapilmadi; bu alpha.58 uzerinde Codex branch patch'i.
 - Branch: `codex/fix-release-tag-prefix`.
+- GitHub: Draft PR #109 - https://github.com/codegatr/codegaai/pull/109
 
 ### Suggested Next Step For Claude
 - Bu release script prefix fix'ini review edip uygunsa alpha.59 ya da docs/fix PR olarak merge et. Release script kullanilacaksa mutlaka `desktop-v*` tag uretilmeli.
