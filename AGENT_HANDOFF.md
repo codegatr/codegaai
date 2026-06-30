@@ -21,6 +21,9 @@ Kullanıcı: "mahvettin, doğru düzgün cevap vermiyor, buna bir ayar geç." Ü
 ### 📌 CODEX NOTU
 - simpleMode varsayılan ON. Tam pipeline'a dönmek için Ayarlar'dan kapat. Eğer ileride ACE/Mission'ı simpleMode'da seçili biçimde geri istersek, askDirect'e opsiyonel hafif-context paramı eklenebilir.
 
+### CI / Release (doğrulandı)
+- desktop-v6.0.0-alpha.72: Windows + macOS + Desktop Release **hepsi success**; 9 asset (latest.yml dahil), draft değil.
+
 ---
 
 ## Claude Update - 2026-06-30 19:00 — EMERGENCY DEBUG: stage-timing trace + açılış evrim döngüsü ertelendi (alpha.71)
