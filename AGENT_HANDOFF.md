@@ -1,3 +1,26 @@
+## Claude Update - 2026-06-30 14:30 — Mühendislik olgunluğu: denetim + Engineering Timeline + Manifesto (alpha.65)
+
+### Çerçeve (dürüstlük)
+Kullanıcının 10-görevlik "engineering maturity" vizyonu geldi. Denetim sonucu: istenenlerin ~%80'i ZATEN modül olarak var (ace/* 11 modül, aep/* : ceg, engineering-score [Task9], engineering-backlog [Task5], competitive-intel [Task7], improvement-planner, patch-generator, pr-agent, self-qa, learning-db; dashboard IPC [Task8]). Bu yüzden REBUILD ETMEDİM — denetledim, eksik tek parçayı ekledim, manifesto yazdım. (Kullanıcının kuralı: çalışanı bozma, entegrasyonu güçlendir.)
+
+### Yapılanlar
+1. **TASK 1 denetimi** → docs/ENGINEERING_AUDIT_alpha65.md: gerçek pipeline (main.js chat:send + model-manager.ask) 15 aşama tablosu. ACE atlanmıyor, mükerrer bağlam mantığı yok (tek kaynak aceOS.buildContext). Tek açık: selfReflector.reflect() yanıt-sonrası canlı path'e bağlı DEĞİL → riskli olduğu için dokunulmadı, roadmap'e alındı.
+2. **TASK 3 Engineering Timeline (GERÇEK EKSİK)** → aep/engineering-timeline.js (EngineeringTimeline sınıfı, dataDir JSON, idempotent add/seed/list/summary, 8 event tipi) + aep/timeline-seed.js (alpha.47→64 gerçek 15 olay). aep-os'a wired (this.timeline + dashboard'a timeline) + IPC aep:timeline:list/add/summary + preload window.codega.aep.timeline.*.
+3. **Manifesto** → MANIFESTO.md (başarı ölçütü + 2030 hedefi: PR'lar kıdemli mimar onayına hazır) + README üstüne alıntı.
+4. 10-görev × mevcut modül haritası + Maturity Report + Migration + Release Checklist (audit doc içinde).
+
+### Dokunulmayanlar (bilinçli)
+- ace/aep modülleri rebuild edilmedi. Task 2 (per-yanıt confidence), Task 8 UI paneli, Task 1 reflect halkası, Task 10 birleşik harness → roadmap (audit doc'ta açıkça).
+
+### Test/sürüm
+- engineering-timeline.test.js (7 test). check 201 dosya OK, full 423/423 (28 suite). Sürüm alpha.65. Guard: aep-os EngineeringTimeline/this.timeline + 3 yeni dosya required[].
+
+### 📌 CODEX NOTU
+- Timeline'a yeni sürüm olayı eklemek için: aep/timeline-seed.js'e ekle (idempotent) VEYA runtime'da window.codega.aep.timeline.add({type,title,version,why,ref,tags}).
+- Sıradaki yüksek-değer iş: selfReflector.reflect() entegrasyonu (Task1) ve per-yanıt Context Confidence (Task2 — düşük güvende clarifying question). ceg.js Genome'dur, confidence engine DEĞİL; karıştırma.
+
+---
+
 ## Claude Update - 2026-06-30 13:10 — Otomatik model yükseltme: ağır promptta güçlü modeli kendisi seçer (alpha.64)
 
 ### Bağlam / kullanıcı içgörüsü

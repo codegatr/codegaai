@@ -148,6 +148,18 @@ function registerAEPIpc(generateFn, githubConfig) {
   ipcMain.handle("aep:close-task", async (_e, taskId) => {
     try { await _initPromise; return ok(aepOS.closePRTask(String(taskId))); } catch (e) { return err(e); }
   });
+
+  ipcMain.handle("aep:timeline:list", async (_e, opts) => {
+    try { await _initPromise; return ok(aepOS.timeline.list(opts || {})); } catch (e) { return err(e); }
+  });
+
+  ipcMain.handle("aep:timeline:add", async (_e, event) => {
+    try { await _initPromise; return ok(aepOS.timeline.add(event || {})); } catch (e) { return err(e); }
+  });
+
+  ipcMain.handle("aep:timeline:summary", async () => {
+    try { await _initPromise; return ok(aepOS.timeline.summary()); } catch (e) { return err(e); }
+  });
 }
 
 function ok(data)  { return { ok: true,  data }; }

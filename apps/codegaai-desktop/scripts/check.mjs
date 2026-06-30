@@ -92,6 +92,9 @@ const required = [
   "src/main/agent/sanitize-prompt.js",
   "src/main/agent/__tests__/sanitize-prompt.test.js",
   "src/main/agent/answer-adequacy.js",
+  "src/main/agent/aep/engineering-timeline.js",
+  "src/main/agent/aep/timeline-seed.js",
+  "src/main/agent/__tests__/engineering-timeline.test.js",
   "src/main/agent/__tests__/answer-adequacy.test.js",
   "src/main/agent/__tests__/model-manager-short-answer-guard.test.js",
   "src/main/agent/__tests__/nirvana-regression.test.js",
@@ -304,6 +307,8 @@ if (!ollamaClientFile.includes("adaptiveNumCtx")) throw new Error("ollama-client
 const mmFile = readText(join(root, "src/main/model-manager.js"));
 if (!mmFile.includes("_askBatched") || !mmFile.includes("chunkQuestions")) throw new Error("model-manager.js ardışık çok-soru kuyruğu (_askBatched/chunkQuestions) eksik");
 if (!mmFile.includes("strongestInstalledModel") || !mmFile.includes("autoModelEscalation")) throw new Error("model-manager.js otomatik model yükseltme (strongestInstalledModel/autoModelEscalation) eksik");
+const aepOsTimelineFile = readText(join(root, "src/main/agent/aep/aep-os.js"));
+if (!aepOsTimelineFile.includes("EngineeringTimeline") || !aepOsTimelineFile.includes("this.timeline")) throw new Error("aep-os.js Engineering Timeline entegrasyonu eksik");
 const fasFile = readText(join(root, "src/main/agent/final-answer-sanitizer.js"));
 if (!fasFile.includes("isMultiQuestionInput")) throw new Error("final-answer-sanitizer.js çok-soru çökme koruması (isMultiQuestionInput) eksik");
 const mainFile = readText(join(root, "src/main/main.js"));
@@ -313,7 +318,7 @@ if (!mainFile.includes("seedCoreEngineeringRules")) throw new Error("main.js Aca
 const modelManagerFile = readText(join(root, "src/main/model-manager.js"));
 if (!modelManagerFile.includes("sanitizePrompt")) throw new Error("model-manager.js isim temizleme (sanitizePrompt) baglantisi eksik");
 
-if (pkg.version !== "6.0.0-alpha.64") throw new Error(`Desktop package version must be 6.0.0-alpha.64, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.65") throw new Error(`Desktop package version must be 6.0.0-alpha.65, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
