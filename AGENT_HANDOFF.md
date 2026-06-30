@@ -1,3 +1,32 @@
+## Claude Update - 2026-06-30 17:00 — Deep Audit Sprint: otonom evrim döngüsü bağlandı (alpha.69)
+
+### Yaklaşım (integration-first)
+"Deep Audit" sprint'i. Yeni özellik yığmadım. Her büyük alt-sistemin canlı path'e GERÇEKTEN bağlı olup olmadığını kod okuyarak kanıtladım → docs/DEEP_AUDIT_REPORT.md.
+
+### Doğrulanan (gerçekten çalışıyor)
+- ACE (processIncoming/buildContext/recordTurn) ✅, Builder GERÇEK dosya yazıyor (fsp.writeFile builder-engine:63) ✅, Self QA patch'i bloke ediyor (patch-generator:129 → QA_BLOCKED) ✅, MissionOS "devam et" → activeMission ✅, ZIP/Git/routing/escalation/chunking/guard ✅, Timeline ✅.
+
+### Bulunan açık → DÜZELTİLDİ: Otonom evrim döngüsü öksüzdü
+- Kök neden: evolutionEngine.analyze() ve aepOS.runCycle() YALNIZ renderer IPC'sinden erişilebiliyordu; hiçbir zamanlayıcı ikisini bağlamıyordu → analiz→backlog→genome→intel→timeline kendiliğinden HİÇ çalışmıyordu ("Evolution var ama backlog üretmiyor" tam buydu).
+- Düzeltme (main.js): maybeRunEvolutionCycle() — runMaintenanceAutomations içinden, 6sa throttle, evolutionCycleEnabled ayarıyla kapatılır. analyze()→aepOS.runCycle()→backlog/genome/intel + timeline'a decision olayı. ÖNERİ-ONLY (otomatik merge/patch YOK; patch yine runPatch+SelfQA gate).
+- Kanıt testi: aep-cycle-integration.test.js (3) — düşük skorlu rapor GERÇEK backlog görevi üretiyor; dashboard timeline içeriyor.
+
+### Açık kalan (dürüst roadmap — YAPILMADI olarak işaretlendi)
+- selfReflector.reflect() yanıt-sonrası bağlı değil (Task: meta-öğrenme).
+- Per-yanıt Context Confidence Engine (Task 4) yok; answer-adequacy kısmi proxy. alpha.70 adayı.
+- Engineering Maturity Dashboard UI paneli yok (veri katmanı TAM: aep:dashboard).
+- 1000-satır Laravel + uzun-streaming/window-focus testleri: manuel QA (birim teste uygun değil).
+
+### Test/sürüm
+- check 203 dosya OK, full 447/447 (30 suite). Sürüm alpha.69. Guard: main.js maybeRunEvolutionCycle/aepOS.runCycle + aep-cycle-integration.test required[].
+- Not: nirvana-regression.test.js main'de (Codex) — korundu.
+
+### 📌 CODEX NOTU
+- Sıradaki en yüksek değer: Context Confidence Engine (ACE sinyallerinden 0-1 skor → düşük güvende clarifying question). Saf modül + test, additive. ceg.js Genome'dur, confidence DEĞİL.
+- selfReflector.reflect() wiring'i recordTurn yanında fire-and-forget olarak eklenebilir (davranış değiştirmeden).
+
+---
+
 ## Claude Update - 2026-06-30 16:05 — Selamlaşmalar fast-path'e eklendi: "Günaydın" artık asılmıyor (alpha.68)
 
 ### Sorun
