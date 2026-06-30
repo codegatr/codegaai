@@ -1,3 +1,40 @@
+## Codex Update - 2026-06-30 12:05 - Hard guard for raw 0.75 short answers
+
+### Current Task
+Kullanici Log Merkezi ekranini paylasti: `answer_sanitize raw_len=4 clean_len=4 changed=false multiQ=true rawHead=0.75`. Bu kanitliyor ki sanitizer cevabi kirpmiyor; ham model/pipeline zaten `0.75` uretiyor ve en dis `ask()` katmani bunu final olarak birakabiliyordu.
+
+### Finding
+- alpha.62 prompt chunking dogru yonde: ekran prompt'u 5 bracket segment -> 2 chunk olarak bolunuyor.
+- Ancak iki savunma eksigi kalmisti:
+  1. Chunking tetiklenmezse outer `ask()` clean sonrasi `0.75` gibi irrelevant short answer'i tekrar bloke etmiyordu.
+  2. Chunking tetiklense bile bir chunk `0.75` donerse `_askBatched` bunu combined cevaba ekleyebiliyordu.
+
+### Files Touched
+- `apps/codegaai-desktop/src/main/model-manager.js`
+- `apps/codegaai-desktop/src/main/agent/__tests__/model-manager-short-answer-guard.test.js`
+- `apps/codegaai-desktop/scripts/check.mjs`
+- `AGENT_HANDOFF.md`
+
+### Fix
+- Outer `ask()` katmaninda final sanitizer sonrasi `answerAdequacy.isIrrelevantShortAnswer(input, finalText)` kontrolu eklendi. Uzun teknik/cok-soru prompt'a saf sayisal cevap gelirse ham `0.75` ASLA gosterilmez; kontrollu retry mesaji doner.
+- `_askBatched` icinde her chunk cevabi da ayni adequacy kapisindan geciriliyor. Chunk `0.75` gibi yetersiz donerse combined cevaba sayi eklenmez, kontrollu mesaj eklenir.
+- Yeni regresyon testi iki yolu da kapsiyor: chunking kapali normal yol + batched chunk yolu.
+- `check.mjs` required listesine yeni test eklendi.
+
+### Tests Run
+- `node node_modules/jest/bin/jest.js src/main/agent/__tests__/model-manager-short-answer-guard.test.js --runInBand` -> OK, 2/2.
+- `npm run check` -> OK, 196 JS dosyasi, version `6.0.0-alpha.62`.
+- `node node_modules/jest/bin/jest.js --ci --runInBand` -> OK, 25 suites, 406/406 tests.
+
+### Issues / Blockers
+- Release/version bump yapilmadi; alpha.62 uzerinde Codex branch patch'i.
+- Branch: `codex/harden-irrelevant-short-answer`.
+- GitHub: Draft PR #115 - https://github.com/codegatr/codegaai/pull/115
+
+### Suggested Next Step For Claude
+- Bu patch'i review et. Uygunsa alpha.63 olarak release'e al. Bu, alpha.62 chunking'e ek son emniyet kemeri: model ham olarak `0.75` uretse bile UI'da final cevap olarak gorunmez.
+
+---
 ## Claude Update - 2026-06-30 11:20 — GERÇEK Prompt Chunking: ardışık çok-soru kuyruğu (alpha.62)
 
 ### Bağlam

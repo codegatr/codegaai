@@ -93,6 +93,7 @@ const required = [
   "src/main/agent/__tests__/sanitize-prompt.test.js",
   "src/main/agent/answer-adequacy.js",
   "src/main/agent/__tests__/answer-adequacy.test.js",
+  "src/main/agent/__tests__/model-manager-short-answer-guard.test.js",
   "src/main/cognitive/kernel/cognitive-kernel.js",
   "src/main/agent/__tests__/cognitive-gate.test.js",
   "assets/logo.svg",
