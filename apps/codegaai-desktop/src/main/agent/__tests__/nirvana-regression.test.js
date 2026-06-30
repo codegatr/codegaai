@@ -1,6 +1,7 @@
 "use strict";
 
 const finalAnswerSanitizer = require("../final-answer-sanitizer");
+const { chunkQuestions } = require("../prompt-splitter");
 const { ContextEngine } = require("../context/context-engine");
 const { preview } = require("../builder/builder-engine");
 const { SelfQAAgent, BLOCKER } = require("../aep/self-qa-agent");
@@ -25,7 +26,7 @@ function twelvePartAnswer() {
   return [
     "[Mantik] Cevap 1: Dairesel dizilim.",
     "[Dikkat] Cevap 2: 6 canli inek kalir.",
-    "[Muhakeme] Cevap 3: 39. gun ile 40. gun arasinda, 40. gune yakin.",
+    "[Muhakeme] Cevap 3: surekli buyume modelinde 39.585. gun civari; gun sonu ayrik modelde 39. gun yarim, 40. gun tamdir.",
     "[Matematik] Cevap 4: 7.5 derece.",
     "[Mimari] Cevap 5: Hoisting root policy ile kilitlenir.",
     "[Otomasyon] Cevap 6: Komuttan sonra exit code kontrol edilip throw edilir.",
@@ -51,6 +52,18 @@ function hugeLaravelPrompt() {
 }
 
 describe("CODEGA AI Nirvana engineering regression gate", () => {
+  test("[prompt-chunking] 12 headed stress prompt is sent as three sequential chunks", () => {
+    const batch = chunkQuestions(TWELVE_HEADED_PROMPT);
+
+    expect(batch).not.toBeNull();
+    expect(batch.questionCount).toBe(12);
+    expect(batch.chunks).toHaveLength(3);
+    expect(batch.chunks.map((chunk) => chunk.count)).toEqual([4, 4, 4]);
+    expect(batch.chunks[0].text).toContain("[Mantik]");
+    expect(batch.chunks[1].text).toContain("[Mimari]");
+    expect(batch.chunks[2].text).toContain("[Tedarik Zinciri]");
+  });
+
   test("[sanitizer] 12 headed technical answers do not collapse to one Final Answer", () => {
     const result = finalAnswerSanitizer.cleanUserFacingOutput(
       twelvePartAnswer(),
@@ -63,6 +76,19 @@ describe("CODEGA AI Nirvana engineering regression gate", () => {
     }
     expect(result.answer.trim()).not.toBe("0.75");
     expect(result.answer).toContain("[Surum Dogrulama]");
+  });
+
+  test("[reasoning-key] stress answer key keeps corrected cat and lily-pad facts", () => {
+    const result = finalAnswerSanitizer.cleanUserFacingOutput(
+      twelvePartAnswer(),
+      TWELVE_HEADED_PROMPT,
+      null,
+    );
+
+    expect(result.answer).toMatch(/Dairesel|cember|circle/i);
+    expect(result.answer).not.toMatch(/duz bir cizgide.*kedi|kedi.*duz bir cizgide/i);
+    expect(result.answer).toMatch(/39\.585|39\.58/i);
+    expect(result.answer).not.toMatch(/Cevap 3:\s*39\. gun\./i);
   });
 
   test("[model-router] 1000+ line Laravel request prioritizes strongest installed model", () => {

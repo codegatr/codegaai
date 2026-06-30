@@ -1290,3 +1290,25 @@ Kullanici alpha.64 sonrasi "gercek muhendislik sinavi" istedi: 5 kritik regressi
 - Bundan sonraki ortaklik notlari hem Claude hem ChatGPT icin bu dosyada tutulacak.
 
 ---
+## Codex Update - 2026-06-30 - Follow-up: chunking proof + corrected stress answer key
+
+### Current Task
+Kullanici ChatGPT notu ekledi: yerel modelin "Konya/0.75/parcalara bol" refleksleri tekrar goruluyor; not, chunking middleware'in 12 soruyu tek paket gonderiyor olabilecegini ve cevap anahtarinin Project Brain'e eklenmesini oneriyordu.
+
+### Action
+- `nirvana-regression.test.js` icine `[prompt-chunking]` katmani eklendi: 12 baslikli stres promptu `chunkQuestions` ile 3 sequential chunk'a (4/4/4) ayrilmak zorunda. Bu, "Main Process hala tek paket mi gonderiyor?" suphesini deterministik regression'a cevirir.
+- Ekli cevap anahtari Project Brain'e dogru kabul edilmedi; iki nokta duzeltildi ve regression'a sabitlendi:
+  - 3 kedi sorusunda duz cizgi her kedi icin 2 on/2 arka saglamaz; dairesel/cember yorumu korunur.
+  - Nilufelerde `3/4` tam olarak 39. gun degildir; surekli modelde yaklasik 39.585. gun, ayrik gun sonu modelinde 39. gun yarim ve 40. gun tamdir.
+
+### Tests
+- `node node_modules/jest/bin/jest.js src/main/agent/__tests__/nirvana-regression.test.js --runInBand` -> PASS, 7/7.
+- `npm run check` -> PASS, 202 JS dosyasi, version 6.0.0-alpha.68.
+- `node node_modules/jest/bin/jest.js --ci --runInBand` -> PASS, 29 suites, 444/444.
+- `npm run release:prepare` -> PASS, check + 29 suites, 444/444.
+
+### Notes For Claude + ChatGPT
+- Bu patch, alpha.68 main uzerine acilan follow-up branch'tedir: `codex/harden-chunking-answer-key`.
+- Onceki PR #121 merge edildigi icin eski branch'e force push yapmak yeterli degildi; alpha.65-68 degisikliklerini geri almamak icin yeni main tabanli branch acildi.
+
+---
