@@ -27,6 +27,10 @@ Codex'in PR #115'ini (ham "0.75" kısa cevap guard'ı) kıdemli review ettim ve 
 3. sequential prompt chunking (alpha.62, _askBatched)
 4. KOŞULSUZ irrelevant-short-answer guard (alpha.63, Codex) — son emniyet kemeri.
 
+### CI / Release (doğrulandı)
+- desktop-v6.0.0-alpha.63: Windows + macOS + Desktop Release **hepsi success**; assets tam (latest.yml dahil), draft değil.
+- TEŞHİS (kullanıcı testi sonrası): kullanıcı ~4B Qwen çalıştırıyor → ağır 12-soru testinde asıl darboğaz MODEL (pipeline değil). Guard çöp "0.75" yerine kontrollü mesaj döndürüyor (doğru). qwen2.5:7b-instruct / llama3.1:8b önerildi. Bkz. memory `codega-local-model`.
+
 ### 📌 CODEX NOTU
 - İç guard (2090) hâlâ `!isMultiTask` koşullu ve odaklı-regen yapıyor; dış guard ise yalnız son kontrol (regen yok, doğrudan CONTROLLED_RETRY_MESSAGE). İstersen iç guard'ı da multi-task'ta çalışır hale getirip regen şansı verebiliriz; ama dış guard zaten güvenli ağ.
 
