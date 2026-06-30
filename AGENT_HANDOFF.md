@@ -1,3 +1,29 @@
+## Claude Update - 2026-06-30 15:35 — alpha.66 CI kırılmasını düzelt + actionable model mesajı (alpha.67)
+
+### Olay
+alpha.66 (PR #124) CI'da 3 build de FAILED. Sebep: yeni "kapasite mesajı" kodu Codex'in mevcut testini (model-manager-short-answer-guard.test.js) kırdı. Test tam olarak CONTROLLED_RETRY_MESSAGE bekliyordu; benim kodum ağır prompt + <7B kurulu durumda yeni "daha büyük model indir" mesajını döndürüyor. Lokalde geçti (ollama vardı → installedModels throw → eski mesaj), CI'da boş liste → yeni mesaj → fail. DERS: test ortam-bağımlı hale gelmişti; full suite'i lokal "yeşil" gördüm ama CI farklıydı.
+
+### Düzeltme (alpha.67)
+- Testi DETERMİNİSTİK yaptım: manager.installedModels mock'landı. İki senaryo:
+  - sadece küçük modeller (4b/coder3b) kurulu → kapasite mesajı (not 0.75, "daha büyük model").
+  - ≥7B kurulu → genel CONTROLLED_RETRY_MESSAGE (kapasite mesajı değil).
+- Asıl değişmez korundu: ham "0.75" ASLA gösterilmez.
+- alpha.66 tag'i (asset üretmeden fail olmuştu) SİLİNDİ (remote+local). Son iyi release alpha.65'ti; updater etkilenmedi.
+
+### Kod (alpha.66'dan taşınan, geçerli)
+- ask() outer guard: ağır prompt + en güçlü kurulu model <7B → actionable mesaj (qwen2.5:7b-instruct/llama3.1:8b indir; kurulunca otomatik geç). logs.warn ile strongest-installed.
+
+### Teşhis (değişmedi)
+- Kullanıcının 9B'si "Boyut bilinmiyor" = İNDİRİLMEMİŞ. Kurulu en güçlü 4B. 12-soru testi için gerçek 7-9B indirmesi şart.
+
+### Test/sürüm
+- model-manager-short-answer-guard.test.js 3 test (idi 2). check 201 OK, full 425/425 (28 suite). Sürüm alpha.67.
+
+### DERS (önemli)
+- "Lokalde full suite geçti" ≠ "CI geçer". installedModels gibi ortam-bağımlı çağrılar testte MOCK'lanmalı. Bundan sonra ask()/installedModels'a dokunan testlerde mock zorunlu.
+
+---
+
 ## Claude Update - 2026-06-30 15:10 — Kök neden: güçlü model KURULU DEĞİL + actionable mesaj (alpha.66)
 
 ### Teşhis (nihai)

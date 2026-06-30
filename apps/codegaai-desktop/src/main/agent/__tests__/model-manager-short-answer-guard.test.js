@@ -36,11 +36,27 @@ describe("ModelManager irrelevant short answer guard", () => {
     fs.writeFileSync(process.env.CODEGA_SETTINGS_PATH, JSON.stringify({ promptChunking: false }), "utf8");
     const manager = new ModelManager();
     manager._ask = async () => ({ provider: "test", model: "fake", text: "0.75" });
+    // Ortamdan bağımsız olsun (CI'da ollama yok → installedModels boş döner ve
+    // kapasite mesajı tetiklenir; lokalde ollama varsa farklı olabilir).
+    manager.installedModels = async () => ["qwen3.5:4b", "qwen2.5-coder:3b"];
 
     const result = await manager.ask(MULTI_TECH_PROMPT);
 
-    expect(result.text).toBe(answerAdequacy.CONTROLLED_RETRY_MESSAGE);
+    // Asıl değişmez: ham sayı ASLA gösterilmez; kontrollü bir mesaj döner.
     expect(result.text).not.toBe("0.75");
+    expect(result.text).toMatch(/yeterli bir cevap üretemedim|kapasitesini aşıyor|daha büyük bir model/i);
+  });
+
+  test("güçlü model kuruluysa (≥7B) yetersiz cevap yine bloke edilir, kapasite mesajı verilmez", async () => {
+    fs.writeFileSync(process.env.CODEGA_SETTINGS_PATH, JSON.stringify({ promptChunking: false }), "utf8");
+    const manager = new ModelManager();
+    manager._ask = async () => ({ provider: "test", model: "fake", text: "0.75" });
+    manager.installedModels = async () => ["qwen2.5:7b-instruct"];
+
+    const result = await manager.ask(MULTI_TECH_PROMPT);
+    expect(result.text).not.toBe("0.75");
+    // ≥7B kurulu → kapasite mesajı DEĞİL, genel kontrollü mesaj
+    expect(result.text).toBe(answerAdequacy.CONTROLLED_RETRY_MESSAGE);
   });
 
   test("batched chunks replace irrelevant short chunk answers with controlled messages", async () => {
