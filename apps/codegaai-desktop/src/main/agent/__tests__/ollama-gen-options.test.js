@@ -8,7 +8,7 @@
  * buildGenOptions artık repeat_penalty + repeat_last_n + top_p/top_k + num_predict ekler.
  */
 
-const { buildGenOptions, DEFAULT_NUM_PREDICT } = require("../ollama-client");
+const { buildGenOptions, DEFAULT_NUM_PREDICT, adaptiveNumCtx } = require("../ollama-client");
 
 describe("buildGenOptions — anti-repetition / sampling", () => {
   test("varsayılanlar repeat_penalty ve sampling parametrelerini içerir", () => {
@@ -41,5 +41,20 @@ describe("buildGenOptions — anti-repetition / sampling", () => {
     expect(o.temperature).toBe(0.2);
     expect(o.repeat_penalty).toBe(1.15);
     expect(o.num_predict).toBe(DEFAULT_NUM_PREDICT);
+  });
+});
+
+describe("adaptiveNumCtx — büyük prompt budanmasın", () => {
+  test("küçük girdi 8192'de kalır", () => {
+    expect(adaptiveNumCtx([{ role: "user", content: "kısa soru" }], undefined, 4096)).toBe(8192);
+  });
+
+  test("büyük çok-soru girdisi 16384'e çıkar", () => {
+    const big = { role: "user", content: "x".repeat(20000) }; // ~6250 token + 4096 > 8192*0.85
+    expect(adaptiveNumCtx([big], undefined, 4096)).toBe(16384);
+  });
+
+  test("açıkça verilen numCtx korunur (override)", () => {
+    expect(adaptiveNumCtx([{ role: "user", content: "x".repeat(50000) }], 8192, 4096)).toBe(8192);
   });
 });
