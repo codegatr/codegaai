@@ -1,3 +1,28 @@
+## Claude Update - 2026-06-30 20:00 — BASİT MOD: yalın doğrudan cevap ayarı (alpha.72)
+
+### Bağlam
+Kullanıcı: "mahvettin, doğru düzgün cevap vermiyor, buna bir ayar geç." Üst üste eklenen bilişsel katmanlar (ACE context, chunking, verification, escalation) basit cevabı boğuyor. İstenen: güvenilir cevap için bir ayar.
+
+### Çözüm: Basit Mod (varsayılan AÇIK)
+- model-manager.askDirect(input, {onToken, chatId, history}): YALIN yol. system + (son geçmiş) + user → generate() (mevcut lean üretim: cloud/ollama fallback + abort + stream). ACE bağlam şişirme, chunking, cognitive pipeline, verification, escalation YOK. Stop için this._abort kurulur. Kuyruğa girmez.
+- main.js chat:send: simpleMode = settings.simpleMode !== false (varsayılan ON). simpleMode'da contextEngine.analyze + buildContext ATLANIR (mergedContext=""), model çağrısı askDirect'e gider. Fast-path + ACE processIncoming (referans çözümü) korunur.
+- UI toggle: index.html "Basit Mod (hızlı, doğrudan cevap)" + renderer toggle-simple-mode (efektif !== false ile çevirir). Kapatınca tam bilişsel pipeline.
+
+### Neden varsayılan AÇIK
+- Stabilizasyon önceliği: kullanıcının cihazında platform güvenilir cevap vermiyordu. Yalın yol hızlı+güvenilir. Gelişmiş biliş isteyen toggle'ı kapatır.
+
+### Test/sürüm
+- ask-direct-simple-mode.test.js (3): generate çağrısı + stream + geçmiş güncelleme + renderer geçmişi tohumlama + boş-üretim güvenli mesaj. check 205 OK, full 455/455 (32 suite). Sürüm alpha.72.
+
+### Not
+- Diagnostic trace (alpha.71) hâlâ aktif; simpleMode'da prep çok küçük olmalı (context atlanıyor). chat_trace'te source=direct görünür.
+- Basit Mod cevap KALİTESİ yine modele bağlı (4B sınırı sürüyor) ama artık TAKILMADAN cevap üretir.
+
+### 📌 CODEX NOTU
+- simpleMode varsayılan ON. Tam pipeline'a dönmek için Ayarlar'dan kapat. Eğer ileride ACE/Mission'ı simpleMode'da seçili biçimde geri istersek, askDirect'e opsiyonel hafif-context paramı eklenebilir.
+
+---
+
 ## Claude Update - 2026-06-30 19:00 — EMERGENCY DEBUG: stage-timing trace + açılış evrim döngüsü ertelendi (alpha.71)
 
 ### Şikayet

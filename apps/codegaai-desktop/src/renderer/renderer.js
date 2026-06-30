@@ -81,6 +81,7 @@ const els = {
   developmentRun: document.getElementById("development-run"),
   developmentStatus: document.getElementById("development-status"),
   expertSelect: document.getElementById("expert-select"),
+  toggleSimpleMode: document.getElementById("toggle-simple-mode"),
   toggleStreaming: document.getElementById("toggle-streaming"),
   toggleModelFallback: document.getElementById("toggle-model-fallback"),
   modelFallbackOrder: document.getElementById("model-fallback-order"),
@@ -3224,6 +3225,7 @@ async function refreshAgentSettings() {
       applyToggleLabel(els.toggleAutonomousSchedule, !!agentSettings.autonomousDevelopmentSchedule);
     }
     if (els.expertSelect) els.expertSelect.value = agentSettings.expertMode || "genel";
+    if (els.toggleSimpleMode) applyToggleLabel(els.toggleSimpleMode, agentSettings.simpleMode !== false);
     if (els.toggleStreaming) applyToggleLabel(els.toggleStreaming, agentSettings.streaming !== false);
     if (els.toggleModelFallback) applyToggleLabel(els.toggleModelFallback, agentSettings.modelAutoFallback !== false);
     if (els.modelFallbackOrder) {
@@ -3469,6 +3471,19 @@ if (els.toggleAutonomousSchedule) {
     await refreshAgentSettings();
   });
 }
+if (els.toggleSimpleMode) els.toggleSimpleMode.addEventListener("click", async () => {
+  // Varsayılan AÇIK: efektif değer (!== false) üzerinden çevir.
+  if (!agentSettings) agentSettings = await window.codega.getSettings();
+  const next = !(agentSettings.simpleMode !== false);
+  els.toggleSimpleMode.disabled = true;
+  try {
+    agentSettings = await window.codega.setSettings({ simpleMode: next });
+    applyToggleLabel(els.toggleSimpleMode, agentSettings.simpleMode !== false);
+    setTransientStatus(next ? "Basit Mod açık — hızlı doğrudan cevap." : "Basit Mod kapalı — tam bilişsel pipeline.");
+  } finally {
+    els.toggleSimpleMode.disabled = false;
+  }
+});
 if (els.toggleStreaming) els.toggleStreaming.addEventListener("click", () => toggleSetting("streaming", els.toggleStreaming));
 if (els.toggleModelFallback) {
   els.toggleModelFallback.addEventListener("click", () => toggleSetting("modelAutoFallback", els.toggleModelFallback));
