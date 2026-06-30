@@ -140,6 +140,24 @@ function looksLikePureTestReport(question) {
   return Boolean(q && q.replace(TEST_REPORT_RE, "").trim() === "");
 }
 
+// Girdi GÖRÜNÜR biçimde çok-soruluysa true. TDE yalnız "Soru/Test/Görev N" açık
+// başlıklarını görev sayar; ama kullanıcı "[Mantık] … [Güvenlik] …" gibi köşeli
+// etiketlerle veya 1) 2) 3) ile de çok soru sorabilir. Bu durumlarda cevabı tek
+// "Final Answer" bloğuna ÇÖKERTMEK 12 cevabı tek sayıya (örn. "0.75") indiriyordu.
+function isMultiQuestionInput(question) {
+  const text = String(question || "");
+  if (!text) return false;
+  const bracketLabels = (text.match(/\[[^\]\n]{2,40}\]/g) || []).length;
+  if (bracketLabels >= 3) return true;
+  const headers = (text.match(/(?:^|\n)\s*(?:soru|test|görev|gorev|question|problem)\s*\d+/gi) || []).length;
+  if (headers >= 2) return true;
+  const numbered = (text.match(/(?:^|\n)\s*\d+[.)]\s+\S/g) || []).length;
+  if (numbered >= 3) return true;
+  const questionMarks = (text.match(/\?/g) || []).length;
+  if (questionMarks >= 4) return true;
+  return false;
+}
+
 function cleanUserFacingOutput(answer, question = "", taskReport = null) {
   let original = repairMojibake(String(answer || "").trim());
   if (!original) return { changed: false, answer: original, candidates: [] };
@@ -161,13 +179,16 @@ function cleanUserFacingOutput(answer, question = "", taskReport = null) {
   const placeholderFix = sanitizePlaceholderCommandAnswer(original, question);
   if (placeholderFix.changed) return { changed: true, answer: repairMojibake(stripInternalSections(placeholderFix.answer)), candidates: [placeholderFix.answer] };
 
-  // ÇOK-GÖREVLİ koruma: girdi birden çok bağımsız görevse VE cevap birden çok
-  // "Test N:" bölümü içeriyorsa, tek bir trailing "Final Answer:" bloğuna
-  // çökertme — tüm bölümleri koru (iç-akıl satırları temizlenir).
-  const multiTask = !!(taskReport && taskReport.applicable && Number(taskReport.count || taskReport.tasks?.length || 0) > 1);
-  if (multiTask && countAnswerSections(original) > 1) {
+  // ÇOK-GÖREVLİ/ÇOK-SORULU koruma: girdi birden çok bağımsız soru içeriyorsa, tek
+  // bir trailing "Final Answer:" bloğuna ASLA çökertme — tüm bölümleri koru
+  // (yalnız iç-akıl satırları temizlenir). taskReport "Soru N" başlıklarını
+  // sayar; köşeli etiket ([Mantık]…) / numaralı liste girdileri için ek olarak
+  // isMultiQuestionInput devreye girer (12 cevabın "0.75"e çökmesini engeller).
+  const multiTaskByReport = !!(taskReport && taskReport.applicable && Number(taskReport.count || taskReport.tasks?.length || 0) > 1);
+  const multiQuestion = multiTaskByReport || isMultiQuestionInput(question);
+  if (multiQuestion) {
     const cleanedAll = repairMojibake(stripInternalSections(original, { keepAllSections: true }));
-    if (cleanedAll && countAnswerSections(cleanedAll) > 1) {
+    if (cleanedAll) {
       return { changed: cleanedAll !== String(answer || "").trim(), answer: cleanedAll, candidates: [] };
     }
   }
@@ -216,7 +237,10 @@ function countAnswerSections(answer) {
   // yakalar. Çok-görevli sıralı çözücü çıktısı **Test N – Etiket** başlıkları
   // kullanır; bu başlıkların da görev bölümü sayılması preservation için şart.
   const labels = String(answer || "").match(/(?:^|\n)\s*(?:\*\*)?\s*(?:test|soru|görev|gorev|task)\s+\d+\s*(?:[:)\n\-–—]|\*\*)/gi);
-  return labels && labels.length ? labels.length : 1;
+  if (labels && labels.length) return labels.length;
+  // Köşeli-etiket başlıkları ([Mantık], [Güvenlik] …) de bölüm sayılır.
+  const bracket = String(answer || "").match(/(?:^|\n)\s*\[[^\]\n]{2,40}\]/g);
+  return bracket && bracket.length ? bracket.length : 1;
 }
 
 function cleanPhantomOutput(answer, question, taskReport = null) {
@@ -226,7 +250,7 @@ function cleanPhantomOutput(answer, question, taskReport = null) {
   // ÇOK-GÖREVLİ koruma: birden çok görev + birden çok "Test N:" bölümü varsa
   // tek "Final Answer:" bloğuna çökertme; tüm cevapları koru.
   const multiTask = !!(taskReport && taskReport.applicable && Number(taskReport.count || taskReport.tasks?.length || 0) > 1);
-  const keepAll = multiTask && countAnswerSections(source) > 1;
+  const keepAll = multiTask || isMultiQuestionInput(question) || countAnswerSections(source) > 1;
   const cleaned = repairMojibake(stripInternalSections(source, { keepAllSections: keepAll }));
   return { changed: cleaned !== original, answer: cleaned, removed: [], providedTaskCount: countProvidedTasks(question, taskReport), answerSectionCount: countAnswerSections(cleaned) };
 }
@@ -274,5 +298,6 @@ module.exports = {
   countAnswerSections,
   countProvidedTasks,
   scopeAnswerToQuestion,
+  isMultiQuestionInput,
   trFold,
 };
