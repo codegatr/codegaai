@@ -1,3 +1,31 @@
+## Claude Update - 2026-06-30 19:00 — EMERGENCY DEBUG: stage-timing trace + açılış evrim döngüsü ertelendi (alpha.71)
+
+### Şikayet
+Basit sorular bile ("requestAnimationFrame nedir", "2+2?") cevap üretmeden 5dk sonra watchdog'a düşüyor. Kullanıcı: orkestrasyon katmanı kilitleniyor.
+
+### Statik trace bulguları
+- Watchdog idleMs=300000 (5dk) — erken DEĞİL; gerçekten 5dk hiç token gelmiyor.
+- "2+2?" fast-path'te döner (modelsiz, main.js:576). Takılıyorsa kilit fast-path ÖNCESİ orkestrasyonda (initACEOS/processIncoming/contextEngine/buildContext/intent).
+- initACEOS cacheli (singleton), buildContext hafif → statik bariz bloklayıcı yok → runtime ölçümü şart.
+
+### Eklenen ARAÇ (Diagnostic Trace — her istek)
+- main.js chat:send: ace_init/ace_intake/context_engine/ace_build_context/intent süreleri + ctxChars + TTFT + model_total + total → logs "chat_trace". 1sn'yi aşan aşama WARN. FAST_PATH ve FAILED ayrı satır.
+- prep (LLM öncesi) vs ttft vs model net ayrılır → "prompt geç mi gidiyor yoksa model mi başlamıyor" kesinleşir.
+
+### Bulunan & düzeltilen risk
+- Otonom evrim döngüsü AÇILIŞTA koşuyordu (alpha.69, lastEvolutionCycleAt=0 → ilk maintenance tick'inde). lastEvolutionCycleAt=Date.now() ile ilk koşu 6sa ertelendi → açılışta event-loop yarışması yok.
+
+### Dürüstlük
+- Runtime olmadan TEK kök neden kesinleştirilemedi; araç kondu. Kullanıcı alpha.71'de Log Merkezi "chat_trace" ekranını gönderince cerrahi düzeltme yapılacak.
+
+### Files / Test / Sürüm
+- src/main/main.js + docs/EMERGENCY_DEBUG_alpha71.md. check 204 OK, full 452/452 (31 suite). Sürüm alpha.71. (Yalnız logging + erteleme; additive.)
+
+### 📌 CODEX NOTU
+- chat_trace satırı: prep büyükse hangi alt-aşama WARN'landıysa o modül; ttft yoksa Ollama/model başlamıyor. Buna göre tek-nokta fix.
+
+---
+
 ## Claude Update - 2026-06-30 18:00 — PROJECT NIRVANA: bağlam-kaybı kök nedeni bulundu+düzeltildi (alpha.70)
 
 ### Çerçeve

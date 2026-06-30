@@ -523,6 +523,9 @@ function registerIpc() {
   );
   evolutionEngine.init().catch(e => console.warn("[Evolution] init:", e.message));
   evolutionEngineRef = evolutionEngine; // otonom evrim döngüsü erişebilsin
+  // İlk otonom evrim döngüsünü AÇILIŞTA çalıştırma — kullanıcı aktif sohbet
+  // ederken ağır analiz event-loop'la yarışmasın. İlk koşu 6sa sonra.
+  lastEvolutionCycleAt = Date.now();
   initCodegaDNA(evoDataDir).catch(e => console.warn("[DNA] init:", e.message));
 
   const aceDataDir = path.join(app.getPath("userData"), "ace");
@@ -530,13 +533,28 @@ function registerIpc() {
   ipcMain.handle("chat:send", async (event, message, opts) => {
     lastActivityAt = Date.now();
 
+    // ─── DIAGNOSTIC TRACE ──────────────────────────────────────────────────
+    // Her aşamanın süresini ölç (orkestrasyon kilitlenmelerini görünür kıl).
+    // Hiçbir şey kara kutu olmasın: 1sn'yi aşan aşama WARN'lanır, özet her
+    // istekte 'chat_trace' olarak loglanır. TTFT (ilk token süresi) dahil.
+    const _trace = { startedAt: Date.now() };
+    const _step = (label, sinceMs) => {
+      const dt = Date.now() - sinceMs;
+      _trace[label] = dt;
+      if (dt > 1000) { try { logs.warn("chat_trace", `YAVAŞ aşama: ${label}=${dt}ms`); } catch (_e) {} }
+      return Date.now();
+    };
+    let _t = Date.now();
+
     // ─── ACE — Artificial Cognition Engine ─────────────────────────────────
     // Her mesajdan önce: referans çözümle ("devam et" → aktif görev,
     // "Ateş Fiat" → ProjectBrain'den o projeyi aktive et), sonra bu turun
     // tüm bağlamını (kullanıcı + proje + hedef + life graph) inşa et.
     // LLM'e ASLA boş bağlamla gidilmez.
     const aceOS = await initACEOS(aceDataDir);
+    _t = _step("ace_init", _t);
     const aceIntake = aceOS.processIncoming(message, "default");
+    _t = _step("ace_intake", _t);
     let resolvedMessage = aceIntake.message;
 
     // ─── Context Engine — Sprint 10 ───────────────────────────────────────
@@ -554,14 +572,17 @@ function registerIpc() {
         resolved:    resolvedMessage !== message,
       }); } catch (_e) {}
     } catch (_e) {}
+    _t = _step("context_engine", _t);
     // ─────────────────────────────────────────────────────────────────────
 
     const aceContext = aceOS.buildContext({ userId: "default", topic: resolvedMessage });
+    _t = _step("ace_build_context", _t);
     const mergedContext = [
       (opts && opts.context) || "",
       contextPacket?.compressedContext || "",
       aceContext.context || "",
     ].filter(Boolean).join("\n\n");
+    _trace.context_chars = mergedContext.length;
 
     // Phoenix Core v2: intent sınıflandırması + görev başlatma
     const { taskId, chatId, intent } = phoenixRuntime.startChat(resolvedMessage, {
@@ -569,6 +590,7 @@ function registerIpc() {
       regenerate: !!(opts && opts.regenerate),
       context: mergedContext,
     });
+    _t = _step("intent", _t);
 
     try { if (settingsStore.getSettings().debugLogging) logs.info("chat", `[${intent.intent}] ${String(message).slice(0, 60)}`); } catch (_e) {}
 
@@ -577,12 +599,16 @@ function registerIpc() {
       const fastResult = { text: intent.fastAnswer, source: "fast_path", intent: intent.intent };
       try { event.sender.send("chat:stream", intent.fastAnswer); } catch (_e) {}
       phoenixRuntime.finishChat(taskId, chatId, fastResult);
+      try { logs.info("chat_trace", `FAST_PATH ${intent.intent} | ace=${_trace.ace_init || 0}+${_trace.ace_intake || 0}ms ctx=${_trace.context_engine || 0}ms build=${_trace.ace_build_context || 0}ms intent=${_trace.intent || 0}ms ctxChars=${_trace.context_chars || 0} total=${Date.now() - _trace.startedAt}ms`); } catch (_e) {}
       return fastResult;
     }
 
     const streamOn = settingsStore.getSettings().streaming !== false;
+    const _modelStartedAt = Date.now();
+    let _ttft = 0;
     const onToken = streamOn
       ? (t) => {
+          if (!_ttft) { _ttft = Date.now() - _modelStartedAt; if (_ttft > 1000) { try { logs.warn("chat_trace", `TTFT (ilk token) ${_ttft}ms`); } catch (_e) {} } }
           try { event.sender.send("chat:stream", t); } catch (_e) {}
           phoenixRuntime.onToken(taskId, chatId, t); // buffer + watchdog + EventBus
         }
@@ -604,12 +630,20 @@ function registerIpc() {
         history: Array.isArray(opts && opts.history) ? opts.history : [],
       });
     } catch (err) {
+      try { logs.warn("chat_trace", `FAILED prep=${_modelStartedAt - _trace.startedAt}ms ttft=${_ttft || "—"} total=${Date.now() - _trace.startedAt}ms reason=${err?.message || err}`); } catch (_e) {}
       phoenixRuntime.abortChat(taskId, chatId, err?.message || "model_error");
       throw err;
     }
+    _trace.model_total = Date.now() - _modelStartedAt;
 
     // Tamamlanma: buffer kapat, konuşmaya ekle, watchdog temizle
     phoenixRuntime.finishChat(taskId, chatId, result);
+    // DIAGNOSTIC özeti: orkestrasyon (LLM öncesi) vs üretim ayrımı net görünür.
+    try {
+      const prep = _modelStartedAt - _trace.startedAt;
+      logs.info("chat_trace",
+        `MODEL ${result?.source || "?"} | prep=${prep}ms (ace=${(_trace.ace_init||0)+(_trace.ace_intake||0)} ctx=${_trace.context_engine||0} build=${_trace.ace_build_context||0} intent=${_trace.intent||0}) ctxChars=${_trace.context_chars||0} ttft=${_ttft || "—"}ms model=${_trace.model_total}ms total=${Date.now() - _trace.startedAt}ms`);
+    } catch (_e) {}
 
     // Context Engine'e bu tur mesajları kaydet
     try {
