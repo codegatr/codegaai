@@ -1,3 +1,20 @@
+## Claude Update - 2026-06-30 16:05 — Selamlaşmalar fast-path'e eklendi: "Günaydın" artık asılmıyor (alpha.68)
+
+### Sorun
+Kullanıcı "Günaydın" yazdı, "Düşünüyorum..."ta asıldı (slow-notice). Sebep: fast-path selam regex'i yalnız merhaba/selam/hello içeriyordu; "günaydın" yoktu → trivial selam tüm model pipeline'ına gidip 4B'de takılıyordu.
+
+### Düzeltme (phoenix-core/intent/fast-path.js)
+- Yeni `greetingAnswer(q)`: günaydın, iyi günler/sabahlar/akşamlar/geceler, merhaba/selam/slm/hello/hi, nasılsın/naber, teşekkürler/sağol/eyvallah, görüşürüz/iyi çalışmalar → modele GİTMEDEN anında yanıt.
+- normalize() TR karakterleri ascii'ye katladığı için "Günaydın"→"gunaydin" eşleşir. Selam-içeren ama selam-olmayan cümleler ("gunaydin millet bugun...") fast-path'e TAKILMAZ.
+
+### Test/sürüm
+- fast-path-greetings.test.js (17 test). check 202 dosya OK, full 442/442 (29 suite). Sürüm alpha.68.
+
+### Not
+- Bu, 12-soru/model-kapasite konusundan AYRI bir UX bug'ı. Selamlar artık ~anında.
+
+---
+
 ## Claude Update - 2026-06-30 15:35 — alpha.66 CI kırılmasını düzelt + actionable model mesajı (alpha.67)
 
 ### Olay
