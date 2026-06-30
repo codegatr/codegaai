@@ -1145,6 +1145,12 @@ class ModelManager {
               `raw_len=${raw.length} clean_len=${out.length} changed=${cleaned.changed} multiQ=${finalAnswerSanitizer.isMultiQuestionInput(input)} rawHead=${raw.slice(0, 80).replace(/\s+/g, " ")}`);
           }
         } catch (_e) {}
+        const finalText = cleaned.changed ? String(cleaned.answer || "") : String(result.text || "");
+        if (answerAdequacy.isIrrelevantShortAnswer(input, finalText)) {
+          try { improveDrafts.recordSignal({ kind: "irrelevant_short_answer", subject: finalText.slice(0, 60) }); } catch (_e) {}
+          try { logs.warn("answer_sanitize", `outer adequacy blocked short answer: ${finalText.slice(0, 80)}`); } catch (_e) {}
+          return { ...result, text: answerAdequacy.CONTROLLED_RETRY_MESSAGE };
+        }
         return cleaned.changed ? { ...result, text: cleaned.answer } : result;
       } finally {
         this._activeForeground = Math.max(0, this._activeForeground - 1);
@@ -1192,6 +1198,13 @@ class ModelManager {
           const note = `_(Bu paket boş döndü, atlandı.)_\n`;
           emit(note);
           combined += note;
+          continue;
+        }
+        if (answerAdequacy.isIrrelevantShortAnswer(chunk.text, text) || answerAdequacy.isIrrelevantShortAnswer(input, text)) {
+          const note = `${answerAdequacy.CONTROLLED_RETRY_MESSAGE}\n`;
+          emit(note);
+          combined += note;
+          try { logs.warn("prompt_chunking", `chunk ${i + 1}/${batch.chunks.length} produced irrelevant short answer: ${text.slice(0, 80)}`); } catch (_e) {}
           continue;
         }
         combined += text;
