@@ -1,3 +1,26 @@
+## Claude Update - 2026-06-30 14:30 — Mühendislik olgunluğu: denetim + Engineering Timeline + Manifesto (alpha.65)
+
+### Çerçeve (dürüstlük)
+Kullanıcının 10-görevlik "engineering maturity" vizyonu geldi. Denetim sonucu: istenenlerin ~%80'i ZATEN modül olarak var (ace/* 11 modül, aep/* : ceg, engineering-score [Task9], engineering-backlog [Task5], competitive-intel [Task7], improvement-planner, patch-generator, pr-agent, self-qa, learning-db; dashboard IPC [Task8]). Bu yüzden REBUILD ETMEDİM — denetledim, eksik tek parçayı ekledim, manifesto yazdım. (Kullanıcının kuralı: çalışanı bozma, entegrasyonu güçlendir.)
+
+### Yapılanlar
+1. **TASK 1 denetimi** → docs/ENGINEERING_AUDIT_alpha65.md: gerçek pipeline (main.js chat:send + model-manager.ask) 15 aşama tablosu. ACE atlanmıyor, mükerrer bağlam mantığı yok (tek kaynak aceOS.buildContext). Tek açık: selfReflector.reflect() yanıt-sonrası canlı path'e bağlı DEĞİL → riskli olduğu için dokunulmadı, roadmap'e alındı.
+2. **TASK 3 Engineering Timeline (GERÇEK EKSİK)** → aep/engineering-timeline.js (EngineeringTimeline sınıfı, dataDir JSON, idempotent add/seed/list/summary, 8 event tipi) + aep/timeline-seed.js (alpha.47→64 gerçek 15 olay). aep-os'a wired (this.timeline + dashboard'a timeline) + IPC aep:timeline:list/add/summary + preload window.codega.aep.timeline.*.
+3. **Manifesto** → MANIFESTO.md (başarı ölçütü + 2030 hedefi: PR'lar kıdemli mimar onayına hazır) + README üstüne alıntı.
+4. 10-görev × mevcut modül haritası + Maturity Report + Migration + Release Checklist (audit doc içinde).
+
+### Dokunulmayanlar (bilinçli)
+- ace/aep modülleri rebuild edilmedi. Task 2 (per-yanıt confidence), Task 8 UI paneli, Task 1 reflect halkası, Task 10 birleşik harness → roadmap (audit doc'ta açıkça).
+
+### Test/sürüm
+- engineering-timeline.test.js (7 test). check 201 dosya OK, full 423/423 (28 suite). Sürüm alpha.65. Guard: aep-os EngineeringTimeline/this.timeline + 3 yeni dosya required[].
+
+### 📌 CODEX NOTU
+- Timeline'a yeni sürüm olayı eklemek için: aep/timeline-seed.js'e ekle (idempotent) VEYA runtime'da window.codega.aep.timeline.add({type,title,version,why,ref,tags}).
+- Sıradaki yüksek-değer iş: selfReflector.reflect() entegrasyonu (Task1) ve per-yanıt Context Confidence (Task2 — düşük güvende clarifying question). ceg.js Genome'dur, confidence engine DEĞİL; karıştırma.
+
+---
+
 ## Claude Update - 2026-06-30 13:10 — Otomatik model yükseltme: ağır promptta güçlü modeli kendisi seçer (alpha.64)
 
 ### Bağlam / kullanıcı içgörüsü
@@ -1156,3 +1179,45 @@ Codex ile paralel çalışma protokolünü kurmak ve son release durumunu (kulla
 - Eğer chat pipeline / ACE alanına dokunmak istemiyorsan, en yararlı katkın **Engineering Dashboard UI** (renderer'da `aep-os.dashboard()` + `ace-os.dashboard()` verisini gösteren açılış ekranı) olur — bu alan şu an tamamen backend-only ve benim açık işimle çakışmaz.
 - Alternatif: `qa-verification` kapsamında, ACE entegrasyonu için end-to-end smoke testi (gerçek `chat:send` IPC akışında ACE bağlamının prompt'a girdiğini doğrulayan) yazabilirsin — ama önce PR #81 merge olsun, sonra üstüne ekle.
 - Lütfen `check.mjs` recursive syntax gate'ini ve 3 workflow'daki `test:ci` adımını koru.
+## Codex Update - 2026-06-30 - Nirvana regression gates for alpha.64+
+
+### Current Task
+Kullanici alpha.64 sonrasi "gercek muhendislik sinavi" istedi: 5 kritik regression otomatik kosmali, basarisiz test release'i durdurmali, hata katmani raporda acik gorunmeli. Artik isbirligi notlari Claude yaninda ChatGPT icin de yazilacak.
+
+### Files Touched
+- `apps/codegaai-desktop/src/main/agent/__tests__/nirvana-regression.test.js`
+- `apps/codegaai-desktop/src/main/model-manager.js`
+- `apps/codegaai-desktop/src/main/agent/context/context-engine.js`
+- `apps/codegaai-desktop/src/main/agent/aep/self-qa-agent.js`
+- `apps/codegaai-desktop/src/main/agent/__tests__/self-qa-agent.test.js`
+- `apps/codegaai-desktop/scripts/check.mjs`
+- `apps/codegaai-desktop/package.json`
+- `scripts/release.ps1`
+- `AGENT_HANDOFF.md`
+
+### Fix / Regression Coverage
+1. `[sanitizer]` 12 baslikli teknik cevap tek `Final Answer` / `0.75` cevabina cokmuyor.
+2. `[model-router]` 1000+ satirlik Laravel/PHP proje talebi, kurulu modeller icinde en guclu modeli basa aliyor. Bunun icin `prioritizeStrongModelForHeavyPrompt` saf helper olarak cikarildi ve `_ask` ayni helper'i kullaniyor.
+3. `[context]` "devam et", "bunu duzelt", "Ates Fiat", "Konya" gibi kisa devam ifadeleri onceki ACE/Context baglamina baglaniyor.
+4. `[builder]` builder sadece plan degil; manifest, route, migration, controller, README, CI ve test dosyasi listesi uretmek zorunda.
+5. `[QA]` Self QA artik UTF-8 bozulmasini ve placeholder-only test patch'lerini blocker yapar; placeholder test PR acmayi engeller.
+
+### Release Gate
+- `apps/codegaai-desktop/package.json`: `release:prepare` artik `npm run test:ci`.
+- `test:ci` Windows uyumlu hale getirildi: `npm run check && node node_modules/jest/bin/jest.js --ci`.
+- `scripts/release.ps1`: commit/tag oncesi `npm run test:ci` calistiriyor. Test basarisizsa release ilerlemez.
+- `check.mjs`: `nirvana-regression.test.js` required listesine eklendi.
+
+### Tests Run
+- `node node_modules/jest/bin/jest.js src/main/agent/__tests__/nirvana-regression.test.js src/main/agent/__tests__/self-qa-agent.test.js src/main/agent/__tests__/model-escalation.test.js --runInBand` -> PASS, 19/19.
+- `npm run check` -> PASS, 198 JS dosyasi.
+- `node node_modules/jest/bin/jest.js --ci --runInBand` -> PASS, 27 suites, 416/416.
+- `npm run release:prepare` -> PASS, check + 27 suites, 416/416.
+
+### Notes For Claude + ChatGPT
+- Bu branch: `codex/nirvana-regression-gates`.
+- Versiyon bump/release yapilmadi; alpha.64 uzerine regression gate patch'i.
+- PR acildiginda review odagi: false-positive riski (kisa "Konya" yeni konu mu devam mi?) ve Self QA placeholder blocker etkisi.
+- Bundan sonraki ortaklik notlari hem Claude hem ChatGPT icin bu dosyada tutulacak.
+
+---

@@ -25,6 +25,8 @@ const { PatchGenerator }                        = require("./patch-generator");
 const { LearningDatabase, LEARNING_TYPE }       = require("./learning-db");
 const { CompetitiveIntel }                      = require("./competitive-intel");
 const { CODEGAEG }                              = require("./ceg");
+const { EngineeringTimeline }                   = require("./engineering-timeline");
+const { SEED_TIMELINE }                         = require("./timeline-seed");
 
 class AEPOS extends EventEmitter {
   constructor() {
@@ -43,6 +45,7 @@ class AEPOS extends EventEmitter {
     this.learning   = null;
     this.intel      = null;
     this.genome     = null;
+    this.timeline   = null;
 
     this._analysisInProgress = false;
   }
@@ -69,6 +72,9 @@ class AEPOS extends EventEmitter {
     this.learning  = new LearningDatabase(dataDir).init();
     this.intel     = new CompetitiveIntel(dataDir).init();
     this.genome    = new CODEGAEG(dataDir).init();
+    this.timeline  = new EngineeringTimeline(dataDir).init();
+    // Mühendislik geçmişini (alpha.47→) yalnız bir kez tohumla; mevcut olaylara dokunmaz.
+    try { this.timeline.seed(SEED_TIMELINE); } catch (_e) {}
 
     this.patcher = new PatchGenerator({
       projectRoot,
@@ -256,6 +262,7 @@ class AEPOS extends EventEmitter {
       learning   : this.learning?.summary()   || {},
       intel      : this.intel?.summary()      || {},
       genome     : this.genome?.summary()     || {},
+      timeline   : this.timeline?.summary()   || {},
       cegReport  : this.genome?.report()      || {},
       status     : {
         initialized     : this._initialized,

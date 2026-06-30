@@ -9,6 +9,11 @@
 </p>
 
 <p align="center">
+  <em>"CODEGA AI'nin başarısı, kaç özellik eklediğiyle değil; her yeni sürümde ne kadar daha iyi bir yazılım mühendisi haline geldiğiyle ölçülür."</em><br/>
+  — <a href="MANIFESTO.md">Mühendislik Manifestosu</a> · 2030 hedefi: bir CODEGA PR'ı kıdemli bir mimar tarafından minimum düzeltmeyle onaylanabilmeli.
+</p>
+
+<p align="center">
   <a href="https://github.com/codegatr/codegaai/releases"><img alt="Release" src="https://img.shields.io/github/v/release/codegatr/codegaai?style=for-the-badge&color=f59e0b&label=release"></a>
   <a href="https://github.com/codegatr/codegaai/actions/workflows/build-windows.yml"><img alt="Windows Build" src="https://img.shields.io/github/actions/workflow/status/codegatr/codegaai/build-windows.yml?branch=main&style=for-the-badge&label=Windows"></a>
   <a href="https://github.com/codegatr/codegaai/actions/workflows/build-macos.yml"><img alt="macOS Build" src="https://img.shields.io/github/actions/workflow/status/codegatr/codegaai/build-macos.yml?branch=main&style=for-the-badge&label=macOS%20ARM64"></a>

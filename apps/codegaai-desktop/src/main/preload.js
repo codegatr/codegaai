@@ -225,6 +225,11 @@ contextBridge.exposeInMainWorld("codega", {
       latest:         ()                    => ipcRenderer.invoke("aep:genome:latest"),
       report:         ()                    => ipcRenderer.invoke("aep:genome:report"),
     },
+    timeline: {
+      list:           (opts)                => ipcRenderer.invoke("aep:timeline:list",    opts),
+      add:            (event)               => ipcRenderer.invoke("aep:timeline:add",     event),
+      summary:        ()                    => ipcRenderer.invoke("aep:timeline:summary"),
+    },
     cycle:            (report, version)     => ipcRenderer.invoke("aep:cycle:run",         report, version),
     closeTask:        (taskId)              => ipcRenderer.invoke("aep:close-task",         taskId),
     on: (channel, fn) => {

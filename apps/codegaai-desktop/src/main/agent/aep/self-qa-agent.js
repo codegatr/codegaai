@@ -25,6 +25,7 @@ const BLOCKER = Object.freeze({
   UTF8_CORRUPTION: "utf8-corruption",
   PERF_REGRESSION: "perf-regression",
   TESTS_FAILED   : "tests-failed",
+  PLACEHOLDER_TESTS: "placeholder-tests",
 });
 
 // Mojibake'de sik goeruelen UTF-8/Latin-1 cift kodlama imzalari.
@@ -80,14 +81,14 @@ class SelfQAAgent {
       return;
     }
 
-    // Placeholder testler (patch-generator fallback) gercek test sayilmaz
+    // Placeholder testler (patch-generator fallback) gercek test sayilmaz.
     const placeholders = testPatches.filter((p) =>
       /placeholder.*manual implementation required/i.test(p.content || "")
     );
     if (placeholders.length === testPatches.length && testPatches.length > 0) {
-      warnings.push({
-        code: "placeholder-tests",
-        message: "Eklenen testler placeholder - gercek assertion icermiyor.",
+      blockers.push({
+        code: BLOCKER.PLACEHOLDER_TESTS,
+        message: "Eklenen testler placeholder - gercek assertion icermiyor; PR acilamaz.",
         files: placeholders.map((p) => p.path),
       });
     }

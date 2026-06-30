@@ -819,6 +819,28 @@ function strongestInstalledModel(installed) {
   return { model: best, size: bestSize };
 }
 
+function prioritizeStrongModelForHeavyPrompt(input, installed, attemptModels, settings = {}) {
+  const current = Array.isArray(attemptModels) ? [...attemptModels] : [];
+  const heavyPrompt = answerAdequacy.isLongTechnicalQuestion(input)
+    || finalAnswerSanitizer.isMultiQuestionInput(input);
+  if (!heavyPrompt || settings.autoModelEscalation === false) {
+    return { attemptModels: current, escalated: false, model: null, size: 0, previousSize: modelParamSize(current[0]) };
+  }
+  const strong = strongestInstalledModel(installed);
+  const curSize = modelParamSize(current[0]);
+  if (!strong.model || strong.size <= curSize) {
+    return { attemptModels: current, escalated: false, model: strong.model, size: strong.size, previousSize: curSize };
+  }
+  const nrm = (x) => String(x || "").toLowerCase();
+  return {
+    attemptModels: [strong.model, ...current.filter((m) => nrm(m) !== nrm(strong.model))],
+    escalated: true,
+    model: strong.model,
+    size: strong.size,
+    previousSize: curSize,
+  };
+}
+
 function buildPrompt(task, input) {
   return [
     "Sen CODEGA AI'sÄ±n. TÃ¼rkÃ§e, net, samimi ve uygulanabilir cevap ver.",
@@ -1404,15 +1426,10 @@ class ModelManager {
       // bu tür promptlarda onu öne al — küçük model hızı hafif işler için korunur.
       // settings.autoModelEscalation=false ile kapatılır.
       try {
-        const heavyPrompt = answerAdequacy.isLongTechnicalQuestion(input)
-          || finalAnswerSanitizer.isMultiQuestionInput(input);
-        if (heavyPrompt && settings.autoModelEscalation !== false) {
-          const strong = strongestInstalledModel(installed);
-          const curSize = modelParamSize(attemptModels[0] || userDefault);
-          if (strong.model && strong.size > curSize) {
-            attemptModels = [strong.model, ...attemptModels.filter((m) => nrm(m) !== nrm(strong.model))];
-            try { logs.info("model_route", `heavy prompt → ${strong.model} (${strong.size}B > ${curSize}B) seçildi`); } catch (_e) {}
-          }
+        const routed = prioritizeStrongModelForHeavyPrompt(input, installed, attemptModels, settings);
+        attemptModels = routed.attemptModels;
+        if (routed.escalated) {
+          try { logs.info("model_route", `heavy prompt → ${routed.model} (${routed.size}B > ${routed.previousSize}B) seçildi`); } catch (_e) {}
         }
       } catch (_e) {}
 
@@ -2304,6 +2321,7 @@ module.exports = {
   chooseModelForTask,
   modelParamSize,
   strongestInstalledModel,
+  prioritizeStrongModelForHeavyPrompt,
   TASK_MODELS,
   missingModelReply,
   parsePullProgress,
