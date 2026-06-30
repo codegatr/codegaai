@@ -242,6 +242,15 @@ class ContextResolver {
       if (m) return fn(prev, m);
     }
 
+    // Kisa varlik/yer/marka ifadeleri ("Ates Fiat", "Konya") onceki isin
+    // parametresi gibi davranabilir. Bunlari izole yeni konu saymak yerine
+    // onceki baglamla paketle; ayrintili yeni konu zaten uzun cumle olarak gelir.
+    const compactEntity = String(msg || "").trim();
+    if (prev && /^[\p{L}\p{N}][\p{L}\p{N}\s.'-]{1,40}$/u.test(compactEntity)) {
+      const words = compactEntity.split(/\s+/).filter(Boolean);
+      if (words.length <= 4) return `${prev} baglaminda: ${compactEntity}`;
+    }
+
     return msg;
   }
 

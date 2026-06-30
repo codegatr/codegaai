@@ -1156,3 +1156,45 @@ Codex ile paralel çalışma protokolünü kurmak ve son release durumunu (kulla
 - Eğer chat pipeline / ACE alanına dokunmak istemiyorsan, en yararlı katkın **Engineering Dashboard UI** (renderer'da `aep-os.dashboard()` + `ace-os.dashboard()` verisini gösteren açılış ekranı) olur — bu alan şu an tamamen backend-only ve benim açık işimle çakışmaz.
 - Alternatif: `qa-verification` kapsamında, ACE entegrasyonu için end-to-end smoke testi (gerçek `chat:send` IPC akışında ACE bağlamının prompt'a girdiğini doğrulayan) yazabilirsin — ama önce PR #81 merge olsun, sonra üstüne ekle.
 - Lütfen `check.mjs` recursive syntax gate'ini ve 3 workflow'daki `test:ci` adımını koru.
+## Codex Update - 2026-06-30 - Nirvana regression gates for alpha.64+
+
+### Current Task
+Kullanici alpha.64 sonrasi "gercek muhendislik sinavi" istedi: 5 kritik regression otomatik kosmali, basarisiz test release'i durdurmali, hata katmani raporda acik gorunmeli. Artik isbirligi notlari Claude yaninda ChatGPT icin de yazilacak.
+
+### Files Touched
+- `apps/codegaai-desktop/src/main/agent/__tests__/nirvana-regression.test.js`
+- `apps/codegaai-desktop/src/main/model-manager.js`
+- `apps/codegaai-desktop/src/main/agent/context/context-engine.js`
+- `apps/codegaai-desktop/src/main/agent/aep/self-qa-agent.js`
+- `apps/codegaai-desktop/src/main/agent/__tests__/self-qa-agent.test.js`
+- `apps/codegaai-desktop/scripts/check.mjs`
+- `apps/codegaai-desktop/package.json`
+- `scripts/release.ps1`
+- `AGENT_HANDOFF.md`
+
+### Fix / Regression Coverage
+1. `[sanitizer]` 12 baslikli teknik cevap tek `Final Answer` / `0.75` cevabina cokmuyor.
+2. `[model-router]` 1000+ satirlik Laravel/PHP proje talebi, kurulu modeller icinde en guclu modeli basa aliyor. Bunun icin `prioritizeStrongModelForHeavyPrompt` saf helper olarak cikarildi ve `_ask` ayni helper'i kullaniyor.
+3. `[context]` "devam et", "bunu duzelt", "Ates Fiat", "Konya" gibi kisa devam ifadeleri onceki ACE/Context baglamina baglaniyor.
+4. `[builder]` builder sadece plan degil; manifest, route, migration, controller, README, CI ve test dosyasi listesi uretmek zorunda.
+5. `[QA]` Self QA artik UTF-8 bozulmasini ve placeholder-only test patch'lerini blocker yapar; placeholder test PR acmayi engeller.
+
+### Release Gate
+- `apps/codegaai-desktop/package.json`: `release:prepare` artik `npm run test:ci`.
+- `test:ci` Windows uyumlu hale getirildi: `npm run check && node node_modules/jest/bin/jest.js --ci`.
+- `scripts/release.ps1`: commit/tag oncesi `npm run test:ci` calistiriyor. Test basarisizsa release ilerlemez.
+- `check.mjs`: `nirvana-regression.test.js` required listesine eklendi.
+
+### Tests Run
+- `node node_modules/jest/bin/jest.js src/main/agent/__tests__/nirvana-regression.test.js src/main/agent/__tests__/self-qa-agent.test.js src/main/agent/__tests__/model-escalation.test.js --runInBand` -> PASS, 19/19.
+- `npm run check` -> PASS, 198 JS dosyasi.
+- `node node_modules/jest/bin/jest.js --ci --runInBand` -> PASS, 27 suites, 416/416.
+- `npm run release:prepare` -> PASS, check + 27 suites, 416/416.
+
+### Notes For Claude + ChatGPT
+- Bu branch: `codex/nirvana-regression-gates`.
+- Versiyon bump/release yapilmadi; alpha.64 uzerine regression gate patch'i.
+- PR acildiginda review odagi: false-positive riski (kisa "Konya" yeni konu mu devam mi?) ve Self QA placeholder blocker etkisi.
+- Bundan sonraki ortaklik notlari hem Claude hem ChatGPT icin bu dosyada tutulacak.
+
+---
