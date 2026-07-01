@@ -46,6 +46,14 @@ describe("ollamaChatStream — token tavanı (length) koruması", () => {
     expect(tokens.join("")).toBe("Tam yanıt.");
   });
 
+  test("istek gövdesi keep_alive içerir (model RAM'de sıcak kalsın)", async () => {
+    let body = null;
+    global.fetch = jest.fn(async (_url, opts) => { body = JSON.parse(opts.body); return streamResponse([tokenLine("ok"), finalLine("stop")]); });
+    await ollamaChatStream("m", [{ role: "user", content: "x" }], {});
+    expect(body.keep_alive).toBeTruthy();          // varsayılan "30m"
+    expect(String(body.keep_alive)).toMatch(/m|-1|\d/); // süre/kalıcı ifade
+  });
+
   test("'length' ile kesilirse otomatik devam eder ve birleştirir", async () => {
     const responses = [
       streamResponse([tokenLine("Bölüm1 "), finalLine("length")]),

@@ -1,3 +1,31 @@
+## Claude Update - 2026-07-01 — alpha.92: Ollama keep_alive (soğuk yükleme/TTFT düzeltmesi)
+
+### Log kanıtı (kullanıcı Olay Günlüğü)
+- CHAT_TRACE TTFT (ilk token) = 23861ms, 26419ms → model her istekte RAM'e SOĞUK yükleniyor.
+- MODEL_GENERATE http_failed: "Ollama 180 saniye içinde yanıt vermedi" → direct_error (timeout).
+- model=qwen3.5:4b (kullanıcı hâlâ 4B, 7B'ye geçmemiş).
+
+### Kök neden + fix
+- Ollama isteklerinde keep_alive YOKTU → model boşaltılıp tekrar yükleniyor (20-30sn TTFT).
+- ollama-client.js: DEFAULT_KEEP_ALIVE = env OLLAMA_KEEP_ALIVE || "30m". Hem stream hem
+  non-stream /api/chat gövdesine keep_alive eklendi (opts.keepAlive ile override).
+- Test: ollama-continuation.test.js — istek gövdesi keep_alive içeriyor.
+- check.mjs guard: keep_alive/DEFAULT_KEEP_ALIVE. Sürüm alpha.92.
+
+### Gate: check 232 · test:ci 541/541.
+
+### AÇIK / sonraki (ayrı PR)
+- adaptiveNumCtx 8192↔16384 arası değişince Ollama modeli YENİDEN yüklüyor (keep_alive'e
+  rağmen). num_ctx'i sabitlemek (veya "sticky") ikinci tur reload'u da keser — ama 16384 RAM
+  yükü artırır; yavaş makinede dikkat. Ölç, sonra karar ver.
+- Startup warm-up ping: İLK mesajın 26sn soğuk yükünü de gizlemek için model seçilince küçük
+  bir preload isteği. Ayrı küçük PR.
+- Timeout 180s: keep_alive sıcak tutunca TTFT düşer → timeout riski azalır. Gerekirse ayrıca
+  ayarlanır.
+- Model gücü (4B) ve reasoning kalitesi ayrı konu; kullanıcı 7B/2+2 teşhisini hâlâ paylaşmadı.
+
+---
+
 ## Claude Update - 2026-07-01 — alpha.91: Codex PR #156 review + merge + grounding polish
 
 ### PR #156 review (Codex: web research grounding) → ONAY + merge
