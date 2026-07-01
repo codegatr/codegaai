@@ -361,7 +361,9 @@ if (!/schema\.sql/.test(extractFilesFile) || !/\.htaccess/.test(extractFilesFile
 
 if (!mainEvoFile.includes("isSubPath") || !mainEvoFile.includes("resolvedTarget")) throw new Error("main.js Klasörde Göster salt-okunur sağlam containment (isSubPath/resolvedTarget) eksik");
 
-if (pkg.version !== "6.0.0-alpha.85") throw new Error(`Desktop package version must be 6.0.0-alpha.85, got ${pkg.version}`);
+if (!modelManagerFile.includes("direct_research") || !modelManagerFile.includes("wantsWebResearch")) throw new Error("model-manager.js askDirect web araştırma (direct_research/wantsWebResearch) eksik");
+
+if (pkg.version !== "6.0.0-alpha.86") throw new Error(`Desktop package version must be 6.0.0-alpha.86, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

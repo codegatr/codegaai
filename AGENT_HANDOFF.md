@@ -1,3 +1,32 @@
+## Claude Update - 2026-07-01 — alpha.86: askDirect bilgi/araştırma sorularında alakasız "proje üret" cevabı düzeltildi
+
+### Bug (kullanıcı ekran görüntüsü)
+- "r10.net hakkında bilgi verir misin?" → "hangi projeyi oluşturacağınız... 1.Proje türü 2.Özellikler..." (alakasız)
+- "İnternette arama yaparak r10.net hakkında bilgi topla" → "kod bloğu üretemem, hangi dilde çalışacağız?" (alakasız)
+Kök neden: default lean yol askDirect (a) fazla builder-merkezli sistem prompt'una sahipti; küçük ~4B
+model bunu "her şey proje üretimi" diye yorumluyordu, (b) HİÇ web araştırması yapmıyordu (araştırma
+sadece deep ask() yolundaydı).
+
+### Fix (model-manager.js askDirect)
+1. Sistem prompt yumuşatıldı: "Bilgi/araştırma/genel sorularda NORMAL açıklayıcı yanıt ver; kod/dosya
+   İSTENMEDİKÇE proje detayı sorma, 'hangi projeyi oluşturalım/kod bloğu üretemem' deme." Bahane/artefakt
+   kuralı SADECE kod/dosya istendiğinde geçerli.
+2. Web araştırma askDirect'e taşındı: wantsWebResearch(text0) ise AGENT_TOOLS.research.fn(query,3)
+   çalışır, kaynaklar Türkçe özetlenir (ask() ile aynı mantık), source:"direct_research". Başarısızsa
+   normal akışa düşer. onToken ile "🔎 İnternette araştırıyorum" canlı yayınlanır.
+   - Doğrulandı: "r10.net hakkında bilgi ver" → research TETİKLENMEZ (model kendi bilgisinden yanıt),
+     "internette arama yaparak..." → research TETİKLENİR.
+- check.mjs guard: direct_research/wantsWebResearch. Sürüm alpha.86.
+
+### Gate: check 227 · model-manager 3/3 · full jest 527/527 · release:prepare 527/527.
+
+### Not
+- research tool (tools.js toolResearch) ağ erişimi gerektirir; yerel/çevrimdışı ise kaynak bulunamaz →
+  kullanıcıya dürüst "arama yapamadım/kaynak yok" mesajı, model yine kendi bilgisinden yanıtlayabilir.
+- Sıradaki: 4) Indexer PR#2, 5) stable audit.
+
+---
+
 ## Claude Update - 2026-07-01 — alpha.85: "Klasörde Göster" yanlış-pozitif reddi düzeltildi
 
 ### Bug
