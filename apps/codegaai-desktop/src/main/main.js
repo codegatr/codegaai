@@ -666,7 +666,8 @@ function registerIpc() {
               (exec.skipped && exec.skipped.length ? `\n\nAtlanan (güvenlik): ${exec.skipped.join(", ")}` : ""),
               source: "deliver" };
           } catch (execErr) {
-            result = { text: `Dosyalar üretildi ama yazma/paketleme başarısız: ${execErr.message || execErr}`, source: "deliver_error" };
+            const { userMessageForZipError } = require("./services/executor/native-zip");
+            result = { text: `Dosyalar üretildi ama paketleme tamamlanamadı: ${userMessageForZipError(execErr)}`, source: "deliver_error" };
           }
         } else {
           // Model dosya üretmediyse ham çıktıyı bırak (bahane yerine en azından kod).

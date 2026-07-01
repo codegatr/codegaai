@@ -94,4 +94,26 @@ async function isNativeZipAvailable() {
   }
 }
 
-module.exports = { zipDirectory, isNativeZipAvailable, zipError };
+// Native ZIP hatasını KULLANICI-DOSTU, eyleme dönük Türkçe mesaja çevir.
+function userMessageForZipError(err) {
+  const code = err && err.code;
+  switch (code) {
+    case "ZIP_NOT_INSTALLED":
+      return "Sisteminizde 'zip' komutu yok. Kurun: Linux → `sudo apt install zip`, macOS → `brew install zip`. Sonra tekrar deneyin.";
+    case "EACCES":
+      return "ZIP yazma izni yok — hedef klasörün yazma izinlerini kontrol edin.";
+    case "POWERSHELL_MISSING":
+      return "PowerShell bulunamadı; Windows'ta ZIP oluşturulamadı.";
+    case "SOURCE_MISSING":
+      return "Paketlenecek klasör bulunamadı.";
+    case "NOT_A_DIR":
+      return "Kaynak bir klasör değil.";
+    case "COMPRESS_ARCHIVE_FAILED":
+    case "ZIP_FAILED":
+      return "ZIP oluşturulurken bir hata oluştu (sistem sıkıştırma komutu başarısız).";
+    default:
+      return (err && err.message) ? err.message : "Bilinmeyen ZIP hatası.";
+  }
+}
+
+module.exports = { zipDirectory, isNativeZipAvailable, zipError, userMessageForZipError };

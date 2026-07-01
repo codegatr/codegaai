@@ -3,7 +3,7 @@
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { zipDirectory, isNativeZipAvailable, zipError } = require("../../services/executor/native-zip");
+const { zipDirectory, isNativeZipAvailable, zipError, userMessageForZipError } = require("../../services/executor/native-zip");
 
 let dir;
 beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), "codega-nz-")); });
@@ -15,6 +15,14 @@ describe("native-zip (zero-dependency OS zip)", () => {
     expect(e.name).toBe("NativeZipError");
     expect(e.code).toBe("X");
     expect(e.platform).toBe(process.platform);
+  });
+
+  test("userMessageForZipError kullanıcı-dostu/eyleme dönük mesaj verir", () => {
+    expect(userMessageForZipError({ code: "ZIP_NOT_INSTALLED" })).toMatch(/apt install zip|brew install zip/);
+    expect(userMessageForZipError({ code: "EACCES" })).toMatch(/izin/i);
+    expect(userMessageForZipError({ code: "POWERSHELL_MISSING" })).toMatch(/PowerShell/);
+    expect(userMessageForZipError({ code: "WHATEVER", message: "ham" })).toBe("ham");
+    expect(userMessageForZipError({})).toMatch(/Bilinmeyen/);
   });
 
   test("olmayan kaynak → SOURCE_MISSING (temiz hata, çökmez)", async () => {

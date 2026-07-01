@@ -80,7 +80,10 @@ async function executeProject(o = {}) {
     const r = await zipDirectory(targetDir, zipPath);
     zipEngineUsed = r.engine;
   } catch (nativeErr) {
-    throw new Error(`ZIP oluşturulamadı: ${nativeErr.code ? `${nativeErr.code} — ` : ""}${nativeErr.message || nativeErr}`);
+    // Hata kodunu KORU ki çağıran (deliver akışı) kullanıcı-dostu mesaj üretebilsin.
+    const e = new Error(`ZIP oluşturulamadı: ${nativeErr.message || nativeErr}`);
+    e.code = nativeErr.code || "ZIP_FAILED";
+    throw e;
   }
 
   return { ok: true, dir: targetDir, written, zipPath, zipName, skipped, zipEngine: zipEngineUsed };
