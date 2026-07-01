@@ -39,7 +39,7 @@ describe("buildGenOptions — anti-repetition / sampling", () => {
   test("geçersiz değerler güvenli varsayılana düşer", () => {
     const o = buildGenOptions({ temperature: "abc", repeatPenalty: null, numPredict: -1 });
     expect(o.temperature).toBe(0.2);
-    expect(o.repeat_penalty).toBe(1.15);
+    expect(o.repeat_penalty).toBe(1.3);
     expect(o.num_predict).toBe(DEFAULT_NUM_PREDICT);
   });
 });

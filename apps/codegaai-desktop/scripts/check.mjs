@@ -116,9 +116,11 @@ const required = [
   "src/main/services/executor/native-zip.js",
   "src/main/services/executor/validate-files.js",
   "src/main/agent/reasoning-guardrails.js",
+  "src/main/agent/anti-loop.js",
   "src/main/agent/__tests__/native-zip.test.js",
   "src/main/agent/__tests__/validate-files.test.js",
   "src/main/agent/__tests__/reasoning-guardrails.test.js",
+  "src/main/agent/__tests__/anti-loop.test.js",
   "src/main/agent/__tests__/builder-spec.test.js",
   "src/main/agent/__tests__/builder-entity-php.test.js",
   "src/main/agent/__tests__/builder-deliver.test.js",
@@ -373,7 +375,11 @@ if (!sysPromptFile.includes("REASONING_GUARDRAILS")) throw new Error("system-pro
 const ollamaClientTempFile = readText(join(root, "src/main/agent/ollama-client.js"));
 if (!/DEFAULT_TEMPERATURE\s*=\s*0\.2\b/.test(ollamaClientTempFile)) throw new Error("ollama-client.js kararlı üretim için DEFAULT_TEMPERATURE=0.2 olmalı");
 
-if (pkg.version !== "6.0.0-alpha.87") throw new Error(`Desktop package version must be 6.0.0-alpha.87, got ${pkg.version}`);
+const antiLoopFile = readText(join(root, "src/main/agent/anti-loop.js"));
+if (!antiLoopFile.includes("collapseRepetition") || !antiLoopFile.includes("detectRunawayRepetition")) throw new Error("anti-loop.js tekrar/döngü temizliği (collapseRepetition/detectRunawayRepetition) eksik");
+if (!modelManagerFile.includes("collapseRepetition")) throw new Error("model-manager.js generate anti-loop (collapseRepetition) enjekte edilmemiş");
+
+if (pkg.version !== "6.0.0-alpha.88") throw new Error(`Desktop package version must be 6.0.0-alpha.88, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
