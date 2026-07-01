@@ -851,6 +851,10 @@ function buildGroundedResearchFallback(query, research) {
 function groundResearchAnswer(query, research, generated) {
   const summary = String(generated || "").trim();
   if (!summary) return buildGroundedResearchFallback(query, research);
+  // ÖZ-DÜZELTME (araştırma yolu): model özeti dejenere ise (emoji/unicode salatası,
+  // kendini tekrar, rol karışması) modele güvenme → kaynak-temelli deterministik
+  // fallback'e düş. tekcanmetal örneğindeki emoji/unicode çöpünü bu keser.
+  if (looksDegenerate(summary).bad) return buildGroundedResearchFallback(query, research);
   const sources = parseResearchSources(research);
   const hosts = researchHosts(sources);
   const hasUrlInSummary = /https?:\/\//i.test(summary);

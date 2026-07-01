@@ -48,6 +48,26 @@ describe("askDirect web araştırma (uydurma önleme)", () => {
     } finally { TOOLS.research.fn = orig; }
   });
 
+  test("araştırma özeti emoji/unicode salatasıysa → kaynak-temelli fallback (salata gösterilmez)", async () => {
+    const mgr = new ModelManager();
+    mgr.installedModels = async () => ["qwen2.5:4b"];
+    mgr.generate = async () => "# TEKKAN 🔥🔩✨❗✅☝️😎πφδμλΣΩαβγΑΒΓΔqwertyuiopasdfgjhkldfzxcsedcrfv metal";
+    const orig = TOOLS.research.fn;
+    TOOLS.research.fn = async () => [
+      "📚 Araştırma: tekcanmetal.com", "",
+      "### Kaynak 1: Tekcan Metal",
+      "https://tekcanmetal.com/",
+      "Tekcan Metal, metal sanayi ve ticaret firmasıdır.",
+    ].join("\n");
+    try {
+      const res = await mgr.askDirect("tekcanmetal.com hakkında bilgi", { chatId: "rf4" });
+      expect(res.source).toBe("direct_research");
+      expect(res.text).not.toMatch(/qwertyuiop|πφδμλ/);
+      expect(res.text).toMatch(/tekcanmetal\.com/);
+      expect(res.text).toMatch(/kaynaklara bagli/i);
+    } finally { TOOLS.research.fn = orig; }
+  });
+
   test("successful research ignores numeric model drift and returns grounded sources", async () => {
     const mgr = new ModelManager();
     mgr.installedModels = async () => ["qwen2.5:4b"];

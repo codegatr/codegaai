@@ -16,9 +16,13 @@ describe("answer-quality: bozuk cevap sezici", () => {
     const loop = "Bu cümle yeterince uzundur ve döngü halinde tekrar tekrar yazilmaktadir burada. ".repeat(3);
     expect(looksDegenerate(loop, "x").bad).toBe(true);
   });
-  test("normal, temiz cevap bozuk DEĞİL", () => {
+  test("karakter salatası (emoji/unicode/klavye ezmesi) bozuktur", () => {
+    const salad = "# BAŞLIK 🔥🔩✨✍️✈️⚙️❗✅☝️😎πφδμλΣΩαβγδΑΒΓΔΕqwertyuiopasdfgjhkldfzxcsedcrfvbgtnhy metal";
+    expect(looksDegenerate(salad).reason).toBe("char_salad");
+  });
+  test("normal, temiz cevap bozuk DEĞİL (birkaç emoji dahil)", () => {
     expect(looksDegenerate("Cevap 4'tür; üç renk olduğundan dördüncü top kesin eşleşir.", "kaç top?").bad).toBe(false);
-    expect(looksDegenerate("Merhaba! Bugün nasıl yardımcı olabilirim?", "selam").bad).toBe(false);
+    expect(looksDegenerate("Merhaba! 😊 Bugün nasıl yardımcı olabilirim? 🔎", "selam").bad).toBe(false);
   });
 });
 

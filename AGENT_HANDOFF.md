@@ -1,3 +1,33 @@
+## Claude Update - 2026-07-01 — alpha.95: araştırma özetinde emoji/unicode salatası + öz-düzeltme kapsamı
+
+### Bug (kullanıcı: tekcanmetal.com araştırması)
+Grounding ÇALIŞTI (alttaki 3 kaynak doğru: tekcanmetal.com/dnb/listofcompany) AMA modelin
+özeti tam çöp: yanlış isim (Tekkan), emoji kusması + dev rastgele Yunanca/Kiril/klavye-ezmesi
+unicode akışı, rol karışması. İki açık:
+1. alpha.94 öz-düzeltme araştırma yoluna UĞRAMIYORDU (groundResearchAnswer erken dönüyor).
+2. Sezici emoji/unicode salatasını YAKALAMIYORDU (role_confusion/runaway kaçırıyor).
+
+### Fix
+- answer-quality.js: hasCharSalad() eklendi → looksDegenerate reason "char_salad".
+  Sinyaller: (a) 45+ boşluksuz dizi (URL değilse) = klavye/unicode ezmesi, (b) latin+türkçe+
+  rakam+noktalama DIŞI karakter oranı > %22. Normal emoji kullanımı ve grounded fallback
+  FALSE (yanlış-pozitif yok) — testlerle doğrulandı.
+- groundResearchAnswer: summary looksDegenerate.bad ise → buildGroundedResearchFallback
+  (kaynak-temelli deterministik). Hem askDirect hem agent araştırma yolu kapsanır. tekcanmetal
+  salatası artık temiz kaynak-özetiyle değişir.
+- Testler: answer-quality (char_salad + normal-emoji güvenli), askdirect-research (salata→fallback).
+- check.mjs guard: hasCharSalad. Sürüm alpha.95.
+
+### Gate: check 234 · test:ci 550/550.
+
+### DURUM
+- P1 insani ton, P2 öz-düzeltme(genel), P2.1 araştırma-yolu öz-düzeltme + char-salad DONE.
+- Model HÂLÂ 4B (bu çöp 4B işi). Yazılım artık çöpü kullanıcıya GÖSTERMİYOR (fallback) ama
+  gerçek kaliteli özet için 7B şart. Kullanıcı 7B teşhisini hâlâ paylaşmadı.
+- Sıradaki: P3 ZIP/veri analizini sohbete bağla, P4 site artı/eksi, P5 modlar.
+
+---
+
 ## Claude Update - 2026-07-01 — alpha.94: P2 Öz-düzeltme (varsayılan yol)
 
 ### Ne (kullanıcı: "hatasını anlayıp düzeltme")
