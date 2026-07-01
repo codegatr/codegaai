@@ -64,17 +64,9 @@ async function packToZip(files, outPath) {
       await fsp.writeFile(dest, f.content, "utf8");
     }
 
-    // ZIP oluştur
-    await new Promise((resolve, reject) => {
-      const archiver = require("archiver");  // lazy require
-      const output = fs.createWriteStream(outPath);
-      const archive = archiver("zip", { zlib: { level: 6 } });
-      output.on("close", resolve);
-      archive.on("error", reject);
-      archive.pipe(output);
-      archive.directory(tmpDir, false);
-      archive.finalize();
-    });
+    // ZIP oluştur — ZERO-DEPENDENCY: OS-native (Compress-Archive / zip).
+    const { zipDirectory } = require("../../services/executor/native-zip");
+    await zipDirectory(tmpDir, outPath);
   } finally {
     await fsp.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }

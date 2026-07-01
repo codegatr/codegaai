@@ -154,7 +154,9 @@ if (!pkg.build?.nsis || !pkg.dependencies?.["electron-updater"]) throw new Error
 if (pkg.build?.win?.requestedExecutionLevel !== "asInvoker") throw new Error("Windows installer must not request elevated privileges by default");
 if (pkg.build?.asar !== true) throw new Error("Electron app should be packed with asar");
 if (!pkg.build?.files?.some((entry) => String(entry).includes("!**/__pycache__/**"))) throw new Error("Desktop package must exclude Python cache artifacts");
-if (!pkg.build?.asarUnpack?.some((e) => String(e).includes("archiver"))) throw new Error("archiver must be in asarUnpack to work outside asar");
+// ZERO-DEPENDENCY ZIP: archiver tamamen kaldırıldı (OS-native Compress-Archive/zip).
+if (pkg.dependencies?.archiver || pkg.devDependencies?.archiver) throw new Error("archiver bağımlılığı kaldırılmalı (OS-native ZIP kullanılıyor)");
+if (pkg.build?.asarUnpack?.some((e) => String(e).includes("archiver"))) throw new Error("archiver asarUnpack'ten kaldırılmalı (artık kullanılmıyor)");
 if (!pkg.scripts?.["release:prepare"]) throw new Error("Phoenix release preparation script is missing");
 if (!pkg.scripts?.["release:win"]) throw new Error("Windows release script is missing");
 
@@ -347,7 +349,7 @@ if (!mainFile.includes("seedCoreEngineeringRules")) throw new Error("main.js Aca
 const modelManagerFile = readText(join(root, "src/main/model-manager.js"));
 if (!modelManagerFile.includes("sanitizePrompt")) throw new Error("model-manager.js isim temizleme (sanitizePrompt) baglantisi eksik");
 
-if (pkg.version !== "6.0.0-alpha.79") throw new Error(`Desktop package version must be 6.0.0-alpha.79, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.80") throw new Error(`Desktop package version must be 6.0.0-alpha.80, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

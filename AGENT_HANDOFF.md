@@ -1,3 +1,31 @@
+## Claude Update - 2026-07-01 15:00 — archiver TAMAMEN kaldırıldı: zero-dependency OS-native ZIP (alpha.80)
+
+### İstek
+archiver npm paketini projeden tamamen çıkar; tüm ZIP oluşturmayı OS-native'e taşı. (Show-in-Folder + action-link zaten alpha.79'da yapıldı.)
+
+### Yapılan (tam migrasyon)
+- zip-engine.js: getArchiver KALDIRILDI. create() ve createProjectArchive() artık native-zip.zipDirectory kullanıyor. createProjectArchive: manifest yoksa geçici yaz→native zip→unlink (archiver.append yerine); dest-inside-source guard + manifest-in-archive korundu. create array-source: staging'e güvenli adlarla kopyala→native zip. patch() zaten create() üzerinden native.
+- builder-engine.packToZip: archiver require KALDIRILDI → native zipDirectory.
+- project-executor: archiver fallback KALDIRILDI → native-only + temiz hata.
+- package.json: archiver dependencies'ten VE asarUnpack'ten çıkarıldı. package-lock.json senkronlandı (npm install --package-lock-only) — root deps artık electron-updater+extract-zip; kalan archiver referansları yalnız electron-builder-squirrel-windows'un transitive dev-dep'i (runtime değil).
+- check.mjs guard TERS çevrildi: archiver deps'te VEYA asarUnpack'te OLMAMALI.
+
+### KRİTİK: geriye uyumluluk KANITI
+- zip-engine.test.js (güvenli export/import: createProjectArchive→manifest→import doğrulama, imza/sürüm/manifest-yok red, commit rollback) native zip ile TAM GEÇTİ. builder-engine.test.js + builder-deliver + native-zip = 58 test. Full 515/515.
+- Yani secure ZIP export/import native'e taşınırken HİÇBİR test kırılmadı.
+
+### Not (dürüst)
+- POSIX'te `zip` kurulu değilse native-zip ZIP_NOT_INSTALLED temiz hatası verir (artık archiver fallback yok). CI runner'larında (win/mac/ubuntu) zip/powershell var. Son kullanıcı minimal Linux'ta `zip` kurmalı.
+- curriculum.js archiver-incident dersi (string, require değil) tarihsel olarak bırakıldı.
+
+### Test/sürüm
+- check 225 dosya OK, full 515/515 (41 suite). Sürüm alpha.80.
+
+### 📌 CODEX NOTU
+- Artık zero-dependency ZIP. Compress-Archive sıkıştırma seviyesini expose etmez (Optimal); zip -9 posix'te. PROJECT_ARCHIVE_ZLIB_LEVEL sabiti (=9) korundu ama native'de bilgilendirici. POSIX zip-yok durumunu UI'da yakalamak istersen open sırasında ZIP_NOT_INSTALLED'e göre öneri gösterebilirsin.
+
+---
+
 ## Claude Update - 2026-07-01 14:00 — "Klasörde Göster" (shell.showItemInFolder) güvenli IPC + action-link (alpha.79)
 
 ### İstek

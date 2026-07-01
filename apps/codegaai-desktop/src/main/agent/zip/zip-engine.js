@@ -27,8 +27,11 @@ function getExtractZip() {
   try { return require("extract-zip"); } catch (_e) { return null; }
 }
 
-function getArchiver() {
-  try { return require("archiver"); } catch (_e) { return null; }
+// ZIP oluşturma artık ZERO-DEPENDENCY: OS-native (Compress-Archive / zip).
+// archiver npm paketi projeden tamamen kaldırıldı.
+function nativeZipDirectory(sourceDir, destZip) {
+  const { zipDirectory } = require("../../services/executor/native-zip");
+  return zipDirectory(sourceDir, destZip);
 }
 
 // ZIP central directory okuyucu — extractZip olmasa da dosya listesi alınabilsin
@@ -182,27 +185,26 @@ async function readFile(zipPath, entryName) {
  * @param {Array<{disk:string, zip:string}>|string} source  - dosya listesi veya kaynak dizin
  */
 async function create(destZip, source) {
-  const archiver = getArchiver();
-  if (!archiver) throw new Error("archiver modülü bulunamadı");
-
-  return new Promise((resolve, reject) => {
-    const output = fs.createWriteStream(destZip);
-    const arch = archiver("zip", { zlib: { level: 6 } });
-
-    output.on("close", resolve);
-    arch.on("error", reject);
-    arch.pipe(output);
-
-    if (typeof source === "string") {
-      // Kaynak dizin
-      arch.directory(source, false);
-    } else if (Array.isArray(source)) {
+  if (typeof source === "string") {
+    // Kaynak dizin → OS-native ZIP.
+    await nativeZipDirectory(source, destZip);
+    return;
+  }
+  if (Array.isArray(source)) {
+    // Dosya listesi → geçici staging'e güvenli adlarla kopyala, sonra native ZIP.
+    const staging = path.join(os.tmpdir(), `codega_zipstage_${crypto.randomUUID()}`);
+    try {
       for (const { disk, zip: zipName } of source) {
-        arch.file(disk, { name: assertSafeEntryName(zipName) });
+        const rel = assertSafeEntryName(zipName);
+        const dest = path.join(staging, rel);
+        await fsp.mkdir(path.dirname(dest), { recursive: true });
+        await fsp.copyFile(disk, dest);
       }
+      await nativeZipDirectory(staging, destZip);
+    } finally {
+      await fsp.rm(staging, { recursive: true, force: true }).catch(() => {});
     }
-    arch.finalize();
-  });
+  }
 }
 
 function defaultProjectManifest(opts = {}) {
@@ -220,8 +222,6 @@ async function hasFile(filePath) {
 }
 
 async function createProjectArchive(sourceDir, destZip, opts = {}) {
-  const archiver = getArchiver();
-  if (!archiver) throw new Error("archiver modülü bulunamadı");
   const sourceRoot = path.resolve(sourceDir);
   const archivePath = path.resolve(destZip);
   if (archivePath === sourceRoot || archivePath.startsWith(sourceRoot + path.sep)) {
@@ -231,25 +231,18 @@ async function createProjectArchive(sourceDir, destZip, opts = {}) {
   const manifestExists = await hasFile(manifestPath);
   const manifest = opts.manifest || defaultProjectManifest(opts);
 
-  return new Promise((resolve, reject) => {
-    const output = fs.createWriteStream(archivePath);
-    const arch = archiver("zip", { zlib: { level: PROJECT_ARCHIVE_ZLIB_LEVEL } });
-    let settled = false;
-    const done = (err) => {
-      if (settled) return;
-      settled = true;
-      err ? reject(err) : resolve({ destZip: archivePath });
-    };
-    output.on("close", () => done());
-    output.on("error", done);
-    arch.on("error", done);
-    arch.pipe(output);
-    arch.directory(sourceRoot, false);
+  // manifest yoksa geçici olarak yaz → native ZIP → kaldır (archiver.append yerine).
+  let wroteManifest = false;
+  try {
     if (!manifestExists) {
-      arch.append(JSON.stringify(manifest, null, 2), { name: "manifest.json" });
+      await fsp.writeFile(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+      wroteManifest = true;
     }
-    arch.finalize().catch(done);
-  });
+    await nativeZipDirectory(sourceRoot, archivePath);
+    return { destZip: archivePath };
+  } finally {
+    if (wroteManifest) { await fsp.unlink(manifestPath).catch(() => {}); }
+  }
 }
 
 async function extractToTemp(zipPath, tempDir) {
