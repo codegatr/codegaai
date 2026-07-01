@@ -58,8 +58,11 @@ function buildGenOptions(opts = {}) {
     temperature: num(opts.temperature, DEFAULT_TEMPERATURE),
     num_ctx: num(opts.numCtx, 8192),
     num_predict: positiveInt(opts.numPredict, DEFAULT_NUM_PREDICT),
-    repeat_penalty: num(opts.repeatPenalty, 1.15),
-    repeat_last_n: num(opts.repeatLastN, 256),
+    // Tekrar/döngü bastırma: küçük modeller aynı cümleyi defalarca yazabiliyor.
+    // 1.3 + geniş pencere (384) token seviyesinde döngüyü azaltır; anti-loop.js
+    // son işlemde kalan tekrarı temizler.
+    repeat_penalty: num(opts.repeatPenalty, 1.3),
+    repeat_last_n: num(opts.repeatLastN, 384),
     top_p: num(opts.topP, 0.9),
     top_k: num(opts.topK, 40),
   };

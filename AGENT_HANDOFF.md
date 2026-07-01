@@ -1,3 +1,35 @@
+## Claude Update - 2026-07-01 — alpha.88: ANTI-LOOP (tekrar/döngü çöpü temizliği)
+
+### Neden
+Kullanıcı 10 mantık/muhakeme testi çalıştırdı. Çıktı: küçük ~4B model bazı sorularda (Test
+2/6/8/9/10) aynı paragrafı 3-5 kez yazıp ASLA bitirmiyor, çelişip çöpe dönüyordu. İki ayrı
+sorun: (a) modelin muhakeme tavanı (prompt ile çözülemez), (b) GERÇEK yazılım hatası =
+kontrolsüz tekrar/döngü. Bu PR (b)'yi düzeltir.
+
+### Fix
+- Yeni modül src/main/agent/anti-loop.js:
+  - collapseRepetition(text): son-işlem süzgeci. Uzun cümlelerin (>=40 norm-char) GLOBAL
+    tekrarını tek kopyaya indirir, ardışık kısa tekrarları atar. ```kod``` blokları
+    DOKUNULMADAN korunur. TR-katlama + normalize ile karşılaştırır.
+  - detectRunawayRepetition(text): uzun cümle 3+ kez → true (teşhis/telemetri).
+- model-manager.js generate(): Ollama yanıtı döndürülmeden collapseRepetition'dan geçer.
+  Bulut yanıtı (güçlü model) DOKUNULMAZ.
+- ollama-client.js token-seviyesi bastırma: repeat_penalty 1.15→1.3, repeat_last_n 256→384.
+- Testler: anti-loop.test.js (5). ollama-gen-options.test.js default 1.15→1.3 güncellendi.
+- check.mjs: required[] + collapseRepetition/detectRunawayRepetition + generate enjeksiyon guard.
+
+### Gate: check 231 · full jest 534/534 · release:prepare 534/534. Sürüm alpha.88.
+
+### DÜRÜST NOT (kullanıcıya iletildi)
+- Bu fix ÇÖPÜ/DÖNGÜYÜ keser; cevabı DAHA DOĞRU yapmaz. Test 2/3/5/6/8/9/10 hatalarının kökü
+  4B modelin muhakeme kapasitesi. Gerçek çözüm: qwen2.5:7b-instruct / llama3.1:8b (bkz.
+  [[codega-local-model]] hafıza notu). Streaming sırasında canlı token'lar hâlâ ham akar ama
+  KALICI/final mesaj temizlenmiş olur.
+- İleride: streaming loop-breaker (döngü saptayınca abort) ayrı PR olabilir.
+- Sıradaki: 4) Indexer PR#2, 5) stable audit.
+
+---
+
 ## Claude Update - 2026-07-01 — alpha.87: Muhakeme/Dikkat/Kusursuz Mantık Katmanı
 
 ### Ne yapıldı

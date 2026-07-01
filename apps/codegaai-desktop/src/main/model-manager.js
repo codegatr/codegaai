@@ -19,6 +19,7 @@ const { TOOLS: AGENT_TOOLS } = require("./agent/tools");
 const logs = require("./agent/logs");
 const { buildSystemPrompt } = require("./agent/system-prompt");
 const { REASONING_GUARDRAILS } = require("./agent/reasoning-guardrails");
+const { collapseRepetition } = require("./agent/anti-loop");
 const { sanitizePrompt } = require("./agent/sanitize-prompt");
 const answerAdequacy = require("./agent/answer-adequacy");
 const { getSettings } = require("./agent/settings-store");
@@ -2385,7 +2386,9 @@ class ModelManager {
         const content = onToken && m === model
           ? await ollamaChatStream(m, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS, onToken, signal: sig })
           : await ollamaChat(m, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS, signal: sig });
-        if (content && content.trim()) return content;
+        // ANTI-LOOP: yerel model aynı cümleyi/paragrafı defalarca yazıp bitirmezse
+        // son metinden tekrar çöpünü süz (kod blokları korunur). Bulut yanıtı dokunulmaz.
+        if (content && content.trim()) return collapseRepetition(content);
         try { logs.warn("model_generate", `empty_response provider=ollama model=${m}`); } catch (_e) {}
       } catch (_e) {
         if (sig && sig.aborted) {
