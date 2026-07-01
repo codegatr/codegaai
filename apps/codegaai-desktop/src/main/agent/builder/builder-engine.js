@@ -28,6 +28,7 @@ const fsp    = require("node:fs/promises");
 const os     = require("node:os");
 const crypto = require("node:crypto");
 const fs     = require("node:fs");
+const { entityFiles, apiRouteLines } = require("./entity-php");
 
 // ─────────────────────────────────────────────────────────────
 // Yardımcı fonksiyonlar
@@ -138,7 +139,7 @@ const STACKS = {
 // GENERATOR: Laravel
 // ─────────────────────────────────────────────────────────────
 
-function generateLaravel({ name, features, database, description }) {
+function generateLaravel({ name, features, database, description, entities = [] }) {
   const s = slug(name);
   const S = studly(name);
   const db = database || "mysql";
@@ -146,6 +147,9 @@ function generateLaravel({ name, features, database, description }) {
   const hasDocker = features.includes("docker");
   const hasCi     = features.includes("ci");
   const hasTests  = features.includes("tests");
+  // Domain entity'leri (builder-spec ile normalize edilmiş) → gerçek CRUD.
+  const domainEntities = Array.isArray(entities) ? entities.filter((e) => e && e.model && e.table) : [];
+  const entityRoutes = domainEntities.length ? apiRouteLines(domainEntities) : "";
 
   const files = [];
 
@@ -268,7 +272,15 @@ ${hasAuth ? `Route::prefix('auth')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', fn(Request $request) => $request->user());
 });
+
+// ── Domain kaynakları (CODEGA AI entity-güdümlü CRUD) ──
+${entityRoutes}
 ` });
+
+  // Her domain entity için gerçek migration + model + controller.
+  domainEntities.forEach((e, i) => {
+    for (const f of entityFiles(e, i)) files.push(f);
+  });
 
   files.push({ path: "routes/web.php", content:
 `<?php
@@ -1690,14 +1702,14 @@ const GENERATORS = {
  * @param {string} outputDir      — ZIP'in yazılacağı klasör
  */
 async function build(spec, outputDir) {
-  const { type, name, features = [], database, description = "" } = spec;
+  const { type, name, features = [], database, description = "", entities = [] } = spec;
 
   if (!GENERATORS[type]) throw new Error(`Desteklenmeyen stack: ${type}. Geçerliler: ${Object.keys(GENERATORS).join(", ")}`);
   if (!name || !String(name).trim()) throw new Error("Proje adı boş olamaz");
 
   const t0        = Date.now();
   const generator = GENERATORS[type];
-  const files     = generator({ name: String(name).trim(), features, database: database || STACKS[type]?.defaultDb || "", description });
+  const files     = generator({ name: String(name).trim(), features, database: database || STACKS[type]?.defaultDb || "", description, entities });
 
   await fsp.mkdir(outputDir, { recursive: true });
   const outName = `${slug(name)}-${type}-${Date.now()}.zip`;
@@ -1734,10 +1746,10 @@ async function build(spec, outputDir) {
 
 /** Dosya agacini onizler (ZIP olusturmaz). */
 function preview(spec) {
-  const { type, name, features = [], database, description = "" } = spec;
+  const { type, name, features = [], database, description = "", entities = [] } = spec;
   if (!GENERATORS[type]) throw new Error(`Desteklenmeyen stack: ${type}`);
-  const files = GENERATORS[type]({ name: String(name || "project").trim(), features, database: database || "", description });
+  const files = GENERATORS[type]({ name: String(name || "project").trim(), features, database: database || "", description, entities });
   return { stack: type, name, fileCount: files.length, files: files.map((f) => f.path) };
 }
 
-module.exports = { build, preview, STACKS };
+module.exports = { build, preview, STACKS, generateLaravel };

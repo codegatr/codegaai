@@ -141,6 +141,8 @@ contextBridge.exposeInMainWorld("codega", {
     stacks:  ()       => ipcRenderer.invoke("builder:stacks"),
     build:   (spec)   => ipcRenderer.invoke("builder:build",   spec),
     preview: (spec)   => ipcRenderer.invoke("builder:preview", spec),
+    buildFromPrompt: (payload) => ipcRenderer.invoke("builder:build-from-prompt", payload),
+    planFromPrompt:  (payload) => ipcRenderer.invoke("builder:plan-from-prompt", payload),
   },
   // Plugin System API
   plugins: {
