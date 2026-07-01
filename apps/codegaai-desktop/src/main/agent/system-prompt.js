@@ -17,6 +17,7 @@ const {
   questionUnderstandingInstruction,
   reasoningSystemInstruction,
 } = require("./reasoning-guard");
+const { REASONING_GUARDRAILS } = require("./reasoning-guardrails");
 
 function buildSystemPrompt(task = "chat", opts = {}) {
   const { memory = [], humanTone = true, ragContext = [], plan = [], expertPersona = "", projectContext = "", learnedContext = [] } = opts;
@@ -80,6 +81,8 @@ function buildSystemPrompt(task = "chat", opts = {}) {
     answerVerificationInstruction(),
     "",
     mandatoryConclusionInstruction(),
+    "",
+    REASONING_GUARDRAILS,
   );
 
   if (humanTone) {

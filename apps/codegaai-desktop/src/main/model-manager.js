@@ -18,6 +18,7 @@ const { runReact } = require("./agent/agent-loop");
 const { TOOLS: AGENT_TOOLS } = require("./agent/tools");
 const logs = require("./agent/logs");
 const { buildSystemPrompt } = require("./agent/system-prompt");
+const { REASONING_GUARDRAILS } = require("./agent/reasoning-guardrails");
 const { sanitizePrompt } = require("./agent/sanitize-prompt");
 const answerAdequacy = require("./agent/answer-adequacy");
 const { getSettings } = require("./agent/settings-store");
@@ -1289,6 +1290,7 @@ class ModelManager {
         "'npm install …', 'sonraki adımın ne?' gibi savuşturmalar YASAK; istenen ARTEFAKTI doğrudan üret ve " +
         "her dosyayı ```dil yol/dosya.uzanti``` biçiminde, yol/ad belirterek AYRI kod bloklarında ver. " +
         "Gereksiz uzatma, soruyu tekrar etme, konu dışına çıkma." },
+      { role: "system", content: REASONING_GUARDRAILS },
     ];
     // BİLİŞSEL HAFIZA: varsa proje/karar/hedef özetini ekle → "falanca sorunu çöz"
     // gibi atıflar bağlamdan çözülür, kullanıcı tekrar anlatmaz.

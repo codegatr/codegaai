@@ -115,8 +115,10 @@ const required = [
   "src/main/agent/builder/build-intent.js",
   "src/main/services/executor/native-zip.js",
   "src/main/services/executor/validate-files.js",
+  "src/main/agent/reasoning-guardrails.js",
   "src/main/agent/__tests__/native-zip.test.js",
   "src/main/agent/__tests__/validate-files.test.js",
+  "src/main/agent/__tests__/reasoning-guardrails.test.js",
   "src/main/agent/__tests__/builder-spec.test.js",
   "src/main/agent/__tests__/builder-entity-php.test.js",
   "src/main/agent/__tests__/builder-deliver.test.js",
@@ -363,7 +365,15 @@ if (!mainEvoFile.includes("isSubPath") || !mainEvoFile.includes("resolvedTarget"
 
 if (!modelManagerFile.includes("direct_research") || !modelManagerFile.includes("wantsWebResearch")) throw new Error("model-manager.js askDirect web araştırma (direct_research/wantsWebResearch) eksik");
 
-if (pkg.version !== "6.0.0-alpha.86") throw new Error(`Desktop package version must be 6.0.0-alpha.86, got ${pkg.version}`);
+const guardrailsFile = readText(join(root, "src/main/agent/reasoning-guardrails.js"));
+if (!guardrailsFile.includes("MANTIK VE DİKKAT KATMANI") || !guardrailsFile.includes("REASONING_GUARDRAILS")) throw new Error("reasoning-guardrails.js muhakeme/dikkat katmanı eksik");
+if (!modelManagerFile.includes("REASONING_GUARDRAILS")) throw new Error("model-manager.js askDirect muhakeme katmanı (REASONING_GUARDRAILS) enjekte edilmemiş");
+const sysPromptFile = readText(join(root, "src/main/agent/system-prompt.js"));
+if (!sysPromptFile.includes("REASONING_GUARDRAILS")) throw new Error("system-prompt.js derin yol muhakeme katmanı (REASONING_GUARDRAILS) eksik");
+const ollamaClientTempFile = readText(join(root, "src/main/agent/ollama-client.js"));
+if (!/DEFAULT_TEMPERATURE\s*=\s*0\.2\b/.test(ollamaClientTempFile)) throw new Error("ollama-client.js kararlı üretim için DEFAULT_TEMPERATURE=0.2 olmalı");
+
+if (pkg.version !== "6.0.0-alpha.87") throw new Error(`Desktop package version must be 6.0.0-alpha.87, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
