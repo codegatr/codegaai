@@ -12,6 +12,7 @@
 const { ipcMain, app } = require("electron");
 const path = require("node:path");
 const { build, preview, STACKS } = require("./builder-engine");
+const { parseProjectRequest } = require("./builder-spec");
 
 let _outputDir = null;
 
@@ -47,6 +48,26 @@ function registerBuilderIpc() {
   ipcMain.handle("builder:preview", async (_event, spec) => {
     if (!spec || typeof spec !== "object") throw new Error("Geçersiz proje spesifikasyonu");
     return preview(spec); // { stack, name, fileCount, files: string[] }
+  });
+
+  // ── builder:build-from-prompt ───────────────────────────────
+  // Tek prompt → domain entity'leri çıkar → entity-güdümlü proje + ZIP.
+  ipcMain.handle("builder:build-from-prompt", async (_event, payload) => {
+    const prompt = typeof payload === "string" ? payload : (payload && payload.prompt);
+    if (!prompt || !String(prompt).trim()) throw new Error("Proje isteği (prompt) boş olamaz");
+    const opts = (payload && typeof payload === "object" && payload.opts) || {};
+    const spec = parseProjectRequest(String(prompt), opts);
+    const result = await build(spec, getOutputDir());
+    return { ...result, spec: { name: spec.name, type: spec.type, database: spec.database, entities: spec.entities.map((e) => e.model), features: spec.features } };
+  });
+
+  // ── builder:plan-from-prompt ────────────────────────────────
+  // ZIP üretmeden yalnız spec'i döndür (önizleme/onay için).
+  ipcMain.handle("builder:plan-from-prompt", async (_event, payload) => {
+    const prompt = typeof payload === "string" ? payload : (payload && payload.prompt);
+    if (!prompt || !String(prompt).trim()) throw new Error("Proje isteği (prompt) boş olamaz");
+    const opts = (payload && typeof payload === "object" && payload.opts) || {};
+    return parseProjectRequest(String(prompt), opts);
   });
 }
 

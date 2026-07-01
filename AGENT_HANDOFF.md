@@ -1,3 +1,32 @@
+## Claude Update - 2026-07-01 09:00 — Software Factory PR#2: domain entity katmanı + entity-güdümlü Laravel (alpha.75)
+
+### Bağlam
+Builder Certification'da (docs/BUILDER_CERTIFICATION.md) Priority-1 blocker: prompt→domain entity yoktu; Builder hep users/auth iskeleti üretiyordu. Bu PR o çekirdeği getirdi (küçük, testli, geriye uyumlu).
+
+### Yeni modüller (src/main/agent/builder/)
+1. **builder-spec.js**: `parseProjectRequest(prompt, opts)` → {name, type(stack), database, features, entities[]}. Heuristik entity çıkarımı (TR/EN domain sözlüğü: müşteri→Customer, araç→Vehicle, iş emri→WorkOrder, fatura→Invoice, ürün/stok/parça, sipariş, randevu, rol, kategori, personel). LLM entity'leri opts.entities ile enjekte edilebilir (seam hazır). studly/pluralSnake (camelCase korumalı), detectStack/Database, extractName.
+2. **entity-php.js**: entity → GERÇEK Laravel 11 kodu (template değil, parametrik): laravelMigration (Schema::create + tip-bazlı kolonlar + foreignId constrained + nullable/default), laravelModel ($fillable), laravelController (5 CRUD + validation kuralları), apiRouteLines (apiResource), entityFiles.
+
+### Wiring
+- builder-engine.generateLaravel({...,entities}): domain entity'ler için migration+model+controller dosyaları + routes/api.php'ye apiResource satırları. entities boşsa ESKİ starter davranışı (geriye uyumlu). build() ve preview() entities'i taşır.
+- builder-ipc: yeni `builder:build-from-prompt` (tek prompt → spec → ZIP) + `builder:plan-from-prompt` (ZIP'siz spec önizleme). preload: window.codega.builder.buildFromPrompt/planFromPrompt.
+
+### Etki (certification skoru)
+- Project Planner 25→~55 (prompt→spec+entities çıkarımı bağlandı).
+- Database 25→~50 (domain migration + FK/tip). PHP 45→~60 (entity-güdümlü CRUD).
+- "Servis Takip" artık gerçek domain tabloları/model/controller/API üretir (starter değil).
+
+### Hâlâ AÇIK (dürüst — sonraki PR'lar)
+- Admin panel üreteci, install.php sihirbazı, seeder, self-validation gate (php -l/composer ZIP öncesi + onar/blokla), güvenli-zip entegrasyonu (checksum). LLM-güdümlü entity çıkarımı (heuristik v1 → daha zengin).
+
+### Test/sürüm
+- builder-spec.test.js (10) + builder-entity-php.test.js (8). check 218 dosya OK, full 498/498 (38 suite). Sürüm alpha.75. 4 dosya required[].
+
+### 📌 CODEX NOTU
+- Sıradaki en yüksek değer: self-validation gate (Builder → php -l/composer → başarısızsa repackage engelle) + güvenli-zip entegrasyonu (checksum). Sonra admin/install üreteçleri. Entity çıkarımı LLM'e bağlanabilir (opts.entities seam'i hazır).
+
+---
+
 ## Claude Update - 2026-07-01 07:05 — CI doğrulama: indexer PR#1 (alpha.73→alpha.74)
 
 ### CI / Release (doğrulandı)
