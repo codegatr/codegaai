@@ -66,9 +66,11 @@ describe("askDirect (Basit Mod)", () => {
       chatId: "c4",
       cognitiveContext: "BİLİŞSEL HAFIZA:\n## Aktif proje: Ateş Fiat\nBilinen sorunlar: UTF8 bozulması",
     });
+    // system prompt + muhakeme katmanı (REASONING_GUARDRAILS) + cognitiveContext
     const systemMsgs = seen.filter((m) => m.role === "system");
-    expect(systemMsgs.length).toBe(2);
-    expect(systemMsgs[1].content).toMatch(/Ateş Fiat/);
+    expect(systemMsgs.length).toBe(3);
+    expect(systemMsgs.some((m) => /Ateş Fiat/.test(m.content))).toBe(true);
+    expect(systemMsgs.some((m) => /MANTIK VE DİKKAT KATMANI/.test(m.content))).toBe(true);
     expect(seen[seen.length - 1].content).toMatch(/^bu sorunu çöz$/i);
   });
 
@@ -78,6 +80,7 @@ describe("askDirect (Basit Mod)", () => {
     let seen = null;
     mgr.generate = async (_m, messages) => { seen = messages; return "ok"; };
     await mgr.askDirect("selam", { chatId: "c5", cognitiveContext: "" });
-    expect(seen.filter((m) => m.role === "system").length).toBe(1);
+    // temel system prompt + muhakeme katmanı (cognitiveContext boş → eklenmez)
+    expect(seen.filter((m) => m.role === "system").length).toBe(2);
   });
 });

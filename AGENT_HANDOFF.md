@@ -1,3 +1,36 @@
+## Claude Update - 2026-07-01 — alpha.87: Muhakeme/Dikkat/Kusursuz Mantık Katmanı
+
+### Ne yapıldı
+Sistem geneli KALICI muhakeme katmanı: yeni modül src/main/agent/reasoning-guardrails.js
+→ REASONING_GUARDRAILS ("MANTIK VE DİKKAT KATMANI"). 4 kural:
+1) Dikkat/kelime oyunu: kazazede→sağ kalan GÖMÜLMEZ; "6 hariç hepsi öldü"→hayatta 6.
+   Kelime kelime oku, ezbere çıkarma yapma.
+2) Üssel büyüme (nilüfer/2 kat): N.gün tam dolu→%50 N-1.gün; %75 tam güne denk gelmez,
+   log2 ile ara zaman (gün=N+log2(oran)). "Hesaplanamaz" deyip kilitlenme.
+3) Kusursuz/çalıştırılabilir kod: SyntaxError yok; Python'da 'then' yok; değişkeni
+   tanımlamadan kullanma; runnable olmalı.
+4) ANTI-LOOP: aynı cümle/paragrafı ardı ardına tekrarlama; bir kez net söyle, bitir.
+
+### Nereye enjekte edildi
+- LEAN yol: model-manager.js askDirect → base system'den sonra 2. system mesajı olarak.
+- DEEP yol: system-prompt.js buildSystemPrompt → mandatoryConclusion sonrası.
+- Temperature: ollama-client.js DEFAULT_TEMPERATURE ZATEN 0.2 (kararlı üretim) — check.mjs
+  ile guard'landı (0.2 dışına kayarsa CI kırılır).
+
+### Test/gate
+- reasoning-guardrails.test.js (2): 4 kuralı içerir + derin prompt'a gömülür.
+- ask-direct-simple-mode.test.js güncellendi: system mesaj sayısı +1 (guardrails hep var):
+  cognitive'li 3, boş cognitive 2.
+- check.mjs: required[]'a modül+test; içerik + askDirect/system-prompt enjeksiyon + temp=0.2 guard.
+- check 229 · full jest 529/529 · release:prepare 529/529. Sürüm alpha.87.
+
+### Not (Codex/ChatGPT)
+- Guardrails tek yerden yönetilir (reasoning-guardrails.js). Kural eklerken bu dosyayı düzenle;
+  hem lean hem deep otomatik alır. Küçük ~4B model için kısa/net tutuldu (token bütçesi).
+- Sıradaki: 4) Indexer PR#2, 5) stable audit.
+
+---
+
 ## Claude Update - 2026-07-01 — alpha.86: askDirect bilgi/araştırma sorularında alakasız "proje üret" cevabı düzeltildi
 
 ### Bug (kullanıcı ekran görüntüsü)
