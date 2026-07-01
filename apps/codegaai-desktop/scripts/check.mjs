@@ -336,6 +336,8 @@ const mainEvoFile = readText(join(root, "src/main/main.js"));
 if (!mainEvoFile.includes("maybeRunEvolutionCycle") || !mainEvoFile.includes("aepOS.runCycle")) throw new Error("main.js otonom evrim döngüsü (maybeRunEvolutionCycle/aepOS.runCycle) bağlanmamış");
 if (!mmFile.includes("seedConversationHistory") || !mainEvoFile.includes("history:")) throw new Error("Bağlam sürekliliği (seedConversationHistory / renderer history taşıma) eksik");
 if (!mmFile.includes("askDirect") || !mainEvoFile.includes("simpleMode")) throw new Error("Basit Mod (askDirect / simpleMode) eksik");
+if (!mainEvoFile.includes("open-file-location") || !mainEvoFile.includes("showItemInFolder")) throw new Error("main.js Klasörde Göster IPC (open-file-location/showItemInFolder) eksik");
+if (!rendererFile2.includes("renderMessageBody") || !rendererFile2.includes("action-link")) throw new Error("renderer.js action-link (renderMessageBody) eksik");
 const fasFile = readText(join(root, "src/main/agent/final-answer-sanitizer.js"));
 if (!fasFile.includes("isMultiQuestionInput")) throw new Error("final-answer-sanitizer.js çok-soru çökme koruması (isMultiQuestionInput) eksik");
 const mainFile = readText(join(root, "src/main/main.js"));
@@ -345,7 +347,7 @@ if (!mainFile.includes("seedCoreEngineeringRules")) throw new Error("main.js Aca
 const modelManagerFile = readText(join(root, "src/main/model-manager.js"));
 if (!modelManagerFile.includes("sanitizePrompt")) throw new Error("model-manager.js isim temizleme (sanitizePrompt) baglantisi eksik");
 
-if (pkg.version !== "6.0.0-alpha.78") throw new Error(`Desktop package version must be 6.0.0-alpha.78, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.79") throw new Error(`Desktop package version must be 6.0.0-alpha.79, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

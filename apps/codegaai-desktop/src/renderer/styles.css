@@ -118,6 +118,25 @@ textarea {
 
 .mode-tab:hover { color: var(--text); }
 
+.action-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--accent, #f5a623);
+  color: var(--accent, #f5a623);
+  background: transparent;
+  text-decoration: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.action-link:hover {
+  background: var(--accent, #f5a623);
+  color: var(--bg, #0b0b0d);
+}
+
 .mode-tab.active {
   color: var(--bg, #0b0b0d);
   background: var(--accent, #f5a623);

@@ -1,3 +1,25 @@
+## Claude Update - 2026-07-01 14:00 — "Klasörde Göster" (shell.showItemInFolder) güvenli IPC + action-link (alpha.79)
+
+### İstek
+Üretilen ZIP'e arayüzden tek tıkla Windows Gezgini/Finder'da erişim. Renderer'a fs/shell erişimi VERİLMEZ; main IPC güvenli.
+
+### Yapılan
+- main.js: ipcMain.handle("open-file-location") → path-guard (assertWithinRoot) ile YALNIZ izinli kökler (userData/codega-workspace + builder-output) içindeki yola izin; var mı kontrol; sonra shell.showItemInFolder. Temiz {ok,error} döner (çökmez).
+- preload: window.codega.openFileLocation(path).
+- Deliver çıktısı: ham yol yerine [📁 Klasörde Göster](action://open-location?path=<encodeURIComponent(zip)>) markdown-action linki.
+- renderer: renderMessageBody() action linkini <a class=action-link data-open-location=ENC> yapar; els.conversation event-delegation ile tıklama yakalanır → preventDefault → decode → openFileLocation IPC. styles.css .action-link.
+
+### Güvenlik
+- Rastgele yol açılamaz: path-guard workspace dışını reddeder. encodeURIComponent → link güvenli ASCII (& yok). Renderer'a fs/shell verilmedi.
+
+### Test/sürüm
+- Transform inline doğrulandı (link+yol round-trip). path-guard zaten testli. check 225 OK, full 515/515 (41 suite). Sürüm alpha.79. Guard: open-file-location/showItemInFolder + renderMessageBody/action-link.
+
+### 📌 CODEX NOTU
+- action:// protokolü genel; ileride open-location dışında genişletilebilir. İzinli kökleri tek allowlist sabitinde tutmak iyi olur.
+
+---
+
 ## Claude Update - 2026-07-01 13:15 — Native OS ZIP (zero-dependency) executor'a mühürlendi (alpha.78)
 
 ### İstek

@@ -501,6 +501,34 @@ async function copyToClipboard(text, okMsg = "Kopyalandı.") {
   catch (_e) { setTransientStatus("Kopyalanamadı."); }
 }
 
+// Mesaj gövdesini güvenle HTML'e çevir + `action://open-location` linkini
+// tıklanabilir bir bağlantıya dönüştür (yol encodeURIComponent'li → güvenli).
+function renderMessageBody(text) {
+  let html = escapeHtml(text).replace(/\n/g, "<br>");
+  html = html.replace(
+    /\[([^\]]+)\]\(action:\/\/open-location\?path=([^)]+)\)/g,
+    (_m, label, enc) => `<a href="#" class="action-link" data-open-location="${enc}">${label}</a>`
+  );
+  return html;
+}
+
+// action-link tıklamalarını yakala (event delegation) → güvenli IPC.
+if (els.conversation && !els.conversation._actionLinkBound) {
+  els.conversation._actionLinkBound = true;
+  els.conversation.addEventListener("click", async (e) => {
+    const a = e.target && e.target.closest ? e.target.closest("a.action-link[data-open-location]") : null;
+    if (!a) return;
+    e.preventDefault();
+    let target = "";
+    try { target = decodeURIComponent(a.getAttribute("data-open-location") || ""); } catch (_e) { target = a.getAttribute("data-open-location") || ""; }
+    if (!target || !window.codega?.openFileLocation) return;
+    try {
+      const r = await window.codega.openFileLocation(target);
+      if (!r?.ok) setTransientStatus(`Klasör açılamadı: ${r?.error || "bilinmeyen hata"}`);
+    } catch (err) { setTransientStatus(`Klasör açılamadı: ${err?.message || err}`); }
+  });
+}
+
 function renderConversation() {
   const chat = currentChat();
   els.conversation.innerHTML = "";
@@ -518,7 +546,7 @@ function renderConversation() {
     const tsText = ts ? ts.toLocaleString("tr-TR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }) : "";
     node.innerHTML = `
       <div class="role">${message.role === "user" ? "SEN" : "CODEGA AI"}</div>
-      <div class="msg-body">${escapeHtml(message.text).replace(/\n/g, "<br>")}</div>
+      <div class="msg-body">${renderMessageBody(message.text)}</div>
       ${tsText ? `<div class="msg-time">${tsText}</div>` : ""}
     `;
     // Kullanıcı mesajları da kopyalanabilir (kullanıcı isteği).

@@ -657,8 +657,10 @@ function registerIpc() {
           try {
             const exec = await executeProject({ workspaceRoot, folder: deliver.folder, files, zipName: deliver.zipName, });
             const summary = files.map((f) => `- ${f.path}`).join("\n");
+            const showLink = `[📁 Klasörde Göster](action://open-location?path=${encodeURIComponent(exec.zipPath)})`;
             result = { text:
               `İşlem Başarıyla Tamamlandı ve ${exec.zipName} oluşturuldu.\n\n` +
+              `${showLink}\n\n` +
               `Klasör: ${exec.dir}\nZIP: ${exec.zipPath}\nYazılan dosya: ${exec.written}\n\n` +
               `Üretilen dosyalar:\n${summary}` +
               (exec.skipped && exec.skipped.length ? `\n\nAtlanan (güvenlik): ${exec.skipped.join(", ")}` : ""),
@@ -996,6 +998,31 @@ function registerIpc() {
     if (!/^https:\/\/github\.com\//i.test(url)) throw new Error("Yalnızca GitHub bağlantıları açılabilir.");
     await shell.openExternal(url);
     return true;
+  });
+
+  // "Klasörde Göster" — üretilen ZIP/dosyayı OS dosya gezgininde göster.
+  // GÜVENLİK: yalnız CODEGA'nın yazma alanları (codega-workspace / builder-output)
+  // içindeki yollara izin verilir; renderer'dan gelen path path-guard ile doğrulanır.
+  ipcMain.handle("open-file-location", async (_event, rawPath) => {
+    try {
+      const target = String(rawPath || "").trim();
+      if (!target) return { ok: false, error: "Yol boş." };
+      const { assertWithinRoot } = require("./agent/indexer/path-guard");
+      const allowedRoots = [
+        path.join(app.getPath("userData"), "codega-workspace"),
+        path.join(app.getPath("userData"), "builder-output"),
+      ];
+      let safe = null;
+      for (const root of allowedRoots) {
+        try { safe = assertWithinRoot(root, target); break; } catch (_e) { /* sıradaki kök */ }
+      }
+      if (!safe) return { ok: false, error: "Bu yol izinli çalışma alanının dışında." };
+      if (!fs.existsSync(safe)) return { ok: false, error: "Dosya bulunamadı." };
+      shell.showItemInFolder(safe);
+      return { ok: true, path: safe };
+    } catch (e) {
+      return { ok: false, error: e && e.message ? e.message : String(e) };
+    }
   });
   ipcMain.handle("settings:set", async (_event, patch) => {
     const next = settingsStore.setSettings(patch);
