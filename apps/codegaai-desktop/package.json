@@ -1,7 +1,7 @@
 {
   "name": "codega-ai-desktop",
   "productName": "CODEGA AI",
-  "version": "6.0.0-alpha.79",
+  "version": "6.0.0-alpha.80",
   "description": "CODEGA AI Phoenix local-first desktop app.",
   "author": "CODEGA",
   "private": true,
@@ -21,7 +21,6 @@
     "test:coverage": "jest --coverage --coverageReporters=text-summary"
   },
   "dependencies": {
-    "archiver": "^7.0.1",
     "electron-updater": "^6.3.9",
     "extract-zip": "^2.0.1"
   },
@@ -113,9 +112,6 @@
       }
     ],
     "asarUnpack": [
-      "node_modules/archiver/**",
-      "node_modules/archiver-utils/**",
-      "node_modules/zip-stream/**",
       "node_modules/extract-zip/**",
       "node_modules/yauzl/**",
       "node_modules/fd-slicer/**",
