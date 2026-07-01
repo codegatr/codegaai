@@ -1,3 +1,29 @@
+## Claude Update - 2026-06-30 21:30 — Project Brain Indexer PR#1: storage + lock + path security (alpha.73)
+
+### Kapsam (bilinçli KÜÇÜK ilk PR — Codex mimari denetimi)
+AST/semantic chunker YOK (2. PR). Bu PR yalnız güvenlik çekirdeği: 5 modül + testler. External DB/Redis yok. Renderer'a fs yetkisi yok.
+
+### Yeni modüller (src/main/agent/indexer/)
+1. **path-guard.js**: assertWithinRoot/isWithinRoot. realpath containment; `..` traversal reddi; symlink/junction ile kök-dışı kaçış reddi; Windows yol normalizasyonu (slash+sürücü harfi, case-insensitive); NUL bayt reddi.
+2. **file-lock.js**: fs.open 'wx' (O_CREAT|O_EXCL). Metadata: pid/hostname/startedAt/ttlMs/workspaceRoot/operationId/owner/bootId. Stale = TTL aşımı + PID ölü. PID reuse guard: owner/bootId imzası + hostname + sert-TTL(2x). `.release.lock` varsa defer (skip + .deferred state). release() yalnız owner eşleşince siler.
+3. **atomic-json-store.js**: tmp yaz→fsync→.bak koru→atomik rename→parent dir fsync(mümkünse). readJsonSafe primary corrupt→.bak fallback. waitForStableFile (stat-twice, non-blocking). readJsonStable (partial-write retry+backoff).
+4. **jsonl-chunk-store.js**: append-only; readAll satır satır parse, BOZUK SATIR store'u çökertmez (atla+say+corruptLines); compact; UTF-8.
+5. **dependency-graph.js**: adjacency-list; BFS/DFS visited zorunlu; detectCycles (gri/siyah + geri-kenar); topoSort(Kahn); IGNORE_DIRS(node_modules/.git/dist/build/vendor/release...)+pathIsIgnored.
+
+### Testler (29, hepsi yeşil)
+stale lock recovery, crash sonrası recovery, PID reuse guard, release-lock defer, corrupt JSON→.bak fallback, corrupt JSONL line skip, partial write retry, circular dependency, symlink escape, path traversal, Windows path normalization, UTF-8, concurrent lock conflict (held).
+
+### 2. PR'a ertelenen (bu PR'da YOK)
+- project-brain-indexer.js, semantic-chunker.js, ast-parser.js, import-resolver.js, indexer-queue.js (concurrency limit + incremental hash manifest + maxFileSize), project-brain-ipc.js (IPC allowlist + schema validation — "path traversal IPC" testi burada). Bu PR path-guard'ı sağlıyor; IPC katmanı 2. PR.
+
+### Test/sürüm
+- check 214 dosya OK, full 484/484 (36 suite). Sürüm alpha.73. 5 modül+4 test check.mjs required[]'e eklendi.
+
+### 📌 CODEX NOTU
+- 2. PR: indexer-queue (RAM'e full repo alma; incremental hash manifest; concurrency limit; maxFileSize skip/summary) + project-brain-ipc (allowlist + assertWithinRoot ile her renderer path'i doğrula) + ast-parser/semantic-chunker. Çekirdek güvenlik (lock/store/path) hazır.
+
+---
+
 ## Claude Update - 2026-06-30 20:00 — BASİT MOD: yalın doğrudan cevap ayarı (alpha.72)
 
 ### Bağlam
