@@ -113,6 +113,8 @@ const required = [
   "src/main/agent/builder/project-executor.js",
   "src/main/agent/builder/extract-files.js",
   "src/main/agent/builder/build-intent.js",
+  "src/main/services/executor/native-zip.js",
+  "src/main/agent/__tests__/native-zip.test.js",
   "src/main/agent/__tests__/builder-spec.test.js",
   "src/main/agent/__tests__/builder-entity-php.test.js",
   "src/main/agent/__tests__/builder-deliver.test.js",
@@ -343,7 +345,7 @@ if (!mainFile.includes("seedCoreEngineeringRules")) throw new Error("main.js Aca
 const modelManagerFile = readText(join(root, "src/main/model-manager.js"));
 if (!modelManagerFile.includes("sanitizePrompt")) throw new Error("model-manager.js isim temizleme (sanitizePrompt) baglantisi eksik");
 
-if (pkg.version !== "6.0.0-alpha.77") throw new Error(`Desktop package version must be 6.0.0-alpha.77, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.78") throw new Error(`Desktop package version must be 6.0.0-alpha.78, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
