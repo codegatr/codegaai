@@ -1,3 +1,29 @@
+## Claude Update - 2026-07-01 — alpha.96: P3 ZIP yapılandırılmış analizi sohbete bağlandı
+
+### Ne (kullanıcı: "ZIP dahil tüm veriyi incelemesi gerek")
+zip-analyzer motoru (stack tespiti, istatistik, önemli dosyalar, package/composer.json)
+zaten VARDI ama sohbete hiç bağlanmamıştı — model ZIP eklendiğinde sadece ham dosya
+ağacı + içerik dökümü görüyordu.
+
+### Fix (renderer.js attachZipFromPath)
+- ZIP eklenince zip.analyze IPC çağrılır; sonuç model bağlamının BAŞINA "ANALİZ (otomatik)"
+  bloğu olarak eklenir: Stack (+%güven), boyut istatistiği, önemli dosyalar,
+  package.json name@version, composer.json name.
+- Analiz başarısızsa sessizce atlanır (ham döküm yeterli) — try/catch, akış bozulmaz.
+- Model artık "bu ZIP nedir?" sorusuna dosya saymak yerine uzman-özetiyle başlar.
+
+### check.mjs guard: zip.analyze + "ANALİZ (otomatik)". Sürüm alpha.96.
+### Gate: check 234 · test:ci 550/550.
+
+### Yol haritası durumu
+- ✅ P1 insani ton (93) · ✅ P2 öz-düzeltme (94) + char-salad (95) · ✅ P3 ZIP analizi (96)
+- ⏭️ P4 Site analizi (artı/eksi yapılandırılmış denetim) — SONRAKİ
+- ⏭️ P5 Chat/Cowork/Code gerçek davranış farkı
+- Ayrıca eski: Indexer PR#2, stable audit, grounding v2 (kalite skoru/tazelik).
+- Model hâlâ 4B; 7B teşhisi bekleniyor.
+
+---
+
 ## Claude Update - 2026-07-01 — alpha.95: araştırma özetinde emoji/unicode salatası + öz-düzeltme kapsamı
 
 ### Bug (kullanıcı: tekcanmetal.com araştırması)
