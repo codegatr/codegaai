@@ -1,3 +1,24 @@
+## Claude Update - 2026-07-01 16:10 — Priority 2: Native ZIP hata UX (alpha.82)
+
+### Yapılan
+- native-zip.js: userMessageForZipError(err) — kod→kullanıcı-dostu TR mesaj (ZIP_NOT_INSTALLED→"apt install zip/brew install zip", EACCES→izin, POWERSHELL_MISSING, COMPRESS_ARCHIVE_FAILED→genel, default→ham message).
+- project-executor: native hata KODU korunuyor (e.code = nativeErr.code) → çağıran dostu mesaj üretebilir.
+- main.js deliver catch: userMessageForZipError ile "Dosyalar üretildi ama paketleme tamamlanamadı: <dostu mesaj>".
+- action-link allowlist (codega-workspace + builder-output) alpha.79'dan beri path-guard'lı — DEĞİŞMEDİ, teyit edildi.
+
+### Test/sürüm
+- native-zip +1 (userMessageForZipError). check 225 OK, full 517/517 (41 suite). Sürüm alpha.82.
+
+### Kalan (öncelik sırası — sonraki küçük PR'lar)
+3. Builder self-validation gate (ZIP öncesi: php -l opsiyonel, JS/JSON parse; başarısızsa "uyarıyla üretildi").
+4. Project Brain Indexer PR#2 (indexer-queue + incremental manifest + maxFileSize + ignore; AST ayrı; renderer fs yok).
+5. Stable readiness audit.
+
+### 📌 CODEX/ChatGPT NOTU
+- Priority 3 için: project-executor'a executeProject ÖNCESİ opsiyonel validateFiles adımı; php -l varsa çalıştır (child_process, yoksa atla), .js new Function/parse, .json JSON.parse. Sonuç: {ok, warnings}. Başarısızsa exec devam ama result "uyarıyla üretildi" işaretlensin (ZIP yine üretilebilir veya blok — kullanıcı tercihi; öneri: uyarıyla üret).
+
+---
+
 ## Claude Update - 2026-07-01 15:45 — PR #145 review + alpha.81 release (zip patch traversal guard)
 
 ### Review sonucu: ONAY (Codex PR #145)
