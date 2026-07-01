@@ -98,6 +98,15 @@ const required = [
   "src/main/agent/__tests__/aep-cycle-integration.test.js",
   "src/main/agent/__tests__/context-continuity.test.js",
   "src/main/agent/__tests__/ask-direct-simple-mode.test.js",
+  "src/main/agent/indexer/path-guard.js",
+  "src/main/agent/indexer/file-lock.js",
+  "src/main/agent/indexer/atomic-json-store.js",
+  "src/main/agent/indexer/jsonl-chunk-store.js",
+  "src/main/agent/indexer/dependency-graph.js",
+  "src/main/agent/__tests__/indexer-file-lock.test.js",
+  "src/main/agent/__tests__/indexer-storage.test.js",
+  "src/main/agent/__tests__/indexer-path-guard.test.js",
+  "src/main/agent/__tests__/indexer-dependency-graph.test.js",
   "src/main/agent/__tests__/answer-adequacy.test.js",
   "src/main/agent/__tests__/model-manager-short-answer-guard.test.js",
   "src/main/agent/__tests__/nirvana-regression.test.js",
@@ -325,7 +334,7 @@ if (!mainFile.includes("seedCoreEngineeringRules")) throw new Error("main.js Aca
 const modelManagerFile = readText(join(root, "src/main/model-manager.js"));
 if (!modelManagerFile.includes("sanitizePrompt")) throw new Error("model-manager.js isim temizleme (sanitizePrompt) baglantisi eksik");
 
-if (pkg.version !== "6.0.0-alpha.72") throw new Error(`Desktop package version must be 6.0.0-alpha.72, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.73") throw new Error(`Desktop package version must be 6.0.0-alpha.73, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
