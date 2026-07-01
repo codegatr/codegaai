@@ -1,3 +1,25 @@
+## Claude Update - 2026-07-01 13:15 — Native OS ZIP (zero-dependency) executor'a mühürlendi (alpha.78)
+
+### İstek
+archiver "Module not found" + supply chain. Executor'ın zip katmanını OS-native komutlara taşı: win32→Compress-Archive, linux/darwin→zip -r; child_process promisify; temiz hata (EACCES/zip-missing); event-loop bloklamadan.
+
+### Yapılan
+- YENİ: src/main/services/executor/native-zip.js — zipDirectory(sourceDir,destZip): win32 PowerShell Compress-Archive '-Path src\* -Force' (klasör içeriği zip köküne); posix `zip -r -q dest .` (cwd=src). execFile promisify. Deterministik: eski zip unlink. TEMİZ hata objesi: {code,message,platform} (SOURCE_MISSING/POWERSHELL_MISSING/ZIP_NOT_INSTALLED/EACCES/...). isNativeZipAvailable() yumuşak kontrol.
+- project-executor.js: zip adımı artık ÖNCE native-zip; native yoksa/patlarsa güvenli archiver'a fallback (regresyon yok). result.zipEngine ile hangisi kullanıldı raporlanır.
+- native-zip.test.js (5): temiz hata, olmayan kaynak, gerçek native zip (Compress-Archive Windows'ta doğrulandı — 233B), deterministik overwrite. builder-deliver zaten native üzerinden geçiyor (11 test).
+
+### DÜRÜSTLÜK / kapsam (önemli)
+- archiver PROJEDEN TAMAMEN SİLİNMEDİ. Sebep: (a) zip-engine (güvenli export/import, kendi testleri) + builder-engine.packToZip hâlâ archiver kullanıyor; (b) POSIX'te `zip` her sistemde kurulu değil → native tek başına güvenilir değil, o yüzden fallback şart. check.mjs asarUnpack(archiver) guard'ı hâlâ geçerli.
+- Bu PR executor zip katmanını native-FIRST yaptı (istenen hedef: services/executor). Tam archiver kaldırma (zip-engine migrasyonu + builder packToZip + asarUnpack guard) ayrı, dikkatli PR — kendi testleriyle.
+
+### Test/sürüm
+- check 225 dosya OK, full 515/515 (41 suite). Sürüm alpha.78. native-zip + test required[].
+
+### 📌 CODEX NOTU
+- Sıradaki (tam archiver-free istiyorsak): builder-engine.packToZip'i native-zip'e taşı; zip-engine.create'i native-first yap (createProjectArchive'ın signature+integrity testleri korunmalı); sonra archiver'ı package.json'dan çıkar + check.mjs asarUnpack guard'ını kaldır. POSIX'te `zip` yoksa native-zip ZIP_NOT_INSTALLED veriyor → o durumda ne yapılacağına (fallback/uyarı) karar ver.
+
+---
+
 ## Claude Update - 2026-07-01 12:00 — Otonom teslim: File System Executor + bahane karşıtı davranış (alpha.77)
 
 ### Sorun

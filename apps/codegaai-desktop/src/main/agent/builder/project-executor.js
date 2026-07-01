@@ -71,13 +71,26 @@ async function executeProject(o = {}) {
 
   if (!written) throw new Error("Hiçbir dosya yazılamadı (hepsi güvenlik nedeniyle reddedildi)");
 
-  // ZIP: güvenli arşivleyiciyle klasörü paketle.
+  // ZIP: ÖNCE OS-native (zero-dependency: Compress-Archive / zip). Native yoksa
+  // veya patlarsa güvenli archiver'a düş (regresyon olmasın).
   const zipName = safeName(o.zipName || `${folder}.zip`, `${folder}.zip`).replace(/(\.zip)?$/i, ".zip");
   const zipPath = path.join(workspaceRoot, zipName);
-  const zipEngine = require("../zip/zip-engine");
-  await zipEngine.create(zipPath, targetDir);
+  let zipEngineUsed = "native";
+  try {
+    const { zipDirectory } = require("../../services/executor/native-zip");
+    const r = await zipDirectory(targetDir, zipPath);
+    zipEngineUsed = r.engine;
+  } catch (nativeErr) {
+    try {
+      const zipEngine = require("../zip/zip-engine");
+      await zipEngine.create(zipPath, targetDir);
+      zipEngineUsed = "archiver-fallback";
+    } catch (fallbackErr) {
+      throw new Error(`ZIP oluşturulamadı (native: ${nativeErr.code || nativeErr.message}; fallback: ${fallbackErr.message || fallbackErr})`);
+    }
+  }
 
-  return { ok: true, dir: targetDir, written, zipPath, zipName, skipped };
+  return { ok: true, dir: targetDir, written, zipPath, zipName, skipped, zipEngine: zipEngineUsed };
 }
 
 module.exports = { executeProject, atomicWrite, safeName };
