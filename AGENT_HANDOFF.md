@@ -1,4 +1,13 @@
-## Claude Update - 2026-06-30 21:30 — Project Brain Indexer PR#1: storage + lock + path security (alpha.73)
+## Claude Update - 2026-07-01 07:05 — CI doğrulama: indexer PR#1 (alpha.73→alpha.74)
+
+### CI / Release (doğrulandı)
+- alpha.73 Windows'ta FAIL etti: path-guard `fs.realpathSync.native` Windows'ta 8.3 KISA ad (RUNNER~1) döndürüp containment testini bozdu (lokalde geçti, CI'da patladı). Eksik release (macOS-only, latest.yml/exe yok) SİLİNDİ.
+- Düzeltme alpha.74: path-guard düz `fs.realpathSync` kullanır. **desktop-v6.0.0-alpha.74: Windows + macOS + Desktop Release hepsi SUCCESS**; 9 asset (latest.yml + .exe dahil), draft değil.
+- DERS (tekrar): platform-bağımlı API (`.native`) lokalde geçip CI'da patlar. "Windows path normalization" zorunlu testinin sebebi tam bu.
+
+---
+
+## Claude Update - 2026-06-30 21:30 — Project Brain Indexer PR#1: storage + lock + path security (alpha.73→74)
 
 ### Kapsam (bilinçli KÜÇÜK ilk PR — Codex mimari denetimi)
 AST/semantic chunker YOK (2. PR). Bu PR yalnız güvenlik çekirdeği: 5 modül + testler. External DB/Redis yok. Renderer'a fs yetkisi yok.
