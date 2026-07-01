@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld("codega", {
   agentWatchStatus: () => ipcRenderer.invoke("agent-watch:status"),
   runAgentWatch: () => ipcRenderer.invoke("agent-watch:scan"),
   openExternal: (url) => ipcRenderer.invoke("external:open", url),
+  openFileLocation: (filePath) => ipcRenderer.invoke("open-file-location", filePath),
   securityStatus: () => ipcRenderer.invoke("security:status"),
   routerInfo: () => ipcRenderer.invoke("router:info"),
   routerTest: (payload) => ipcRenderer.invoke("router:test", payload),
