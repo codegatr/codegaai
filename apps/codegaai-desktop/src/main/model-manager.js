@@ -779,6 +779,92 @@ function extractResearchQuery(input, history = []) {
   return q || String(input || "").slice(0, 140);
 }
 
+function parseResearchSources(research) {
+  const text = String(research || "");
+  const blocks = text.split(/\n(?=###\s+Kaynak\s+\d+\s*:)/i)
+    .map((block) => block.trim())
+    .filter(Boolean);
+  const sources = [];
+  for (const block of blocks) {
+    const titleMatch = block.match(/^###\s+Kaynak\s+\d+\s*:\s*(.+)$/im);
+    const urlMatch = block.match(/https?:\/\/[^\s)]+/i);
+    if (!titleMatch && !urlMatch) continue;
+    const lines = block.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const title = (titleMatch && titleMatch[1].trim()) || (lines[0] || "Kaynak");
+    const url = urlMatch ? urlMatch[0].replace(/[.,;:]+$/, "") : "";
+    const snippet = lines
+      .filter((line) => !/^###\s+Kaynak\s+\d+\s*:/i.test(line) && line !== url)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .slice(0, 260);
+    sources.push({ title, url, snippet });
+  }
+  if (!sources.length) {
+    const urlMatches = text.match(/https?:\/\/[^\s)]+/gi) || [];
+    for (const rawUrl of urlMatches.slice(0, 5)) {
+      sources.push({ title: rawUrl, url: rawUrl.replace(/[.,;:]+$/, ""), snippet: "" });
+    }
+  }
+  return sources.slice(0, 5);
+}
+
+function researchHosts(sources) {
+  return sources
+    .map((source) => {
+      try { return source.url ? new URL(source.url).hostname.replace(/^www\./i, "") : ""; }
+      catch (_e) { return ""; }
+    })
+    .filter(Boolean);
+}
+
+function sourceListMarkdown(sources) {
+  const usable = (sources || []).filter((source) => source && (source.url || source.title));
+  if (!usable.length) return "";
+  return usable
+    .map((source) => `- ${source.title}${source.url ? `: ${source.url}` : ""}`)
+    .join("\n");
+}
+
+function buildGroundedResearchFallback(query, research) {
+  const sources = parseResearchSources(research);
+  const sourceList = sourceListMarkdown(sources);
+  const bullets = sources
+    .filter((source) => source.snippet)
+    .slice(0, 3)
+    .map((source) => `- ${source.title}: ${source.snippet}`)
+    .join("\n");
+  const body = bullets || String(research || "").replace(/\s+/g, " ").slice(0, 700);
+  return [
+    `Internet arastirmasini kaynaklara bagli kalarak toparladim: "${query}".`,
+    "",
+    body,
+    sourceList ? "\nKaynaklar:\n" + sourceList : "",
+    "",
+    "Not: Kaynaklarda acikca yer almayan bilgileri kesin bilgi gibi eklemedim.",
+  ].join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function groundResearchAnswer(query, research, generated) {
+  const summary = String(generated || "").trim();
+  if (!summary) return buildGroundedResearchFallback(query, research);
+  const sources = parseResearchSources(research);
+  const hosts = researchHosts(sources);
+  const hasUrlInSummary = /https?:\/\//i.test(summary);
+  const mentionsKnownHost = hosts.some((host) => summary.toLowerCase().includes(host.toLowerCase()));
+  const isNumericOnly = /^[\s\d.,%+-]+$/.test(summary);
+  const isTooShort = summary.length < 40 && String(research || "").length > 120;
+  const looksLikeToolFailure = /^(?:final answer\s*:)?\s*(?:0(?:[.,]\d+)?|\d+(?:[.,]\d+)?|konya|6\s*tl)\s*$/i.test(summary);
+  const missingGrounding = sources.length > 0 && !hasUrlInSummary && !mentionsKnownHost;
+  if (isNumericOnly || looksLikeToolFailure || (isTooShort && missingGrounding)) {
+    return buildGroundedResearchFallback(query, research);
+  }
+  if (sources.length > 0 && !hasUrlInSummary) {
+    const sourceList = sourceListMarkdown(sources);
+    if (sourceList) return `${summary}\n\nKaynaklar:\n${sourceList}`;
+  }
+  return summary;
+}
+
 function detectTask(input) {
   const text = String(input || "").toLowerCase();
   if (/(php|python|javascript|typescript|react|node|api|site|web sitesi|program|uygulama|kod|script|fonksiyon|class|sql|html|css)\b/.test(text)) {
@@ -1285,7 +1371,7 @@ class ModelManager {
         ];
         let summary = "";
         try { summary = String(await this.generate(model, sumMsgs, [], opts.onToken || null) || "").trim(); } catch (_e) {}
-        const out = summary || research;
+        const out = groundResearchAnswer(query, research, summary || "");
         history.push({ role: "user", content: text0 });
         history.push({ role: "assistant", content: out });
         if (history.length > MAX_HISTORY_MESSAGES) history.splice(0, history.length - MAX_HISTORY_MESSAGES);
@@ -1725,7 +1811,7 @@ class ModelManager {
           ];
           const summary = await this.generate(selectedModel, sumMsgs, attemptModels, onToken);
           agent = {
-            content: String(summary || "").trim() || research,
+            content: groundResearchAnswer(query, research, summary || ""),
             iterations: 1, stoppedReason: "final_answer",
             toolCalls: [{ name: "research", result: research }],
           };

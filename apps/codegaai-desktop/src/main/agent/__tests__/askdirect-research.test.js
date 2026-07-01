@@ -13,6 +13,7 @@ describe("extractResearchQuery: temiz sorgu (Türkçe-güvenli, domain-öncelikl
   test("domain yoksa komut sözcükleri temizlenir", () => {
     expect(extractResearchQuery("internette laravel performans araştır")).toMatch(/laravel performans/);
   });
+
 });
 
 // askDirect web araştırma: (1) domain'li "bilgi ver" araştırma tetikler,
@@ -44,6 +45,32 @@ describe("askDirect web araştırma (uydurma önleme)", () => {
       const res = await mgr.askDirect("r10.net hakkında bilgi verir misin?", { chatId: "rf2" });
       expect(res.source).toBe("direct_research");
       expect(res.text).toMatch(/webmaster/i);
+    } finally { TOOLS.research.fn = orig; }
+  });
+
+  test("successful research ignores numeric model drift and returns grounded sources", async () => {
+    const mgr = new ModelManager();
+    mgr.installedModels = async () => ["qwen2.5:4b"];
+    mgr.generate = async () => "0.75";
+    const orig = TOOLS.research.fn;
+    TOOLS.research.fn = async () => [
+      "Research: codegaai",
+      "",
+      "### Kaynak 1: CODEGA AI Docs",
+      "https://example.com/codegaai",
+      "CODEGA AI local-first, tool-capable desktop agent platform.",
+      "",
+      "### Kaynak 2: Release Notes",
+      "https://example.com/releases",
+      "Release notes mention model-router and web research reliability.",
+    ].join("\n");
+    try {
+      const res = await mgr.askDirect("codegaai hakkinda internette arastir", { chatId: "rf3" });
+      expect(res.source).toBe("direct_research");
+      expect(res.text).not.toBe("0.75");
+      expect(res.text).toMatch(/kaynaklara bagli/i);
+      expect(res.text).toMatch(/https:\/\/example\.com\/codegaai/);
+      expect(res.text).toMatch(/CODEGA AI Docs/);
     } finally { TOOLS.research.fn = orig; }
   });
 });
