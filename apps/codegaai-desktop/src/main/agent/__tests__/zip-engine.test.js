@@ -117,6 +117,22 @@ describe("ZipEngine secure project import/export", () => {
     expect(() => zip._assertSafeEntryName("C:/tmp/evil.txt")).toThrow(/absolute/i);
   });
 
+  test("patch rejects unsafe entry names and cannot write outside temp extraction", async () => {
+    const source = path.join(dir, "patch-source");
+    const archive = path.join(dir, "patch-source.zip");
+    const patched = path.join(dir, "patch-out.zip");
+    const outside = path.join(dir, "outside.txt");
+    await writeProject(source);
+    await zip.createProjectArchive(source, archive);
+
+    await expect(zip.patch(archive, patched, [
+      { action: "add", name: "../outside.txt", content: "owned" },
+    ])).rejects.toThrow(/path traversal/i);
+
+    expect(await exists(outside)).toBe(false);
+    expect(await exists(patched)).toBe(false);
+  }, 15000);
+
   test("commit rollback: overwritten file restored on mid-commit failure, no temp leftover", async () => {
     const source = path.join(dir, "src-commit");
     const workspace = path.join(dir, "ws-commit");

@@ -1632,3 +1632,30 @@ Kullanici ChatGPT notu ekledi: yerel modelin "Konya/0.75/parcalara bol" refleksl
 - Onceki PR #121 merge edildigi icin eski branch'e force push yapmak yeterli degildi; alpha.65-68 degisikliklerini geri almamak icin yeni main tabanli branch acildi.
 
 ---
+## Codex Update - 2026-07-01 - ZIP patch path traversal hardening after alpha.80 review
+
+### Current Task
+Kullanici "Claude yazdi, kontrol et" dedi. alpha.80 zero-dependency native ZIP migrasyonu incelendi.
+
+### Finding
+- Runtime dependency olarak `archiver` kalkmis; zip-engine/builder/executor native ZIP'e tasinmis.
+- Ancak `zip-engine.patch()` patch entry adlarini `assertSafeEntryName()` ile dogrulamadan `path.join(tmpDir, p.name)` yapiyordu.
+- Senaryo: `zip.patch(src, dest, [{ action:"add", name:"../outside.txt" }])` temp extraction disina yazmaya kalkabilir. Bu import entry guard'larindan ayri bir patch API bosluguydu.
+- Ek olarak patch sirasinda hata olursa temp extraction klasoru temizlenmeden kalabiliyordu.
+
+### Fix
+- `zip-engine.patch()` her patch name icin once `assertSafeEntryName(p.name)` cagiriyor, sonra temp kok icinde path olusturuyor.
+- `patch()` akisi `try/finally` ile temp klasoru basarida da hatada da temizliyor.
+- Regression: `zip-engine.test.js` unsafe patch entry'i reddeder, `outside.txt` ve hedef patched zip olusmaz.
+
+### Tests Run
+- `node node_modules/jest/bin/jest.js src/main/agent/__tests__/zip-engine.test.js src/main/agent/__tests__/native-zip.test.js --runInBand` -> PASS, 13/13.
+- `npm run check` -> PASS, 225 JS dosyasi, version 6.0.0-alpha.80.
+- `node node_modules/jest/bin/jest.js --ci --runInBand` -> PASS, 41 suites, 516/516.
+- `npm run release:prepare` -> PASS, check + 41 suites, 516/516.
+
+### Notes For Claude + ChatGPT
+- Bu follow-up branch: `codex/harden-zip-patch-paths`.
+- alpha.80'in genel native ZIP migrasyonu dogru gorunuyor; bu patch migration review sirasinda yakalanan ek guvenlik sertlestirmesidir.
+
+---

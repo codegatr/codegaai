@@ -371,27 +371,31 @@ async function importProjectArchive(zipPath, workspaceDir, opts = {}) {
 async function patch(srcZip, destZip, patches) {
   // 1. Geçici klasöre çıkar
   const tmpDir = path.join(os.tmpdir(), `codega_zip_${crypto.randomUUID()}`);
-  await extract(srcZip, tmpDir);
+  try {
+    await extract(srcZip, tmpDir);
 
-  // 2. Yamaları uygula
-  for (const p of patches) {
-    const target = path.join(tmpDir, p.name);
-    if (p.action === "delete") {
-      await fsp.rm(target, { force: true });
-    } else if (p.action === "add" || p.action === "modify") {
-      await fsp.mkdir(path.dirname(target), { recursive: true });
-      const data = typeof p.content === "string"
-        ? Buffer.from(p.content, "utf8")
-        : (p.content || Buffer.alloc(0));
-      await fsp.writeFile(target, data);
+    // 2. Yamaları uygula
+    for (const p of patches) {
+      const safeName = assertSafeEntryName(p.name);
+      const target = path.join(tmpDir, safeName);
+      if (p.action === "delete") {
+        await fsp.rm(target, { force: true });
+      } else if (p.action === "add" || p.action === "modify") {
+        await fsp.mkdir(path.dirname(target), { recursive: true });
+        const data = typeof p.content === "string"
+          ? Buffer.from(p.content, "utf8")
+          : (p.content || Buffer.alloc(0));
+        await fsp.writeFile(target, data);
+      }
     }
+
+    // 3. Yeni ZIP oluştur
+    await create(destZip, tmpDir);
+
+  } finally {
+    // 4. Geçici klasörü temizle
+    await fsp.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
-
-  // 3. Yeni ZIP oluştur
-  await create(destZip, tmpDir);
-
-  // 4. Geçici klasörü temizle
-  await fsp.rm(tmpDir, { recursive: true, force: true });
 }
 
 module.exports = {
