@@ -359,7 +359,9 @@ const extractFilesFile = readText(join(root, "src/main/agent/builder/extract-fil
 if (!extractFilesFile.includes("fileNameFromContent") || !extractFilesFile.includes("fileNameFromComment")) throw new Error("extract-files.js akıllı dosya adı (fileNameFromContent/fileNameFromComment) eksik");
 if (!/schema\.sql/.test(extractFilesFile) || !/\.htaccess/.test(extractFilesFile) || !/config\.php/.test(extractFilesFile)) throw new Error("extract-files.js içerik-tabanlı isimlendirme sezgileri (schema.sql/.htaccess/config.php) eksik");
 
-if (pkg.version !== "6.0.0-alpha.84") throw new Error(`Desktop package version must be 6.0.0-alpha.84, got ${pkg.version}`);
+if (!mainEvoFile.includes("isSubPath") || !mainEvoFile.includes("resolvedTarget")) throw new Error("main.js Klasörde Göster salt-okunur sağlam containment (isSubPath/resolvedTarget) eksik");
+
+if (pkg.version !== "6.0.0-alpha.85") throw new Error(`Desktop package version must be 6.0.0-alpha.85, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
