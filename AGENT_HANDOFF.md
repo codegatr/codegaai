@@ -1,3 +1,31 @@
+## Claude Update - 2026-07-01 — alpha.94: P2 Öz-düzeltme (varsayılan yol)
+
+### Ne (kullanıcı: "hatasını anlayıp düzeltme")
+Varsayılan yol (askDirect) artık kendi çöp cevabını fark edip BİR kez düzeltiyor.
+- Yeni: src/main/agent/answer-quality.js → looksDegenerate(answer, question):
+  ucuz, MODEL-ÇAĞIRMAYAN sezici. bad reason: empty / runaway_repetition
+  (anti-loop.detectRunawayRepetition) / role_confusion (META_RE: "benim yanıtımı
+  bekliyorsunuz", "sizin tarafınıza geçtikten sonra", "hangi yolu izliyorsunuz" vb.).
+- askDirect: üretimden sonra looksDegenerate.bad ise TEK düzeltici retry (akmaz,
+  onToken yok; düzeltici system+user talimatı). Retry temizse text=retry,
+  source="direct_selfcorrected". Değilse ilk (temizlenmiş) metin kalır. Sonsuz döngü yok.
+- Test: answer-quality.test.js (6): sezici + akış (bozuk→retry→düzelir, temiz→retry yok).
+- check.mjs: required[] + looksDegenerate + direct_selfcorrected guard.
+- NOT: too_short (<=2 char) kuralı KALDIRILDI — test stub "ok" gibi kısa yanıtlarda
+  yanlış-pozitif veriyordu; empty+runaway+role_confusion yeterli/güvenli.
+
+### Gate: check 234 · test:ci 548/548. Sürüm alpha.94.
+
+### Yol haritası kalan
+- P3 ZIP/veri analizini sohbete bağla (SONRAKİ öneri)
+- P4 Site analizi artı/eksi
+- P5 Chat/Cowork/Code gerçek davranış farkı
+- UYARI: retry ilk (bozuk) akışı kullanıcıya CANLI göstermiş olabilir; final mesaj
+  düzeltilmiş olur. İleride streaming-sırasında-restart ayrı iş. Model gücü (4B) hâlâ ana
+  sınır; öz-düzeltme kötü→daha az kötü yapar, mucize değil. 7B ile çok daha etkili.
+
+---
+
 ## Claude Update - 2026-07-01 — alpha.93: Uçtan uca denetim + İnsani Ton (P1)
 
 ### DERİN DENETİM (kullanıcı talebi: uçtan uca kontrol, insani dönüşler, üst seviye ajan)

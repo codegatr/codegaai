@@ -20,6 +20,7 @@ const logs = require("./agent/logs");
 const { buildSystemPrompt } = require("./agent/system-prompt");
 const { REASONING_GUARDRAILS } = require("./agent/reasoning-guardrails");
 const { collapseRepetition } = require("./agent/anti-loop");
+const { looksDegenerate } = require("./agent/answer-quality");
 const { sanitizePrompt } = require("./agent/sanitize-prompt");
 const answerAdequacy = require("./agent/answer-adequacy");
 const { getSettings } = require("./agent/settings-store");
@@ -1424,11 +1425,32 @@ class ModelManager {
     }
     this._abort = null;
 
+    // ÖZ-DÜZELTME (hatasını anla-düzelt): cevap bozuksa (boş / kendini tekrar /
+    // rol karışması) BİR kez düzeltici retry. Ağır pipeline yok — tek ek üretim,
+    // yalnız ucuz sezici tetiklerse. Retry akmaz (onToken yok); final metni değişir.
+    let source = "direct";
+    const q = looksDegenerate(text, text0);
+    if (q.bad && !this._aborted) {
+      try { logs.info("self_correct", `reason=${q.reason} model=${model}`); } catch (_e) {}
+      const retryMsgs = messages.concat([
+        { role: "assistant", content: text.slice(0, 300) },
+        { role: "user", content:
+          "Bu yanıt bozuk (boş, kendini tekrar ediyor ya da konudan koptun). " +
+          "Aynı soruyu ŞİMDİ KISA, net, TEK seferde ve TEKRARSIZ yeniden yanıtla. " +
+          "Kendinle konuşma; 'benim yanıtım / sizin tarafınız / hangi yolu izliyorsunuz' gibi ifadeler KULLANMA." },
+      ]);
+      this._abort = new AbortController();
+      let retry = "";
+      try { retry = String(await this.generate(model, retryMsgs, [], null) || "").trim(); } catch (_e) {}
+      this._abort = null;
+      if (retry && !looksDegenerate(retry, text0).bad) { text = retry; source = "direct_selfcorrected"; }
+    }
+
     if (!text) text = "Şu an yanıt üretemedim. Ollama'nın açık ve bir modelin kurulu olduğundan emin olup tekrar dener misin?";
     history.push({ role: "user", content: text0 });
     history.push({ role: "assistant", content: text });
     if (history.length > MAX_HISTORY_MESSAGES) history.splice(0, history.length - MAX_HISTORY_MESSAGES);
-    return { text, model, source: "direct" };
+    return { text, model, source };
   }
 
   /**
