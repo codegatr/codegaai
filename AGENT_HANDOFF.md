@@ -1,3 +1,32 @@
+## Claude Update - 2026-07-01 — alpha.97: P4 Site Denetimi (yapılandırılmış artı/eksi)
+
+### Ne (kullanıcı: "bir siteyi analiz et dediğimizde artısı eksisi kontrol edilsin")
+- model-manager.js wantsSiteAudit(input): domain/URL/"bu siteyi" + analiz/denetle/değerlendir/
+  artı-eksi/güçlü-zayıf/audit niyeti → site denetimi.
+- askDirect araştırma dalı: siteAudit ise özet prompt'u YAPILANDIRILMIŞ formata döner:
+  ## Genel Bakış / ## ✅ Artılar / ## ⚠️ Eksiler / ## Öneriler + kaynak linkleri.
+  "🔍 Siteyi denetliyorum" ısınma satırı. source: "direct_site_audit".
+- Mevcut koruma zinciri OTOMATİK uygulanır: grounding (groundResearchAnswer) + char-salad/
+  dejenerasyon fallback + araştırma-başarısız-uydurma-önleme. Yeni boru hattı YOK.
+- Test: site-audit.test.js (3): niyet true/false vakaları + akış (yapılandırılmış prompt +
+  direct_site_audit).
+
+### ÖNEMLİ BULGU: _foldTr BOZUK (mojibake)
+model-manager.js _foldTr'ın replace hedefleri dosya kodlaması bozulması nedeniyle mojibake
+("Ä±") — GERÇEK Türkçe karakterleri katlayamıyor. wantsSiteAudit bu yüzden _foldTr yerine
+[ıi] karakter sınıflı TR-güvenli regex kullanıyor. _foldTr'a bağımlı diğer seziciler
+(wantsWebResearch vb.) Türkçe girdilerde sessiz kaçırma yapabilir → AYRI düzeltme işi
+(kullanıcıya chip bırakıldı). Codex/ChatGPT: _foldTr'ı düzeltirken buradaki karakter-sınıfı
+regex'leri bozmayın.
+
+### check.mjs guard: wantsSiteAudit/direct_site_audit. Sürüm alpha.97.
+### Gate: check 235 · test:ci 553/553.
+
+### Yol haritası: ✅P1(93) ✅P2(94-95) ✅P3(96) ✅P4(97) · ⏭️P5 Chat/Cowork/Code davranış farkı
+### Diğer bekleyen: _foldTr fix, Indexer PR#2, stable audit, grounding v2, 7B teşhisi.
+
+---
+
 ## Claude Update - 2026-07-01 — alpha.96: P3 ZIP yapılandırılmış analizi sohbete bağlandı
 
 ### Ne (kullanıcı: "ZIP dahil tüm veriyi incelemesi gerek")

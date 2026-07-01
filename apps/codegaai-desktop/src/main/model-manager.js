@@ -751,6 +751,17 @@ function wantsWebResearch(input) {
   return false;
 }
 
+/** SİTE DENETİMİ niyeti mi? ("şu siteyi analiz et / artı eksi / denetle / değerlendir")
+ *  NOT: _foldTr'a güvenme — dosya kodlaması nedeniyle gerçek TR karakterleri
+ *  katlayamayabiliyor; regex'ler [ıi] gibi karakter sınıflarıyla TR-güvenli yazılır. */
+function wantsSiteAudit(input) {
+  const q = String(input || "").toLowerCase();
+  const hasDomain = /\b[a-z0-9-]+\.(net|com|org|io|dev|gov|edu|co|tr|info|biz|com\.tr|net\.tr|org\.tr)\b/.test(q)
+    || /https?:\/\//.test(q) || /\b(bu |[şs]u )?site(yi|nin|ye)?\b/.test(q);
+  const hasAuditIntent = /(analiz|denetle|de[ğg]erlendir|art[ıi]\w*\s*(ve|\/|,)?\s*eksi|eksi\w*\s*(ve|\/|,)?\s*art[ıi]|g[üu][çc]l[üu].*zay[ıi]f|zay[ıi]f.*g[üu][çc]l[üu]|audit)/.test(q);
+  return hasDomain && hasAuditIntent;
+}
+
 /** AraÅŸtÄ±rma sorgusunu Ã§Ä±kar: komut sÃ¶zcÃ¼klerini at; yetersizse geÃ§miÅŸten konuyu ekle. */
 function extractResearchQuery(input, history = []) {
   const raw = String(input || "").trim();
@@ -1363,18 +1374,28 @@ class ModelManager {
     // WEB ARAŞTIRMA: "internette ara / şu siteye bak" gibi istekte zayıf yerel model
     // aracı tetikleyemiyor → BİZ araştırırız. Aksi halde "hangi projeyi üretelim?" veya
     // "kod bloğu üretemem" gibi ALAKASIZ cevap dönüyordu.
-    if (wantsWebResearch(text0)) {
+    const siteAudit = wantsSiteAudit(text0);
+    if (wantsWebResearch(text0) || siteAudit) {
       const query = extractResearchQuery(text0, history);
-      if (opts.onToken) { try { opts.onToken(`🔎 İnternette araştırıyorum: "${query}"…\n\n`); } catch (_e) {} }
+      if (opts.onToken) { try { opts.onToken(siteAudit ? `🔍 Siteyi denetliyorum: "${query}"…\n\n` : `🔎 İnternette araştırıyorum: "${query}"…\n\n`); } catch (_e) {} }
       let research = "";
       try { research = await AGENT_TOOLS.research.fn(query, 3); }
       catch (e) { research = `⚠️ ${e && (e.message || e)}`; }
       if (!/^⚠️|kaynak bulunamad/i.test(research)) {
-        const sumMsgs = [
-          { role: "system", content:
-            "Aşağıda internetten TOPLADIĞIN web kaynakları var. Bunları KENDİ SÖZCÜKLERİNLE, Türkçe, " +
+        // SİTE DENETİMİ: yapılandırılmış artı/eksi çıktısı iste; normal araştırmada özet.
+        const summarizePrompt = siteAudit
+          ? "Aşağıda incelediğin siteye ait web kaynakları var. YALNIZ bu kaynaklara dayanarak " +
+            "yapılandırılmış bir SİTE DENETİMİ yaz — Türkçe, şu başlıklarla:\n" +
+            "## Genel Bakış (1-2 cümle: site nedir, kime hitap eder)\n" +
+            "## ✅ Artılar (madde madde, kaynağa dayalı güçlü yönler)\n" +
+            "## ⚠️ Eksiler (madde madde, kaynağa dayalı zayıf yönler/riskler)\n" +
+            "## Öneriler (2-3 somut iyileştirme)\n" +
+            "Kaynaklarda olmayan bilgiyi UYDURMA; emin olmadığını belirt. Sonunda kaynak linklerini listele."
+          : "Aşağıda internetten TOPLADIĞIN web kaynakları var. Bunları KENDİ SÖZCÜKLERİNLE, Türkçe, " +
             "derli toplu özetle. Kullanıcıya 'sen ara/Google'a bak' ASLA deme — araştırmayı SEN yaptın. " +
-            "Önemli noktaları maddele; kaynaklarda yoksa uydurma; sonunda kaynak linklerini listele." },
+            "Önemli noktaları maddele; kaynaklarda yoksa uydurma; sonunda kaynak linklerini listele.";
+        const sumMsgs = [
+          { role: "system", content: summarizePrompt },
           { role: "user", content: research },
         ];
         let summary = "";
@@ -1383,7 +1404,7 @@ class ModelManager {
         history.push({ role: "user", content: text0 });
         history.push({ role: "assistant", content: out });
         if (history.length > MAX_HISTORY_MESSAGES) history.splice(0, history.length - MAX_HISTORY_MESSAGES);
-        return { text: out, model, source: "direct_research" };
+        return { text: out, model, source: siteAudit ? "direct_site_audit" : "direct_research" };
       }
       // ARAŞTIRMA İSTENDİ ama BAŞARISIZ: modele düşüp UYDURMASINA izin verme
       // (zayıf model var-olmayan şirket/kaynak icat ediyordu). Dürüst dön.
@@ -2578,6 +2599,7 @@ module.exports = {
   repairTaskBoundaryLeak,
   hashTaskBody,
   wantsWebResearch,
+  wantsSiteAudit,
   extractResearchQuery,
   candidateModelsForTask,
   chooseModelForTask,
