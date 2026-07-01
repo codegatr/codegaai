@@ -382,8 +382,9 @@ if (!modelManagerFile.includes("direct_research_failed")) throw new Error("model
 if (!antiLoopFile.includes("truncateAtPhraseLoop")) throw new Error("anti-loop.js run-on ifade tekrarı kesici (truncateAtPhraseLoop) eksik");
 if (!modelManagerFile.includes("domMatch")) throw new Error("model-manager.js extractResearchQuery domain-öncelikli/Türkçe-güvenli (domMatch) değil");
 if (!modelManagerFile.includes("groundResearchAnswer") || !modelManagerFile.includes("parseResearchSources")) throw new Error("model-manager.js web araştırma grounding (groundResearchAnswer/parseResearchSources) eksik");
+if (!ollamaClientFile.includes("keep_alive") || !ollamaClientFile.includes("DEFAULT_KEEP_ALIVE")) throw new Error("ollama-client.js modeli sıcak tutma (keep_alive/DEFAULT_KEEP_ALIVE) eksik");
 
-if (pkg.version !== "6.0.0-alpha.91") throw new Error(`Desktop package version must be 6.0.0-alpha.91, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.92") throw new Error(`Desktop package version must be 6.0.0-alpha.92, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

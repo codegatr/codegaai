@@ -20,6 +20,10 @@ const DEFAULT_TEMPERATURE = 0.2;
 // Çıktı token tavanına (done_reason:"length") çarpıldığında kaç kez otomatik
 // "kaldığın yerden devam et" turu atılacağı. Yarıda kesilmeyi yazılımsal engeller.
 const DEFAULT_MAX_CONTINUATIONS = 3;
+// Modeli RAM'de SICAK tut: keep_alive verilmezse Ollama modeli boşaltıyor ve bir
+// sonraki istekte tekrar yüklüyor → 20-30sn TTFT (ilk token gecikmesi). "30m" ile
+// model yüklü kalır, ardışık mesajlarda ısınma maliyeti ödenmez.
+const DEFAULT_KEEP_ALIVE = process.env.OLLAMA_KEEP_ALIVE || "30m";
 
 /**
  * Ollama generation seçeneklerini kur. Önceden yalnız temperature/num_ctx
@@ -105,6 +109,7 @@ async function ollamaChat(model, messages, opts = {}) {
         messages,
         stream: false,
         think,
+        keep_alive: opts.keepAlive || DEFAULT_KEEP_ALIVE,
         options: buildGenOptions({ ...opts, numCtx: adaptiveNumCtx(messages, opts.numCtx, opts.numPredict) }),
       }),
       signal: controller.signal,
@@ -163,6 +168,7 @@ async function streamChatOnce(model, messages, opts = {}) {
         messages,
         stream: true,
         think,
+        keep_alive: opts.keepAlive || DEFAULT_KEEP_ALIVE,
         options: genOptions || buildGenOptions(opts),
       }),
       signal: controller.signal,
