@@ -98,6 +98,7 @@ const required = [
   "src/main/agent/__tests__/aep-cycle-integration.test.js",
   "src/main/agent/__tests__/context-continuity.test.js",
   "src/main/agent/__tests__/ask-direct-simple-mode.test.js",
+  "src/main/agent/__tests__/ace-brief.test.js",
   "src/main/agent/indexer/path-guard.js",
   "src/main/agent/indexer/file-lock.js",
   "src/main/agent/indexer/atomic-json-store.js",
@@ -338,7 +339,7 @@ if (!mainFile.includes("seedCoreEngineeringRules")) throw new Error("main.js Aca
 const modelManagerFile = readText(join(root, "src/main/model-manager.js"));
 if (!modelManagerFile.includes("sanitizePrompt")) throw new Error("model-manager.js isim temizleme (sanitizePrompt) baglantisi eksik");
 
-if (pkg.version !== "6.0.0-alpha.75") throw new Error(`Desktop package version must be 6.0.0-alpha.75, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.76") throw new Error(`Desktop package version must be 6.0.0-alpha.76, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

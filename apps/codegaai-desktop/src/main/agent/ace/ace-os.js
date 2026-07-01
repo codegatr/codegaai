@@ -78,6 +78,68 @@ class ACEOS {
   }
 
   /**
+   * BİLİŞSEL ÖZET (bounded, ucuz, asla throw etmez). Modele "mesaj" değil "anlam"
+   * verir: aktif proje + açık işler/bilinen buglar/roadmap + bu sohbetin konuları
+   * + hedefler + son mühendislik dersleri. "falanca sorunu çöz" / "devam et" gibi
+   * atıfları modelin çözebilmesi için gereken bağlamı KISA tutarak sağlar.
+   * @returns {string}
+   */
+  buildBrief({ userId="default", maxChars=1600 }={}) {
+    try {
+      const lines = [];
+      const wm = this.workingMemory.snapshot();
+      const active = wm && wm.activeProject;
+      const asText = (x) => typeof x === "string" ? x : (x && (x.title || x.text || x.label || x.name)) || "";
+      const top = (arr, n) => (Array.isArray(arr) ? arr.slice(-n).map(asText).filter(Boolean) : []);
+
+      if (active) {
+        lines.push(`## Aktif proje: ${active}`);
+        const p = this.projectBrain.get(active);
+        if (p) {
+          const techs = top(p.technologies, 6);
+          if (techs.length) lines.push(`Teknolojiler: ${techs.join(", ")}`);
+          const bugs = top(p.knownBugs, 4);
+          if (bugs.length) lines.push(`Bilinen sorunlar/buglar: ${bugs.join(" | ")}`);
+          const todos = top(p.openTodos, 5);
+          if (todos.length) lines.push(`Açık işler: ${todos.join(" | ")}`);
+          const road = top(p.roadmap, 3);
+          if (road.length) lines.push(`Roadmap: ${road.join(" | ")}`);
+          const rules = top(p.businessRules, 3);
+          if (rules.length) lines.push(`İş kuralları: ${rules.join(" | ")}`);
+        }
+      }
+
+      try {
+        const conv = this.conversationMemory.summary ? this.conversationMemory.summary() : null;
+        const cur = (conv && (conv.currentTopics || conv.recentTopics)) || [];
+        const topics = cur.slice(-5).map(asText).filter(Boolean);
+        if (topics.length) lines.push(`Bu sohbette konuşulanlar: ${topics.join(" | ")}`);
+      } catch (_e) {}
+
+      try {
+        const g = this.goalMemory.summary ? this.goalMemory.summary(userId) : null;
+        const goals = (g && (g.active || g.goals || g.top)) || [];
+        const gt = (Array.isArray(goals) ? goals : []).slice(0, 3).map(asText).filter(Boolean);
+        if (gt.length) lines.push(`Hedefler: ${gt.join(" | ")}`);
+      } catch (_e) {}
+
+      try {
+        const e = this.engineeringBrain.summary ? this.engineeringBrain.summary() : null;
+        const lessons = (e && (e.recent || e.lessons || e.top)) || [];
+        const lt = (Array.isArray(lessons) ? lessons : []).slice(0, 3).map(asText).filter(Boolean);
+        if (lt.length) lines.push(`Mühendislik dersleri (tekrar etme): ${lt.join(" | ")}`);
+      } catch (_e) {}
+
+      if (!lines.length) return "";
+      let brief = "BİLİŞSEL HAFIZA (bu ilişkinin geçmişi — gerektiğinde atıfları buradan çöz):\n" + lines.join("\n");
+      if (brief.length > maxChars) brief = brief.slice(0, maxChars) + " …";
+      return brief;
+    } catch (_e) {
+      return "";
+    }
+  }
+
+  /**
    * Gelen mesajı işle:
    * 1. Referans çözümle ("devam et" → gerçek görev)
    * 2. Bilinen bir varlığa (proje/kişi) atıfta bulunuyorsa working memory'yi güncelle

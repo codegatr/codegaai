@@ -1253,9 +1253,13 @@ class ModelManager {
 
     const messages = [
       { role: "system", content: "Sen CODEGA AI'sın. Kullanıcının sorusuna Türkçe, net ve DOĞRUDAN cevap ver. Gereksiz uzatma, konu dışına çıkma, soruyu tekrar etme." },
-      ...history.slice(-MAX_HISTORY_MESSAGES),
-      { role: "user", content: text0 },
     ];
+    // BİLİŞSEL HAFIZA: varsa proje/karar/hedef özetini ekle → "falanca sorunu çöz"
+    // gibi atıflar bağlamdan çözülür, kullanıcı tekrar anlatmaz.
+    const cog = String(opts.cognitiveContext || "").trim();
+    if (cog) messages.push({ role: "system", content: cog });
+    messages.push(...history.slice(-MAX_HISTORY_MESSAGES));
+    messages.push({ role: "user", content: text0 });
 
     this._abort = new AbortController();
     this._aborted = false;
