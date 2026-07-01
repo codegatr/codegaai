@@ -1,3 +1,31 @@
+## Claude Update - 2026-07-01 — alpha.85: "Klasörde Göster" yanlış-pozitif reddi düzeltildi
+
+### Bug
+Kullanıcı deliver sonrası "📁 Klasörde Göster"e basınca:
+  "Klasör açılamadı: Bu yol izinli çalışma alanının dışında."
+ZIP her zaman userData/codega-workspace altında üretiliyor (allowlist kökü) — yani yol
+gerçekte İÇERİDE. Sorun open-file-location IPC'sinin assertWithinRoot ile realpath/symlink
+sertleştirmesi yapmasıydı: bazı Windows kurulumlarında (AppData junction / OneDrive
+yönlendirmesi) kök ile hedefin realpath'i farklı çözülüp yanlış-pozitif "dışında" veriyordu.
+
+### Fix (main.js open-file-location)
+- Salt-OKUNUR "Explorer'da göster" için realpath sertleştirmesi AŞIRI katıydı. Artık:
+  path.resolve(target) (".." kaçışını kapatır) + isSubPath(root, resolved) düz containment
+  + fs.existsSync. Traversal hâlâ bloklu (repro: inside=true, ../../Windows escape=false).
+- Reddedilirse console.error ile hedef+kökleri loglar (ileride teşhis için).
+- assertWithinRoot YAZMA yolunda (project-executor) AYNEN duruyor — orada symlink sertliği
+  gerekli; sadece salt-okunur reveal gevşetildi.
+- check.mjs guard: isSubPath/resolvedTarget. Sürüm alpha.85.
+
+### Gate: check 227 · path-guard 6/6 · full jest 527/527 · release:prepare 527/527.
+
+### Not (Codex/ChatGPT)
+- Güvenlik zayıflamadı: reveal salt-okunur, dosya zaten kullanıcının makinesinde, traversal
+  isSubPath ile kapalı. WRITE tarafı (executeProject) tam sertlikte.
+- Sıradaki: 4) Indexer PR#2, 5) stable audit.
+
+---
+
 ## Claude Update - 2026-07-01 — alpha.84: Smart File Naming (otonom dosya isimlendirme)
 
 ### Sorun

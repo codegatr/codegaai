@@ -1022,19 +1022,25 @@ function registerIpc() {
     try {
       const target = String(rawPath || "").trim();
       if (!target) return { ok: false, error: "Yol boş." };
-      const { assertWithinRoot } = require("./agent/indexer/path-guard");
+      if (target.includes("\0")) return { ok: false, error: "Geçersiz yol." };
+      const { isSubPath } = require("./agent/indexer/path-guard");
       const allowedRoots = [
         path.join(app.getPath("userData"), "codega-workspace"),
         path.join(app.getPath("userData"), "builder-output"),
       ];
-      let safe = null;
-      for (const root of allowedRoots) {
-        try { safe = assertWithinRoot(root, target); break; } catch (_e) { /* sıradaki kök */ }
+      // Salt-okunur "Explorer'da göster" için düz containment yeterli ve sağlam:
+      // path.resolve ".." kaçışını kapatır (isSubPath gerçek-prefix denetler).
+      // realpath/symlink sertleştirmesi burada AŞIRI katıydı ve bazı kurulumlarda
+      // (AppData junction/OneDrive) yanlış-pozitif "dışında" hatası veriyordu.
+      const resolvedTarget = path.resolve(target);
+      const allowed = allowedRoots.some((root) => isSubPath(root, resolvedTarget));
+      if (!allowed) {
+        try { console.error("[open-file-location] reddedildi:", resolvedTarget, "roots:", allowedRoots); } catch (_e) {}
+        return { ok: false, error: "Bu yol izinli çalışma alanının dışında." };
       }
-      if (!safe) return { ok: false, error: "Bu yol izinli çalışma alanının dışında." };
-      if (!fs.existsSync(safe)) return { ok: false, error: "Dosya bulunamadı." };
-      shell.showItemInFolder(safe);
-      return { ok: true, path: safe };
+      if (!fs.existsSync(resolvedTarget)) return { ok: false, error: "Dosya bulunamadı." };
+      shell.showItemInFolder(resolvedTarget);
+      return { ok: true, path: resolvedTarget };
     } catch (e) {
       return { ok: false, error: e && e.message ? e.message : String(e) };
     }
