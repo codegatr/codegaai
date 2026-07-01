@@ -114,7 +114,9 @@ const required = [
   "src/main/agent/builder/extract-files.js",
   "src/main/agent/builder/build-intent.js",
   "src/main/services/executor/native-zip.js",
+  "src/main/services/executor/validate-files.js",
   "src/main/agent/__tests__/native-zip.test.js",
+  "src/main/agent/__tests__/validate-files.test.js",
   "src/main/agent/__tests__/builder-spec.test.js",
   "src/main/agent/__tests__/builder-entity-php.test.js",
   "src/main/agent/__tests__/builder-deliver.test.js",
@@ -349,7 +351,11 @@ if (!mainFile.includes("seedCoreEngineeringRules")) throw new Error("main.js Aca
 const modelManagerFile = readText(join(root, "src/main/model-manager.js"));
 if (!modelManagerFile.includes("sanitizePrompt")) throw new Error("model-manager.js isim temizleme (sanitizePrompt) baglantisi eksik");
 
-if (pkg.version !== "6.0.0-alpha.82") throw new Error(`Desktop package version must be 6.0.0-alpha.82, got ${pkg.version}`);
+const validateFilesFile = readText(join(root, "src/main/services/executor/validate-files.js"));
+if (!validateFilesFile.includes("validateFiles") || !validateFilesFile.includes("isModuleSyntaxError")) throw new Error("validate-files.js Builder self-validation (validateFiles/isModuleSyntaxError) eksik");
+if (!mainEvoFile.includes("validate-files") || !mainEvoFile.includes("UYARIYLA ÜRETİLDİ")) throw new Error("main.js deliver akışı ZIP öncesi self-validation (validate-files/uyarıyla üretildi) bağlanmamış");
+
+if (pkg.version !== "6.0.0-alpha.83") throw new Error(`Desktop package version must be 6.0.0-alpha.83, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

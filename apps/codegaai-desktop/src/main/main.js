@@ -655,16 +655,27 @@ function registerIpc() {
         if (files.length) {
           const workspaceRoot = path.join(app.getPath("userData"), "codega-workspace");
           try {
+            // SELF-VALIDATION: ZIP'ten ÖNCE temel syntax kontrolü (php -l / JSON / JS).
+            // Bloklamaz; uyarı varsa sonucu "uyarıyla üretildi" diye işaretler.
+            let validation = { ok: true, warnings: [] };
+            try {
+              const { validateFiles } = require("./services/executor/validate-files");
+              validation = await validateFiles(files);
+            } catch (_e) {}
             const exec = await executeProject({ workspaceRoot, folder: deliver.folder, files, zipName: deliver.zipName, });
             const summary = files.map((f) => `- ${f.path}`).join("\n");
             const showLink = `[📁 Klasörde Göster](action://open-location?path=${encodeURIComponent(exec.zipPath)})`;
+            const warnBlock = validation.ok ? "" :
+              `\n\n⚠️ UYARIYLA ÜRETİLDİ — bazı dosyalarda syntax uyarısı var:\n` +
+              validation.warnings.slice(0, 10).map((w) => `- ${w.path}: ${w.error}`).join("\n");
             result = { text:
-              `İşlem Başarıyla Tamamlandı ve ${exec.zipName} oluşturuldu.\n\n` +
+              `İşlem Başarıyla Tamamlandı ve ${exec.zipName} oluşturuldu${validation.ok ? "" : " (uyarıyla)"}.\n\n` +
               `${showLink}\n\n` +
               `Klasör: ${exec.dir}\nZIP: ${exec.zipPath}\nYazılan dosya: ${exec.written}\n\n` +
               `Üretilen dosyalar:\n${summary}` +
-              (exec.skipped && exec.skipped.length ? `\n\nAtlanan (güvenlik): ${exec.skipped.join(", ")}` : ""),
-              source: "deliver" };
+              (exec.skipped && exec.skipped.length ? `\n\nAtlanan (güvenlik): ${exec.skipped.join(", ")}` : "") +
+              warnBlock,
+              source: validation.ok ? "deliver" : "deliver_warnings" };
           } catch (execErr) {
             const { userMessageForZipError } = require("./services/executor/native-zip");
             result = { text: `Dosyalar üretildi ama paketleme tamamlanamadı: ${userMessageForZipError(execErr)}`, source: "deliver_error" };
