@@ -52,7 +52,10 @@ function realpathOfNearestExisting(target) {
   // Yukarı doğru var olan ilk düğümü bul.
   for (;;) {
     try {
-      const real = fs.realpathSync.native ? fs.realpathSync.native(current) : fs.realpathSync(current);
+      // DİKKAT: realpathSync.native KULLANMA — Windows'ta 8.3 KISA ad
+      // (RUNNER~1) döndürüp uzun-ad ile prefix karşılaştırmasını bozar.
+      // Düz fs.realpathSync uzun/tutarlı yol verir.
+      const real = fs.realpathSync(current);
       // Var olmayan kuyruğu geri ekle (normalize edilmiş).
       return segments.length ? path.join(real, ...segments.reverse()) : real;
     } catch (e) {
