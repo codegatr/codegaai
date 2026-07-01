@@ -648,7 +648,10 @@ function registerIpc() {
       if (deliver.isDeliver) {
         const gen = await modelManager.askDirect(
           `${resolvedMessage}\n\n[SİSTEM: Yalnız istenen dosyaları üret. Her dosyayı ` +
-          "```dil yol/dosya.uzanti``` biçiminde AYRI kod bloğunda ver. Açıklama/bahane yazma.]",
+          "```dil:GERÇEK_DOSYA_ADI``` biçiminde AYRI kod bloğunda ver — dosya adı ZORUNLU " +
+          "(örn ```php:config.php, ```sql:schema.sql, ```apache:.htaccess). Ana sayfa index.php, " +
+          "DB bağlantısı config.php, veritabanı şeması schema.sql, yönlendirme .htaccess olsun. " +
+          "'dosya-1' gibi jenerik ad KULLANMA. Açıklama/bahane yazma.]",
           { onToken, chatId, history: histOpt, cognitiveContext: simpleMode ? "" : cognitiveBrief }
         );
         const files = extractFiles(gen && gen.text || "");
