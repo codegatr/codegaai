@@ -381,8 +381,9 @@ if (!modelManagerFile.includes("collapseRepetition")) throw new Error("model-man
 if (!modelManagerFile.includes("direct_research_failed")) throw new Error("model-manager.js araştırma başarısızsa uydurma önleme (direct_research_failed) eksik");
 if (!antiLoopFile.includes("truncateAtPhraseLoop")) throw new Error("anti-loop.js run-on ifade tekrarı kesici (truncateAtPhraseLoop) eksik");
 if (!modelManagerFile.includes("domMatch")) throw new Error("model-manager.js extractResearchQuery domain-öncelikli/Türkçe-güvenli (domMatch) değil");
+if (!modelManagerFile.includes("groundResearchAnswer") || !modelManagerFile.includes("parseResearchSources")) throw new Error("model-manager.js web araştırma grounding (groundResearchAnswer/parseResearchSources) eksik");
 
-if (pkg.version !== "6.0.0-alpha.90") throw new Error(`Desktop package version must be 6.0.0-alpha.90, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.91") throw new Error(`Desktop package version must be 6.0.0-alpha.91, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
