@@ -117,6 +117,8 @@ const required = [
   "src/main/services/executor/validate-files.js",
   "src/main/agent/reasoning-guardrails.js",
   "src/main/agent/anti-loop.js",
+  "src/main/agent/answer-quality.js",
+  "src/main/agent/__tests__/answer-quality.test.js",
   "src/main/agent/__tests__/native-zip.test.js",
   "src/main/agent/__tests__/validate-files.test.js",
   "src/main/agent/__tests__/reasoning-guardrails.test.js",
@@ -384,8 +386,11 @@ if (!modelManagerFile.includes("domMatch")) throw new Error("model-manager.js ex
 if (!modelManagerFile.includes("groundResearchAnswer") || !modelManagerFile.includes("parseResearchSources")) throw new Error("model-manager.js web araştırma grounding (groundResearchAnswer/parseResearchSources) eksik");
 if (!ollamaClientFile.includes("keep_alive") || !ollamaClientFile.includes("DEFAULT_KEEP_ALIVE")) throw new Error("ollama-client.js modeli sıcak tutma (keep_alive/DEFAULT_KEEP_ALIVE) eksik");
 if (!modelManagerFile.includes("İNSANİ TON")) throw new Error("model-manager.js varsayılan yolda insani ton katmanı (İNSANİ TON) eksik");
+const answerQualityFile = readText(join(root, "src/main/agent/answer-quality.js"));
+if (!answerQualityFile.includes("looksDegenerate")) throw new Error("answer-quality.js bozuk cevap sezici (looksDegenerate) eksik");
+if (!modelManagerFile.includes("direct_selfcorrected") || !modelManagerFile.includes("looksDegenerate")) throw new Error("model-manager.js askDirect öz-düzeltme (direct_selfcorrected/looksDegenerate) eksik");
 
-if (pkg.version !== "6.0.0-alpha.93") throw new Error(`Desktop package version must be 6.0.0-alpha.93, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.94") throw new Error(`Desktop package version must be 6.0.0-alpha.94, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
