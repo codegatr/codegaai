@@ -83,4 +83,13 @@ describe("askDirect (Basit Mod)", () => {
     // temel system prompt + muhakeme katmanı (cognitiveContext boş → eklenmez)
     expect(seen.filter((m) => m.role === "system").length).toBe(2);
   });
+
+  test("varsayılan yolda İNSANİ TON talimatı bulunur (robotik değil)", async () => {
+    const mgr = new ModelManager();
+    mgr.installedModels = async () => ["qwen3.5:4b"];
+    let seen = null;
+    mgr.generate = async (_m, messages) => { seen = messages; return "ok"; };
+    await mgr.askDirect("selam", { chatId: "c6" });
+    expect(seen.find((m) => m.role === "system").content).toMatch(/İNSANİ TON|sıcak.*doğal/i);
+  });
 });

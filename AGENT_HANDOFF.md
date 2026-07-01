@@ -1,3 +1,39 @@
+## Claude Update - 2026-07-01 — alpha.93: Uçtan uca denetim + İnsani Ton (P1)
+
+### DERİN DENETİM (kullanıcı talebi: uçtan uca kontrol, insani dönüşler, üst seviye ajan)
+KÖK MİMARİ BULGUSU: iki katmanlı sistem. Bütün "insani + akıllı" özellikler
+(buildSystemPrompt humanTone/karakter, verifyAnswer öz-düzeltme, retry döngüleri,
+tam araç kullanımı) OPT-IN DERİN yolda (ask/deepMode). Ama kullanıcı hep ÇIPLAK
+varsayılan yolu (askDirect) kullanıyor → robotik, öz-düzeltmesiz deneyim.
+
+Envanter:
+- İnsani dönüşler: ❌ varsayılan yol robotik (KÖK). humanTone yalnız derin yolda.
+- Öz-düzeltme: ⚠️ verifyAnswer+retry VAR ama sadece derin pipeline.
+- Chat/Cowork/Code: ⚠️ MODE_DIRECTIVES sadece prompt öneki; gerçek davranış farkı zayıf.
+- ZIP/veri analizi: ⚠️ zip-analyzer+zip-ipc var; sohbete besleme zayıf.
+- Site analizi: ⚠️ read_url+research var; yapılandırılmış artı/eksi yok.
+- Yapan/oluşturan: ✅ deliver+native zip+smart naming+grounding.
+- Hız/kararlılık: ✅ keep_alive/anti-loop/timeout yeni düzeldi.
+
+### YOL HARİTASI (öncelik)
+1. İNSANİ TON varsayılan yola  ← BU PR (alpha.93)
+2. Öz-düzeltme varsayılan yola (hafif verify + tek retry; 4B için HAFİF tut)
+3. ZIP/veri analizini sohbete bağla (ZIP eklenince otomatik özet+bulgu → model bağlamı)
+4. Site analizi: yapılandırılmış "artı/eksi" denetim çıktısı
+5. Chat/Cowork/Code'a gerçek davranış farkı
+
+### Bu PR (alpha.93): P1 İnsani Ton
+- askDirect sistem prompt'una kısa "İNSANİ TON" satırı: sıcak/doğal/samimi, empati,
+  konuşur gibi — ama yağ çekme/uzatma yok. HAFİF tutuldu (4B'yi boğmamak; seansın dersi).
+- Test: ask-direct-simple-mode.test.js insani ton bulunur. check.mjs guard: "İNSANİ TON".
+- Gate: check 232 · test:ci 542/542. Sürüm alpha.93.
+
+### UYARI (tekrar): model gücü
+4B model tone talimatını sınırlı uygular; insani dönüşün TAM etkisi 7B/8B + P2 öz-düzeltme
+ile gelir. Kullanıcı hâlâ 7B/2+2 teşhisini paylaşmadı.
+
+---
+
 ## Claude Update - 2026-07-01 — alpha.92: Ollama keep_alive (soğuk yükleme/TTFT düzeltmesi)
 
 ### Log kanıtı (kullanıcı Olay Günlüğü)

@@ -1400,7 +1400,9 @@ class ModelManager {
         "SADECE kod veya dosya istendiğinde BAHANE ÜRETME: 'sen yapıştır', 'sunucuda şöyle yapılır', " +
         "'npm install …', 'sonraki adımın ne?' gibi savuşturmalar YASAK; istenen ARTEFAKTI doğrudan üret ve " +
         "her dosyayı ```dil yol/dosya.uzanti``` biçiminde, yol/ad belirterek AYRI kod bloklarında ver. " +
-        "Gereksiz uzatma, soruyu tekrar etme, konu dışına çıkma." },
+        "İNSANİ TON: Robot gibi değil; sıcak, doğal ve samimi bir Türkçe kullan. Kullanıcının niyetini/ruh " +
+        "halini kısaca anladığını hissettir, gerektiğinde empati göster ve konuşur gibi yaz — ama yağ çekme, " +
+        "gereksiz uzatma, soruyu tekrar etme, konu dışına çıkma." },
       { role: "system", content: REASONING_GUARDRAILS },
     ];
     // BİLİŞSEL HAFIZA: varsa proje/karar/hedef özetini ekle → "falanca sorunu çöz"
