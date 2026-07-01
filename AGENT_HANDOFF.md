@@ -1,3 +1,34 @@
+## Claude Update - 2026-07-01 — alpha.91: Codex PR #156 review + merge + grounding polish
+
+### PR #156 review (Codex: web research grounding) → ONAY + merge
+Kontrol edilenler:
+- parseResearchSources → GERÇEK toolResearch formatını (### Kaynak N: title\nhref\nbody)
+  doğru parse ediyor (tools.js:218 ile eşleşiyor). ✓
+- groundResearchAnswer aşırı agresif DEĞİL: konu genelde host'u içerdiği için (r10.net)
+  mentionsKnownHost=true → fallback'e düşmez. Sadece numerik/çok-kısa+grounding-yok
+  durumda kaynak-temelli fallback. ✓
+- askDirect + agent research yolları AYNI groundResearchAnswer'dan geçiyor (tutarlı). ✓
+- Kaynak linkleri sourceListMarkdown ile düzgün ekleniyor. ✓
+- UTF-8: fallback metni bilinçli ASCII ("arastirmasini") → mojibake yok, sanitizer çakışması
+  yok. ✓
+- test:ci 45 suite / 540 test PASS.
+
+### Claude polisajı (alpha.91)
+- parseResearchSources snippet filtresi: toolResearch'in son satırındaki "Bu kaynakları
+  karşılaştır..." yönergesi + "📚 Araştırma:" başlığı son kaynağın snippet'ine SIZMASIN diye
+  elendi (kozmetik leak fix).
+- check.mjs guard: groundResearchAnswer + parseResearchSources. Sürüm alpha.91.
+
+### Gate: check 232 · test:ci 540/540.
+
+### Sıradaki (Codex'in notu doğrultusunda, AYRI PR)
+- Kaynak kalite skoru, tarih/tazelik etiketi, resmi kaynak önceliği (grounding v2).
+- Ayrıca hâlâ: 4) Indexer PR#2, 5) stable audit.
+- NOT: özet metin kalitesi hâlâ 4B modelin sınırı; grounding kaynak-dışına savrulmayı
+  engeller ama modeli zekileştirmez (kullanıcı 7B teşhisini paylaşmadı).
+
+---
+
 ## Claude Update - 2026-07-01 — alpha.90: araştırma sorgu düzeltme + run-on tekrar kesici
 
 ### Bug'lar (kullanıcı: araştırma çalışıyor ama...)

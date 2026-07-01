@@ -793,7 +793,10 @@ function parseResearchSources(research) {
     const title = (titleMatch && titleMatch[1].trim()) || (lines[0] || "Kaynak");
     const url = urlMatch ? urlMatch[0].replace(/[.,;:]+$/, "") : "";
     const snippet = lines
-      .filter((line) => !/^###\s+Kaynak\s+\d+\s*:/i.test(line) && line !== url)
+      .filter((line) => !/^###\s+Kaynak\s+\d+\s*:/i.test(line) && line !== url
+        // toolResearch'in son satırdaki yönergesi son kaynağın snippet'ine sızmasın.
+        && !/^Bu kaynaklar[ıi] kar[şs][ıi]la[şs]t[ıi]r/i.test(line)
+        && !/^📚\s*Ara[şs]t[ıi]rma\s*:/i.test(line))
       .join(" ")
       .replace(/\s+/g, " ")
       .slice(0, 260);
