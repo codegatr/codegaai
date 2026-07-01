@@ -41,6 +41,9 @@ const { codegaDNA, initCodegaDNA } = require("./agent/evolution/codega-dna");
 const { contextEngine }            = require("./agent/context/context-engine");
 const { registerAEPIpc }              = require("./agent/aep/aep-ipc");
 const { aepOS }                       = require("./agent/aep/aep-os");
+const { detectDeliverIntent }         = require("./agent/builder/build-intent");
+const { extractFiles }                = require("./agent/builder/extract-files");
+const { executeProject }              = require("./agent/builder/project-executor");
 const { registerACEIpc }              = require("./agent/ace/ace-ipc");
 const { initACEOS }                   = require("./agent/ace/ace-os");
 const { registerAcademyIpc, getAcademy } = require("./agent/academy/academy-ipc");
@@ -638,7 +641,36 @@ function registerIpc() {
     let result;
     try {
       const histOpt = Array.isArray(opts && opts.history) ? opts.history : [];
-      if (deepMode) {
+
+      // OTONOM TESLİM: "dosya üret + diske yaz + ZIP'le" isteği ise, bahane
+      // üretme — modele dosyaları ürettir, GERÇEKTEN diske yaz ve paketle.
+      const deliver = detectDeliverIntent(message);
+      if (deliver.isDeliver) {
+        const gen = await modelManager.askDirect(
+          `${resolvedMessage}\n\n[SİSTEM: Yalnız istenen dosyaları üret. Her dosyayı ` +
+          "```dil yol/dosya.uzanti``` biçiminde AYRI kod bloğunda ver. Açıklama/bahane yazma.]",
+          { onToken, chatId, history: histOpt, cognitiveContext: simpleMode ? "" : cognitiveBrief }
+        );
+        const files = extractFiles(gen && gen.text || "");
+        if (files.length) {
+          const workspaceRoot = path.join(app.getPath("userData"), "codega-workspace");
+          try {
+            const exec = await executeProject({ workspaceRoot, folder: deliver.folder, files, zipName: deliver.zipName, });
+            const summary = files.map((f) => `- ${f.path}`).join("\n");
+            result = { text:
+              `İşlem Başarıyla Tamamlandı ve ${exec.zipName} oluşturuldu.\n\n` +
+              `Klasör: ${exec.dir}\nZIP: ${exec.zipPath}\nYazılan dosya: ${exec.written}\n\n` +
+              `Üretilen dosyalar:\n${summary}` +
+              (exec.skipped && exec.skipped.length ? `\n\nAtlanan (güvenlik): ${exec.skipped.join(", ")}` : ""),
+              source: "deliver" };
+          } catch (execErr) {
+            result = { text: `Dosyalar üretildi ama yazma/paketleme başarısız: ${execErr.message || execErr}`, source: "deliver_error" };
+          }
+        } else {
+          // Model dosya üretmediyse ham çıktıyı bırak (bahane yerine en azından kod).
+          result = gen;
+        }
+      } else if (deepMode) {
         // Tam bilişsel pipeline (chunking/doğrulama/escalation).
         result = await modelManager.ask(resolvedMessage, {
           onToken, onProgress,

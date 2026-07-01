@@ -1,3 +1,32 @@
+## Claude Update - 2026-07-01 12:00 — Otonom teslim: File System Executor + bahane karşıtı davranış (alpha.77)
+
+### Sorun
+Kullanıcı "codega-muayene-sistemi/ oluştur, 3 dosya yaz, muayene-sistemi.zip yap" dedi. Model BAHANE üretti ("DirectAdmin'e yapıştır", "npm install archiver", "sonraki adımın ne?"). Chat yalnız METİN üretiyor; Builder/dosya-yazıcı/ZIP'i tetiklemiyordu.
+
+### Çözüm (2 katman)
+1. **Davranış (bahane karşıtı):** askDirect system prompt sertleştirildi — CODEGA otonom mühendis ajanı; "sen yapıştır/npm install/sonraki adım?" YASAK; istenen artefaktı (kod/dosya) doğrudan ```dil yol``` bloklarında üretir.
+2. **Gerçek yürütme (File System Executor):**
+   - project-executor.js: {files} → her yolu path-guard (alpha.73) ile PROJE KLASÖRÜ içinde doğrula → atomik yaz (tmp→rename) → zip-engine.create ile klasörü ZIP'le. Path traversal REDDEDİLİR.
+   - extract-files.js: LLM metnindeki ```dil yol``` bloklarını [{path,content}]'e çevirir (yol yoksa dilden ad, tekrar eden yol benzersiz).
+   - build-intent.js: detectDeliverIntent — "oluştur/yaz + zip/paketle/klasör" → teslim isteği + folder/zipName çıkarımı.
+   - main.js chat:send: teslim isteği ise → modele dosyaları ürettir → extract → executeProject → "İşlem Başarıyla Tamamlandı ve <zip> oluşturuldu" + üretilen dosya özeti. workspaceRoot = userData/codega-workspace (path-guard sınırı).
+
+### Mod otomatik (kullanıcıya sormaz)
+- Mod seçimi zaten otomatik (cognitive default / simple / deep); kullanıcıya sorulmuyor. Teslim intent'i de otomatik saptanıyor.
+
+### Test/sürüm
+- builder-deliver.test.js (7): intent saptama, dosya çıkarımı, gerçek yaz+ZIP, path traversal reddi. check 223 OK, full 511/511 (40 suite). Sürüm alpha.77.
+
+### Dürüstlük / açık
+- Üretim KALİTESİ yine modele bağlı (4B zayıf olabilir; ama artık en azından dosyaları üretip GERÇEKTEN yazıp zipliyor, bahane yok).
+- workspaceRoot şimdilik userData/codega-workspace. İleride kullanıcı-seçili trusted workspace'e yazma (workspace:addTrusted zaten var) bağlanabilir.
+- Self-validation (php -l ZIP öncesi) hâlâ yok — sonraki PR.
+
+### 📌 CODEX NOTU
+- Sıradaki: self-validation gate (executeProject öncesi/sonrası php -l + composer; başarısızsa zip'leme veya işaretle). workspace hedefini kullanıcı seçtirme (trusted workspace). extract-files'ı builder deliver dışında da (zip:save-files) paylaşabilirsin.
+
+---
+
 ## Claude Update - 2026-07-01 10:30 — BİLİŞSEL MOD: hafızayı takılmadan geri getirdi (alpha.76)
 
 ### Kök neden (dürüst)
