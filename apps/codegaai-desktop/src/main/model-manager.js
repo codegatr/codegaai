@@ -752,14 +752,23 @@ function wantsWebResearch(input) {
 
 /** AraÅŸtÄ±rma sorgusunu Ã§Ä±kar: komut sÃ¶zcÃ¼klerini at; yetersizse geÃ§miÅŸten konuyu ekle. */
 function extractResearchQuery(input, history = []) {
-  let q = String(input || "")
-    .replace(/internetten|internette|internet|web'?[dt]e|web|google'?[dy]?[ae]?|google|cevrimici|online/gi, " ")
-    .replace(/arastirip|arastir(ip|in|sana)?|aratip|aratarak|arat|incele(yip)?|tara(yip)?|bak(ip)?\b/gi, " ")
-    .replace(/\bara\b|\bbul\b|\bver\b|o zaman|bana|bize|lutfen|ozet(le|ini|le bana)?|sonra/gi, " ")
-    .replace(/[?!.]/g, " ")
-    .replace(/\s+/g, " ").trim();
+  const raw = String(input || "").trim();
+  // 1) Alan adı/URL varsa EN İYİ arama terimi odur → ana sorgu yap.
+  //    ("r10.net hakkında araştırma yap" → sorgu: "r10.net")
+  const domMatch = raw.match(/\b[a-z0-9-]+\.(?:com|net|org|io|dev|gov|edu|co|info|biz)(?:\.tr)?\b/i)
+    || raw.match(/\b[a-z0-9-]+\.tr\b/i);
+  // 2) Komut/dolgu sözcüklerini KELİME BÜTÜNÜ olarak temizle (Türkçe-güvenli:
+  //    "araştırma" içindeki "ara"yı KIRPMA — tam kelimeleri hedefle).
+  const STOP = /\b(internetten|internette|internet|web'?[dt]e|web|google'?[dy]?[ae]?|google|cevrimici|online|bana|bize|benim|icin|için|l[uü]tfen|[oö]zet\w*|ara[sş]t[iı]r\w*|arat\w*|incele\w*|tara\w*|bak[iı]p|yapar|yap|m[iı]s[iı]n|musun\w*|verir|ver|bilgi|hakk[iı]nda|nedir|o zaman|sonra)\b/gi;
+  let q = raw.replace(STOP, " ").replace(/[?!]/g, " ").replace(/\s+/g, " ").trim();
+  if (domMatch) {
+    const dom = domMatch[0];
+    const domRe = new RegExp(dom.replace(/[.\-]/g, "\\$&"), "ig");
+    q = (dom + " " + q.replace(domRe, " ")).replace(/\s+/g, " ").trim();
+    return q;
+  }
   const meaningful = q.split(/\s+/).filter((w) => w.length > 1);
-  if (meaningful.length >= 3) return q;
+  if (meaningful.length >= 2) return q;
   // yetersiz konu: en son anlamlÄ± kullanÄ±cÄ± mesajÄ±nÄ± ekle (baÄŸlam)
   for (let i = history.length - 1; i >= 0; i--) {
     if (history[i] && history[i].role === "user") {

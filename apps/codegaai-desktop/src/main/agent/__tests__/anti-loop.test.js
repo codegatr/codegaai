@@ -33,4 +33,12 @@ describe("anti-loop: tekrar/döngü temizliği", () => {
     expect(collapseRepetition("")).toBe("");
     expect(collapseRepetition("   ")).toBe("   ");
   });
+
+  test("noktasız run-on ifade tekrarını (paraphrase salatası) keser", () => {
+    const phrase = "sizden ne bekleniyor acaba neredesiniz biz sizinle konusalim mi yoksa baska nasil yardimci olabilirim sorusuna cevap verelim ";
+    const salad = "R10 sitesi hakkında kısa bilgi. " + phrase.repeat(3) + "son.";
+    const out = collapseRepetition(salad);
+    expect(out.length).toBeLessThan(salad.length * 0.6);
+    expect(out).toMatch(/R10 sitesi hakkında/);
+  });
 });

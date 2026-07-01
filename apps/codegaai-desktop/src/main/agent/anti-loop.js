@@ -42,8 +42,32 @@ function collapseProse(seg) {
     prevNorm = n;
     out += p;
   }
-  // Ardışık üçten fazla boş satırı ikiye indir.
   return out.replace(/\n{3,}/g, "\n\n");
+}
+
+// Run-on "cümle" tekrarını yakala: nokta olmadan aynı uzun ifade tekrar tekrar
+// yazılırsa (küçük model çöpü), İLK tekrarın başladığı yerden itibaren keser.
+// Kelime n-gram (varsayılan 12) normalize edilip daha önce görüldüyse kırpılır.
+const PHRASE_NGRAM = 12;
+function truncateAtPhraseLoop(seg, ngram = PHRASE_NGRAM) {
+  const toks = [];
+  const re = /\S+/g;
+  let m;
+  while ((m = re.exec(seg))) toks.push({ w: m[0], idx: m.index });
+  if (toks.length < ngram * 2) return seg;
+  const normed = toks.map((t) => norm(t.w));
+  const seen = new Set();
+  for (let i = 0; i + ngram <= normed.length; i++) {
+    const gram = normed.slice(i, i + ngram).join(" ");
+    if (gram.replace(/\s/g, "").length < 30) continue; // çok kısa n-gram → atla
+    if (seen.has(gram)) {
+      // i. kelimeden itibaren tekrar başlıyor → orijinal biçimi koruyarak oraya kadar kes.
+      const kept = seg.slice(0, toks[i].idx).trim();
+      return kept || seg;
+    }
+    seen.add(gram);
+  }
+  return seg;
 }
 
 /**
@@ -56,7 +80,7 @@ function collapseRepetition(text) {
   if (!src.trim()) return src;
   // ```...``` bloklarını böl; kod segmentlerine dokunma.
   const parts = src.split(/(```[\s\S]*?```)/g);
-  return parts.map((seg) => (seg.startsWith("```") ? seg : collapseProse(seg))).join("").trim();
+  return parts.map((seg) => (seg.startsWith("```") ? seg : truncateAtPhraseLoop(collapseProse(seg)))).join("").trim();
 }
 
 /**
@@ -76,4 +100,4 @@ function detectRunawayRepetition(text) {
   return false;
 }
 
-module.exports = { collapseRepetition, detectRunawayRepetition, norm };
+module.exports = { collapseRepetition, detectRunawayRepetition, truncateAtPhraseLoop, norm };

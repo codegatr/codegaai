@@ -1,7 +1,19 @@
 "use strict";
 
-const { ModelManager } = require("../../model-manager");
+const { ModelManager, extractResearchQuery } = require("../../model-manager");
 const { TOOLS } = require("../tools");
+
+describe("extractResearchQuery: temiz sorgu (Türkçe-güvenli, domain-öncelikli)", () => {
+  test("domain'i sorgu yapar, 'araştırma'yı KIRPMAZ", () => {
+    // Eski bug: 'araştırma' → 'ştırma' (ş yüzünden \bara\b ortadan kırpıyordu)
+    const q = extractResearchQuery("r10.net hakkında bana araştırma yapar mısın?");
+    expect(q).toBe("r10.net");
+    expect(q).not.toMatch(/ştırma|yapar|mısın|hakkında/i);
+  });
+  test("domain yoksa komut sözcükleri temizlenir", () => {
+    expect(extractResearchQuery("internette laravel performans araştır")).toMatch(/laravel performans/);
+  });
+});
 
 // askDirect web araştırma: (1) domain'li "bilgi ver" araştırma tetikler,
 // (2) araştırma başarısızsa model UYDURMAZ, dürüst mesaj döner.
