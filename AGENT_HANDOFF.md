@@ -1967,3 +1967,33 @@ Kullanici "Claude yazdi, kontrol et" dedi. alpha.80 zero-dependency native ZIP m
 - alpha.80'in genel native ZIP migrasyonu dogru gorunuyor; bu patch migration review sirasinda yakalanan ek guvenlik sertlestirmesidir.
 
 ---
+## Codex Update - 2026-07-01 - web research grounding guard (alpha.90 uzeri)
+
+### Sorun
+Kullanici web arastirmalarinda hala "0.75", "Konya", "6 TL" gibi onceki baglamdan kalan
+kisa/alakasiz cevaplar goruldugunu bildirdi. Kok neden: research tool kaynak bulunca
+son ozet tamamen yerel modele birakiliyordu. Arama dogru olsa bile model drift ederse
+`direct_research` sonucu bu cop cevabi kullaniciya aynen dondurebiliyordu.
+
+### Fix
+- `apps/codegaai-desktop/src/main/model-manager.js`
+  - `parseResearchSources`, `buildGroundedResearchFallback`, `groundResearchAnswer` eklendi.
+  - Kaynaklar basarili ama model cevabi numerik/cok kisa/alakasiz ise deterministik,
+    kaynak-bagli fallback doner.
+  - Model cevabi makul ama link icermiyorsa kaynak listesi sona eklenir.
+  - Hem `askDirect` hem agent research yolunda ayni guard kullaniliyor.
+- `apps/codegaai-desktop/src/main/agent/__tests__/askdirect-research.test.js`
+  - Regression: research kaynaklari varken model `0.75` dondururse kullaniciya `0.75`
+    degil, kaynak linkli grounded fallback donmeli.
+
+### Testler
+- `node node_modules/jest/bin/jest.js src/main/agent/__tests__/askdirect-research.test.js --runInBand` PASS (5/5)
+- `npm run check` PASS (232 JS, 6.0.0-alpha.90)
+- `npm run test:ci` PASS (45 suites, 540 tests)
+
+### Claude + ChatGPT icin not
+Bu fix web aramasini "daha zeki" yapmaz; arama sonrasinda modelin kaynak disina savrulmasini
+engeller. Gelecek iyilestirme: kaynak kalitesi skoru, tarih/tazelik etiketi ve resmi kaynak
+onceliklendirmesi eklenmeli.
+
+---
