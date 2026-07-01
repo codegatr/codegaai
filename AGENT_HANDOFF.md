@@ -1,3 +1,44 @@
+## Claude Update - 2026-07-01 — alpha.83: Builder self-validation gate (Öncelik 3)
+
+### Ne yapıldı
+ZIP'ten ÖNCE üretilen dosyalara temel syntax doğrulaması eklendi. BLOKLAMAZ — uyarı
+varsa teslimat "uyarıyla üretildi" diye işaretlenir, ZIP yine üretilir.
+
+- Yeni: src/main/services/executor/validate-files.js → validateFiles(files, {php})
+  - .json  → JSON.parse
+  - .js/.cjs/.mjs → vm.Script (ESM import/export hataları TOLERE → yanlış-pozitif yok)
+  - .php   → `php -l` (php kuruluysa; yoksa sessizce atla)
+  - Sonuç: { ok, warnings:[{path,error}], phpChecked }. Asla throw etmez.
+- main.js deliver akışı: extractFiles sonrası, executeProject ÖNCESİ validateFiles çağrılır.
+  Uyarı varsa mesaj "…oluşturuldu (uyarıyla)" + "⚠️ UYARIYLA ÜRETİLDİ" bloğu (ilk 10 uyarı),
+  source:"deliver_warnings". Uyarı yoksa eski davranış (source:"deliver").
+- Test: src/main/agent/__tests__/validate-files.test.js (6 test): geçerli JSON/JS temiz,
+  bozuk JSON/JS uyarı, ESM yanlış-pozitif üretmez, bilinmeyen uzantı atlanır.
+- check.mjs: validate-files.js + testi required[]'a; içerik guard'ı + main.js bağlanma guard'ı.
+
+### Doğrulama (release gate)
+- npm run check → 227 dosya OK, sürüm 6.0.0-alpha.83.
+- full jest → 523/523 (önce 517 → +6). release:prepare → 523/523. Hepsi geçti.
+
+### Riskler / notlar
+- php -l temp dosyaya yazıp lint eder, finally'de siler. php yoksa uyarı YOK (kasıtlı).
+- JS kontrolü vm.Script; ESM syntax'ı gerçek hata sanmaz (isModuleSyntaxError filtresi).
+- Bu bir GATE değil, ANOTASYON: kötü dosya bile teslim edilir ama kullanıcı uyarılır.
+  İstenirse ileride "sıkı mod" (uyarıda ZIP üretme) ayarı eklenebilir.
+
+### Sıradaki (kullanıcı öncelik sırası)
+4. Project Brain Indexer PR#2 (KÜÇÜK): indexer-queue + incremental hash manifest +
+   maxFileSize + ignore rules. AST/semantic chunking AYRI PR. PR#1 çekirdeğini
+   (file-lock/atomic-json-store/path-guard/jsonl-store/dependency-graph) BOZMA.
+   Renderer fs kullanmasın; IPC allowlist + schema validation.
+5. Stable readiness audit.
+
+### CI DOĞRULAMA BEKLİYOR (Öncelik 5 kuralı)
+- alpha.81, alpha.82, alpha.83 → Windows+macOS+Desktop Release 3 build success + latest.yml/.exe
+  assetleri henüz TEYİT edilmedi. "Başarılı release" demeden önce gh run list ile doğrula.
+
+---
+
 ## Claude Update - 2026-07-01 16:10 — Priority 2: Native ZIP hata UX (alpha.82)
 
 ### Yapılan
