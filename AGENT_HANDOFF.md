@@ -1,3 +1,34 @@
+## Claude Update - 2026-07-01 — alpha.90: araştırma sorgu düzeltme + run-on tekrar kesici
+
+### Bug'lar (kullanıcı: araştırma çalışıyor ama...)
+1. Isınma satırındaki sorgu BOZUK: "R10 net hakkında ştırma yapar mısın". Kök neden:
+   extractResearchQuery Türkçe'de kırılıyordu — JS regex'te ş/ı "kelime karakteri"
+   sayılmadığı için \bara\b "araştırma" içindeki "ara"yı silip "ştırma" bırakıyordu.
+2. Özet yine salata: 4B model gerçek kaynak verildiğinde bile noktasız DEV run-on cümleyi
+   3-5 kez paraphrase ediyor; alpha.88 collapseRepetition birebir-olmayan tekrarı kaçırıyordu.
+
+### Fix
+1. extractResearchQuery yeniden yazıldı: DOMAIN-öncelikli (mesajda alan adı varsa sorgu =
+   "r10.net") + STOP kelime listesi TAM KELİME (Türkçe-güvenli, ara[sş]t[iı]r\w* vb.). Artık
+   "r10.net hakkında araştırma yap" → sorgu "r10.net". Test'lerle sabitlendi.
+2. anti-loop.js truncateAtPhraseLoop: noktasız run-on tekrarı için kelime n-gram (12)
+   normalize edilip daha önce görüldüyse ORİJİNAL biçimi koruyarak o noktadan keser.
+   collapseProse artık collapse + truncate uyguluyor. 505→190 örnekte doğrulandı, normal
+   metin bozulmuyor.
+- Testler: anti-loop (+1 run-on), askdirect-research (+2 query). check.mjs guard:
+  truncateAtPhraseLoop + domMatch.
+
+### Gate: check 232 · full jest 539/539 · release:prepare 539/539. Sürüm alpha.90.
+
+### DURUM / açık
+- Araştırma tetikleme + sorgu + kaynak erişimi ARTIK ÇALIŞIYOR (kullanıcı ekranında gerçek
+  r10.net/şikayetvar/forum linkleri geldi). Sorgu da temiz.
+- Özet metnin kalitesi hâlâ 4B modelin sınırı; truncateAtPhraseLoop en kaba run-on çöpü keser
+  ama tutarlı/doğru özet için 7B model gerekli (kullanıcı henüz 7B/2+2 teşhisini paylaşmadı).
+- Sıradaki: 4) Indexer PR#2, 5) stable audit.
+
+---
+
 ## Claude Update - 2026-07-01 — alpha.89: Araştırma uydurma önleme + domain tetikleme
 
 ### Bug (kullanıcı: "r10.net hakkında araştırma yap")
