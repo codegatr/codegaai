@@ -551,11 +551,15 @@ function registerIpc() {
     // "Ateş Fiat" → ProjectBrain'den o projeyi aktive et), sonra bu turun
     // tüm bağlamını (kullanıcı + proje + hedef + life graph) inşa et.
     // LLM'e ASLA boş bağlamla gidilmez.
-    // BASİT MOD (varsayılan AÇIK): ağır bilişsel katmanları atla — güvenilir,
-    // doğrudan cevap. Yalnız ACE referans çözümü + fast-path korunur; context
-    // şişirme, chunking, doğrulama, model yükseltme YOK. simpleMode=false ile
-    // tam bilişsel pipeline'a dönülür.
-    const simpleMode = settingsStore.getSettings().simpleMode !== false;
+    // MOD SEÇİMİ:
+    //  - BİLİŞSEL MOD (varsayılan): ACE referans çözümü + BOUNDED bilişsel özet
+    //    (proje/karar/hedef/ders) → yalın üretim. "falanca sorunu çöz"/"Ateş Fiat"
+    //    atıflarını hatırlar AMA takılmaz (özet kısa, ağır pipeline yok).
+    //  - BASİT MOD (simpleMode=true, opt-in): hafızasız saf-yalın (max hız).
+    //  - DERİN MOD (deepMode=true, opt-in): tam pipeline (chunking/doğrulama/escalation).
+    const _settings = settingsStore.getSettings();
+    const simpleMode = _settings.simpleMode === true;
+    const deepMode = _settings.deepMode === true;
 
     const aceOS = await initACEOS(aceDataDir);
     _t = _step("ace_init", _t);
@@ -563,10 +567,18 @@ function registerIpc() {
     _t = _step("ace_intake", _t);
     let resolvedMessage = aceIntake.message;
 
+    // BİLİŞSEL ÖZET (bounded) — bilişsel modda modele "anlam" verir. Simple/deep
+    // dışındaki varsayılan yol. Ucuz ve kısa; takılma riski yok.
+    let cognitiveBrief = "";
+    if (!simpleMode && !deepMode) {
+      try { cognitiveBrief = aceOS.buildBrief({ userId: "default", maxChars: 1600 }); } catch (_e) {}
+      _trace.brief_chars = cognitiveBrief.length;
+    }
+
     let contextPacket = null;
     let mergedContext = "";
-    if (!simpleMode) {
-      // ─── Context Engine — Sprint 10 (yalnız tam modda) ──────────────────
+    if (deepMode) {
+      // ─── Context Engine — Sprint 10 (yalnız DERİN modda) ────────────────
       try {
         contextPacket   = contextEngine.analyze(resolvedMessage);
         resolvedMessage = contextPacket.resolvedMessage || resolvedMessage;
@@ -626,18 +638,24 @@ function registerIpc() {
     let result;
     try {
       const histOpt = Array.isArray(opts && opts.history) ? opts.history : [];
-      result = simpleMode
-        ? await modelManager.askDirect(resolvedMessage, { onToken, chatId, history: histOpt })
-        : await modelManager.ask(resolvedMessage, {
-            onToken,
-            onProgress,
-            regenerate: !!(opts && opts.regenerate),
-            context: mergedContext,
-            chatId,
-            // Bağlam sürekliliği: renderer kalıcı sohbet geçmişini taşır. Main'in
-            // bellek-içi geçmişi (yeniden başlatma/eski sohbet) boşsa bununla tohumlanır.
-            history: histOpt,
-          });
+      if (deepMode) {
+        // Tam bilişsel pipeline (chunking/doğrulama/escalation).
+        result = await modelManager.ask(resolvedMessage, {
+          onToken, onProgress,
+          regenerate: !!(opts && opts.regenerate),
+          context: mergedContext,
+          chatId,
+          history: histOpt,
+        });
+      } else {
+        // Bilişsel-yalın (varsayılan) VEYA basit-yalın. İkisi de askDirect; fark
+        // bilişsel özetin eklenip eklenmemesi. Bağlam sürekliliği: renderer geçmişi.
+        result = await modelManager.askDirect(resolvedMessage, {
+          onToken, chatId,
+          history: histOpt,
+          cognitiveContext: simpleMode ? "" : cognitiveBrief,
+        });
+      }
     } catch (err) {
       try { logs.warn("chat_trace", `FAILED prep=${_modelStartedAt - _trace.startedAt}ms ttft=${_ttft || "—"} total=${Date.now() - _trace.startedAt}ms reason=${err?.message || err}`); } catch (_e) {}
       phoenixRuntime.abortChat(taskId, chatId, err?.message || "model_error");

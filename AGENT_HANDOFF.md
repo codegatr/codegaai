@@ -1,3 +1,33 @@
+## Claude Update - 2026-07-01 10:30 — BİLİŞSEL MOD: hafızayı takılmadan geri getirdi (alpha.76)
+
+### Kök neden (dürüst)
+Kullanıcı "ajan geçmişini unutuyor, 'falanca sorunu çöz' deyince hangi sorun diyor" dedi. Sebep: 7 beyin (ACE: conversation/project/life/engineering/goal-memory + reference-resolver) ZATEN VAR ve kaydediyor — ama alpha.72 **Basit Mod (varsayılan AÇIK)** hepsini BYPASS edip yalnız son 10 turu gönderiyordu. Yani hafıza yok değil; stabilizasyon uğruna kapalıydı.
+
+### Çözüm: 3 mod + varsayılan Bilişsel
+- **ace-os.buildBrief({maxChars=1600})**: BOUNDED, ucuz, asla-throw bilişsel özet — aktif proje + açık işler/bilinen buglar/roadmap/iş kuralları + bu sohbetin konuları + hedefler + mühendislik dersleri. "anlam" verir, "mesaj" değil.
+- **askDirect(..., cognitiveContext)**: özet ikinci system mesajı olarak eklenir.
+- **main.js chat:send mod seçimi:**
+  - VARSAYILAN = BİLİŞSEL: ACE processIncoming (referans çözümü: "Ateş Fiat"→proje aktive, "devam et"→görev) + buildBrief → askDirect(cognitiveContext). Hatırlar AMA takılmaz (özet kısa, ağır pipeline yok).
+  - simpleMode=true (opt-in): hafızasız saf-yalın (max hız).
+  - deepMode=true (opt-in): tam pipeline (buildContext+chunking+doğrulama+escalation).
+- UI: "Basit Mod" toggle artık varsayılan KAPALI; kapalı=Bilişsel. Açıklama güncellendi.
+
+### Neden "yeni 7 beyin yazmadım"
+Zaten varlar. Kullanıcının vizyonu (Decision/Goal/Mistake Brain, DNA) büyük ölçüde mevcut modüllere karşılık geliyor (goal-memory=Goal, engineering-brain=Mistake/lesson, project-brain=Decision/todo/bug). Eksik olan ENTEGRASYON'du (bypass). Bu PR onu düzeltti — rebuild etmedi.
+
+### Test/sürüm
+- ace-brief.test.js (4) + askDirect cognitiveContext (2 yeni). check 219 OK, full 504/504 (39 suite). Sürüm alpha.76.
+
+### Hâlâ AÇIK (dürüst — sonraki)
+- buildBrief LLM-özet değil, snapshot-slice (v1). İleride konuşma özetini LLM ile zenginleştir.
+- Decision Brain'i first-class ayır (şu an project-brain içinde karışık). DNA snapshot (session açılışında yükle) — çoğu buildBrief ile karşılanıyor.
+- selfReflector.reflect() hâlâ yanıt-sonrası bağlı değil (endConversation'da var).
+
+### 📌 CODEX NOTU
+- Mod matrisi: default=cognitive (brief+ref-res, lean), simpleMode=lean-no-mem, deepMode=full-pipeline. buildBrief bounded/ucuz; genişletirsen maxChars'a dikkat (takılma riski context boyutundandı).
+
+---
+
 ## Claude Update - 2026-07-01 09:00 — Software Factory PR#2: domain entity katmanı + entity-güdümlü Laravel (alpha.75)
 
 ### Bağlam

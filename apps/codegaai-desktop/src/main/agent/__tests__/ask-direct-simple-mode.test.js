@@ -56,4 +56,28 @@ describe("askDirect (Basit Mod)", () => {
     const res = await mgr.askDirect("merhaba", { chatId: "c3" });
     expect(res.text).toMatch(/yanıt üretemedim|Ollama/i);
   });
+
+  test("cognitiveContext ikinci system mesajı olarak eklenir (Bilişsel Mod)", async () => {
+    const mgr = new ModelManager();
+    mgr.installedModels = async () => ["qwen3.5:4b"];
+    let seen = null;
+    mgr.generate = async (_m, messages) => { seen = messages; return "ok"; };
+    await mgr.askDirect("bu sorunu çöz", {
+      chatId: "c4",
+      cognitiveContext: "BİLİŞSEL HAFIZA:\n## Aktif proje: Ateş Fiat\nBilinen sorunlar: UTF8 bozulması",
+    });
+    const systemMsgs = seen.filter((m) => m.role === "system");
+    expect(systemMsgs.length).toBe(2);
+    expect(systemMsgs[1].content).toMatch(/Ateş Fiat/);
+    expect(seen[seen.length - 1].content).toMatch(/^bu sorunu çöz$/i);
+  });
+
+  test("cognitiveContext boşsa tek system mesajı (Basit Mod)", async () => {
+    const mgr = new ModelManager();
+    mgr.installedModels = async () => ["qwen3.5:4b"];
+    let seen = null;
+    mgr.generate = async (_m, messages) => { seen = messages; return "ok"; };
+    await mgr.askDirect("selam", { chatId: "c5", cognitiveContext: "" });
+    expect(seen.filter((m) => m.role === "system").length).toBe(1);
+  });
 });

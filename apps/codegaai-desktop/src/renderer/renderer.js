@@ -3225,7 +3225,7 @@ async function refreshAgentSettings() {
       applyToggleLabel(els.toggleAutonomousSchedule, !!agentSettings.autonomousDevelopmentSchedule);
     }
     if (els.expertSelect) els.expertSelect.value = agentSettings.expertMode || "genel";
-    if (els.toggleSimpleMode) applyToggleLabel(els.toggleSimpleMode, agentSettings.simpleMode !== false);
+    if (els.toggleSimpleMode) applyToggleLabel(els.toggleSimpleMode, agentSettings.simpleMode === true);
     if (els.toggleStreaming) applyToggleLabel(els.toggleStreaming, agentSettings.streaming !== false);
     if (els.toggleModelFallback) applyToggleLabel(els.toggleModelFallback, agentSettings.modelAutoFallback !== false);
     if (els.modelFallbackOrder) {
@@ -3472,14 +3472,14 @@ if (els.toggleAutonomousSchedule) {
   });
 }
 if (els.toggleSimpleMode) els.toggleSimpleMode.addEventListener("click", async () => {
-  // Varsayılan AÇIK: efektif değer (!== false) üzerinden çevir.
+  // Varsayılan KAPALI (Bilişsel Mod). Açık = hafızasız basit mod.
   if (!agentSettings) agentSettings = await window.codega.getSettings();
-  const next = !(agentSettings.simpleMode !== false);
+  const next = !(agentSettings.simpleMode === true);
   els.toggleSimpleMode.disabled = true;
   try {
     agentSettings = await window.codega.setSettings({ simpleMode: next });
-    applyToggleLabel(els.toggleSimpleMode, agentSettings.simpleMode !== false);
-    setTransientStatus(next ? "Basit Mod açık — hızlı doğrudan cevap." : "Basit Mod kapalı — tam bilişsel pipeline.");
+    applyToggleLabel(els.toggleSimpleMode, agentSettings.simpleMode === true);
+    setTransientStatus(next ? "Basit Mod açık — hafızasız, en hızlı." : "Bilişsel Mod açık — proje/karar/hedef hatırlanır.");
   } finally {
     els.toggleSimpleMode.disabled = false;
   }
