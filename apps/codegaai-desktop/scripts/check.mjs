@@ -388,9 +388,10 @@ if (!ollamaClientFile.includes("keep_alive") || !ollamaClientFile.includes("DEFA
 if (!modelManagerFile.includes("İNSANİ TON")) throw new Error("model-manager.js varsayılan yolda insani ton katmanı (İNSANİ TON) eksik");
 const answerQualityFile = readText(join(root, "src/main/agent/answer-quality.js"));
 if (!answerQualityFile.includes("looksDegenerate")) throw new Error("answer-quality.js bozuk cevap sezici (looksDegenerate) eksik");
+if (!answerQualityFile.includes("hasCharSalad")) throw new Error("answer-quality.js karakter salatası sezici (hasCharSalad) eksik");
 if (!modelManagerFile.includes("direct_selfcorrected") || !modelManagerFile.includes("looksDegenerate")) throw new Error("model-manager.js askDirect öz-düzeltme (direct_selfcorrected/looksDegenerate) eksik");
 
-if (pkg.version !== "6.0.0-alpha.94") throw new Error(`Desktop package version must be 6.0.0-alpha.94, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.95") throw new Error(`Desktop package version must be 6.0.0-alpha.95, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
