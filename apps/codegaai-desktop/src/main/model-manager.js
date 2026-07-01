@@ -1251,12 +1251,43 @@ class ModelManager {
     const history = this.historyFor(opts.chatId);
     if (history.length === 0) seedConversationHistory(history, opts.history, MAX_HISTORY_MESSAGES);
 
+    // WEB ARAŞTIRMA: "internette ara / şu siteye bak" gibi istekte zayıf yerel model
+    // aracı tetikleyemiyor → BİZ araştırırız. Aksi halde "hangi projeyi üretelim?" veya
+    // "kod bloğu üretemem" gibi ALAKASIZ cevap dönüyordu.
+    if (wantsWebResearch(text0)) {
+      const query = extractResearchQuery(text0, history);
+      if (opts.onToken) { try { opts.onToken(`🔎 İnternette araştırıyorum: "${query}"…\n\n`); } catch (_e) {} }
+      let research = "";
+      try { research = await AGENT_TOOLS.research.fn(query, 3); }
+      catch (e) { research = `⚠️ ${e && (e.message || e)}`; }
+      if (!/^⚠️|kaynak bulunamad/i.test(research)) {
+        const sumMsgs = [
+          { role: "system", content:
+            "Aşağıda internetten TOPLADIĞIN web kaynakları var. Bunları KENDİ SÖZCÜKLERİNLE, Türkçe, " +
+            "derli toplu özetle. Kullanıcıya 'sen ara/Google'a bak' ASLA deme — araştırmayı SEN yaptın. " +
+            "Önemli noktaları maddele; kaynaklarda yoksa uydurma; sonunda kaynak linklerini listele." },
+          { role: "user", content: research },
+        ];
+        let summary = "";
+        try { summary = String(await this.generate(model, sumMsgs, [], opts.onToken || null) || "").trim(); } catch (_e) {}
+        const out = summary || research;
+        history.push({ role: "user", content: text0 });
+        history.push({ role: "assistant", content: out });
+        if (history.length > MAX_HISTORY_MESSAGES) history.splice(0, history.length - MAX_HISTORY_MESSAGES);
+        return { text: out, model, source: "direct_research" };
+      }
+      // araştırma başarısız → normal akışa düş (model kendi bilgisinden yanıtlasın)
+    }
+
     const messages = [
       { role: "system", content:
         "Sen CODEGA AI'sın — otonom bir yazılım mühendisi ajanı. Türkçe, net ve DOĞRUDAN cevap ver. " +
-        "Kod veya dosya istendiğinde BAHANE ÜRETME: 'sen yapıştır', 'sunucuda şöyle yapılır', 'npm install …', " +
-        "'sonraki adımın ne?' gibi savuşturmalar YASAK. İstenen ARTEFAKTI (kod/dosya) doğrudan üret. " +
-        "Kod üretirken her dosyayı ```dil yol/dosya.uzanti``` biçiminde, yol/ad belirterek AYRI kod bloklarında ver. " +
+        "Bilgi, araştırma veya genel sorularda (örn. 'X nedir', 'X hakkında bilgi ver', 'şu siteye bak') " +
+        "NORMAL, açıklayıcı bir yanıt ver — kod/dosya İSTENMEDİKÇE proje detayı SORMA, 'hangi projeyi " +
+        "oluşturalım / hangi dil' gibi geri soru sorma, 'kod bloğu üretemem' deme. " +
+        "SADECE kod veya dosya istendiğinde BAHANE ÜRETME: 'sen yapıştır', 'sunucuda şöyle yapılır', " +
+        "'npm install …', 'sonraki adımın ne?' gibi savuşturmalar YASAK; istenen ARTEFAKTI doğrudan üret ve " +
+        "her dosyayı ```dil yol/dosya.uzanti``` biçiminde, yol/ad belirterek AYRI kod bloklarında ver. " +
         "Gereksiz uzatma, soruyu tekrar etme, konu dışına çıkma." },
     ];
     // BİLİŞSEL HAFIZA: varsa proje/karar/hedef özetini ekle → "falanca sorunu çöz"
