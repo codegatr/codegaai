@@ -391,7 +391,9 @@ if (!answerQualityFile.includes("looksDegenerate")) throw new Error("answer-qual
 if (!answerQualityFile.includes("hasCharSalad")) throw new Error("answer-quality.js karakter salatası sezici (hasCharSalad) eksik");
 if (!modelManagerFile.includes("direct_selfcorrected") || !modelManagerFile.includes("looksDegenerate")) throw new Error("model-manager.js askDirect öz-düzeltme (direct_selfcorrected/looksDegenerate) eksik");
 
-if (pkg.version !== "6.0.0-alpha.95") throw new Error(`Desktop package version must be 6.0.0-alpha.95, got ${pkg.version}`);
+if (!rendererFile2.includes("zip.analyze") || !rendererFile2.includes("ANALİZ (otomatik)")) throw new Error("renderer.js ZIP eklentisinde yapılandırılmış analiz (zip.analyze/ANALİZ) sohbete bağlanmamış");
+
+if (pkg.version !== "6.0.0-alpha.96") throw new Error(`Desktop package version must be 6.0.0-alpha.96, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

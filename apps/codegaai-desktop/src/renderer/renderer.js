@@ -1227,6 +1227,24 @@ async function attachZipFromPath(zipPath, displayName) {
     const entries = (listed.entries || []).filter((e) => e && !e.isDir);
     if (!entries.length) { setTransientStatus("Zip boş görünüyor."); return; }
 
+    // YAPILANDIRILMIŞ ANALİZ: stack tespiti + istatistik + önemli dosyalar.
+    // Model ham dökümden önce uzman-özeti görür → "bu ZIP nedir?" sorusuna
+    // dosya listesi saymak yerine isabetli değerlendirme yapar.
+    let analysisBlock = "";
+    try {
+      const an = await window.codega.zip.analyze(zipPath);
+      if (an?.ok && an.analysis) {
+        const a = an.analysis;
+        analysisBlock =
+          `ANALİZ (otomatik):\n` +
+          `- Teknoloji/Stack: ${a.stack}${a.stackConfidence ? ` (%${Math.round(a.stackConfidence * 100)} güven)` : ""}\n` +
+          `- Boyut: ${a.totalFiles} dosya, ${a.totalDirs} klasör, ${a.totalBytesFormatted}\n` +
+          `- Önemli dosyalar: ${(a.importantFiles || []).join(", ") || "—"}\n` +
+          (a.packageJson?.name ? `- package.json: ${a.packageJson.name}@${a.packageJson.version || "?"}\n` : "") +
+          (a.composerJson?.name ? `- composer.json: ${a.composerJson.name}\n` : "") + "\n";
+      }
+    } catch (_e) { /* analiz başarısızsa ham döküm yeterli */ }
+
     // Dosya ağacı (boyutlarla) — her zaman modele verilir.
     const tree = entries
       .slice(0, 400)
@@ -1258,6 +1276,7 @@ async function attachZipFromPath(zipPath, displayName) {
     const note = omitted > 0 ? `\n\n(${omitted} metin dosyası bağlam sınırı nedeniyle atlandı.)` : "";
     const text =
       `ZIP arşivi: ${displayName} — ${entries.length} dosya.\n\n` +
+      analysisBlock +
       `DOSYA AĞACI:\n${tree}\n\n` +
       `DOSYA İÇERİKLERİ:\n${parts.join("\n\n")}${note}`;
 
