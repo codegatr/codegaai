@@ -1,3 +1,30 @@
+## Claude Update - 2026-07-01 15:45 — PR #145 review + alpha.81 release (zip patch traversal guard)
+
+### Review sonucu: ONAY (Codex PR #145)
+zip-engine.patch() path traversal sertleştirmesi incelendi — dört soru da geçti:
+- patch() her entry'yi `assertSafeEntryName(p.name)` ile path.join'DEN ÖNCE doğruluyor → traversal engellenir.
+- Guard döngü başında → TÜM action'lar (delete/add/modify) kapsanır.
+- try/finally temp'i her hatada temizliyor (.catch(()=>{}) orijinal hatayı maskelemez).
+- Secure ZIP import/export/native testleri + yeni patch-guard regresyon testi yeşil.
+
+### Doğrulama
+- check 225 dosya OK. zip-engine+native-zip+builder-deliver 20/20. full 516/516. release:prepare 516/516. Hepsi geçti.
+
+### Release
+- Codex PR #145 merge edildi (traversal guard + test + handoff notu). Claude: alpha.81 sürüm bump + check guard.
+- Sürüm 6.0.0-alpha.81.
+
+### Sıradaki (kullanıcı öncelik sırası — bu turda YAPILMADI, ayrı küçük PR'lar)
+2. Native ZIP hata UX (ZIP_NOT_INSTALLED / Compress-Archive mesajları kullanıcı-dostu; action-link allowlist teyidi)
+3. Builder self-validation gate (ZIP öncesi php -l opsiyonel + JS/JSON parse; başarısızsa "uyarıyla üretildi" işareti)
+4. Project Brain Indexer PR#2 (indexer-queue + incremental manifest + maxFileSize + ignore; AST ayrı PR; renderer fs yok, IPC allowlist+schema)
+5. Stable readiness audit
+
+### 📌 CODEX/ChatGPT NOTU
+- alpha.81 zip patch güvenlik boşluğunu kapattı. Sıradaki en yüksek değer: Builder self-validation gate (executeProject öncesi syntax kontrol). project-executor'a opsiyonel validate adımı eklenebilir; php -l yoksa atla (uyarı), JS/JSON JSON.parse/new Function ile syntax kontrol.
+
+---
+
 ## Claude Update - 2026-07-01 15:00 — archiver TAMAMEN kaldırıldı: zero-dependency OS-native ZIP (alpha.80)
 
 ### İstek
