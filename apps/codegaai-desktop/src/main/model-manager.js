@@ -743,6 +743,10 @@ function wantsWebResearch(input) {
   if (/(guncel|son dakika|haber|piyasa|kur|fiyat|bugun)\S*.*(arastir|ara\b|bul\b|bak\b)/.test(q)) return true;
   // kÄ±sa ve emir kipi "araÅŸtÄ±r/araÅŸtÄ±rÄ±p Ã¶zetle"
   if (/\barastir/.test(q) && q.split(/\s+/).length <= 9) return true;
+  // Mesajda bir alan adÄ±/URL varsa ve "hakkÄ±nda bilgi/araÅŸtÄ±r/incele/nedir" gibi
+  // bir niyet varsa: bu siteyi ARA (model uydurmasÄ±n, gerÃ§ek kaynaÄŸa baksÄ±n).
+  if (/\b[a-z0-9-]+\.(net|com|org|io|dev|gov|edu|co|tr|info|biz|com\.tr|net\.tr|org\.tr)\b/.test(q) &&
+      /(hakkinda|bilgi|arastir|incele|nedir|ne is|tanit|hakk\b|sitesi|ara\b|bak\b)/.test(q)) return true;
   return false;
 }
 
@@ -1278,7 +1282,15 @@ class ModelManager {
         if (history.length > MAX_HISTORY_MESSAGES) history.splice(0, history.length - MAX_HISTORY_MESSAGES);
         return { text: out, model, source: "direct_research" };
       }
-      // araştırma başarısız → normal akışa düş (model kendi bilgisinden yanıtlasın)
+      // ARAŞTIRMA İSTENDİ ama BAŞARISIZ: modele düşüp UYDURMASINA izin verme
+      // (zayıf model var-olmayan şirket/kaynak icat ediyordu). Dürüst dön.
+      const failMsg =
+        `"${query}" için internette arama yapamadım veya kaynak bulamadım (ağ bağlantısı ` +
+        `ya da erişim engeli olabilir). Bilgiyi UYDURMAM — ağ erişimini kontrol edip tekrar dener misin?`;
+      history.push({ role: "user", content: text0 });
+      history.push({ role: "assistant", content: failMsg });
+      if (history.length > MAX_HISTORY_MESSAGES) history.splice(0, history.length - MAX_HISTORY_MESSAGES);
+      return { text: failMsg, model, source: "direct_research_failed" };
     }
 
     const messages = [

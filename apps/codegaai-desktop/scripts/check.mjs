@@ -378,8 +378,9 @@ if (!/DEFAULT_TEMPERATURE\s*=\s*0\.2\b/.test(ollamaClientTempFile)) throw new Er
 const antiLoopFile = readText(join(root, "src/main/agent/anti-loop.js"));
 if (!antiLoopFile.includes("collapseRepetition") || !antiLoopFile.includes("detectRunawayRepetition")) throw new Error("anti-loop.js tekrar/döngü temizliği (collapseRepetition/detectRunawayRepetition) eksik");
 if (!modelManagerFile.includes("collapseRepetition")) throw new Error("model-manager.js generate anti-loop (collapseRepetition) enjekte edilmemiş");
+if (!modelManagerFile.includes("direct_research_failed")) throw new Error("model-manager.js araştırma başarısızsa uydurma önleme (direct_research_failed) eksik");
 
-if (pkg.version !== "6.0.0-alpha.88") throw new Error(`Desktop package version must be 6.0.0-alpha.88, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.89") throw new Error(`Desktop package version must be 6.0.0-alpha.89, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

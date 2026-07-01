@@ -1,3 +1,32 @@
+## Claude Update - 2026-07-01 — alpha.89: Araştırma uydurma önleme + domain tetikleme
+
+### Bug (kullanıcı: "r10.net hakkında araştırma yap")
+Model web araması yapmadan UYDURDU ("Risk Technology Network Ltd" = var olmayan şirket) +
+bozuk Python üretti. İki kök neden:
+1. "araştırma yap" araştırmayı tetikliyordu AMA araştırma başarısız olunca (ağ/kaynak yok)
+   alpha.86 kodu normal generate'e DÜŞÜYORDU → zayıf model uyduruyordu.
+2. "r10.net hakkında bilgi ver" hiç araştırma tetiklemiyordu (domain var, tetikleyici dar).
+
+### Fix (model-manager.js)
+1. wantsWebResearch: alan adı/URL (.net/.com/.com.tr...) + niyet (hakkında/bilgi/araştır/
+   incele/nedir/sitesi) → araştırma tetikle. Artık "r10.net hakkında bilgi ver" de arar.
+2. askDirect: araştırma İSTENİP BAŞARISIZ olursa artık generate'e düşmüyor; DÜRÜST
+   "arama yapamadım/kaynak yok, UYDURMAM" mesajı döner (source:direct_research_failed).
+   Model hiç çağrılmaz → hayalî şirket/kod üretilmez.
+- Test: askdirect-research.test.js (2): başarısız→uydurmaz+generate çağrılmaz; domain'li
+  bilgi-ver→araştırır+özet. check.mjs guard: direct_research_failed.
+
+### Gate: check 232 · full jest 536/536 · release:prepare 536/536. Sürüm alpha.89.
+
+### Not
+- Bozuk Python/kod kalitesi hâlâ 4B modelin sınırı (prompt guardrails var). Bu fix en
+  azından araştırma başarısızsa UYDURMAYI ve alakasız kod bloğunu KESER.
+- Açık soru: kullanıcının makinesinde research tool ağ erişimi var mı? Yoksa hep dürüst-
+  başarısız döner (doğru davranış). qwen 7B + çalışan arama ile gerçek özet beklenir.
+- Sıradaki: 4) Indexer PR#2, 5) stable audit.
+
+---
+
 ## Claude Update - 2026-07-01 — alpha.88: ANTI-LOOP (tekrar/döngü çöpü temizliği)
 
 ### Neden
