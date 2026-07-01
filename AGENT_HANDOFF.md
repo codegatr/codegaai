@@ -1,3 +1,40 @@
+## Claude Update - 2026-07-01 — alpha.84: Smart File Naming (otonom dosya isimlendirme)
+
+### Sorun
+Deliver akışında dosyalar diske yazılıp zipleniyordu ama parser gerçek adı yakalayamayınca
+'dosya-1.sql', 'dosya-2.php' jenerik adları veriyordu → DirectAdmin'de elle yeniden adlandırma.
+
+### Çözüm (extract-files.js parser 4-katmanlı isim yakalama)
+1. Etiket: ```php:config.php (iki nokta) VE ```php config.php (boşluk) → fileNameFromInfo
+2. Yorum yönergesi: ilk 4 satırda // dosya: x / # file: x / <!-- dosya: y --> / -- dosya: z
+   → fileNameFromComment (yönerge satırı içerikten temizlenir, kod kirlenmez)
+3. İçerik sezgisi (etiket/yorum yoksa jenerik yerine) → fileNameFromContent:
+   - RewriteEngine/RewriteRule → .htaccess
+   - CREATE TABLE / INSERT INTO → schema.sql
+   - <!DOCTYPE html> / <html> → index.php
+   - php + (new PDO/PDO/mysqli_connect/->connect/DB_HOST/getenv) → config.php
+4. Son çare: dilden dosya-N.uzanti (eski davranış)
+- normalizePath: tırnak/baş ./ temizler, \ → /. .htaccess gibi gizli dosyada dedup "-2" eki bozmaz.
+- main.js deliver prompt'u güncellendi: modele ```dil:GERÇEK_DOSYA_ADI ZORUNLU, jenerik ad YASAK,
+  index.php/config.php/schema.sql/.htaccess rolleri açıkça belirtildi.
+
+### Test (builder-deliver.test.js +4)
+- iki nokta etiketi; yorum yönergesi + satır temizleme; içerik sezgisi (4 tür); path normalize.
+- Eski "dosya-1.php" testi hâlâ geçer (```php\n<?php echo 1 → PDO yok → jenerik kalır).
+- check.mjs: fileNameFromContent/fileNameFromComment + schema.sql/.htaccess/config.php guard.
+
+### Gate: check 227 OK · full jest 527/527 (+4) · release:prepare 527/527. Sürüm alpha.84.
+
+### Sıradaki (kullanıcı öncelik sırası)
+4. Project Brain Indexer PR#2 (KÜÇÜK): indexer-queue + incremental manifest + maxFileSize + ignore.
+5. Stable readiness audit.
+
+### 📌 CODEX/ChatGPT NOTU
+- Parser artık gerçek adları yakalıyor. Eğer model yine de jenerik dönerse fallback içerik
+  sezgisi devrede. Yeni kural: kod bloğu etiketi ```dil:dosyaadi biçiminde beklenir.
+
+---
+
 ## Claude Update - 2026-07-01 — alpha.83: Builder self-validation gate (Öncelik 3)
 
 ### Ne yapıldı

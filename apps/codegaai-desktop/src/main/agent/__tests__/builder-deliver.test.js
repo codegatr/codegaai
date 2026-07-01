@@ -38,6 +38,38 @@ describe("extract-files: kod bloklarından dosya", () => {
     expect(files[1].path).toBe("config.php");
     expect(files[2].path).toBe("config-2.php");
   });
+
+  test("iki nokta etiketi (```php:config.php) dosya adı verir", () => {
+    const text = "```php:config.php\n<?php $x=1;\n```\n```apache:.htaccess\nRewriteEngine On\n```";
+    const files = extractFiles(text);
+    expect(files.map((f) => f.path)).toEqual(["config.php", ".htaccess"]);
+  });
+
+  test("yorum yönergesi (// dosya: x) dosya adı verir ve yönerge satırı temizlenir", () => {
+    const text = "```php\n// dosya: config.php\n<?php $db=1;\n```";
+    const files = extractFiles(text);
+    expect(files[0].path).toBe("config.php");
+    expect(files[0].content).not.toMatch(/dosya:/);
+    expect(files[0].content).toMatch(/\$db=1/);
+  });
+
+  test("içerik sezgisi: etiket/yorum yoksa gerçek isim (jenerik değil)", () => {
+    const text = [
+      "```sql\nCREATE TABLE araclar(id INT);\n```",
+      "```apache\nRewriteEngine On\nRewriteRule ^ index.php\n```",
+      "```html\n<!DOCTYPE html>\n<html><body>ok</body></html>\n```",
+      "```php\n<?php $pdo = new PDO('mysql:host=localhost', 'u', 'p');\n```",
+    ].join("\n");
+    const files = extractFiles(text);
+    expect(files.map((f) => f.path)).toEqual([
+      "schema.sql", ".htaccess", "index.php", "config.php",
+    ]);
+  });
+
+  test("path traversal içeren etiket normalize edilir (kök dışına çıkmaz kısmı)", () => {
+    const files = extractFiles("```php ./sub/config.php\n<?php\n```");
+    expect(files[0].path).toBe("sub/config.php");
+  });
 });
 
 describe("project-executor: yaz + ZIP (güvenli)", () => {
