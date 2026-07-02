@@ -394,7 +394,9 @@ if (!modelManagerFile.includes("direct_selfcorrected") || !modelManagerFile.incl
 if (!rendererFile2.includes("zip.analyze") || !rendererFile2.includes("ANALİZ (otomatik)")) throw new Error("renderer.js ZIP eklentisinde yapılandırılmış analiz (zip.analyze/ANALİZ) sohbete bağlanmamış");
 if (!modelManagerFile.includes("wantsSiteAudit") || !modelManagerFile.includes("direct_site_audit")) throw new Error("model-manager.js site denetimi (wantsSiteAudit/direct_site_audit) eksik");
 
-if (pkg.version !== "6.0.0-alpha.97") throw new Error(`Desktop package version must be 6.0.0-alpha.97, got ${pkg.version}`);
+if (!modelManagerFile.includes("rankResearchSources") || !modelManagerFile.includes("sourceFreshnessLabel")) throw new Error("model-manager.js kaynak kalitesi (rankResearchSources/sourceFreshnessLabel) eksik");
+
+if (pkg.version !== "6.0.0-alpha.98") throw new Error(`Desktop package version must be 6.0.0-alpha.98, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

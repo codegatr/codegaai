@@ -832,21 +832,126 @@ function researchHosts(sources) {
     .filter(Boolean);
 }
 
+// --- Kaynak kalitesi: resmi kaynak önceliklendirme + tazelik etiketi ---
+// AGENT_HANDOFF notu (alpha.90 grounding guard): "Gelecek iyilestirme: kaynak kalitesi
+// skoru, tarih/tazelik etiketi ve resmi kaynak onceliklendirmesi eklenmeli."
+
+const SOURCE_TIER_SCORES = { official: 90, docs: 80, encyclopedia: 70, news: 55, general: 45, forum: 25 };
+
+function classifyResearchSource(url) {
+  let host = "";
+  try { host = url ? new URL(url).hostname.replace(/^www\./i, "").toLowerCase() : ""; }
+  catch (_e) { return { host: "", tier: "general" }; }
+  if (!host) return { host: "", tier: "general" };
+  if (/(^|\.)((gov|edu|mil)(\.[a-z]{2})?|belediye\.tr|k12\.tr|pol\.tr|tsk\.tr)$/.test(host)
+    || /(^|\.)(resmigazete|tuik|mevzuat)\.gov\.tr$/.test(host)) {
+    return { host, tier: "official" };
+  }
+  if (/^(docs?|developer|devdocs|api|learn)\./.test(host) || /readthedocs\.io$/.test(host)
+    || /^(developer\.mozilla\.org|learn\.microsoft\.com)$/.test(host)) {
+    return { host, tier: "docs" };
+  }
+  if (/(^|\.)wikipedia\.org$|(^|\.)britannica\.com$/.test(host)) return { host, tier: "encyclopedia" };
+  if (/(forum|sozluk|reddit|quora|stackoverflow|stackexchange|facebook|twitter|x\.com|instagram)/.test(host)) {
+    return { host, tier: "forum" };
+  }
+  if (/(haber|gazete|news|hurriyet|milliyet|sabah|ntv|cnn|bbc|reuters|aa\.com\.tr)/.test(host)) {
+    return { host, tier: "news" };
+  }
+  return { host, tier: "general" };
+}
+
+// Snippet/başlıktaki en makul yılı yakala (dd.mm.yyyy, yyyy-mm-dd veya yalın yıl).
+function extractSourceYear(source) {
+  const text = `${source && source.title || ""} ${source && source.snippet || ""}`;
+  const years = [];
+  const dateRe = /\b(?:\d{1,2}[./]\d{1,2}[./](\d{4})|(\d{4})-\d{2}-\d{2}|(19[9]\d|20[0-4]\d))\b/g;
+  let m;
+  while ((m = dateRe.exec(text))) {
+    const y = parseInt(m[1] || m[2] || m[3], 10);
+    if (y >= 1990 && y <= new Date().getFullYear() + 1) years.push(y);
+  }
+  return years.length ? Math.max(...years) : null;
+}
+
+function sourceFreshnessLabel(year, now = new Date()) {
+  if (!year) return "";
+  const age = now.getFullYear() - year;
+  if (age <= 1) return `güncel · ${year}`;
+  if (age >= 3) return `eski olabilir · ${year}`;
+  return String(year);
+}
+
+function scoreResearchSource(source, now = new Date()) {
+  const { tier } = classifyResearchSource(source && source.url);
+  let score = SOURCE_TIER_SCORES[tier] || SOURCE_TIER_SCORES.general;
+  if (source && /^https:/i.test(source.url || "")) score += 3;
+  if (source && (source.snippet || "").length >= 80) score += 5;
+  const year = extractSourceYear(source);
+  if (year) {
+    const age = now.getFullYear() - year;
+    if (age <= 1) score += 5;
+    else if (age >= 3) score -= 5;
+  }
+  return Math.max(0, Math.min(100, score));
+}
+
+// Kaynakları kalite skoruna göre sırala (resmi > docs > ansiklopedi > haber > genel > forum).
+// Eşit skorda orijinal sıra korunur (stable) — arama motorunun alaka sırası ikincil sinyaldir.
+function rankResearchSources(sources, now = new Date()) {
+  return (sources || [])
+    .map((source, index) => {
+      const { tier } = classifyResearchSource(source.url);
+      const year = extractSourceYear(source);
+      return {
+        ...source,
+        tier,
+        year,
+        score: scoreResearchSource(source, now),
+        freshness: sourceFreshnessLabel(year, now),
+        _index: index,
+      };
+    })
+    .sort((a, b) => (b.score - a.score) || (a._index - b._index));
+}
+
+// Aynı host'tan en fazla `maxPerHost` kaynak tut — tek bir forum/site kaynak
+// listesini domine etmesin. Sıralı liste bekler (rankResearchSources çıktısı);
+// host'u çözülemeyen kaynaklar sınırlamadan muaftır.
+function capResearchSourcesPerHost(sources, maxPerHost = 2) {
+  const perHost = Object.create(null);
+  return (sources || []).filter((source) => {
+    const { host } = classifyResearchSource(source && source.url);
+    if (!host) return true;
+    perHost[host] = (perHost[host] || 0) + 1;
+    return perHost[host] <= maxPerHost;
+  });
+}
+
+function sourceLabelSuffix(source) {
+  const tags = [];
+  if (source.tier === "official") tags.push("resmi kaynak");
+  else if (source.tier === "docs") tags.push("resmi dokümantasyon");
+  else if (source.tier === "forum") tags.push("forum/topluluk");
+  if (source.freshness) tags.push(source.freshness);
+  return tags.length ? ` (${tags.join(", ")})` : "";
+}
+
 function sourceListMarkdown(sources) {
   const usable = (sources || []).filter((source) => source && (source.url || source.title));
   if (!usable.length) return "";
   return usable
-    .map((source) => `- ${source.title}${source.url ? `: ${source.url}` : ""}`)
+    .map((source) => `- ${source.title}${sourceLabelSuffix(source)}${source.url ? `: ${source.url}` : ""}`)
     .join("\n");
 }
 
 function buildGroundedResearchFallback(query, research) {
-  const sources = parseResearchSources(research);
+  const sources = capResearchSourcesPerHost(rankResearchSources(parseResearchSources(research)));
   const sourceList = sourceListMarkdown(sources);
   const bullets = sources
     .filter((source) => source.snippet)
     .slice(0, 3)
-    .map((source) => `- ${source.title}: ${source.snippet}`)
+    .map((source) => `- ${source.title}${sourceLabelSuffix(source)}: ${source.snippet}`)
     .join("\n");
   const body = bullets || String(research || "").replace(/\s+/g, " ").slice(0, 700);
   return [
@@ -878,7 +983,7 @@ function groundResearchAnswer(query, research, generated) {
     return buildGroundedResearchFallback(query, research);
   }
   if (sources.length > 0 && !hasUrlInSummary) {
-    const sourceList = sourceListMarkdown(sources);
+    const sourceList = sourceListMarkdown(capResearchSourcesPerHost(rankResearchSources(sources)));
     if (sourceList) return `${summary}\n\nKaynaklar:\n${sourceList}`;
   }
   return summary;
@@ -2601,6 +2706,12 @@ module.exports = {
   wantsWebResearch,
   wantsSiteAudit,
   extractResearchQuery,
+  classifyResearchSource,
+  scoreResearchSource,
+  rankResearchSources,
+  capResearchSourcesPerHost,
+  extractSourceYear,
+  sourceFreshnessLabel,
   candidateModelsForTask,
   chooseModelForTask,
   modelParamSize,
