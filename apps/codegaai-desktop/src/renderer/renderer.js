@@ -2726,18 +2726,19 @@ function updateOverview() {
   const ollama = document.getElementById("ollama-row-status");
   const ollamaText = ollama ? ollama.textContent || "" : "";
   const ollamaReady = /çalışıyor/i.test(ollamaText);
-  if (ollama) set("ov-health-ollama", ollamaReady ? "\u00e7al\u0131\u015f\u0131yor" : "kurulu de\u011fil");
-  if (ollama) set("ov-ollama", /çalışıyor/i.test(ollama.textContent) ? "Çalışıyor ✓" : "Kurulu değil");
-  const ver = document.getElementById("version-label");
-  if (ver) set("ov-version", ver.textContent || "—");
-  const mem = document.getElementById("memory-summary");
-  if (mem) set("ov-memory", (mem.textContent || "").slice(0, 40));
-  if (agentSettings && (agentSettings.model || agentSettings.defaultModel)) {
-    const model = agentSettings.model || agentSettings.defaultModel;
-    set("ov-model", model);
-    set("ov-health-model", model);
+  if (ollama) {
+    set("ov-health-ollama", ollamaReady ? "çalışıyor" : "kurulu değil");
+    const ollamaDot = document.getElementById("ov-health-ollama-dot");
+    if (ollamaDot) ollamaDot.className = `dot ${ollamaReady ? "ok" : "warn"}`;
   }
   if (agentSettings) {
+    // Aktif Model: bulut sağlayıcı seçiliyse onun modeli; ollama seçiliyken
+    // açılıştaki canlı durum (getStatus) değeri korunur. "En Çok Model" istatistikten gelir.
+    const providerModelKeys = { openai: "openaiModel", claude: "claudeModel", gemini: "geminiModel" };
+    const cloudModel = agentSettings[providerModelKeys[agentSettings.provider]];
+    if (agentSettings.provider !== "ollama" && cloudModel) set("ov-health-model", cloudModel);
+    const expert = String(agentSettings.expertMode || "genel");
+    set("ov-health-agent", expert.charAt(0).toLocaleUpperCase("tr") + expert.slice(1));
     const providerHealth = (name, apiKey) => {
       const configured = !!String(apiKey || "").trim();
       const selected = agentSettings.provider === name;
@@ -2779,6 +2780,9 @@ if (settingsThemeToggle) {
 const settingsExportBtn = document.getElementById("settings-export");
 if (settingsExportBtn) {
   settingsExportBtn.addEventListener("click", async () => {
+    // Dışa aktarılan JSON, API anahtarlarını DÜZ METİN içerir — kullanıcı
+    // paylaşmadan önce bunu bilmeli.
+    if (!window.confirm("Dışa aktarılan dosya API anahtarlarını düz metin olarak içerir. Devam edilsin mi?")) return;
     try {
       const s = await window.codega.getSettings();
       const blob = new Blob([JSON.stringify(s, null, 2)], { type: "application/json" });
@@ -2877,9 +2881,17 @@ function selectedProviderFields() {
 function fillProviderFields() {
   const fields = selectedProviderFields();
   if (!fields || !agentSettings) return;
-  if (els.openaiBase) els.openaiBase.value = agentSettings[fields.base] || fields.baseUrl;
+  // Placeholder'lar seçili sağlayıcıya göre güncellenir — Claude/Gemini
+  // seçiliyken OpenAI örnekleri gösterilmesin.
+  if (els.openaiBase) {
+    els.openaiBase.value = agentSettings[fields.base] || fields.baseUrl;
+    els.openaiBase.placeholder = `Base URL (örn. ${fields.baseUrl})`;
+  }
   if (els.openaiKey) els.openaiKey.value = agentSettings[fields.key] || "";
-  if (els.openaiModel) els.openaiModel.value = agentSettings[fields.model] || fields.modelName;
+  if (els.openaiModel) {
+    els.openaiModel.value = agentSettings[fields.model] || fields.modelName;
+    els.openaiModel.placeholder = `Model (örn. ${fields.modelName})`;
+  }
 }
 
 function updateProviderVisibility() {
