@@ -396,7 +396,11 @@ if (!modelManagerFile.includes("wantsSiteAudit") || !modelManagerFile.includes("
 
 if (!modelManagerFile.includes("rankResearchSources") || !modelManagerFile.includes("sourceFreshnessLabel")) throw new Error("model-manager.js kaynak kalitesi (rankResearchSources/sourceFreshnessLabel) eksik");
 
-if (pkg.version !== "6.0.0-alpha.98") throw new Error(`Desktop package version must be 6.0.0-alpha.98, got ${pkg.version}`);
+const cloudProviderFile = readText(join(root, "src/main/agent/cloud-provider.js"));
+if (!cloudProviderFile.includes("claude-opus-4-8") || !cloudProviderFile.includes("anthropicSamplingRemoved")) throw new Error("cloud-provider.js güncel Claude modeli (claude-opus-4-8/anthropicSamplingRemoved) eksik");
+if (cloudProviderFile.includes("claude-sonnet-4-20250514")) throw new Error("cloud-provider.js emekli Claude modeline (claude-sonnet-4-20250514) referans içermemeli");
+
+if (pkg.version !== "6.0.0-alpha.99") throw new Error(`Desktop package version must be 6.0.0-alpha.99, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

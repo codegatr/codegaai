@@ -60,7 +60,7 @@ const DEFAULTS = {
   openaiModel: "gpt-4o-mini",
   claudeBaseUrl: "https://api.anthropic.com/v1",
   claudeApiKey: "",
-  claudeModel: "claude-sonnet-4-20250514",
+  claudeModel: "claude-opus-4-8",
   geminiBaseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
   geminiApiKey: "",
   geminiModel: "gemini-2.5-flash",
@@ -112,10 +112,24 @@ function setSettings(patch) {
   return next;
 }
 
+// Emekli edilen/edilecek Claude modelleri → güncel varsayılana taşınır.
+// claude-sonnet-4-20250514 Haziran 2026'da emekli ediliyor; eski kayıtlı
+// ayarlardaki değer normalize sırasında otomatik güncellenir.
+const RETIRED_CLAUDE_MODELS = new Set([
+  "claude-sonnet-4-20250514",
+  "claude-opus-4-20250514",
+  "claude-3-5-sonnet-20241022",
+  "claude-3-5-sonnet-20240620",
+  "claude-3-7-sonnet-20250219",
+]);
+
 function normalizeSettings(settings) {
   const next = { ...settings };
   next.trustedFolders = runtimePolicy.normalizeTrustedFolders(next.trustedFolders);
   next.modelFallbackOrder = runtimePolicy.normalizeProviderOrder(next.modelFallbackOrder, next.provider);
+  if (RETIRED_CLAUDE_MODELS.has(String(next.claudeModel || "").trim())) {
+    next.claudeModel = DEFAULTS.claudeModel;
+  }
   next.remoteToolsDeviceName = String(next.remoteToolsDeviceName || runtimePolicy.defaultDeviceName()).trim();
   next.toolPermissions = {
     ...DEFAULTS.toolPermissions,

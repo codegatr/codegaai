@@ -22,12 +22,18 @@ const PROVIDERS = {
   claude: {
     label: "Claude",
     baseUrl: "https://api.anthropic.com/v1",
-    model: "claude-sonnet-4-20250514",
+    model: "claude-opus-4-8",
     baseKey: "claudeBaseUrl",
     apiKey: "claudeApiKey",
     modelKey: "claudeModel",
   },
 };
+
+// Claude 4.7+ ailesi (opus-4-7/4-8, sonnet-5, fable-5, mythos-5) sampling
+// parametrelerini (temperature/top_p/top_k) kaldırdı — gönderilirse HTTP 400.
+function anthropicSamplingRemoved(model) {
+  return /(opus-4-[78]|sonnet-5|fable-5|mythos-5)/i.test(String(model || ""));
+}
 
 function profile(provider) {
   return PROVIDERS[provider] || null;
@@ -62,10 +68,13 @@ function anthropicPayload(messages, opts, stream) {
   const chat = messages
     .filter((m) => m.role !== "system")
     .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: String(m.content || "") }));
+  const model = opts.model || PROVIDERS.claude.model;
   return {
-    model: opts.model || PROVIDERS.claude.model,
+    model,
     max_tokens: opts.maxTokens || 4096,
-    temperature: opts.temperature == null ? 0.4 : opts.temperature,
+    ...(anthropicSamplingRemoved(model)
+      ? {}
+      : { temperature: opts.temperature == null ? 0.4 : opts.temperature }),
     ...(system ? { system } : {}),
     messages: chat,
     stream,
@@ -184,4 +193,6 @@ module.exports = {
   cloudChat,
   cloudChatStream,
   cloudTest,
+  _anthropicPayload: anthropicPayload,
+  _anthropicSamplingRemoved: anthropicSamplingRemoved,
 };
