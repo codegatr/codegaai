@@ -21,10 +21,10 @@ ENV/
 build/__pycache__/
 build/*.pyc
 dist/
-dist/
 *.spec
 !build/codegaai.spec
 *.exe
+*.zip
 *.dmg
 *.pkg
 *.deb
