@@ -396,7 +396,6 @@ if (!modelManagerFile.includes("wantsSiteAudit") || !modelManagerFile.includes("
 
 if (!modelManagerFile.includes("rankResearchSources") || !modelManagerFile.includes("sourceFreshnessLabel")) throw new Error("model-manager.js kaynak kalitesi (rankResearchSources/sourceFreshnessLabel) eksik");
 
-const ollamaClientFile = readText(join(root, "src/main/agent/ollama-client.js"));
 if (!ollamaClientFile.includes("detectRunawayRepetition") || !ollamaClientFile.includes('"runaway"')) throw new Error("ollama-client.js kaçak üretim canlı kesici (detectRunawayRepetition/runaway) eksik");
 
 const cloudProviderFile = readText(join(root, "src/main/agent/cloud-provider.js"));
