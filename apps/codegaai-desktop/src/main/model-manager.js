@@ -915,6 +915,19 @@ function rankResearchSources(sources, now = new Date()) {
     .sort((a, b) => (b.score - a.score) || (a._index - b._index));
 }
 
+// Aynı host'tan en fazla `maxPerHost` kaynak tut — tek bir forum/site kaynak
+// listesini domine etmesin. Sıralı liste bekler (rankResearchSources çıktısı);
+// host'u çözülemeyen kaynaklar sınırlamadan muaftır.
+function capResearchSourcesPerHost(sources, maxPerHost = 2) {
+  const perHost = Object.create(null);
+  return (sources || []).filter((source) => {
+    const { host } = classifyResearchSource(source && source.url);
+    if (!host) return true;
+    perHost[host] = (perHost[host] || 0) + 1;
+    return perHost[host] <= maxPerHost;
+  });
+}
+
 function sourceLabelSuffix(source) {
   const tags = [];
   if (source.tier === "official") tags.push("resmi kaynak");
@@ -933,7 +946,7 @@ function sourceListMarkdown(sources) {
 }
 
 function buildGroundedResearchFallback(query, research) {
-  const sources = rankResearchSources(parseResearchSources(research));
+  const sources = capResearchSourcesPerHost(rankResearchSources(parseResearchSources(research)));
   const sourceList = sourceListMarkdown(sources);
   const bullets = sources
     .filter((source) => source.snippet)
@@ -970,7 +983,7 @@ function groundResearchAnswer(query, research, generated) {
     return buildGroundedResearchFallback(query, research);
   }
   if (sources.length > 0 && !hasUrlInSummary) {
-    const sourceList = sourceListMarkdown(rankResearchSources(sources));
+    const sourceList = sourceListMarkdown(capResearchSourcesPerHost(rankResearchSources(sources)));
     if (sourceList) return `${summary}\n\nKaynaklar:\n${sourceList}`;
   }
   return summary;
@@ -2696,6 +2709,7 @@ module.exports = {
   classifyResearchSource,
   scoreResearchSource,
   rankResearchSources,
+  capResearchSourcesPerHost,
   extractSourceYear,
   sourceFreshnessLabel,
   candidateModelsForTask,

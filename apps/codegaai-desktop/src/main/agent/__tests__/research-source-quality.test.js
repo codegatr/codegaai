@@ -8,6 +8,7 @@ const {
   classifyResearchSource,
   scoreResearchSource,
   rankResearchSources,
+  capResearchSourcesPerHost,
   extractSourceYear,
   sourceFreshnessLabel,
 } = require("../../model-manager");
@@ -73,6 +74,27 @@ describe("scoreResearchSource + rankResearchSources: resmi kaynak öne geçer", 
     const s = scoreResearchSource({ title: "x", url: "https://tuik.gov.tr/", snippet: "a".repeat(100) + " 2026" }, NOW);
     expect(s).toBeLessThanOrEqual(100);
     expect(s).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("capResearchSourcesPerHost: tek host listeyi domine edemez", () => {
+  test("aynı host'tan en fazla 2 kaynak kalır, sıra korunur", () => {
+    const capped = capResearchSourcesPerHost([
+      { title: "F1", url: "https://forum.example.com/1" },
+      { title: "F2", url: "https://forum.example.com/2" },
+      { title: "F3", url: "https://forum.example.com/3" },
+      { title: "Resmi", url: "https://tuik.gov.tr/x" },
+    ]);
+    expect(capped.map((s) => s.title)).toEqual(["F1", "F2", "Resmi"]);
+  });
+  test("www öneki aynı host sayılır; URL'siz kaynak muaftır", () => {
+    const capped = capResearchSourcesPerHost([
+      { title: "A", url: "https://www.example.com/a" },
+      { title: "B", url: "https://example.com/b" },
+      { title: "C", url: "https://example.com/c" },
+      { title: "Bozuk", url: "" },
+    ]);
+    expect(capped.map((s) => s.title)).toEqual(["A", "B", "Bozuk"]);
   });
 });
 
