@@ -1573,7 +1573,22 @@ class ModelManager {
       let retry = "";
       try { retry = String(await this.generate(model, retryMsgs, [], null) || "").trim(); } catch (_e) {}
       this._abort = null;
-      if (retry && !looksDegenerate(retry, text0).bad) { text = retry; source = "direct_selfcorrected"; }
+      if (retry && !looksDegenerate(retry, text0).bad) {
+        text = retry; source = "direct_selfcorrected";
+      } else if (q.reason !== "empty") {
+        // ("empty" hariç: boş üretim aşağıdaki mevcut Ollama mesajıyla yanıtlanır.)
+        // Düzeltme de bozuk → ÇÖPÜ AYNEN TESLİM ETME (anayasa: asla kararsız
+        // çıktı verme). Dürüst kısa mesaj + somut çıkış yolu öner.
+        text = [
+          "Ürettiğim yanıt bozuldu (" + (q.reason === "runaway_repetition" ? "kaçak tekrar döngüsü" : q.reason) + ") ve düzeltme denemem de başarısız oldu.",
+          "Bozuk çıktıyı olduğu gibi göndermek yerine durdurdum.",
+          "",
+          "Öneriler:",
+          "- Görevi daha küçük parçalara böl (örn. önce yalnızca tablo şeması, sonra sorgular).",
+          "- Bu görev yerel modelin sınırlarını aşıyor olabilir: Ayarlar → AI Sağlayıcı'dan daha güçlü bir bulut modeli (örn. Claude) seçip tekrar dene.",
+        ].join("\n");
+        source = "direct_degenerate_fallback";
+      }
     }
 
     if (!text) text = "Şu an yanıt üretemedim. Ollama'nın açık ve bir modelin kurulu olduğundan emin olup tekrar dener misin?";

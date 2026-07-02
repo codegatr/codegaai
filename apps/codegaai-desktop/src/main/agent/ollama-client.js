@@ -1,5 +1,6 @@
 "use strict";
 const crypto = require("node:crypto");
+const { detectRunawayRepetition } = require("./anti-loop");
 /**
  * agent/ollama-client.js
  * -----------------------
@@ -159,6 +160,12 @@ async function streamChatOnce(model, messages, opts = {}) {
   }
   let text = "";
   let doneReason = null;
+  // KAÇAK ÜRETİM CANLI KESİCİ: küçük model tekrar döngüsüne girerse (aynı dev
+  // SQL bloğunu defalarca basması gibi) çöpün kullanıcıya dakikalarca akmasını
+  // bekleme — birikimde kaçak tekrar görülür görülmez bu turu kes. Üst katman
+  // doneReason:"runaway" görür; öz-düzeltme oradan devralır.
+  let runaway = false;
+  let lastRunawayCheckLen = 0;
   try {
     const res = await fetch(`${host}/api/chat`, {
       method: "POST",
@@ -195,6 +202,14 @@ async function streamChatOnce(model, messages, opts = {}) {
             if (tok) {
               text += tok;
               if (onToken) { try { onToken(tok); } catch (_e) { /* yut */ } }
+              // Her ~1500 karakterde bir kuyruğu (son 9000) kaçak tekrar için tara.
+              if (text.length - lastRunawayCheckLen >= 1500) {
+                lastRunawayCheckLen = text.length;
+                if (detectRunawayRepetition(text.slice(-9000))) {
+                  runaway = true;
+                  controller.abort();
+                }
+              }
             }
             if (obj && obj.done && obj.done_reason) doneReason = obj.done_reason;
           } catch (_e) { /* yarım satır olabilir, yoksay */ }
@@ -210,6 +225,11 @@ async function streamChatOnce(model, messages, opts = {}) {
     }
     return { text, doneReason };
   } catch (error) {
+    // Canlı kesici tetiklendiyse bu bir hata değil, kontrollü kesinti:
+    // o ana kadarki metinle dön; üst katman "runaway" nedenini görsün.
+    if (error && error.name === "AbortError" && runaway) {
+      return { text, doneReason: "runaway" };
+    }
     if (error && error.name === "AbortError" && timedOut) {
       const timeout = new Error(`Ollama ${Math.round(timeoutMs / 1000)} saniye içinde yanıt vermedi.`);
       timeout.name = "TimeoutError";
@@ -265,10 +285,15 @@ async function ollamaChatStream(model, messages, opts = {}) {
     });
     full += text;
 
+    // Canlı kesici bu turu kestiyse devam turu ATMA — çöpü uzatma.
+    if (doneReason === "runaway") break;
     // Normal bitiş (stop / null) → tamam.
     if (doneReason !== "length") break;
     // Güvenlik tavanı veya ilerleme yok → döngüyü kır (sonsuz devam etmesin).
     if (continuations >= maxContinuations || !text.trim()) break;
+    // BİRİKİM kaçak tekrar içeriyorsa (turlar arası aynı blok döngüsü) devam
+    // turu, döngüyü token tavanının ötesine taşımaktan başka işe yaramaz — kes.
+    if (detectRunawayRepetition(full)) break;
     continuations += 1;
 
     // Kaldığı yerden devam ettir: şimdiye kadarki yanıtı asistan mesajı olarak
