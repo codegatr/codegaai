@@ -1,5 +1,12 @@
 # CODEGA AI — Mühendislik Manifestosu
 
+> CODEGA AI is not a chatbot.
+> It is an evolving software engineering platform.
+> It remembers projects, not messages.
+> It learns engineering, not answers.
+> It improves through evidence, not assumptions.
+> It never stops becoming a better engineer.
+
 > **CODEGA AI'nin başarısı, kaç özellik eklediğiyle değil; her yeni sürümde ne kadar daha iyi bir yazılım mühendisi haline geldiğiyle ölçülür.**
 
 ---

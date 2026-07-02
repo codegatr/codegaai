@@ -2205,3 +2205,29 @@ engeller. Gelecek iyilestirme: kaynak kalitesi skoru, tarih/tazelik etiketi ve r
 onceliklendirmesi eklenmeli.
 
 ---
+
+---
+## Claude Update - 2026-07-02 - NIRVANA v2.0 anayasasi kabul edildi
+
+### Current Task
+Kullanici projenin anayasa metnini verdi (NIRVANA MANIFEST - The Final Architecture
+Directive): Bes Kurucu Ilke, gozlemlenebilirlik, ogrenme, proje hafizasi, surum
+disiplini + README'nin en ustune kimlik manifestosu.
+
+### Action
+- NIRVANA.md v1.0 -> v2.0: yeni anayasa islendi; v1'in ajan kadrosu, research
+  engine, performans ilkesi ve Nirvana hedefi korunarak birlestirildi.
+- README.md tamamen yeniden yazildi: kimlik manifestosu en ustte, mevcut sistemi
+  anlatiyor (mimari sema, cekirdek motor tablosu, surum kapilari, bilinen sinirlar).
+  Python sozlesme testlerinin zorunlu tokenlari korundu (codega_logo, Agent OS,
+  macos-arm64.dmg, /api/federation/metrics, /api/orchestrate/agent-os, MIT lisansi,
+  .codegaaiignore, Agentic Core, context-pack).
+- MANIFESTO.md: kimlik manifestosu en uste eklendi.
+- docs/NIRVANA_AUDIT_2026-07.md: anayasanin istedigi 7 teslimat tek konsolide
+  raporda (mimari denetim, teknik borc, entegrasyon, README, eksik yetenekler,
+  olgunluk, beta.1 yol haritasi).
+
+### Notes For Claude + ChatGPT
+- Beta.1 oncelik sirasi audit raporunun 7. bolumunde: Confidence Panel -> Eko mod
+  (effort) -> akilli yonlendirme -> Project Brain kalicilik regresyonu.
+- Dokuman-degisikligi surumu bump etmez; kod degisikliginde alpha.101'den devam.

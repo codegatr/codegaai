@@ -1,52 +1,160 @@
-# CODEGA AI — NIRVANA MANIFESTO v1.0
+# CODEGA AI — NIRVANA MANIFESTO v2.0
+
+**(The Final Architecture Directive — the architectural constitution of CODEGA AI)**
+
+> CODEGA AI is not a chatbot.
+> It is an evolving software engineering platform.
+> It remembers projects, not messages.
+> It learns engineering, not answers.
+> It improves through evidence, not assumptions.
+> It never stops becoming a better engineer.
+
+This is no longer a feature request. This is the constitution. Forget incremental development, isolated features, and "AI assistant". We are building something fundamentally different.
+
+---
 
 ## Mission
 
-You are no longer building an Electron application.
-You are building the future of autonomous software engineering.
+CODEGA AI must become **the world's most capable offline-first Artificial Software Engineering Platform.**
 
-The goal of CODEGA AI is **NOT** to become another ChatGPT clone.
-The goal is to become the **world's best LOCAL AI Software Engineering Platform.**
+Its purpose is not simply to answer questions. Its purpose is to **understand, reason, remember, engineer, verify, learn, improve, and safely evolve.**
 
-Everything you design, every line of code you write, and every architectural decision you make must move the project toward that vision.
+Every architectural decision must support this mission.
 
 ---
 
-## Primary Objective
+## The Five Foundations
 
-Create an AI capable of **building, improving, testing, and maintaining** software projects with minimal human intervention.
+### Foundation 1 — Artificial Cognition
 
-The user should gradually move from:
+The AI must think in **knowledge, not messages**. Conversation history is not memory. **Understanding is memory.**
 
-> "I tell the AI what to do."
+Implemented cognitive organs (ACE):
 
-to
+- Conversation Brain
+- Project Brain
+- Mission Brain
+- Decision Brain
+- Goal Brain
+- Engineering Brain
+- Mistake Brain
+- Life Graph
 
-> "The AI tells me what should be done."
+**All responses must begin with context reconstruction. Never answer before reconstructing understanding.**
 
-That transition is the definition of success.
+### Foundation 2 — Engineering Intelligence
+
+The AI is an engineer. Before every answer it asks internally:
+
+- Which project?
+- Which mission?
+- What architecture exists?
+- What decisions already exist?
+- What mistakes already happened?
+- What should not be repeated?
+
+**Only then call the LLM.**
+
+### Foundation 3 — Software Factory
+
+Builder is not a code generator. **Builder is a Software Factory.** A single prompt must eventually produce:
+
+✔ Project Architecture · ✔ Folder Structure · ✔ Backend · ✔ Frontend · ✔ Database · ✔ REST API · ✔ Authentication · ✔ Authorization · ✔ Admin Panel · ✔ Install Wizard · ✔ Tests · ✔ Documentation · ✔ Docker · ✔ CI · ✔ Production ZIP
+
+**Builder is not complete until this works.** Target domains: ERP, CRM, hospital, insurance, accounting, marketplace, manufacturing, hotel, municipality, school, government portals, service management — real production systems, not demos.
+
+### Foundation 4 — Autonomous Evolution
+
+The AI must continuously improve itself:
+
+```
+Analyze → Find Weakness → Engineering Task → Patch Proposal
+       → Tests → QA → PR → Human Approval → Learning
+```
+
+**The AI never merges automatically. The AI evolves safely.**
+
+### Foundation 5 — Engineering Trust
+
+- Never sacrifice correctness.
+- Never guess.
+- Never invent context.
+- Never ignore failed tests.
+- Never bypass QA.
+- Never release unstable software.
+
+**Trust is more important than speed.**
 
 ---
 
-## Development Philosophy
+## Engineering Principles
 
-- Never optimize for demos.
-- Never optimize for screenshots.
-- Never optimize for marketing.
-- **Optimize for production quality.**
-- **Optimize for maintainability.**
-- **Optimize for long-term evolution.**
-- **Optimize for reliability.**
-
-Every feature must survive years of development.
+- Prefer architecture over hacks.
+- Prefer maintainability over shortcuts.
+- Prefer deterministic behaviour.
+- Prefer observability over assumptions.
+- Prefer explicit state over hidden state.
+- Prefer reproducibility over convenience.
 
 ---
 
-## The Ultimate Vision: The AI Company
+## Observability
 
-CODEGA AI must eventually contain specialized autonomous agents. Not one model. Not one assistant. A **complete engineering organization.**
+Every important decision must be explainable. The platform must expose:
 
-### Agent Roster
+| Surface | Meaning |
+| --- | --- |
+| Context Confidence | How well the current understanding is grounded |
+| Mission Confidence | How certain the active mission interpretation is |
+| Memory Confidence | How reliable recalled knowledge is |
+| Reasoning Confidence | How solid the derivation chain is |
+| Builder Confidence | How production-ready generated output is |
+| QA Confidence | How complete verification coverage is |
+
+Every pipeline stage must be traceable. **No black boxes.**
+
+---
+
+## Learning
+
+- Every solved bug becomes permanent knowledge.
+- Every failed release becomes a lesson.
+- Every accepted PR becomes engineering experience.
+- Every rejected PR becomes engineering guidance.
+
+**Never repeat the same engineering mistake twice.**
+
+---
+
+## Project Memory
+
+The AI must remember **projects, not chats.** If the user returns months later and says *"Continue the Ateş Fiat project."* the AI should already know: architecture, database, folder structure, pending tasks, previous decisions, open bugs, roadmap — **without asking "Which project?"**
+
+Every project has its own evolving brain (architecture, business rules, naming conventions, schema, decisions, technical debt, pending work, release history, known bugs, coding standards). **Never mix project memories.**
+
+---
+
+## Release Discipline
+
+No release unless ALL gates pass:
+
+- [ ] Regression passes
+- [ ] QA passes
+- [ ] UTF-8 passes
+- [ ] Builder passes
+- [ ] Mission continuity passes
+- [ ] Context continuity passes
+- [ ] Memory integrity passes
+- [ ] ZIP integrity passes
+- [ ] Packaging passes
+
+Concretely today: `npm run check` (yapısal sözleşme) + `npm run test:ci` (Jest regresyon paketi) + Python sözleşme testleri + tag-tetiklemeli release pipeline. **If stability decreases, stop feature development. Repair first.**
+
+---
+
+## The AI Company (Agent Roster)
+
+CODEGA AI must eventually contain specialized autonomous agents — not one model, a **complete engineering organization**:
 
 | Agent | Responsibility |
 |---|---|
@@ -55,247 +163,52 @@ CODEGA AI must eventually contain specialized autonomous agents. Not one model. 
 | Software Architect | System design, component boundaries |
 | Planner | Roadmap → milestones → tasks |
 | Project Manager | Sprint tracking, blockers, reporting |
-| Backend Engineer | API, services, business logic |
-| Frontend Engineer | UI, renderer, user experience |
-| Database Engineer | Schema, migrations, query optimization |
+| Backend / Frontend / Database Engineer | Implementation |
 | DevOps Engineer | CI/CD, deployment, infrastructure |
 | Security Engineer | Vulnerability detection, hardening |
 | QA Engineer | Test planning, regression coverage |
 | Performance Engineer | Profiling, bottleneck removal |
 | Documentation Writer | Specs, changelogs, guides |
 | Release Manager | Versioning, packaging, distribution |
-| Support Engineer | Bug triage, user issue analysis |
-| Knowledge Engineer | Memory design, knowledge graph |
-| Memory Manager | Project brain lifecycle |
+| Knowledge Engineer / Memory Manager | Memory design, project brain lifecycle |
 | Research Agent | Competitor analysis, improvement proposals |
-| Builder Agent | Full project generation |
-| Git Agent | Repository intelligence |
-| ZIP Agent | Archive analysis and patching |
-| Deployment Agent | Production delivery |
+| Builder / Git / ZIP / Deployment Agent | Factory, repository, archive, delivery |
 
-**Agents collaborate. Agents review each other. Agents challenge each other. Agents never blindly trust another agent.**
-
----
-
-## The Evolution Principle
-
-This is the most important rule of the project.
-
-**CODEGA AI must continuously improve itself.**
-
-Not by magic. Not by changing its own executable without control. Instead, by producing reviewable engineering work.
-
-```
-Analyze itself
-    ↓
-Detect weaknesses
-    ↓
-Create improvement tasks
-    ↓
-Generate patches
-    ↓
-Run tests
-    ↓
-Benchmark
-    ↓
-Generate reports
-    ↓
-Ask the user for approval
-    ↓
-Merge improvements
-    ↓
-Repeat
-```
-
-The AI must become capable of engineering its own future.
-
----
-
-## Every Release Must Make the AI Better
-
-Every release must improve at least one of these:
-
-- Architecture
-- Performance
-- Reliability
-- Memory
-- Reasoning
-- Builder
-- Testing
-- Developer Experience
-- Code Quality
-- Maintainability
-
-If a release only adds features without improving quality, reconsider it.
-
----
-
-## Long-Term Memory
-
-The AI should remember **projects**. Not conversations. **Projects.**
-
-Every project should have its own evolving brain:
-
-- Architecture
-- Business rules
-- Naming conventions
-- Database schema
-- Previous decisions
-- Technical debt
-- Pending work
-- Release history
-- Known bugs
-- Coding standards
-
-**Never mix project memories.**
-
----
-
-## Mission Engine
-
-The future interaction model:
-
-```
-User gives a mission (not a prompt)
-    ↓
-Goals
-    ↓
-Milestones
-    ↓
-Tasks
-    ↓
-Implementation
-    ↓
-Testing
-    ↓
-Documentation
-    ↓
-Release
-    ↓
-Deployment
-    ↓
-Final Report
-```
-
-Example mission: `"Upgrade Ateş Fiat Service System."`
-
-The AI transforms it into a complete engineering plan and executes it.
+**Agents collaborate. Agents review each other. Agents challenge each other. Agents never blindly trust another agent.** Every significant change is reviewed by another internal agent — no code is accepted simply because it compiles.
 
 ---
 
 ## Research Engine
 
-CODEGA AI should continuously compare itself against the best engineering tools:
-
-- Cursor
-- Claude Code
-- GitHub Copilot
-- OpenAI Codex
-- Windsurf
-- Continue
-- Gemini CLI
-- Other emerging systems
-
-Not to copy them. To understand where CODEGA AI is weaker, and generate improvement proposals.
-
----
-
-## Self Review
-
-Every significant change must be reviewed by another internal agent. No code is accepted simply because it compiles.
-
-Review criteria:
-- Architecture
-- Performance
-- Security
-- Maintainability
-- Complexity
-- Regression risks
-- Test coverage
-- Future scalability
+CODEGA AI continuously compares itself against the best engineering tools (Cursor, Claude Code, Copilot, Codex, Windsurf, Continue, Gemini CLI, emerging systems) — **not to copy them; to find where CODEGA is weaker and generate improvement proposals.**
 
 ---
 
 ## Performance Principle
 
-Large projects must remain usable.
-
-**Targets:**
-- 100,000+ files
-- Millions of lines
-- Large Git repositories
-- Large ZIP archives
-- Fast indexing
-- Streaming responses
-- Minimal memory usage
-- No UI freezes
-
----
-
-## World-Class Builder
-
-The Builder must eventually generate **complete production-ready systems**. Not demos. Real applications.
-
-Examples:
-ERP, CRM, Hospital Management, Insurance Systems, Accounting, Marketplace, Manufacturing ERP, Hotel Management, Municipality Systems, School Systems, Government Portals, Service Management.
-
-Every generated system must already contain:
-
-- Authentication & Authorization
-- Logging & Audit
-- Database
-- Docker
-- Tests
-- CI/CD
-- Documentation
-- Security
-- Deployment
-- Monitoring
-
----
-
-## Quality Gate
-
-No sprint is considered complete until:
-
-- [ ] All regression tests pass
-- [ ] UTF-8 is clean
-- [ ] Streaming works
-- [ ] Conversation isolation works
-- [ ] Builder works
-- [ ] Memory works
-- [ ] Performance has not regressed
-
-**If stability decreases, stop feature development. Repair first.**
+Large projects must remain usable: 100,000+ files, millions of lines, large Git repositories and ZIP archives, fast indexing, streaming responses, minimal memory usage, no UI freezes.
 
 ---
 
 ## The Nirvana Goal
 
-One day the user should be able to write only this:
+One day the user should write only this:
 
 > **"CODEGA, build the next version of my project."**
 
-The AI should:
+And the AI should: understand the existing project → understand business requirements → create a roadmap → split into missions → assign internal agents → write the code → run tests → fix failures → prepare commits → generate release notes → package → present only the final engineering report for approval.
 
-1. Understand the existing project
-2. Understand business requirements
-3. Create a roadmap
-4. Split work into missions
-5. Assign internal agents
-6. Write the code
-7. Run tests
-8. Fix failures
-9. Prepare commits
-10. Generate release notes
-11. Package the project
-12. Present only the final engineering report for approval
+---
 
-If CODEGA AI reaches this level, it will no longer be just another AI assistant.
+## The Ultimate Metric
 
-**It will become an autonomous software engineering platform.**
+The success of CODEGA AI is NOT measured by number of features, number of models, or benchmark scores. It is measured by one question:
 
-That is the definition of Nirvana.
+> **"Is CODEGA AI a better software engineer today than it was yesterday?"**
+
+If the answer is yes, the project is succeeding. Everything else is secondary.
+
+Nirvana is not more features. Nirvana is a system that **thinks more correctly, remembers better, decides more reliably, learns from its own mistakes, and evolves safely.**
 
 ---
 
@@ -303,6 +216,7 @@ That is the definition of Nirvana.
 
 ---
 
-**Version:** 1.0  
-**Date:** 2026-06-27  
+**Version:** 2.0 (The Final Architecture Directive)
+**Date:** 2026-07-02
+**Supersedes:** v1.0 (2026-06-27)
 **Author:** CODEGA AI Platform Team
