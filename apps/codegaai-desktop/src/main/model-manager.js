@@ -1059,10 +1059,24 @@ function strongestInstalledModel(installed) {
   return { model: best, size: bestSize };
 }
 
+// Bilmece / kelime oyunu / günlük-hayat mantık sorusu sezici (alpha.105).
+// Konya maden-suyu vakası: bu sorular küçük (3-4B) modelde kelime salatasına
+// dönüşüyor — talimat (Soğukkanlılık Çıpası) yetmiyor, model kapasitesi gerekiyor.
+// Sezilirse en güçlü kurulu modele yükseltilir (mevcut escalation kancası).
+function isRiddleQuestion(input) {
+  const q = String(input || "").toLocaleLowerCase("tr");
+  if (q.length < 25) return false;
+  if (/(bilmece|kelime oyunu|tuzak soru|zek[aâ]\s*(testi|sorusu)|mant[ıi]k\s*(testi|sorusu))/i.test(q)) return true;
+  // Senaryo + "önce hangisi/neyi" kalıbı: klasik pratik-zekâ tuzağı imzası.
+  return /(önce\s+(neyi|hangisini|ne\s+yapmal[ıi])|ilk\s+olarak\s+neyi|ilk\s+önce\s+hangi)/i.test(q)
+    && /(gerekir|yapmal[ıi]|kullanmal[ıi]|açmal[ıi])/i.test(q);
+}
+
 function prioritizeStrongModelForHeavyPrompt(input, installed, attemptModels, settings = {}) {
   const current = Array.isArray(attemptModels) ? [...attemptModels] : [];
   const heavyPrompt = answerAdequacy.isLongTechnicalQuestion(input)
-    || finalAnswerSanitizer.isMultiQuestionInput(input);
+    || finalAnswerSanitizer.isMultiQuestionInput(input)
+    || isRiddleQuestion(input);
   if (!heavyPrompt || settings.autoModelEscalation === false) {
     return { attemptModels: current, escalated: false, model: null, size: 0, previousSize: modelParamSize(current[0]) };
   }
@@ -2732,6 +2746,7 @@ module.exports = {
   modelParamSize,
   strongestInstalledModel,
   seedConversationHistory,
+  isRiddleQuestion,
   prioritizeStrongModelForHeavyPrompt,
   TASK_MODELS,
   missingModelReply,
