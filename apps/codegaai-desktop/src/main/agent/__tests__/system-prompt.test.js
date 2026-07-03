@@ -46,3 +46,18 @@ describe("system prompt — ANTI-LOOP name-trigger protection", () => {
     expect(withCtx).toContain("AKTIF-PROJE-XYZ");
   });
 });
+
+// V7 Soğukkanlılık Çıpası: bilmece/pratik-zekâ sorularında panik + kod-bloğu
+// kaçışını sistem talimatı düzeyinde engeller (Konya maden suyu vakası).
+describe("soğukkanlılık çıpası (alpha.104)", () => {
+  const { buildSystemPrompt } = require("../system-prompt");
+  test("her görev tipinde çıpa mevcut ve kod-kaçışını yasaklıyor", () => {
+    for (const task of ["chat", "code", "writing"]) {
+      const p = buildSystemPrompt(task);
+      expect(p).toMatch(/SOĞUKKANLILIK ÇIPASI/);
+      expect(p).toMatch(/PANİK YAPMA/);
+      expect(p).toMatch(/kod bloğuyla cevap verme/i);
+      expect(p).toMatch(/TEK sade cümleyle/);
+    }
+  });
+});
