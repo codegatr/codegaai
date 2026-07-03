@@ -31,6 +31,7 @@ const runtimePolicy = require("./agent/runtime-policy");
 const { ollamaReachable } = require("./agent/ollama-client");
 const { createPhoenixRuntime } = require("./phoenix-core/runtime/phoenix-runtime");
 const { registerZipIpc } = require("./agent/zip/zip-ipc");
+const { registerDeployIpc } = require("./agent/deploy/deploy-ipc");
 const { registerGitIpc } = require("./agent/git/git-ipc");
 const { registerProjectMemoryIpc } = require("./agent/memory/project-ipc");
 const { registerBuilderIpc }       = require("./agent/builder/builder-ipc");
@@ -470,6 +471,9 @@ function registerIpc() {
 
   // ZIP Engine IPC handlers
   registerZipIpc();
+
+  // V7 Deployment IPC handlers (DirectAdmin — yalnız kullanıcı eylemiyle tetiklenir)
+  registerDeployIpc({ getSettings: () => settingsStore.getSettings() });
 
   // Git Agent IPC handlers
   registerGitIpc();

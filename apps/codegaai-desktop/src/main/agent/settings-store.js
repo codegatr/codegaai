@@ -51,7 +51,15 @@ const DEFAULTS = {
     mcp: "ask",
     codeExecution: "ask",
     autonomousDevelopment: "ask",
+    deployment: "ask", // V7: canlı sunucuya deploy — daima kullanıcı eylemiyle
   },
+  // V7 DirectAdmin deployment (loginKey YALNIZ cihazda saklanır, loglanmaz)
+  directadminHost: "",
+  directadminPort: 2222,
+  directadminUsername: "",
+  directadminLoginKey: "",
+  directadminAllowSelfSigned: false,
+  deployRemoteDir: "",
   remoteToolsDeviceName: "",
   scheduledTasksEnabled: true,
   modelStoragePath: "", // Ollama model dosyalarının kullanıcı tarafından seçilen kalıcı dizini

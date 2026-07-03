@@ -56,6 +56,10 @@ const required = [
   "src/main/agent/zip/zip-engine.js",
   "src/main/agent/zip/zip-analyzer.js",
   "src/main/agent/zip/zip-ipc.js",
+  "src/main/agent/deploy/directadmin-client.js",
+  "src/main/agent/deploy/deployment-manager.js",
+  "src/main/agent/deploy/deploy-ipc.js",
+  "src/main/agent/__tests__/deployment-manager.test.js",
   "src/main/agent/git/git-engine.js",
   "src/main/agent/git/git-analyzer.js",
   "src/main/agent/git/git-ipc.js",
@@ -398,11 +402,16 @@ if (!modelManagerFile.includes("rankResearchSources") || !modelManagerFile.inclu
 
 if (!ollamaClientFile.includes("detectRunawayRepetition") || !ollamaClientFile.includes('"runaway"')) throw new Error("ollama-client.js kaçak üretim canlı kesici (detectRunawayRepetition/runaway) eksik");
 
+const deployManagerFile = readText(join(root, "src/main/agent/deploy/deployment-manager.js"));
+if (!deployManagerFile.includes("scanModuleMap") || deployManagerFile.match(/TOPLAM_MODUL_SAYISI|TOTAL_MODULE_COUNT/)) throw new Error("deployment-manager.js modül haritası DİNAMİK olmalı (scanModuleMap var, hardcoded sayaç yasak)");
+const daClientFile = readText(join(root, "src/main/agent/deploy/directadmin-client.js"));
+if (!daClientFile.includes("assertSafeRemotePath") || !daClientFile.includes("_mask")) throw new Error("directadmin-client.js güvenlik sözleşmesi (assertSafeRemotePath/_mask) eksik");
+
 const cloudProviderFile = readText(join(root, "src/main/agent/cloud-provider.js"));
 if (!cloudProviderFile.includes("claude-opus-4-8") || !cloudProviderFile.includes("anthropicSamplingRemoved")) throw new Error("cloud-provider.js güncel Claude modeli (claude-opus-4-8/anthropicSamplingRemoved) eksik");
 if (cloudProviderFile.includes("claude-sonnet-4-20250514")) throw new Error("cloud-provider.js emekli Claude modeline (claude-sonnet-4-20250514) referans içermemeli");
 
-if (pkg.version !== "6.0.0-alpha.102") throw new Error(`Desktop package version must be 6.0.0-alpha.102, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.103") throw new Error(`Desktop package version must be 6.0.0-alpha.103, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

@@ -2231,3 +2231,26 @@ disiplini + README'nin en ustune kimlik manifestosu.
 - Beta.1 oncelik sirasi audit raporunun 7. bolumunde: Confidence Panel -> Eko mod
   (effort) -> akilli yonlendirme -> Project Brain kalicilik regresyonu.
 - Dokuman-degisikligi surumu bump etmez; kod degisikliginde alpha.101'den devam.
+
+---
+## Claude Update - 2026-07-02 - V7 Deployment omurgasi (alpha.103)
+
+### Current Task
+Kullanicinin V7 Bas Mimar direktifi: DirectAdmin deployment + stale lock + dinamik modul haritasi.
+
+### Action
+- YENI: agent/deploy/{directadmin-client,deployment-manager,deploy-ipc}.js
+  - DirectAdminClient: login-key auth (maskeli), multipart stream upload (RAM'e almadan),
+    CMD_FILE_MANAGER extract, path-traversal korumasi (assertSafeRemotePath)
+  - DeploymentManager: tek-ucus kuyruk, describing->uploading->extracting->done/failed,
+    onEvent -> IPC "deploy:progress" push (renderer progress bar)
+  - scanModuleMap: modul haritasi ZIP girdilerinden DINAMIK (Ister 3 - hardcoded sayac yasak,
+    check.mjs sozlesmesiyle zorunlu)
+- Ister 2 (stale lock + PID): indexer/file-lock.js ZATEN karsiliyor (O_EXCL + TTL +
+  process.kill(pid,0) + bootId PID-reuse korumasi) — dokunulmadi.
+- settings-store: directadmin* alanlari + toolPermissions.deployment:"ask"
+- preload: window.codega.deploy {test,start,status,onProgress}; main.js: registerDeployIpc
+- Sonraki adim: Kontrol Merkezi'ne Deploy paneli (UI) + gercek sunucuyla smoke test.
+
+### Tests
+- deployment-manager.test.js (6) -> PASS; test:ci -> 53 suite, 601/601 PASS; check OK (filtresiz).

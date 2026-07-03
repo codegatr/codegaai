@@ -105,6 +105,14 @@ contextBridge.exposeInMainWorld("codega", {
     saveFiles: (payload)                  => ipcRenderer.invoke("zip:save-files", payload || {}),
   },
 
+  // V7 Deployment (DirectAdmin) — progress push: deploy:progress
+  deploy: {
+    test:   ()      => ipcRenderer.invoke("deploy:test"),
+    start:  (opts)  => ipcRenderer.invoke("deploy:start", opts || {}),
+    status: ()      => ipcRenderer.invoke("deploy:status"),
+    onProgress: (cb) => { ipcRenderer.on("deploy:progress", (_e, job) => { try { cb(job); } catch (_err) {} }); },
+  },
+
   // Git Agent API
   git: {
     findRoot:       (dir)              => ipcRenderer.invoke("git:find-root",       dir),
