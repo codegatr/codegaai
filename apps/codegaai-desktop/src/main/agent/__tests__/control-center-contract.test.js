@@ -72,3 +72,18 @@ describe("Kontrol Merkezi: dışa aktarma ve sağlayıcı alanları", () => {
     expect(js).toMatch(/provider !== "ollama" && cloudModel/);
   });
 });
+
+// Sağlayıcı bağlantı testi sonucu DİYALOĞUN İÇİNDE gösterilmeli (alpha.106):
+// setTransientStatus ana sohbet rozetine yazar → Kontrol Merkezi açıkken görünmez.
+describe("Kontrol Merkezi: bağlantı testi sonucu görünür", () => {
+  test("provider-test-result öğesi HTML'de var", () => {
+    expect(html).toContain('id="provider-test-result"');
+  });
+  test("test handler sonucu diyalog içi öğeye yazar (rozete değil)", () => {
+    expect(js).toContain("showProviderTestResult");
+    // test click handler'ı sonucu görünür alana yazmalı (setTransientStatus değil)
+    const handler = js.slice(js.indexOf("els.providerTest.addEventListener"), js.indexOf("els.providerTest.addEventListener") + 700);
+    expect(handler).toMatch(/showProviderTestResult/);
+    expect(handler).not.toMatch(/setTransientStatus/);
+  });
+});

@@ -2903,6 +2903,8 @@ if (els.providerSelect) els.providerSelect.addEventListener("change", async () =
   agentSettings = await window.codega.setSettings({ provider: els.providerSelect.value });
   updateProviderVisibility();
   updateOverview();
+  const prev = document.getElementById("provider-test-result");
+  if (prev) prev.hidden = true; // sağlayıcı değişti → eski test sonucu geçersiz
   setTransientStatus(selectedProviderFields() ? "Bulut sağlayıcı seçildi." : "Yerel sağlayıcı seçildi.");
 });
 function bindProviderField(el, fieldName) {
@@ -2917,9 +2919,20 @@ function bindProviderField(el, fieldName) {
 bindProviderField(els.openaiBase, "base");
 bindProviderField(els.openaiKey, "key");
 bindProviderField(els.openaiModel, "model");
+// Test sonucu DİYALOĞUN İÇİNDE gösterilir. setTransientStatus ana sohbetteki
+// model rozetine yazar; Kontrol Merkezi açıkken o rozet perde arkasında kalır
+// ve sonuç "çıkmıyor" görünür — sonucu butonun hemen altına basıyoruz.
+function showProviderTestResult(message, state) {
+  const el = document.getElementById("provider-test-result");
+  if (!el) { setTransientStatus(message); return; }
+  el.hidden = false;
+  el.textContent = message;
+  el.classList.remove("is-ok", "is-error", "is-pending");
+  if (state) el.classList.add(`is-${state}`);
+}
 if (els.providerTest) els.providerTest.addEventListener("click", async () => {
   els.providerTest.disabled = true;
-  setTransientStatus("Bağlantı test ediliyor…");
+  showProviderTestResult("Bağlantı test ediliyor…", "pending");
   try {
     const r = await window.codega.testProvider({
       provider: els.providerSelect ? els.providerSelect.value : "openai",
@@ -2927,9 +2940,10 @@ if (els.providerTest) els.providerTest.addEventListener("click", async () => {
       apiKey: els.openaiKey ? els.openaiKey.value.trim() : "",
       model: els.openaiModel ? els.openaiModel.value.trim() : "",
     });
-    setTransientStatus((r && r.message) || (r && r.ok ? "Bağlantı başarılı." : "Bağlantı başarısız."));
+    const ok = !!(r && r.ok);
+    showProviderTestResult((r && r.message) || (ok ? "Bağlantı başarılı." : "Bağlantı başarısız."), ok ? "ok" : "error");
   } catch (e) {
-    setTransientStatus("Test hatası: " + (e.message || e));
+    showProviderTestResult("Test hatası: " + (e.message || e), "error");
   } finally {
     els.providerTest.disabled = false;
   }

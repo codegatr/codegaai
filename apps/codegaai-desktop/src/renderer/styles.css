@@ -1886,3 +1886,25 @@ body[data-theme="warm"] {
     gap: 8px;
   }
 }
+
+/* Sağlayıcı bağlantı testi sonucu — Kontrol Merkezi içinde görünür (model rozeti
+   perde arkasında kalmasın diye). */
+.provider-test-result {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  border: 1px solid var(--border, #333);
+}
+.provider-test-result.is-pending { opacity: 0.8; }
+.provider-test-result.is-ok {
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(16, 185, 129, 0.08);
+}
+.provider-test-result.is-error {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(248, 113, 113, 0.08);
+}
