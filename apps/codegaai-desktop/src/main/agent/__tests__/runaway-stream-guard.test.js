@@ -15,6 +15,10 @@
 
 const { ollamaChatStream } = require("../ollama-client");
 const { ModelManager } = require("../../model-manager");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { setSettings } = require("../settings-store");
 
 const enc = new TextEncoder();
 
@@ -54,7 +58,14 @@ function abortAwareStream(lines, signalRef) {
   };
 }
 
-afterEach(() => { delete global.fetch; jest.clearAllMocks(); });
+afterEach(() => {
+  delete global.fetch;
+  if (process.env.CODEGA_SETTINGS_PATH) {
+    try { fs.rmSync(process.env.CODEGA_SETTINGS_PATH, { force: true }); } catch (_e) {}
+    delete process.env.CODEGA_SETTINGS_PATH;
+  }
+  jest.clearAllMocks();
+});
 
 describe("streamChatOnce canlı kesici: tur içi kaçak tekrar", () => {
   test("aynı dev blok akarken kesilir; sonraki bloklar kullanıcıya akmaz", async () => {
@@ -78,6 +89,32 @@ describe("streamChatOnce canlı kesici: tur içi kaçak tekrar", () => {
     expect(count).toBeGreaterThanOrEqual(3); // tespit için en az 3 gerek
     expect(count).toBeLessThan(8);           // ama hepsi akmadı
     expect(global.fetch).toHaveBeenCalledTimes(1); // devam turu da yok
+  });
+
+  test("karakter salatasi baslarsa tetikleyen token kullaniciya akitilmaz", async () => {
+    const salad = "ğŸ”¥ğŸ”©âœ¨âœï¸âœˆï¸âš™ï¸â—âœ…â˜ï¸ğŸ˜Ï€Ï†Î´Î¼Î»Î£Î©Î±Î²Î³Î´Î‘Î’Î“Î”Î•qwertyuiopasdfgjhkldfzxcsedcrfvbgtnhy";
+    const lines = [
+      tokenLine("Temiz baslangic. "),
+      tokenLine(salad),
+      tokenLine(" BU AKMAMALI"),
+      finalLine("stop"),
+    ];
+    const signalRef = {};
+    global.fetch = jest.fn(async (_url, opts) => {
+      signalRef.signal = opts.signal;
+      return abortAwareStream(lines, signalRef);
+    });
+
+    const tokens = [];
+    const full = await ollamaChatStream("m", [{ role: "user", content: "uzun kod yaz" }], {
+      onToken: (t) => tokens.push(t),
+    });
+
+    expect(full).toContain("Temiz baslangic");
+    expect(full).toContain("qwertyuiop");
+    expect(tokens.join("")).toBe("Temiz baslangic. ");
+    expect(tokens.join("")).not.toContain("qwertyuiop");
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -122,5 +159,41 @@ describe("askDirect: düzeltme de bozuksa çöp teslim edilmez", () => {
     const res = await mgr.askDirect("requestAnimationFrame nedir?", { chatId: "rg2" });
     expect(res.source).toBe("direct_selfcorrected");
     expect(res.text).toMatch(/requestAnimationFrame/);
+  });
+
+  test("yerel duzeltme de bozuksa yapilandirilmis bulut saglayici ile toparlar", async () => {
+    process.env.CODEGA_SETTINGS_PATH = path.join(os.tmpdir(), `codega-settings-${Date.now()}-${Math.random()}.json`);
+    setSettings({
+      provider: "ollama",
+      modelAutoFallback: true,
+      modelFallbackOrder: ["ollama", "openai"],
+      openaiApiKey: "test-key",
+      openaiBaseUrl: "https://example.test/v1",
+      openaiModel: "gpt-recovery",
+    });
+    global.fetch = jest.fn(async (url) => {
+      if (String(url).includes("/chat/completions")) {
+        return {
+          ok: true,
+          json: async () => ({
+            choices: [{ message: { content: "requestAnimationFrame, tarayicinin bir sonraki boya dongusunden once callback planlamasini saglar." } }],
+          }),
+        };
+      }
+      return { ok: false, status: 500, text: async () => "" };
+    });
+    const mgr = new ModelManager();
+    mgr.installedModels = async () => ["qwen2.5:4b"];
+    const garbage = (GIANT + "\n").repeat(6);
+    let calls = 0;
+    mgr.generate = async () => { calls += 1; return garbage; };
+
+    const res = await mgr.askDirect("requestAnimationFrame nedir?", { chatId: "rg3" });
+
+    expect(calls).toBe(2);
+    expect(res.source).toBe("direct_cloud_recovered");
+    expect(res.model).toBe("openai:gpt-recovery");
+    expect(res.text).toMatch(/requestAnimationFrame/);
+    expect(res.text).not.toMatch(/CREATE TABELA/);
   });
 });

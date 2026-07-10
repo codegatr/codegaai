@@ -395,6 +395,8 @@ const answerQualityFile = readText(join(root, "src/main/agent/answer-quality.js"
 if (!answerQualityFile.includes("looksDegenerate")) throw new Error("answer-quality.js bozuk cevap sezici (looksDegenerate) eksik");
 if (!answerQualityFile.includes("hasCharSalad")) throw new Error("answer-quality.js karakter salatası sezici (hasCharSalad) eksik");
 if (!modelManagerFile.includes("direct_selfcorrected") || !modelManagerFile.includes("looksDegenerate")) throw new Error("model-manager.js askDirect öz-düzeltme (direct_selfcorrected/looksDegenerate) eksik");
+if (!ollamaClientFile.includes("hasCharSalad") || !ollamaClientFile.includes('"char_salad"')) throw new Error("ollama-client.js char_salad canlı kesici (hasCharSalad/char_salad) eksik");
+if (!modelManagerFile.includes("direct_cloud_recovered") || !modelManagerFile.includes("local retry failed; recovering")) throw new Error("model-manager.js char_salad sonrası bulut toparlama (direct_cloud_recovered) eksik");
 
 if (!rendererFile2.includes("zip.analyze") || !rendererFile2.includes("ANALİZ (otomatik)")) throw new Error("renderer.js ZIP eklentisinde yapılandırılmış analiz (zip.analyze/ANALİZ) sohbete bağlanmamış");
 if (!modelManagerFile.includes("wantsSiteAudit") || !modelManagerFile.includes("direct_site_audit")) throw new Error("model-manager.js site denetimi (wantsSiteAudit/direct_site_audit) eksik");
@@ -412,7 +414,7 @@ const cloudProviderFile = readText(join(root, "src/main/agent/cloud-provider.js"
 if (!cloudProviderFile.includes("claude-opus-4-8") || !cloudProviderFile.includes("anthropicSamplingRemoved")) throw new Error("cloud-provider.js güncel Claude modeli (claude-opus-4-8/anthropicSamplingRemoved) eksik");
 if (cloudProviderFile.includes("claude-sonnet-4-20250514")) throw new Error("cloud-provider.js emekli Claude modeline (claude-sonnet-4-20250514) referans içermemeli");
 
-if (pkg.version !== "6.0.0-alpha.108") throw new Error(`Desktop package version must be 6.0.0-alpha.108, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.109") throw new Error(`Desktop package version must be 6.0.0-alpha.109, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

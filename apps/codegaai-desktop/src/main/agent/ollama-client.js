@@ -1,6 +1,7 @@
 "use strict";
 const crypto = require("node:crypto");
 const { detectRunawayRepetition } = require("./anti-loop");
+const { hasCharSalad } = require("./answer-quality");
 /**
  * agent/ollama-client.js
  * -----------------------
@@ -165,6 +166,7 @@ async function streamChatOnce(model, messages, opts = {}) {
   // bekleme — birikimde kaçak tekrar görülür görülmez bu turu kes. Üst katman
   // doneReason:"runaway" görür; öz-düzeltme oradan devralır.
   let runaway = false;
+  let charSalad = false;
   let lastRunawayCheckLen = 0;
   try {
     const res = await fetch(`${host}/api/chat`, {
@@ -201,6 +203,11 @@ async function streamChatOnce(model, messages, opts = {}) {
             const tok = obj && obj.message && obj.message.content;
             if (tok) {
               text += tok;
+              if (hasCharSalad(text.slice(-3000))) {
+                charSalad = true;
+                controller.abort();
+                continue;
+              }
               if (onToken) { try { onToken(tok); } catch (_e) { /* yut */ } }
               // Her ~1500 karakterde bir kuyruğu (son 9000) kaçak tekrar için tara.
               if (text.length - lastRunawayCheckLen >= 1500) {
@@ -229,6 +236,9 @@ async function streamChatOnce(model, messages, opts = {}) {
     // o ana kadarki metinle dön; üst katman "runaway" nedenini görsün.
     if (error && error.name === "AbortError" && runaway) {
       return { text, doneReason: "runaway" };
+    }
+    if (error && error.name === "AbortError" && charSalad) {
+      return { text, doneReason: "char_salad" };
     }
     if (error && error.name === "AbortError" && timedOut) {
       const timeout = new Error(`Ollama ${Math.round(timeoutMs / 1000)} saniye içinde yanıt vermedi.`);
@@ -286,7 +296,7 @@ async function ollamaChatStream(model, messages, opts = {}) {
     full += text;
 
     // Canlı kesici bu turu kestiyse devam turu ATMA — çöpü uzatma.
-    if (doneReason === "runaway") break;
+    if (doneReason === "runaway" || doneReason === "char_salad") break;
     // Normal bitiş (stop / null) → tamam.
     if (doneReason !== "length") break;
     // Güvenlik tavanı veya ilerleme yok → döngüyü kır (sonsuz devam etmesin).

@@ -1573,6 +1573,7 @@ class ModelManager {
     // rol karışması) BİR kez düzeltici retry. Ağır pipeline yok — tek ek üretim,
     // yalnız ucuz sezici tetiklerse. Retry akmaz (onToken yok); final metni değişir.
     let source = "direct";
+    let usedModel = model;
     const q = looksDegenerate(text, text0);
     if (q.bad && !this._aborted) {
       try { logs.info("self_correct", `reason=${q.reason} model=${model}`); } catch (_e) {}
@@ -1590,6 +1591,48 @@ class ModelManager {
       if (retry && !looksDegenerate(retry, text0).bad) {
         text = retry; source = "direct_selfcorrected";
       } else if (q.reason !== "empty") {
+        const cloudProviders = configuredProviderChain(s).filter((provider) => provider !== "ollama");
+        for (const provider of cloudProviders) {
+          const cloud = configFromSettings(s, { provider });
+          if (!String(cloud.apiKey || "").trim()) continue;
+          try {
+            logs.info("self_correct", `local retry failed; recovering with ${provider}`);
+          } catch (_e) {}
+          const recoveryMsgs = [
+            { role: "system", content:
+              "Sen CODEGA AI kalite toparlama katmanısın. Önceki yerel model çıktısı char_salad/tekrar/rol karışması nedeniyle durduruldu. " +
+              "Bozuk metni sürdürme veya ondan alıntı yapma. Kullanıcının asıl sorusunu temiz, eksiksiz, Türkçe ve üretime hazır şekilde yeniden yanıtla. " +
+              "Placeholder yazma; gerekiyorsa uzun cevabı düzenli başlıklar ve tam kod bloklarıyla ver." },
+            { role: "user", content: text0 },
+          ];
+          let recovered = "";
+          try {
+            this._abort = new AbortController();
+            recovered = String(await cloudChat(recoveryMsgs, {
+              ...cloud,
+              signal: this._abort.signal,
+              timeoutMs: OLLAMA_CHAT_TIMEOUT_MS,
+              maxTokens: 8192,
+            }) || "").trim();
+          } catch (error) {
+            if (this._aborted || (error && error.name === "AbortError")) {
+              this._abort = null;
+              throw error;
+            }
+            try { logs.warn("self_correct", `${provider} recovery failed: ${error && (error.message || error)}`); } catch (_e) {}
+          } finally {
+            this._abort = null;
+          }
+          if (recovered && !looksDegenerate(recovered, text0).bad) {
+            text = recovered;
+            source = "direct_cloud_recovered";
+            usedModel = `${provider}:${cloud.model}`;
+            break;
+          }
+        }
+        if (source === "direct_cloud_recovered") {
+          // recovered text is ready; skip local fallback
+        } else {
         // ("empty" hariç: boş üretim aşağıdaki mevcut Ollama mesajıyla yanıtlanır.)
         // Düzeltme de bozuk → ÇÖPÜ AYNEN TESLİM ETME (anayasa: asla kararsız
         // çıktı verme). Dürüst kısa mesaj + somut çıkış yolu öner.
@@ -1602,6 +1645,7 @@ class ModelManager {
           "- Bu görev yerel modelin sınırlarını aşıyor olabilir: Ayarlar → AI Sağlayıcı'dan daha güçlü bir bulut modeli (örn. Claude) seçip tekrar dene.",
         ].join("\n");
         source = "direct_degenerate_fallback";
+        }
       }
     }
 
@@ -1609,7 +1653,7 @@ class ModelManager {
     history.push({ role: "user", content: text0 });
     history.push({ role: "assistant", content: text });
     if (history.length > MAX_HISTORY_MESSAGES) history.splice(0, history.length - MAX_HISTORY_MESSAGES);
-    return { text, model, source };
+    return { text, model: usedModel, source };
   }
 
   /**
