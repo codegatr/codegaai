@@ -47,6 +47,28 @@ describe("system prompt — ANTI-LOOP name-trigger protection", () => {
   });
 });
 
+describe("V7 Agentic Partner Core", () => {
+  const { buildSystemPrompt } = require("../system-prompt");
+
+  test("agentic partner davranisini arac, test ve self-correction ile baglar", () => {
+    const prompt = buildSystemPrompt("code");
+    expect(prompt).toContain("V7 Agentic Partner Core");
+    expect(prompt).toContain("ReAct dongusu");
+    expect(prompt).toContain("Self-correcting loop");
+    expect(prompt).toContain("Self-improving loop");
+    expect(prompt).toContain("testi tekrar calistir");
+  });
+
+  test("otonomiyi guvenlik ve gizli muhakeme sinirlariyla dengeler", () => {
+    const prompt = buildSystemPrompt("code");
+    expect(prompt).toContain("Guvenlik siniri");
+    expect(prompt).toContain("secret");
+    expect(prompt).toContain("repo kurallarini asla asma");
+    expect(prompt).toContain("gizli zincir-muhakeme");
+    expect(prompt).toContain("asla final cevaba dokme");
+  });
+});
+
 // V7 Soğukkanlılık Çıpası: bilmece/pratik-zekâ sorularında panik + kod-bloğu
 // kaçışını sistem talimatı düzeyinde engeller (Konya maden suyu vakası).
 describe("soğukkanlılık çıpası (alpha.104)", () => {

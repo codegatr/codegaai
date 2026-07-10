@@ -377,6 +377,7 @@ const guardrailsFile = readText(join(root, "src/main/agent/reasoning-guardrails.
 if (!guardrailsFile.includes("MANTIK VE DİKKAT KATMANI") || !guardrailsFile.includes("REASONING_GUARDRAILS")) throw new Error("reasoning-guardrails.js muhakeme/dikkat katmanı eksik");
 if (!modelManagerFile.includes("REASONING_GUARDRAILS")) throw new Error("model-manager.js askDirect muhakeme katmanı (REASONING_GUARDRAILS) enjekte edilmemiş");
 const sysPromptFile = readText(join(root, "src/main/agent/system-prompt.js"));
+if (!sysPromptFile.includes("V7 Agentic Partner Core") || !sysPromptFile.includes("Self-correcting loop") || !sysPromptFile.includes("repo kurallarini asla asma")) throw new Error("system-prompt.js V7 agentic partner core (ReAct/self-correction/safety) eksik");
 if (!sysPromptFile.includes("REASONING_GUARDRAILS")) throw new Error("system-prompt.js derin yol muhakeme katmanı (REASONING_GUARDRAILS) eksik");
 const ollamaClientTempFile = readText(join(root, "src/main/agent/ollama-client.js"));
 if (!/DEFAULT_TEMPERATURE\s*=\s*0\.2\b/.test(ollamaClientTempFile)) throw new Error("ollama-client.js kararlı üretim için DEFAULT_TEMPERATURE=0.2 olmalı");
