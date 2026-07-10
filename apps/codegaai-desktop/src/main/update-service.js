@@ -130,7 +130,8 @@ class UpdateService {
     this.mainWindow = mainWindow;
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = false;
-    autoUpdater.verifyUpdateCodeSignature = false;
+    const allowUnsignedUpdates = process.env.CODEGA_ALLOW_UNSIGNED_UPDATES === "1";
+    autoUpdater.verifyUpdateCodeSignature = !allowUnsignedUpdates;
 
     autoUpdater.on("checking-for-update", () => this.emit("checking"));
     autoUpdater.on("update-available", (info) => this.emit("available", info));
