@@ -146,7 +146,9 @@ describe("askDirect: düzeltme de bozuksa çöp teslim edilmez", () => {
     expect(res.source).toBe("direct_degenerate_fallback");
     expect(res.text).not.toMatch(/CREATE TABELA/);
     expect(res.text).toMatch(/durdurdum/);
-    expect(res.text).toMatch(/daha güçlü bir bulut modeli/);
+    expect(res.text).toMatch(/gorevi bolmesini istememeli/);
+    expect(res.text).toMatch(/otomatik guclu rotaya|7B\/8B/);
+    expect(res.text).not.toMatch(/kucuk parcalara|parcalara bol/i);
   });
 
   test("düzeltme başarılıysa davranış değişmez (regresyon)", async () => {
@@ -195,5 +197,29 @@ describe("askDirect: düzeltme de bozuksa çöp teslim edilmez", () => {
     expect(res.model).toBe("openai:gpt-recovery");
     expect(res.text).toMatch(/requestAnimationFrame/);
     expect(res.text).not.toMatch(/CREATE TABELA/);
+  });
+
+  test("dort-domain buyuk test bozulursa kullanicidan bolmesini istemez", async () => {
+    const mgr = new ModelManager();
+    mgr.installedModels = async () => ["qwen2.5:4b"];
+    const garbage = (GIANT + "\n").repeat(6);
+    let calls = 0;
+    mgr.generate = async () => { calls += 1; return garbage; };
+    const prompt = [
+      "1. Kurumsal Finans ve Raporlama Testi",
+      "2. Mikro-Mimari ve Framework'suz Gelistirme Testi",
+      "3. Donanim ve Uretim Entegrasyonu IoT / 3D Printing",
+      "4. Dijital Pazarlama ve Marka Iletisimi",
+      "Bunu yapamayacaksa ne yapayim? Zeki CODEGA AI nerede?",
+    ].join("\n");
+
+    const res = await mgr.askDirect(prompt, { chatId: "rg4" });
+
+    expect(calls).toBe(2);
+    expect(res.source).toBe("direct_degenerate_fallback");
+    expect(res.text).not.toMatch(/CREATE TABELA/);
+    expect(res.text).not.toMatch(/kucuk parcalara|parcalara bol/i);
+    expect(res.text).toMatch(/tek butun/);
+    expect(res.text).toMatch(/Bulut saglayici yoksa/);
   });
 });

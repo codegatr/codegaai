@@ -964,6 +964,38 @@ function buildGroundedResearchFallback(query, research) {
   ].join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+function degenerateReasonLabel(reason) {
+  if (reason === "runaway_repetition") return "kacak tekrar dongusu";
+  if (reason === "char_salad") return "karakter salatasi";
+  if (reason === "role_confusion") return "rol karismasi";
+  if (reason === "empty") return "bos uretim";
+  return String(reason || "kalite korumasi");
+}
+
+function buildDegenerateRecoveryFallback(reason, settings = {}) {
+  const cloudProviders = configuredProviderChain(settings).filter((provider) => provider !== "ollama");
+  const hasConfiguredCloud = cloudProviders.some((provider) => {
+    const cloud = configFromSettings(settings, { provider });
+    return String(cloud.apiKey || "").trim();
+  });
+  const providerText = hasConfiguredCloud
+    ? `Yapilandirilmis bulut recovery sirasi hazir: ${cloudProviders.join(", ")}. Sonraki denemede yerel model yine bozulursa otomatik guclu rotaya gecilir.`
+    : "Kalici cozum: Ayarlar > AI Saglayici bolumune Claude/OpenAI/Gemini API anahtari ekle veya 7B/8B+ daha guclu bir yerel model kur. Boylece buyuk tek-parca testler otomatik guclu rotaya tasinir.";
+
+  return [
+    `Yanit uretimini guvenlik nedeniyle durdurdum: ${degenerateReasonLabel(reason)}.`,
+    "Bozuk token akisini kullaniciya gondermedim; yerel context-flush duzeltme denemesi de temiz sonuc vermedi.",
+    "",
+    "CODEGA AI burada kullanicidan gorevi bolmesini istememeli. Dogru davranis:",
+    "- Bozuk stream'i aninda kesmek ve char_salad tokenlarini saklamak.",
+    "- Ayni istegi tek butun olarak koruyup yerel retry ile yeniden denemek.",
+    "- Bulut saglayici yapilandirilmissa Claude/OpenAI/Gemini recovery rotasina otomatik gecmek.",
+    "- Bulut saglayici yoksa bunu kapasite siniri olarak aciklamak, kullaniciya isi parcalatmak degil.",
+    "",
+    providerText,
+  ].join("\n");
+}
+
 function groundResearchAnswer(query, research, generated) {
   const summary = String(generated || "").trim();
   if (!summary) return buildGroundedResearchFallback(query, research);
@@ -1633,17 +1665,10 @@ class ModelManager {
         if (source === "direct_cloud_recovered") {
           // recovered text is ready; skip local fallback
         } else {
-        // ("empty" hariç: boş üretim aşağıdaki mevcut Ollama mesajıyla yanıtlanır.)
-        // Düzeltme de bozuk → ÇÖPÜ AYNEN TESLİM ETME (anayasa: asla kararsız
-        // çıktı verme). Dürüst kısa mesaj + somut çıkış yolu öner.
-        text = [
-          "Ürettiğim yanıt bozuldu (" + (q.reason === "runaway_repetition" ? "kaçak tekrar döngüsü" : q.reason) + ") ve düzeltme denemem de başarısız oldu.",
-          "Bozuk çıktıyı olduğu gibi göndermek yerine durdurdum.",
-          "",
-          "Öneriler:",
-          "- Görevi daha küçük parçalara böl (örn. önce yalnızca tablo şeması, sonra sorgular).",
-          "- Bu görev yerel modelin sınırlarını aşıyor olabilir: Ayarlar → AI Sağlayıcı'dan daha güçlü bir bulut modeli (örn. Claude) seçip tekrar dene.",
-        ].join("\n");
+        // ("empty" haric: bos uretim asagidaki mevcut Ollama mesaji ile yanitlanir.)
+        // Duzeltme de bozukse copu aynen teslim etme; kullaniciya isi bolmesini
+        // soylemeden, otomatik recovery rotasini ve eksik kapasiteyi acikla.
+        text = buildDegenerateRecoveryFallback(q.reason, s);
         source = "direct_degenerate_fallback";
         }
       }
