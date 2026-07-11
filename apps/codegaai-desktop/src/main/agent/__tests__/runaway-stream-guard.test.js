@@ -176,7 +176,7 @@ describe("askDirect: düzeltme de bozuksa çöp teslim edilmez", () => {
 
     const res = await mgr.askDirect("requestAnimationFrame nedir?", { chatId: "rg1" });
 
-    expect(calls).toBe(2); // orijinal + tek düzeltme denemesi
+    expect(calls).toBe(3); // orijinal + iki kontrollu duzeltme denemesi
     expect(res.source).toBe("direct_degenerate_fallback");
     expect(res.text).not.toMatch(/CREATE TABELA/);
     expect(res.text).toMatch(/durdurdum/);
@@ -226,14 +226,14 @@ describe("askDirect: düzeltme de bozuksa çöp teslim edilmez", () => {
 
     const res = await mgr.askDirect("requestAnimationFrame nedir?", { chatId: "rg3" });
 
-    expect(calls).toBe(2);
+    expect(calls).toBe(3);
     expect(res.source).toBe("direct_cloud_recovered");
     expect(res.model).toBe("openai:gpt-recovery");
     expect(res.text).toMatch(/requestAnimationFrame/);
     expect(res.text).not.toMatch(/CREATE TABELA/);
   });
 
-  test("structural SQL hatasinda cloud varsa lokal retry beklemeden toparlar", async () => {
+  test("structural SQL hatasinda iki lokal retry sonrasi cloud ile toparlar", async () => {
     process.env.CODEGA_SETTINGS_PATH = path.join(os.tmpdir(), `codega-settings-${Date.now()}-${Math.random()}.json`);
     setSettings({
       provider: "ollama",
@@ -264,7 +264,7 @@ describe("askDirect: düzeltme de bozuksa çöp teslim edilmez", () => {
 
     const res = await mgr.askDirect("Drew Karavan icin SQL vade analizi yaz", { chatId: "rg-sql-cloud" });
 
-    expect(calls).toBe(1);
+    expect(calls).toBe(3);
     expect(res.source).toBe("direct_cloud_recovered");
     expect(res.model).toBe("openai:gpt-sql-recovery");
     expect(res.text).toMatch(/JOIN transactions t ON/);
@@ -287,7 +287,7 @@ describe("askDirect: düzeltme de bozuksa çöp teslim edilmez", () => {
 
     const res = await mgr.askDirect(prompt, { chatId: "rg4" });
 
-    expect(calls).toBe(2);
+    expect(calls).toBe(3);
     expect(res.source).toBe("direct_degenerate_fallback");
     expect(res.text).not.toMatch(/CREATE TABELA/);
     expect(res.text).not.toMatch(/kucuk parcalara|parcalara bol/i);

@@ -5,6 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { detectRunawayRepetition } = require("./anti-loop");
 const { hasCharSalad, structuralStreamFailure } = require("./answer-quality");
+const { quarantineStreamFailure } = require("./stream-guardrail");
 /**
  * agent/ollama-client.js
  * -----------------------
@@ -35,11 +36,14 @@ function diagnosticLogPath() {
     path.join(os.tmpdir(), "codegaai-stream-diagnostics.log");
 }
 
-function appendStreamDiagnostic(reason, text) {
+function appendStreamDiagnostic(reason, text, meta = {}) {
   const excerpt = String(text || "").slice(-4000);
   const record = {
     at: new Date().toISOString(),
     reason: String(reason || "structural_error"),
+    pattern: String(meta.pattern || ""),
+    model: String(meta.model || ""),
+    attempt: Number.isFinite(Number(meta.attempt)) ? Number(meta.attempt) : 0,
     excerpt,
   };
   try {
@@ -192,6 +196,7 @@ async function streamChatOnce(model, messages, opts = {}) {
   let charSalad = false;
   let structuralError = false;
   let structuralReason = "";
+  let structuralPattern = "";
   let lastRunawayCheckLen = 0;
   try {
     const res = await fetch(`${host}/api/chat`, {
@@ -230,7 +235,20 @@ async function streamChatOnce(model, messages, opts = {}) {
               text += tok;
               if (hasCharSalad(text.slice(-3000))) {
                 charSalad = true;
-                appendStreamDiagnostic("char_salad", text);
+                appendStreamDiagnostic("char_salad", text, {
+                  pattern: "char_salad_heuristic",
+                  model,
+                  attempt: opts.guardrailAttempt,
+                });
+                quarantineStreamFailure({
+                  reason: "char_salad",
+                  pattern: "char_salad_heuristic",
+                  provider: "ollama",
+                  model,
+                  attempt: opts.guardrailAttempt,
+                  action: "abort",
+                  text,
+                }, opts.guardrailConfig);
                 controller.abort();
                 continue;
               }
@@ -238,7 +256,21 @@ async function streamChatOnce(model, messages, opts = {}) {
               if (structural.bad) {
                 structuralError = true;
                 structuralReason = structural.reason || "structural_error";
-                appendStreamDiagnostic(structuralReason, text);
+                structuralPattern = structural.pattern || "";
+                appendStreamDiagnostic(structuralReason, text, {
+                  pattern: structuralPattern,
+                  model,
+                  attempt: opts.guardrailAttempt,
+                });
+                quarantineStreamFailure({
+                  reason: structuralReason,
+                  pattern: structuralPattern,
+                  provider: "ollama",
+                  model,
+                  attempt: opts.guardrailAttempt,
+                  action: "abort",
+                  text,
+                }, opts.guardrailConfig);
                 controller.abort();
                 continue;
               }
@@ -275,7 +307,7 @@ async function streamChatOnce(model, messages, opts = {}) {
       return { text, doneReason: "char_salad" };
     }
     if (error && error.name === "AbortError" && structuralError) {
-      return { text, doneReason: "structural_error", structuralReason };
+      return { text, doneReason: "structural_error", structuralReason, structuralPattern };
     }
     if (error && error.name === "AbortError" && timedOut) {
       const timeout = new Error(`Ollama ${Math.round(timeoutMs / 1000)} saniye içinde yanıt vermedi.`);
@@ -329,6 +361,8 @@ async function ollamaChatStream(model, messages, opts = {}) {
       signal: opts.signal,
       timeoutMs: perRoundTimeoutMs,
       genOptions,
+      guardrailConfig: opts.guardrailConfig,
+      guardrailAttempt: opts.guardrailAttempt,
     });
     full += text;
 
