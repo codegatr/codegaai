@@ -34,6 +34,25 @@ function hasCharSalad(text) {
   return total >= 40 && junk / total > 0.22;
 }
 
+function hasSqlSyntaxSalad(text) {
+  const a = String(text || "");
+  if (a.length < 40) return false;
+  const lower = a.toLowerCase();
+  const looksSql =
+    /\b(with|select|from|join|where|group\s+by|order\s+by|having|cte|sql|pdo)\b/i.test(a) ||
+    /\b(transactions|customers|customer_id|toplam_borc|toplam_alacak|vade|aging)\b/i.test(a);
+  if (!looksSql) return false;
+
+  const brokenJoinOrder = /\bon\s+join\s*\(|\bon\s+join\b|\bjoin\s*\([a-z_][\w.]*/i.test(a);
+  const halfAlias = /\b(?:select|where|and|or|on|by|,)\s*[a-z]\.\s*(?:[,);]|$)/i.test(a);
+  const orphanedAlias = /\b[a-z]\.\s*(?:[,);]|$)/i.test(a) && /\b(select|from|join|where|on)\b/i.test(a);
+  const sqlPlaceholder =
+    /\/\/\s*(?:rest of|query here|code here)|\/\*\s*(?:rest of|query here|code here)|--\s*(?:rest of|query here|code here)/i.test(lower);
+  const malformedCustomersJoin = /\bcustomers_c\s+on\s+join\b|\bcustomers\s+\w+\s+on\s+join\b/i.test(a);
+
+  return brokenJoinOrder || halfAlias || orphanedAlias || sqlPlaceholder || malformedCustomersJoin;
+}
+
 /**
  * @param {string} answer   modelin ürettiği yanıt
  * @param {string} [question] kullanıcı sorusu (bağlam; şimdilik yalnız uzunluk kıyası)
@@ -46,7 +65,8 @@ function looksDegenerate(answer, question = "") {
   const metaHits = (a.match(META_RE) || []).length;
   if (metaHits >= 2) return { bad: true, reason: "role_confusion" };
   if (hasCharSalad(a)) return { bad: true, reason: "char_salad" };
+  if (hasSqlSyntaxSalad(a)) return { bad: true, reason: "sql_syntax_salad" };
   return { bad: false, reason: "" };
 }
 
-module.exports = { looksDegenerate, hasCharSalad, META_RE };
+module.exports = { looksDegenerate, hasCharSalad, hasSqlSyntaxSalad, META_RE };

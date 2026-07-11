@@ -967,6 +967,7 @@ function buildGroundedResearchFallback(query, research) {
 function degenerateReasonLabel(reason) {
   if (reason === "runaway_repetition") return "kacak tekrar dongusu";
   if (reason === "char_salad") return "karakter salatasi";
+  if (reason === "sql_syntax_salad") return "SQL soz dizimi salatasi";
   if (reason === "role_confusion") return "rol karismasi";
   if (reason === "empty") return "bos uretim";
   return String(reason || "kalite korumasi");
@@ -988,6 +989,7 @@ function buildDegenerateRecoveryFallback(reason, settings = {}) {
     "",
     "CODEGA AI burada kullanicidan gorevi bolmesini istememeli. Dogru davranis:",
     "- Bozuk stream'i aninda kesmek ve char_salad tokenlarini saklamak.",
+    "- SQL/PHP cevabinda ON JOIN, JOIN(...), yarim alias (c.) ve placeholder bulunan metni reddetmek.",
     "- Ayni istegi tek butun olarak koruyup yerel retry ile yeniden denemek.",
     "- Bulut saglayici yapilandirilmissa Claude/OpenAI/Gemini recovery rotasina otomatik gecmek.",
     "- Bulut saglayici yoksa bunu kapasite siniri olarak aciklamak, kullaniciya isi parcalatmak degil.",
@@ -1634,7 +1636,9 @@ class ModelManager {
             { role: "system", content:
               "Sen CODEGA AI kalite toparlama katmanısın. Önceki yerel model çıktısı char_salad/tekrar/rol karışması nedeniyle durduruldu. " +
               "Bozuk metni sürdürme veya ondan alıntı yapma. Kullanıcının asıl sorusunu temiz, eksiksiz, Türkçe ve üretime hazır şekilde yeniden yanıtla. " +
-              "Placeholder yazma; gerekiyorsa uzun cevabı düzenli başlıklar ve tam kod bloklarıyla ver." },
+              "Placeholder yazma; gerekiyorsa uzun cevabı düzenli başlıklar ve tam kod bloklarıyla ver. " +
+              "SQL/PHP isteniyorsa ANSI uyumlu sirayi koru: FROM table alias JOIN table alias ON condition; ON JOIN, JOIN(...), yarim alias (c.) ve '// rest of query' yasak. " +
+              "DirectAdmin/PDO kodunda prepared statement ve bindParam kullan; finans analizinde toplam_borc, toplam_alacak, net bakiye, vade bucketlari ve 3x anomali mantigini koru." },
             { role: "user", content: text0 },
           ];
           let recovered = "";
