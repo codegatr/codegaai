@@ -30,6 +30,10 @@ describe("answer-quality: bozuk cevap sezici", () => {
     ].join("\n");
     expect(looksDegenerate(broken, "Drew Karavan vade analizi SQL").reason).toBe("sql_syntax_salad");
   });
+  test("lazy placeholder ve dangling alias bozuktur", () => {
+    expect(looksDegenerate("function build(){\n  // rest of code here\n}\n").reason).toBe("lazy_placeholder");
+    expect(looksDegenerate("WITH q AS (\n SELECT c.customer_id FROM customers c WHERE c.").reason).toMatch(/sql_syntax_salad|dangling_alias/);
+  });
   test("temiz finans CTE SQL bozuk sayilmaz", () => {
     const clean = [
       "WITH customer_stats AS (",

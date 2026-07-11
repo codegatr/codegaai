@@ -64,6 +64,10 @@ afterEach(() => {
     try { fs.rmSync(process.env.CODEGA_SETTINGS_PATH, { force: true }); } catch (_e) {}
     delete process.env.CODEGA_SETTINGS_PATH;
   }
+  if (process.env.CODEGA_DIAGNOSTIC_LOG_PATH) {
+    try { fs.rmSync(process.env.CODEGA_DIAGNOSTIC_LOG_PATH, { force: true }); } catch (_e) {}
+    delete process.env.CODEGA_DIAGNOSTIC_LOG_PATH;
+  }
   jest.clearAllMocks();
 });
 
@@ -116,6 +120,36 @@ describe("streamChatOnce canlı kesici: tur içi kaçak tekrar", () => {
     expect(tokens.join("")).not.toContain("qwertyuiop");
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
+
+  test("SQL structural guard ON JOIN akisini keser ve diagnostic log yazar", async () => {
+    const logPath = path.join(os.tmpdir(), `codega-stream-${Date.now()}-${Math.random()}.jsonl`);
+    process.env.CODEGA_DIAGNOSTIC_LOG_PATH = logPath;
+    const brokenSql = "WITH customer_stats AS ( SELECT c.customer_id FROM customers_c ON JOIN(c.curi_did=t.customer_id) WHERE c. )";
+    const lines = [
+      tokenLine("Temiz SQL girisi. "),
+      tokenLine(brokenSql),
+      tokenLine(" BU AKMAMALI"),
+      finalLine("stop"),
+    ];
+    const signalRef = {};
+    global.fetch = jest.fn(async (_url, opts) => {
+      signalRef.signal = opts.signal;
+      return abortAwareStream(lines, signalRef);
+    });
+
+    const tokens = [];
+    const full = await ollamaChatStream("m", [{ role: "user", content: "Drew Karavan finans SQL yaz" }], {
+      onToken: (t) => tokens.push(t),
+    });
+
+    expect(full).toContain("ON JOIN");
+    expect(tokens.join("")).toBe("Temiz SQL girisi. ");
+    expect(tokens.join("")).not.toContain("ON JOIN");
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const logText = fs.readFileSync(logPath, "utf8");
+    expect(logText).toMatch(/sql_syntax_salad|dangling_alias|structural_error/);
+    expect(logText).toMatch(/ON JOIN/);
+  });
 });
 
 describe("ollamaChatStream devam koruması: turlar arası döngü", () => {
@@ -147,7 +181,7 @@ describe("askDirect: düzeltme de bozuksa çöp teslim edilmez", () => {
     expect(res.text).not.toMatch(/CREATE TABELA/);
     expect(res.text).toMatch(/durdurdum/);
     expect(res.text).toMatch(/gorevi bolmesini istememeli/);
-    expect(res.text).toMatch(/otomatik guclu rotaya|7B\/8B/);
+    expect(res.text).toMatch(/\[SYSTEM LIMIT\]/);
     expect(res.text).not.toMatch(/kucuk parcalara|parcalara bol/i);
   });
 
@@ -197,6 +231,44 @@ describe("askDirect: düzeltme de bozuksa çöp teslim edilmez", () => {
     expect(res.model).toBe("openai:gpt-recovery");
     expect(res.text).toMatch(/requestAnimationFrame/);
     expect(res.text).not.toMatch(/CREATE TABELA/);
+  });
+
+  test("structural SQL hatasinda cloud varsa lokal retry beklemeden toparlar", async () => {
+    process.env.CODEGA_SETTINGS_PATH = path.join(os.tmpdir(), `codega-settings-${Date.now()}-${Math.random()}.json`);
+    setSettings({
+      provider: "ollama",
+      modelAutoFallback: true,
+      modelFallbackOrder: ["ollama", "openai"],
+      openaiApiKey: "test-key",
+      openaiBaseUrl: "https://example.test/v1",
+      openaiModel: "gpt-sql-recovery",
+    });
+    global.fetch = jest.fn(async (url) => {
+      if (String(url).includes("/chat/completions")) {
+        return {
+          ok: true,
+          json: async () => ({
+            choices: [{ message: { content: "WITH customer_stats AS (SELECT c.customer_id FROM customers c JOIN transactions t ON t.customer_id = c.customer_id GROUP BY c.customer_id) SELECT * FROM customer_stats;" } }],
+          }),
+        };
+      }
+      return { ok: false, status: 500, text: async () => "" };
+    });
+    const mgr = new ModelManager();
+    mgr.installedModels = async () => ["qwen2.5:4b"];
+    let calls = 0;
+    mgr.generate = async () => {
+      calls += 1;
+      return "WITH customer_stats AS (SELECT c.customer_id FROM customers_c ON JOIN(c.curi_did=t.customer_id) WHERE c.) SELECT * FROM customer_stats;";
+    };
+
+    const res = await mgr.askDirect("Drew Karavan icin SQL vade analizi yaz", { chatId: "rg-sql-cloud" });
+
+    expect(calls).toBe(1);
+    expect(res.source).toBe("direct_cloud_recovered");
+    expect(res.model).toBe("openai:gpt-sql-recovery");
+    expect(res.text).toMatch(/JOIN transactions t ON/);
+    expect(res.text).not.toMatch(/ON JOIN|WHERE c\./);
   });
 
   test("dort-domain buyuk test bozulursa kullanicidan bolmesini istemez", async () => {

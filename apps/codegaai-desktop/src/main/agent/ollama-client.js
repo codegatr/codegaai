@@ -1,7 +1,10 @@
 "use strict";
 const crypto = require("node:crypto");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 const { detectRunawayRepetition } = require("./anti-loop");
-const { hasCharSalad } = require("./answer-quality");
+const { hasCharSalad, structuralStreamFailure } = require("./answer-quality");
 /**
  * agent/ollama-client.js
  * -----------------------
@@ -26,6 +29,26 @@ const DEFAULT_MAX_CONTINUATIONS = 3;
 // sonraki istekte tekrar yüklüyor → 20-30sn TTFT (ilk token gecikmesi). "30m" ile
 // model yüklü kalır, ardışık mesajlarda ısınma maliyeti ödenmez.
 const DEFAULT_KEEP_ALIVE = process.env.OLLAMA_KEEP_ALIVE || "30m";
+
+function diagnosticLogPath() {
+  return process.env.CODEGA_DIAGNOSTIC_LOG_PATH ||
+    path.join(os.tmpdir(), "codegaai-stream-diagnostics.log");
+}
+
+function appendStreamDiagnostic(reason, text) {
+  const excerpt = String(text || "").slice(-4000);
+  const record = {
+    at: new Date().toISOString(),
+    reason: String(reason || "structural_error"),
+    excerpt,
+  };
+  try {
+    fs.mkdirSync(path.dirname(diagnosticLogPath()), { recursive: true });
+    fs.appendFileSync(diagnosticLogPath(), JSON.stringify(record) + "\n", "utf8");
+  } catch (_e) {
+    // Diagnostics must never crash the low-resource local stream path.
+  }
+}
 
 /**
  * Ollama generation seçeneklerini kur. Önceden yalnız temperature/num_ctx
@@ -167,6 +190,8 @@ async function streamChatOnce(model, messages, opts = {}) {
   // doneReason:"runaway" görür; öz-düzeltme oradan devralır.
   let runaway = false;
   let charSalad = false;
+  let structuralError = false;
+  let structuralReason = "";
   let lastRunawayCheckLen = 0;
   try {
     const res = await fetch(`${host}/api/chat`, {
@@ -205,6 +230,15 @@ async function streamChatOnce(model, messages, opts = {}) {
               text += tok;
               if (hasCharSalad(text.slice(-3000))) {
                 charSalad = true;
+                appendStreamDiagnostic("char_salad", text);
+                controller.abort();
+                continue;
+              }
+              const structural = structuralStreamFailure(text.slice(-3000));
+              if (structural.bad) {
+                structuralError = true;
+                structuralReason = structural.reason || "structural_error";
+                appendStreamDiagnostic(structuralReason, text);
                 controller.abort();
                 continue;
               }
@@ -239,6 +273,9 @@ async function streamChatOnce(model, messages, opts = {}) {
     }
     if (error && error.name === "AbortError" && charSalad) {
       return { text, doneReason: "char_salad" };
+    }
+    if (error && error.name === "AbortError" && structuralError) {
+      return { text, doneReason: "structural_error", structuralReason };
     }
     if (error && error.name === "AbortError" && timedOut) {
       const timeout = new Error(`Ollama ${Math.round(timeoutMs / 1000)} saniye içinde yanıt vermedi.`);
@@ -296,7 +333,7 @@ async function ollamaChatStream(model, messages, opts = {}) {
     full += text;
 
     // Canlı kesici bu turu kestiyse devam turu ATMA — çöpü uzatma.
-    if (doneReason === "runaway" || doneReason === "char_salad") break;
+    if (doneReason === "runaway" || doneReason === "char_salad" || doneReason === "structural_error") break;
     // Normal bitiş (stop / null) → tamam.
     if (doneReason !== "length") break;
     // Güvenlik tavanı veya ilerleme yok → döngüyü kır (sonsuz devam etmesin).

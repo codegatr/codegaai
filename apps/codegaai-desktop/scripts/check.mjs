@@ -394,11 +394,13 @@ if (!modelManagerFile.includes("İNSANİ TON")) throw new Error("model-manager.j
 const answerQualityFile = readText(join(root, "src/main/agent/answer-quality.js"));
 if (!answerQualityFile.includes("looksDegenerate")) throw new Error("answer-quality.js bozuk cevap sezici (looksDegenerate) eksik");
 if (!answerQualityFile.includes("hasCharSalad")) throw new Error("answer-quality.js karakter salatası sezici (hasCharSalad) eksik");
-if (!answerQualityFile.includes("hasSqlSyntaxSalad") || !answerQualityFile.includes("sql_syntax_salad")) throw new Error("answer-quality.js SQL soz dizimi salatasi sezici (hasSqlSyntaxSalad/sql_syntax_salad) eksik");
+if (!answerQualityFile.includes("hasSqlSyntaxSalad") || !answerQualityFile.includes("sql_syntax_salad") || !answerQualityFile.includes("structuralStreamFailure")) throw new Error("answer-quality.js SQL/structural soz dizimi salatasi sezici (hasSqlSyntaxSalad/structuralStreamFailure) eksik");
 if (!modelManagerFile.includes("direct_selfcorrected") || !modelManagerFile.includes("looksDegenerate")) throw new Error("model-manager.js askDirect öz-düzeltme (direct_selfcorrected/looksDegenerate) eksik");
 if (!ollamaClientFile.includes("hasCharSalad") || !ollamaClientFile.includes('"char_salad"')) throw new Error("ollama-client.js char_salad canlı kesici (hasCharSalad/char_salad) eksik");
-if (!modelManagerFile.includes("direct_cloud_recovered") || !modelManagerFile.includes("local retry failed; recovering")) throw new Error("model-manager.js char_salad sonrası bulut toparlama (direct_cloud_recovered) eksik");
+if (!ollamaClientFile.includes("structuralStreamFailure") || !ollamaClientFile.includes("appendStreamDiagnostic") || !ollamaClientFile.includes('"structural_error"')) throw new Error("ollama-client.js structural stream guard/diagnostic log eksik");
+if (!modelManagerFile.includes("direct_cloud_recovered") || !modelManagerFile.includes("tryCloudRecovery") || !modelManagerFile.includes("local retry failed")) throw new Error("model-manager.js char_salad/structural sonrası bulut toparlama (direct_cloud_recovered/tryCloudRecovery) eksik");
 if (!modelManagerFile.includes("ON JOIN") || !modelManagerFile.includes("DirectAdmin/PDO")) throw new Error("model-manager.js SQL recovery promptu DirectAdmin/PDO ve ON JOIN yasaklarini icermeli");
+if (!modelManagerFile.includes("local structural stream aborted") || !modelManagerFile.includes("[SYSTEM LIMIT]")) throw new Error("model-manager.js structural failover ve SYSTEM LIMIT bildirimi eksik");
 if (!modelManagerFile.includes("wantsCorporateFinanceFramework") || !modelManagerFile.includes("KURUMSAL FINANS/PDO URETIM SOZLESMESI") || !modelManagerFile.includes("idx_transactions_customer_date")) throw new Error("model-manager.js kurumsal finans/PDO uretim sozlesmesi eksik");
 if (!modelManagerFile.includes("buildDegenerateRecoveryFallback") || !modelManagerFile.includes("gorevi bolmesini istememeli")) throw new Error("model-manager.js kullaniciya bolme dayatmayan integral recovery fallback eksik");
 if (modelManagerFile.includes("daha küçük parçalara böl") || modelManagerFile.includes("daha kucuk parcalara bol")) throw new Error("model-manager.js fallback kullanicidan gorevi kucultmesini istememeli");
@@ -419,7 +421,7 @@ const cloudProviderFile = readText(join(root, "src/main/agent/cloud-provider.js"
 if (!cloudProviderFile.includes("claude-opus-4-8") || !cloudProviderFile.includes("anthropicSamplingRemoved")) throw new Error("cloud-provider.js güncel Claude modeli (claude-opus-4-8/anthropicSamplingRemoved) eksik");
 if (cloudProviderFile.includes("claude-sonnet-4-20250514")) throw new Error("cloud-provider.js emekli Claude modeline (claude-sonnet-4-20250514) referans içermemeli");
 
-if (pkg.version !== "6.0.0-alpha.112") throw new Error(`Desktop package version must be 6.0.0-alpha.112, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.113") throw new Error(`Desktop package version must be 6.0.0-alpha.113, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

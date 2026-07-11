@@ -53,6 +53,18 @@ function hasSqlSyntaxSalad(text) {
   return brokenJoinOrder || halfAlias || orphanedAlias || sqlPlaceholder || malformedCustomersJoin;
 }
 
+function structuralStreamFailure(text) {
+  const a = String(text || "");
+  if (hasSqlSyntaxSalad(a)) return { bad: true, reason: "sql_syntax_salad" };
+  const lower = a.toLowerCase();
+  const lazyPlaceholder =
+    /\/\/\s*(?:rest of|code placeholder|code here|logic here|query here)|\/\*\s*(?:rest of|code placeholder|code here|logic here|query here)|<!--\s*(?:rest of|code placeholder|code here|logic here)/i.test(lower);
+  if (lazyPlaceholder) return { bad: true, reason: "lazy_placeholder" };
+  const danglingAlias = /(?:^|\n)\s*(?:c|t)\.\s*$/i.test(a);
+  if (danglingAlias) return { bad: true, reason: "dangling_alias" };
+  return { bad: false, reason: "" };
+}
+
 /**
  * @param {string} answer   modelin ürettiği yanıt
  * @param {string} [question] kullanıcı sorusu (bağlam; şimdilik yalnız uzunluk kıyası)
@@ -66,7 +78,9 @@ function looksDegenerate(answer, question = "") {
   if (metaHits >= 2) return { bad: true, reason: "role_confusion" };
   if (hasCharSalad(a)) return { bad: true, reason: "char_salad" };
   if (hasSqlSyntaxSalad(a)) return { bad: true, reason: "sql_syntax_salad" };
+  const structural = structuralStreamFailure(a);
+  if (structural.bad) return structural;
   return { bad: false, reason: "" };
 }
 
-module.exports = { looksDegenerate, hasCharSalad, hasSqlSyntaxSalad, META_RE };
+module.exports = { looksDegenerate, hasCharSalad, hasSqlSyntaxSalad, structuralStreamFailure, META_RE };

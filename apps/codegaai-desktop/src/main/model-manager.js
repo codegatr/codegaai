@@ -981,7 +981,7 @@ function buildDegenerateRecoveryFallback(reason, settings = {}) {
   });
   const providerText = hasConfiguredCloud
     ? `Yapilandirilmis bulut recovery sirasi hazir: ${cloudProviders.join(", ")}. Sonraki denemede yerel model yine bozulursa otomatik guclu rotaya gecilir.`
-    : "Kalici cozum: Ayarlar > AI Saglayici bolumune Claude/OpenAI/Gemini API anahtari ekle veya 7B/8B+ daha guclu bir yerel model kur. Boylece buyuk tek-parca testler otomatik guclu rotaya tasinir.";
+    : "[SYSTEM LIMIT] Yerel donanim baglam penceresi bu buyuk tek parca gorevi tamamlayamadi. Sistemin bolunmeden otonom calisabilmesi icin lutfen Ayarlar > AI Saglayici bolumune Claude/OpenAI/Gemini API anahtarinizi ekleyin veya daha guclu bir yerel modele gecin.";
 
   return [
     `Yanit uretimini guvenlik nedeniyle durdurdum: ${degenerateReasonLabel(reason)}.`,
@@ -1632,30 +1632,17 @@ class ModelManager {
     const q = looksDegenerate(text, text0);
     if (q.bad && !this._aborted) {
       try { logs.info("self_correct", `reason=${q.reason} model=${model}`); } catch (_e) {}
-      const retryMsgs = messages.concat([
-        { role: "assistant", content: text.slice(0, 300) },
-        { role: "user", content:
-          "Bu yanıt bozuk (boş, kendini tekrar ediyor ya da konudan koptun). " +
-          "Aynı soruyu ŞİMDİ KISA, net, TEK seferde ve TEKRARSIZ yeniden yanıtla. " +
-          "Kendinle konuşma; 'benim yanıtım / sizin tarafınız / hangi yolu izliyorsunuz' gibi ifadeler KULLANMA." },
-      ]);
-      this._abort = new AbortController();
-      let retry = "";
-      try { retry = String(await this.generate(model, retryMsgs, [], null) || "").trim(); } catch (_e) {}
-      this._abort = null;
-      if (retry && !looksDegenerate(retry, text0).bad) {
-        text = retry; source = "direct_selfcorrected";
-      } else if (q.reason !== "empty") {
+      const tryCloudRecovery = async (stage) => {
         const cloudProviders = configuredProviderChain(s).filter((provider) => provider !== "ollama");
         for (const provider of cloudProviders) {
           const cloud = configFromSettings(s, { provider });
           if (!String(cloud.apiKey || "").trim()) continue;
           try {
-            logs.info("self_correct", `local retry failed; recovering with ${provider}`);
+            logs.info("self_correct", `${stage}; recovering with ${provider}`);
           } catch (_e) {}
           const recoveryMsgs = [
             { role: "system", content:
-              "Sen CODEGA AI kalite toparlama katmanısın. Önceki yerel model çıktısı char_salad/tekrar/rol karışması nedeniyle durduruldu. " +
+              "Sen CODEGA AI kalite toparlama katmanısın. Önceki yerel model çıktısı char_salad/tekrar/rol karışması/SQL structural error nedeniyle durduruldu. " +
               "Bozuk metni sürdürme veya ondan alıntı yapma. Kullanıcının asıl sorusunu temiz, eksiksiz, Türkçe ve üretime hazır şekilde yeniden yanıtla. " +
               "Placeholder yazma; gerekiyorsa uzun cevabı düzenli başlıklar ve tam kod bloklarıyla ver. " +
               "SQL/PHP isteniyorsa ANSI uyumlu sirayi koru: FROM table alias JOIN table alias ON condition; ON JOIN, JOIN(...), yarim alias (c.) ve '// rest of query' yasak. " +
@@ -1681,11 +1668,41 @@ class ModelManager {
             this._abort = null;
           }
           if (recovered && !looksDegenerate(recovered, text0).bad) {
-            text = recovered;
-            source = "direct_cloud_recovered";
-            usedModel = `${provider}:${cloud.model}`;
-            break;
+            return { text: recovered, model: `${provider}:${cloud.model}` };
           }
+        }
+        return null;
+      };
+      if (q.reason === "sql_syntax_salad" || q.reason === "lazy_placeholder" || q.reason === "dangling_alias") {
+        const recovered = await tryCloudRecovery("local structural stream aborted");
+        if (recovered) {
+          text = recovered.text;
+          source = "direct_cloud_recovered";
+          usedModel = recovered.model;
+        }
+      }
+      if (source === "direct_cloud_recovered") {
+        // Structural stream failure recovered in cloud; skip local retry.
+      } else {
+      const retryMsgs = messages.concat([
+        { role: "assistant", content: text.slice(0, 300) },
+        { role: "user", content:
+          "Bu yanıt bozuk (boş, kendini tekrar ediyor ya da konudan koptun). " +
+          "Aynı soruyu ŞİMDİ KISA, net, TEK seferde ve TEKRARSIZ yeniden yanıtla. " +
+          "Kendinle konuşma; 'benim yanıtım / sizin tarafınız / hangi yolu izliyorsunuz' gibi ifadeler KULLANMA." },
+      ]);
+      this._abort = new AbortController();
+      let retry = "";
+      try { retry = String(await this.generate(model, retryMsgs, [], null) || "").trim(); } catch (_e) {}
+      this._abort = null;
+      if (retry && !looksDegenerate(retry, text0).bad) {
+        text = retry; source = "direct_selfcorrected";
+      } else if (q.reason !== "empty") {
+        const recovered = await tryCloudRecovery("local retry failed");
+        if (recovered) {
+            text = recovered.text;
+            source = "direct_cloud_recovered";
+            usedModel = recovered.model;
         }
         if (source === "direct_cloud_recovered") {
           // recovered text is ready; skip local fallback
@@ -1696,6 +1713,7 @@ class ModelManager {
         text = buildDegenerateRecoveryFallback(q.reason, s);
         source = "direct_degenerate_fallback";
         }
+      }
       }
     }
 
