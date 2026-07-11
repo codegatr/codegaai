@@ -21,6 +21,11 @@ const { buildSystemPrompt } = require("./agent/system-prompt");
 const { REASONING_GUARDRAILS } = require("./agent/reasoning-guardrails");
 const { collapseRepetition } = require("./agent/anti-loop");
 const { looksDegenerate } = require("./agent/answer-quality");
+const {
+  normalizeGuardrailConfig,
+  quarantineStreamFailure,
+  buildGuardrailRetryInstruction,
+} = require("./agent/stream-guardrail");
 const { sanitizePrompt } = require("./agent/sanitize-prompt");
 const answerAdequacy = require("./agent/answer-adequacy");
 const { getSettings } = require("./agent/settings-store");
@@ -61,6 +66,12 @@ const { runOrchestrated } = require("./agent/orchestrator");
 const { SPECIALISTS, routeStep, buildSpecialistPrompt } = require("./agent/agents");
 const improveDrafts = require("./agent/improve-drafts");
 const experts = require("./agent/experts");
+const {
+  loadSemanticProjectProfile,
+  saveSemanticProjectProfile,
+  extractProjectProfileFacts,
+  buildProjectProfileContext,
+} = require("./agent/memory/semantic-project-profile");
 
 function extractWeatherCity(input) {
   const match = String(input || "").trim().match(
@@ -1095,6 +1106,10 @@ function seedConversationHistory(target, incoming, max = 12) {
   return seeded.length;
 }
 
+function semanticProjectRoot(opts = {}) {
+  return String(opts.projectRoot || opts.workspaceRoot || process.env.CODEGA_PROJECT_ROOT || "").trim();
+}
+
 function modelParamSize(name) {
   const m = String(name || "").match(/(\d+(?:\.\d+)?)\s*b\b/i);
   return m ? Number(m[1]) : 0;
@@ -1535,6 +1550,7 @@ class ModelManager {
   async askDirect(input, opts = {}) {
     const text0 = sanitizePrompt(String(input || ""));
     const s = getSettings();
+    const guardrailConfig = normalizeGuardrailConfig(s, opts.guardrail || {});
     let installed = [];
     try { installed = await this.installedModels(); } catch (_e) { installed = []; }
     const model = s.defaultModel || s.model || chooseModelForTask("chat", installed) || DEFAULT_MODEL;
@@ -1605,6 +1621,16 @@ class ModelManager {
     if (wantsCorporateFinanceFramework(text0)) {
       messages.push({ role: "system", content: CORPORATE_FINANCE_FRAMEWORK_CONTRACT });
     }
+    const projectRoot = semanticProjectRoot(opts);
+    if (projectRoot) {
+      try {
+        saveSemanticProjectProfile(projectRoot, extractProjectProfileFacts(text0));
+        const profileContext = buildProjectProfileContext(loadSemanticProjectProfile(projectRoot));
+        if (profileContext) messages.push({ role: "system", content: profileContext });
+      } catch (error) {
+        try { logs.warn("semantic_project_profile", error && (error.message || error)); } catch (_e) {}
+      }
+    }
     // BİLİŞSEL HAFIZA: varsa proje/karar/hedef özetini ekle → "falanca sorunu çöz"
     // gibi atıflar bağlamdan çözülür, kullanıcı tekrar anlatmaz.
     const cog = String(opts.cognitiveContext || "").trim();
@@ -1616,7 +1642,10 @@ class ModelManager {
     this._aborted = false;
     let text = "";
     try {
-      text = String(await this.generate(model, messages, [], opts.onToken || null) || "").trim();
+      text = String(await this.generate(model, messages, [], opts.onToken || null, {
+        guardrailConfig,
+        guardrailAttempt: 0,
+      }) || "").trim();
     } catch (err) {
       if (this._aborted || (err && err.name === "AbortError")) { this._abort = null; throw err; }
       this._abort = null;
@@ -1624,22 +1653,24 @@ class ModelManager {
     }
     this._abort = null;
 
-    // ÖZ-DÜZELTME (hatasını anla-düzelt): cevap bozuksa (boş / kendini tekrar /
-    // rol karışması) BİR kez düzeltici retry. Ağır pipeline yok — tek ek üretim,
-    // yalnız ucuz sezici tetiklerse. Retry akmaz (onToken yok); final metni değişir.
+    // OZ-DUZELTME: bozuk yerel cikti kullaniciya verilmez. En fazla iki yerel
+    // context-flush denemesi yapilir; yine bozuksa bulut recovery rotasina gecilir.
     let source = "direct";
     let usedModel = model;
-    const q = looksDegenerate(text, text0);
+    let q = looksDegenerate(text, text0);
     if (q.bad && !this._aborted) {
-      try { logs.info("self_correct", `reason=${q.reason} model=${model}`); } catch (_e) {}
-      const tryCloudRecovery = async (stage) => {
+      const initialReason = q.reason;
+      const tryCloudRecovery = async (stage, reason) => {
         const cloudProviders = configuredProviderChain(s).filter((provider) => provider !== "ollama");
         for (const provider of cloudProviders) {
           const cloud = configFromSettings(s, { provider });
           if (!String(cloud.apiKey || "").trim()) continue;
           try {
-            logs.info("self_correct", `${stage}; recovering with ${provider}`);
+            logs.info("self_correct", `${stage}; reason=${reason}; recovering with ${provider}`);
           } catch (_e) {}
+          if (opts.onToken) {
+            try { opts.onToken("[SYSTEM] Yerel model bu gorevin buyuklugunu tek seferde isleyemedi. Bulut saglayiciya geciliyor...\n\n"); } catch (_e) {}
+          }
           const recoveryMsgs = [
             { role: "system", content:
               "Sen CODEGA AI kalite toparlama katmanısın. Önceki yerel model çıktısı char_salad/tekrar/rol karışması/SQL structural error nedeniyle durduruldu. " +
@@ -1673,47 +1704,74 @@ class ModelManager {
         }
         return null;
       };
-      if (q.reason === "sql_syntax_salad" || q.reason === "lazy_placeholder" || q.reason === "dangling_alias") {
-        const recovered = await tryCloudRecovery("local structural stream aborted");
-        if (recovered) {
-          text = recovered.text;
-          source = "direct_cloud_recovered";
-          usedModel = recovered.model;
+
+      try { logs.info("self_correct", `reason=${q.reason} model=${model} maxLocalRetries=${guardrailConfig.maxLocalRetries}`); } catch (_e) {}
+      for (let attempt = 1; attempt <= guardrailConfig.maxLocalRetries && q.bad && !this._aborted; attempt += 1) {
+        quarantineStreamFailure({
+          reason: q.reason,
+          pattern: q.pattern || "post_generation_quality",
+          provider: "ollama",
+          model,
+          attempt,
+          retryCount: attempt - 1,
+          action: "local_retry",
+          text,
+        }, guardrailConfig);
+        const retryMsgs = messages.concat([
+          { role: "system", content: buildGuardrailRetryInstruction(q.reason, attempt) },
+          { role: "assistant", content: String(text || "").slice(0, 300) },
+          { role: "user", content:
+            "Bu yanıt bozuk (boş, kendini tekrar ediyor ya da konudan koptun). " +
+            "Aynı soruyu ŞİMDİ net, TEK seferde ve TEKRARSIZ yeniden yanıtla. " +
+            "Kendinle konuşma; 'benim yanıtım / sizin tarafınız / hangi yolu izliyorsunuz' gibi ifadeler KULLANMA." },
+        ]);
+        this._abort = new AbortController();
+        let retry = "";
+        try {
+          retry = String(await this.generate(model, retryMsgs, [], null, {
+            guardrailConfig,
+            guardrailAttempt: attempt,
+          }) || "").trim();
+        } catch (_e) {
+          retry = "";
         }
+        this._abort = null;
+        const retryQuality = looksDegenerate(retry, text0);
+        if (retry && !retryQuality.bad) {
+          text = retry;
+          source = "direct_selfcorrected";
+          q = { bad: false, reason: "" };
+          break;
+        }
+        if (retry) text = retry;
+        q = retryQuality.bad ? retryQuality : looksDegenerate(text, text0);
       }
-      if (source === "direct_cloud_recovered") {
-        // Structural stream failure recovered in cloud; skip local retry.
-      } else {
-      const retryMsgs = messages.concat([
-        { role: "assistant", content: text.slice(0, 300) },
-        { role: "user", content:
-          "Bu yanıt bozuk (boş, kendini tekrar ediyor ya da konudan koptun). " +
-          "Aynı soruyu ŞİMDİ KISA, net, TEK seferde ve TEKRARSIZ yeniden yanıtla. " +
-          "Kendinle konuşma; 'benim yanıtım / sizin tarafınız / hangi yolu izliyorsunuz' gibi ifadeler KULLANMA." },
-      ]);
-      this._abort = new AbortController();
-      let retry = "";
-      try { retry = String(await this.generate(model, retryMsgs, [], null) || "").trim(); } catch (_e) {}
-      this._abort = null;
-      if (retry && !looksDegenerate(retry, text0).bad) {
-        text = retry; source = "direct_selfcorrected";
-      } else if (q.reason !== "empty") {
-        const recovered = await tryCloudRecovery("local retry failed");
-        if (recovered) {
+
+      if (q.bad && source !== "direct_selfcorrected") {
+        if ((q.reason || initialReason) === "empty") {
+          text = "";
+          source = "direct";
+        } else {
+          quarantineStreamFailure({
+            reason: q.reason || initialReason,
+            pattern: q.pattern || "post_retry_quality",
+            provider: "ollama",
+            model,
+            attempt: guardrailConfig.maxLocalRetries,
+            retryCount: guardrailConfig.maxLocalRetries,
+            action: "cloud_failover",
+            text,
+          }, guardrailConfig);
+          const recovered = await tryCloudRecovery("local retries failed", q.reason || initialReason);
+          if (recovered) {
             text = recovered.text;
             source = "direct_cloud_recovered";
             usedModel = recovered.model;
+          } else {
+            text = buildDegenerateRecoveryFallback(q.reason || initialReason, s);
+            source = "direct_degenerate_fallback";
+          }
         }
-        if (source === "direct_cloud_recovered") {
-          // recovered text is ready; skip local fallback
-        } else {
-        // ("empty" haric: bos uretim asagidaki mevcut Ollama mesaji ile yanitlanir.)
-        // Duzeltme de bozukse copu aynen teslim etme; kullaniciya isi bolmesini
-        // soylemeden, otomatik recovery rotasini ve eksik kapasiteyi acikla.
-        text = buildDegenerateRecoveryFallback(q.reason, s);
-        source = "direct_degenerate_fallback";
-        }
-      }
       }
     }
 
@@ -2745,7 +2803,7 @@ class ModelManager {
    * iÃ§in gerekli), eriÅŸilemezse CLI `run`'a fallback (messages dÃ¼zleÅŸtirilir).
    * runReact bunu generateFn olarak Ã§aÄŸÄ±rÄ±r.
    */
-  async generate(model, messages, fallbackModels = [], onToken = null) {
+  async generate(model, messages, fallbackModels = [], onToken = null, runtime = {}) {
     const sig = this._abort ? this._abort.signal : undefined;
     // Bulut saÄŸlayÄ±cÄ± seÃ§iliyse oraya yÃ¶nlen â€” yerel Ollama gerekmez.
     const s = getSettings();
@@ -2789,7 +2847,13 @@ class ModelManager {
           logs.info("model_generate", `provider=ollama model=${m} stream=${Boolean(onToken && m === model)} timeout=${Math.round(OLLAMA_CHAT_TIMEOUT_MS / 1000)}s prompt=${String(lastUser?.content || "").slice(0, 240).replace(/\s+/g, " ")}`);
         } catch (_logError) {}
         const content = onToken && m === model
-          ? await ollamaChatStream(m, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS, onToken, signal: sig })
+          ? await ollamaChatStream(m, messages, {
+            timeoutMs: OLLAMA_CHAT_TIMEOUT_MS,
+            onToken,
+            signal: sig,
+            guardrailConfig: runtime.guardrailConfig,
+            guardrailAttempt: runtime.guardrailAttempt,
+          })
           : await ollamaChat(m, messages, { timeoutMs: OLLAMA_CHAT_TIMEOUT_MS, signal: sig });
         // ANTI-LOOP: yerel model aynı cümleyi/paragrafı defalarca yazıp bitirmezse
         // son metinden tekrar çöpünü süz (kod blokları korunur). Bulut yanıtı dokunulmaz.

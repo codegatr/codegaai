@@ -122,7 +122,11 @@ const required = [
   "src/main/agent/reasoning-guardrails.js",
   "src/main/agent/anti-loop.js",
   "src/main/agent/answer-quality.js",
+  "src/main/agent/stream-guardrail.js",
+  "src/main/agent/memory/semantic-project-profile.js",
   "src/main/agent/__tests__/answer-quality.test.js",
+  "src/main/agent/__tests__/stream-guardrail.test.js",
+  "src/main/agent/__tests__/semantic-project-profile.test.js",
   "src/main/agent/__tests__/native-zip.test.js",
   "src/main/agent/__tests__/validate-files.test.js",
   "src/main/agent/__tests__/reasoning-guardrails.test.js",
@@ -398,12 +402,19 @@ if (!answerQualityFile.includes("hasSqlSyntaxSalad") || !answerQualityFile.inclu
 if (!modelManagerFile.includes("direct_selfcorrected") || !modelManagerFile.includes("looksDegenerate")) throw new Error("model-manager.js askDirect öz-düzeltme (direct_selfcorrected/looksDegenerate) eksik");
 if (!ollamaClientFile.includes("hasCharSalad") || !ollamaClientFile.includes('"char_salad"')) throw new Error("ollama-client.js char_salad canlı kesici (hasCharSalad/char_salad) eksik");
 if (!ollamaClientFile.includes("structuralStreamFailure") || !ollamaClientFile.includes("appendStreamDiagnostic") || !ollamaClientFile.includes('"structural_error"')) throw new Error("ollama-client.js structural stream guard/diagnostic log eksik");
-if (!modelManagerFile.includes("direct_cloud_recovered") || !modelManagerFile.includes("tryCloudRecovery") || !modelManagerFile.includes("local retry failed")) throw new Error("model-manager.js char_salad/structural sonrası bulut toparlama (direct_cloud_recovered/tryCloudRecovery) eksik");
+if (!modelManagerFile.includes("direct_cloud_recovered") || !modelManagerFile.includes("tryCloudRecovery") || !modelManagerFile.includes("local retries failed")) throw new Error("model-manager.js char_salad/structural sonrası bulut toparlama (direct_cloud_recovered/tryCloudRecovery) eksik");
 if (!modelManagerFile.includes("ON JOIN") || !modelManagerFile.includes("DirectAdmin/PDO")) throw new Error("model-manager.js SQL recovery promptu DirectAdmin/PDO ve ON JOIN yasaklarini icermeli");
-if (!modelManagerFile.includes("local structural stream aborted") || !modelManagerFile.includes("[SYSTEM LIMIT]")) throw new Error("model-manager.js structural failover ve SYSTEM LIMIT bildirimi eksik");
+if (!modelManagerFile.includes("local retries failed") || !modelManagerFile.includes("[SYSTEM LIMIT]")) throw new Error("model-manager.js structural failover ve SYSTEM LIMIT bildirimi eksik");
 if (!modelManagerFile.includes("wantsCorporateFinanceFramework") || !modelManagerFile.includes("KURUMSAL FINANS/PDO URETIM SOZLESMESI") || !modelManagerFile.includes("idx_transactions_customer_date")) throw new Error("model-manager.js kurumsal finans/PDO uretim sozlesmesi eksik");
 if (!modelManagerFile.includes("buildDegenerateRecoveryFallback") || !modelManagerFile.includes("gorevi bolmesini istememeli")) throw new Error("model-manager.js kullaniciya bolme dayatmayan integral recovery fallback eksik");
 if (modelManagerFile.includes("daha küçük parçalara böl") || modelManagerFile.includes("daha kucuk parcalara bol")) throw new Error("model-manager.js fallback kullanicidan gorevi kucultmesini istememeli");
+const streamGuardrailFile = readText(join(root, "src/main/agent/stream-guardrail.js"));
+if (!streamGuardrailFile.includes("STRUCTURAL_PATTERNS") || !streamGuardrailFile.includes("quarantineStreamFailure") || !streamGuardrailFile.includes("streamGuardrailMaxLocalRetries")) throw new Error("stream-guardrail.js pattern/config/quarantine sozlesmesi eksik");
+if (!ollamaClientFile.includes("quarantineStreamFailure") || !ollamaClientFile.includes("guardrailAttempt")) throw new Error("ollama-client.js stream guardrail quarantine/attempt telemetry eksik");
+if (!modelManagerFile.includes("normalizeGuardrailConfig") || !modelManagerFile.includes("buildGuardrailRetryInstruction") || !modelManagerFile.includes("maxLocalRetries")) throw new Error("model-manager.js iki asamali guardrail retry sozlesmesi eksik");
+const semanticProfileFile = readText(join(root, "src/main/agent/memory/semantic-project-profile.js"));
+if (!semanticProfileFile.includes("PROFILE_FILE") || !semanticProfileFile.includes("extractProjectProfileFacts") || !semanticProfileFile.includes("buildProjectProfileContext")) throw new Error("semantic-project-profile.js kalici proje profili sozlesmesi eksik");
+if (!modelManagerFile.includes("saveSemanticProjectProfile") || !semanticProfileFile.includes("PROJECT SEMANTIC PROFILE")) throw new Error("model-manager.js semantik proje profili baglami eksik");
 
 if (!rendererFile2.includes("zip.analyze") || !rendererFile2.includes("ANALİZ (otomatik)")) throw new Error("renderer.js ZIP eklentisinde yapılandırılmış analiz (zip.analyze/ANALİZ) sohbete bağlanmamış");
 if (!modelManagerFile.includes("wantsSiteAudit") || !modelManagerFile.includes("direct_site_audit")) throw new Error("model-manager.js site denetimi (wantsSiteAudit/direct_site_audit) eksik");
@@ -421,7 +432,7 @@ const cloudProviderFile = readText(join(root, "src/main/agent/cloud-provider.js"
 if (!cloudProviderFile.includes("claude-opus-4-8") || !cloudProviderFile.includes("anthropicSamplingRemoved")) throw new Error("cloud-provider.js güncel Claude modeli (claude-opus-4-8/anthropicSamplingRemoved) eksik");
 if (cloudProviderFile.includes("claude-sonnet-4-20250514")) throw new Error("cloud-provider.js emekli Claude modeline (claude-sonnet-4-20250514) referans içermemeli");
 
-if (pkg.version !== "6.0.0-alpha.114") throw new Error(`Desktop package version must be 6.0.0-alpha.114, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.115") throw new Error(`Desktop package version must be 6.0.0-alpha.115, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

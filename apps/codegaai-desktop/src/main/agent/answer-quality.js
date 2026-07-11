@@ -9,6 +9,7 @@
  */
 
 const { detectRunawayRepetition } = require("./anti-loop");
+const { detectStreamGuardrailFailure } = require("./stream-guardrail");
 
 // Rol karışması / kendiyle konuşma imzaları (4B dejenerasyonunda sık görülür).
 const META_RE = /benim yan[ıi]t[ıi]m[ıi]\s*bekl|sizin taraf[ıi]n[ıi]za\s*ge[çc]|hangi yolu izl(iyorsun|eyebilir)|emin olamad[ıi][ğg][ıi]m nokta|biz hep birlikte yapt|nas[ıi]l yard[ıi]mc[ıi] olabilir(im)?|siz bana sordu|sizden ne bekleniyor|neredesiniz biz sizinle/gi;
@@ -55,13 +56,9 @@ function hasSqlSyntaxSalad(text) {
 
 function structuralStreamFailure(text) {
   const a = String(text || "");
-  if (hasSqlSyntaxSalad(a)) return { bad: true, reason: "sql_syntax_salad" };
-  const lower = a.toLowerCase();
-  const lazyPlaceholder =
-    /\/\/\s*(?:rest of|code placeholder|code here|logic here|query here)|\/\*\s*(?:rest of|code placeholder|code here|logic here|query here)|<!--\s*(?:rest of|code placeholder|code here|logic here)/i.test(lower);
-  if (lazyPlaceholder) return { bad: true, reason: "lazy_placeholder" };
-  const danglingAlias = /(?:^|\n)\s*(?:c|t)\.\s*$/i.test(a);
-  if (danglingAlias) return { bad: true, reason: "dangling_alias" };
+  const guard = detectStreamGuardrailFailure(a);
+  if (guard.bad) return guard;
+  if (hasSqlSyntaxSalad(a)) return { bad: true, reason: "sql_syntax_salad", pattern: "legacy_sql_syntax" };
   return { bad: false, reason: "" };
 }
 
