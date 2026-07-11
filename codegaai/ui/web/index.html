@@ -532,6 +532,9 @@
           <button class="command-card nav-item" data-view="canvas" data-command-view="canvas">
             <strong>Canvas</strong><span>Dosya, artifact ve düzenlenebilir çıktılar.</span>
           </button>
+          <button class="command-card" id="xlsx-tool-focus" type="button">
+            <strong>Excel / XLSX</strong><span>Workbook oku, sheet duzenle ve chart'li rapor uret.</span>
+          </button>
           <button class="command-card nav-item" data-view="translate" data-command-view="translate">
             <strong>Çeviri</strong><span>Dil tespiti, lokalizasyon ve metin iyileştirme.</span>
           </button>
@@ -541,6 +544,30 @@
           <button class="command-card nav-item" data-view="devtools-ui" data-command-view="devtools-ui">
             <strong>Geliştirici araçları</strong><span>Güvenlik, test üretimi, profiler ve kod yardımcıları.</span>
           </button>
+        </div>
+        <div class="xlsx-panel" id="xlsx-tool-panel">
+          <div class="xlsx-panel__header">
+            <div>
+              <h2>Excel Raporlama Skill</h2>
+              <p>.xlsx dosyasini yerel workspace'e alir, sheet ozeti cikarir ve guvenli operasyonlarla yeni workbook uretir.</p>
+            </div>
+            <span class="status-pill status-pill--pending" id="xlsx-status-pill">
+              <span class="status-pill__dot"></span>
+              hazir
+            </span>
+          </div>
+          <div class="xlsx-panel__body">
+            <label class="xlsx-drop">
+              <input type="file" id="xlsx-file-input" accept=".xlsx">
+              <span>Dosya sec</span>
+              <small id="xlsx-file-label">Henuz workbook secilmedi</small>
+            </label>
+            <div class="xlsx-actions">
+              <button class="btn btn--primary" id="xlsx-upload-btn" type="button">Analiz Et</button>
+              <button class="btn btn--ghost" id="xlsx-sample-edit-btn" type="button" disabled>Ornek Rapor Uret</button>
+            </div>
+          </div>
+          <div class="xlsx-result" id="xlsx-result">Workbook secildiginde sheet ozeti burada gorunur.</div>
         </div>
       </div>
     </section>

@@ -34,6 +34,7 @@
     WebLearn.init();
     AutoLearn.init();
     Vision.init();
+    setTimeout(() => XlsxView.init(), 0);
   }
 
   function setStatus(key, type, text) {
@@ -46,6 +47,153 @@
       dot.className = `dot dot--${type}`;
     }
   }
+})();
+
+const XlsxView = (() => {
+  let workbookId = "";
+  let selectedFile = null;
+
+  function init() {
+    const focusBtn = document.getElementById("xlsx-tool-focus");
+    const panel = document.getElementById("xlsx-tool-panel");
+    const input = document.getElementById("xlsx-file-input");
+    const uploadBtn = document.getElementById("xlsx-upload-btn");
+    const sampleBtn = document.getElementById("xlsx-sample-edit-btn");
+
+    if (focusBtn && panel) {
+      focusBtn.addEventListener("click", () => {
+        panel.scrollIntoView({behavior: "smooth", block: "center"});
+      });
+    }
+    if (input) {
+      input.addEventListener("change", () => {
+        selectedFile = input.files && input.files[0] ? input.files[0] : null;
+        workbookId = "";
+        const label = document.getElementById("xlsx-file-label");
+        if (label) label.textContent = selectedFile ? selectedFile.name : "Henuz workbook secilmedi";
+        if (sampleBtn) sampleBtn.disabled = true;
+        setResult("Workbook yuklemek icin Analiz Et'e bas.");
+      });
+    }
+    if (uploadBtn) uploadBtn.addEventListener("click", upload);
+    if (sampleBtn) sampleBtn.addEventListener("click", sampleEdit);
+  }
+
+  function setPill(type, text) {
+    const pill = document.getElementById("xlsx-status-pill");
+    if (!pill) return;
+    pill.className = `status-pill status-pill--${type}`;
+    pill.innerHTML = `<span class="status-pill__dot"></span>${escapeHtml(text)}`;
+  }
+
+  function setResult(html) {
+    const out = document.getElementById("xlsx-result");
+    if (out) out.innerHTML = html;
+  }
+
+  async function upload() {
+    if (!selectedFile) {
+      setPill("warn", "dosya gerekli");
+      setResult("Once .xlsx workbook sec.");
+      return;
+    }
+    const sampleBtn = document.getElementById("xlsx-sample-edit-btn");
+    setPill("pending", "analiz");
+    setResult("Workbook okunuyor...");
+    try {
+      const form = new FormData();
+      form.append("file", selectedFile);
+      const resp = await fetch("/api/files/xlsx/upload", {method: "POST", body: form});
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || data.detail || data.error) throw new Error(data.detail || data.error || `HTTP ${resp.status}`);
+      workbookId = data.workbook_id || "";
+      if (sampleBtn) sampleBtn.disabled = !workbookId;
+      setPill("ok", "analiz tamam");
+      renderSummary(data.summary);
+    } catch (err) {
+      setPill("off", "hata");
+      setResult(escapeHtml(err.message || String(err)));
+    }
+  }
+
+  async function sampleEdit() {
+    if (!workbookId) return;
+    setPill("pending", "rapor");
+    setResult("Ornek workbook operasyonlari uygulanıyor...");
+    try {
+      const resp = await fetch("/api/files/xlsx/edit", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          workbook_id: workbookId,
+          output_name: "codega-xlsx-report.xlsx",
+          operations: [
+            {"action": "create_sheet", "sheet": "CODEGA_Report"},
+            {"action": "update_cell", "sheet": "CODEGA_Report", "cell": "A1", "value": "CODEGA XLSX Report"},
+            {"action": "update_cell", "sheet": "CODEGA_Report", "cell": "A2", "value": "Generated from local XLSX skill"},
+            {"action": "update_cell", "sheet": "CODEGA_Report", "cell": "A4", "value": "Metric"},
+            {"action": "update_cell", "sheet": "CODEGA_Report", "cell": "B4", "value": "Value"},
+            {"action": "update_cell", "sheet": "CODEGA_Report", "cell": "A5", "value": "Rows"},
+            {"action": "update_cell", "sheet": "CODEGA_Report", "cell": "B5", "value": 10},
+            {"action": "update_cell", "sheet": "CODEGA_Report", "cell": "A6", "value": "Sheets"},
+            {"action": "update_cell", "sheet": "CODEGA_Report", "cell": "B6", "value": 3},
+            {"action": "update_cell", "sheet": "CODEGA_Report", "cell": "A7", "value": "Checks"},
+            {"action": "update_cell", "sheet": "CODEGA_Report", "cell": "B7", "value": 7},
+            {"action": "format_range", "sheet": "CODEGA_Report", "range": "A1:B1", "fill": "F59E0B", "font": {"bold": true, "color": "111827"}},
+            {"action": "format_range", "sheet": "CODEGA_Report", "range": "A4:B4", "fill": "111827", "font": {"bold": true, "color": "FFFFFF"}},
+            {"action": "add_chart", "sheet": "CODEGA_Report", "chart_type": "bar", "data_range": "B4:B7", "anchor": "D4", "title": "CODEGA Preview Chart"}
+          ]
+        })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || data.detail || data.error) throw new Error(data.detail || data.error || `HTTP ${resp.status}`);
+      setPill("ok", "rapor hazir");
+      setResult(`${renderApplied(data.applied || [])}<p><a href="${escapeAttr(data.output_url)}" target="_blank">Duzenlenen workbook'u ac</a></p>`);
+    } catch (err) {
+      setPill("off", "hata");
+      setResult(escapeHtml(err.message || String(err)));
+    }
+  }
+
+  function renderSummary(summary) {
+    if (!summary) {
+      setResult("Workbook ozeti alinamadi.");
+      return;
+    }
+    const sheets = (summary.sheets || []).map((sheet) => `
+      <div class="xlsx-sheet" data-xlsx-sheet="${escapeAttr(sheet.name)}">
+        <strong>${escapeHtml(sheet.name)}</strong>
+        <span>${Number(sheet.rows || 0)} satir · ${Number(sheet.columns || 0)} sutun</span>
+        <small>${(sheet.headers || []).slice(0, 8).map(escapeHtml).join(", ") || "Baslik yok"}</small>
+      </div>
+    `).join("");
+    setResult(`
+      <div class="xlsx-summary">
+        <div><strong>${escapeHtml(summary.filename || "workbook.xlsx")}</strong><span>${Number(summary.sheet_count || 0)} sheet</span></div>
+        ${sheets || "<p>Sheet bulunamadi.</p>"}
+      </div>
+    `);
+  }
+
+  function renderApplied(items) {
+    return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    }[ch]));
+  }
+
+  function escapeAttr(value) {
+    return escapeHtml(value).replace(/`/g, "&#96;");
+  }
+
+  return {init};
 })();
 
 // Federation UI
