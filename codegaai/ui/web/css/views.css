@@ -1594,6 +1594,91 @@ body.modal-open { overflow: hidden; }
   cursor: help;
 }
 
+.xlsx-panel {
+  margin-top: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.xlsx-panel__header,
+.xlsx-panel__body {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.xlsx-panel__header h2 {
+  margin: 0 0 4px;
+  font-size: var(--fs-lg);
+}
+
+.xlsx-panel__header p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+}
+
+.xlsx-drop {
+  display: grid;
+  gap: 4px;
+  min-width: 260px;
+  padding: var(--space-3);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.xlsx-drop input {
+  display: none;
+}
+
+.xlsx-drop span {
+  font-weight: var(--fw-semibold);
+}
+
+.xlsx-drop small {
+  color: var(--color-text-muted);
+}
+
+.xlsx-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.xlsx-result {
+  padding: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-loose);
+}
+
+.xlsx-summary {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.xlsx-summary > div:first-child,
+.xlsx-sheet {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3);
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.xlsx-sheet span,
+.xlsx-summary span,
+.xlsx-sheet small {
+  color: var(--color-text-muted);
+}
+
 /* ============================================================
    VİSION (Faz 11)
    ============================================================ */

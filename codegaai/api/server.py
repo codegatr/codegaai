@@ -234,6 +234,8 @@ def create_app() -> FastAPI:
     app.include_router(setup_routes.router, prefix="/api/setup", tags=["setup"])
     app.include_router(jobs_routes.router, prefix="/api/jobs", tags=["jobs"])
     app.include_router(files_routes.router, prefix="/api/files", tags=["files"])
+    from codegaai.api.routes import xlsx as xlsx_routes
+    app.include_router(xlsx_routes.router, prefix="/api/files/xlsx", tags=["xlsx"])
     from codegaai.api.routes import sandbox as sandbox_routes
     app.include_router(sandbox_routes.router, prefix="/api/sandbox", tags=["sandbox"])
     from codegaai.api.routes import agent as agent_routes
