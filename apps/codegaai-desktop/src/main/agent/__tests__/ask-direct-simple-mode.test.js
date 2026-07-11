@@ -93,3 +93,37 @@ describe("askDirect (Basit Mod)", () => {
     expect(seen.find((m) => m.role === "system").content).toMatch(/İNSANİ TON|sıcak.*doğal/i);
   });
 });
+
+describe("askDirect corporate finance contract", () => {
+  test("kurumsal finans PHP/PDO isteklerinde uretim sozlesmesi enjekte edilir", async () => {
+    const mgr = new ModelManager();
+    mgr.installedModels = async () => ["qwen3.5:4b"];
+    let seen = null;
+    mgr.generate = async (_m, messages) => { seen = messages; return "ok"; };
+
+    await mgr.askDirect(
+      "Drew Karavan icin kurumsal finans otomasyon PHP PDO vade raporlama scripti yaz",
+      { chatId: "c-finance-contract" }
+    );
+
+    const systemText = seen.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
+    expect(systemText).toMatch(/KURUMSAL FINANS\/PDO URETIM SOZLESMESI/);
+    expect(systemText).toMatch(/DateTime\/date_diff/);
+    expect(systemText).toMatch(/bindParam/);
+    expect(systemText).toMatch(/badge-danger/);
+    expect(systemText).toMatch(/idx_transactions_customer_date/);
+    expect(systemText).toMatch(/ON JOIN/);
+  });
+
+  test("normal sohbetlerde finans sozlesmesi enjekte edilmez", async () => {
+    const mgr = new ModelManager();
+    mgr.installedModels = async () => ["qwen3.5:4b"];
+    let seen = null;
+    mgr.generate = async (_m, messages) => { seen = messages; return "ok"; };
+
+    await mgr.askDirect("selam nasilsin", { chatId: "c-no-finance-contract" });
+
+    const systemText = seen.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
+    expect(systemText).not.toMatch(/KURUMSAL FINANS\/PDO URETIM SOZLESMESI/);
+  });
+});

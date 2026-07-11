@@ -399,6 +399,7 @@ if (!modelManagerFile.includes("direct_selfcorrected") || !modelManagerFile.incl
 if (!ollamaClientFile.includes("hasCharSalad") || !ollamaClientFile.includes('"char_salad"')) throw new Error("ollama-client.js char_salad canlı kesici (hasCharSalad/char_salad) eksik");
 if (!modelManagerFile.includes("direct_cloud_recovered") || !modelManagerFile.includes("local retry failed; recovering")) throw new Error("model-manager.js char_salad sonrası bulut toparlama (direct_cloud_recovered) eksik");
 if (!modelManagerFile.includes("ON JOIN") || !modelManagerFile.includes("DirectAdmin/PDO")) throw new Error("model-manager.js SQL recovery promptu DirectAdmin/PDO ve ON JOIN yasaklarini icermeli");
+if (!modelManagerFile.includes("wantsCorporateFinanceFramework") || !modelManagerFile.includes("KURUMSAL FINANS/PDO URETIM SOZLESMESI") || !modelManagerFile.includes("idx_transactions_customer_date")) throw new Error("model-manager.js kurumsal finans/PDO uretim sozlesmesi eksik");
 if (!modelManagerFile.includes("buildDegenerateRecoveryFallback") || !modelManagerFile.includes("gorevi bolmesini istememeli")) throw new Error("model-manager.js kullaniciya bolme dayatmayan integral recovery fallback eksik");
 if (modelManagerFile.includes("daha küçük parçalara böl") || modelManagerFile.includes("daha kucuk parcalara bol")) throw new Error("model-manager.js fallback kullanicidan gorevi kucultmesini istememeli");
 
@@ -418,7 +419,7 @@ const cloudProviderFile = readText(join(root, "src/main/agent/cloud-provider.js"
 if (!cloudProviderFile.includes("claude-opus-4-8") || !cloudProviderFile.includes("anthropicSamplingRemoved")) throw new Error("cloud-provider.js güncel Claude modeli (claude-opus-4-8/anthropicSamplingRemoved) eksik");
 if (cloudProviderFile.includes("claude-sonnet-4-20250514")) throw new Error("cloud-provider.js emekli Claude modeline (claude-sonnet-4-20250514) referans içermemeli");
 
-if (pkg.version !== "6.0.0-alpha.111") throw new Error(`Desktop package version must be 6.0.0-alpha.111, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.112") throw new Error(`Desktop package version must be 6.0.0-alpha.112, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

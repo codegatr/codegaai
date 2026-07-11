@@ -998,6 +998,24 @@ function buildDegenerateRecoveryFallback(reason, settings = {}) {
   ].join("\n");
 }
 
+function wantsCorporateFinanceFramework(text) {
+  const q = String(text || "").toLowerCase();
+  const hasFinance = /(kurumsal\s+finans|finans\s+rapor|cari|vade|fatura|odeme|ödeme|bakiye|anomali|drew\s+karavan|draw\s+karavan)/i.test(q);
+  const hasImplementation = /(php|pdo|directadmin|framework'?s[uü]z|frameworkless|sql|json|otomasyon|raporlama|script|kod|architecture|mimari)/i.test(q);
+  return hasFinance && hasImplementation;
+}
+
+const CORPORATE_FINANCE_FRAMEWORK_CONTRACT = [
+  "KURUMSAL FINANS/PDO URETIM SOZLESMESI:",
+  "- Kullanici kurumsal finans, cari, fatura, vade, bakiye, anomali, Drew Karavan veya DirectAdmin/PHP/PDO istiyorsa tam calisan frameworkless artifact uret.",
+  "- JSON input icin fatura_no, tarih, tutar, odenen alanlarini dogrula; DateTime/date_diff ile 2026-07-11 anchor tarihine gore vade bucketlari uret.",
+  "- PDO prepared statements ve bindParam kullan; SQL injection'a acik string birlestirme yapma.",
+  "- Negatif bakiye, eslesmeyen currency profile ve tarihsel islem uyusmazliklarini logla; low-resource hosting icin sureci crash ettirme.",
+  "- Native HTML/CSS tablo, badge-danger, badge-success ve PDF/DOM stream'e uygun semantik markup uret.",
+  "- Placeholder, '// rest of logic here', 'kodu sen tamamla', ON JOIN, JOIN(...), yarim alias (c.) ve bozuk SQL syntax yasak.",
+  "- Cevabin sonunda idx_transactions_customer_date composite index gerekcesini acikla.",
+].join("\n");
+
 function groundResearchAnswer(query, research, generated) {
   const summary = String(generated || "").trim();
   if (!summary) return buildGroundedResearchFallback(query, research);
@@ -1584,6 +1602,9 @@ class ModelManager {
         "gereksiz uzatma, soruyu tekrar etme, konu dışına çıkma." },
       { role: "system", content: REASONING_GUARDRAILS },
     ];
+    if (wantsCorporateFinanceFramework(text0)) {
+      messages.push({ role: "system", content: CORPORATE_FINANCE_FRAMEWORK_CONTRACT });
+    }
     // BİLİŞSEL HAFIZA: varsa proje/karar/hedef özetini ekle → "falanca sorunu çöz"
     // gibi atıflar bağlamdan çözülür, kullanıcı tekrar anlatmaz.
     const cog = String(opts.cognitiveContext || "").trim();
