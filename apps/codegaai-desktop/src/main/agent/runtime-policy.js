@@ -81,6 +81,7 @@ function configuredProviderChain(settings) {
     if (provider === "openai") return Boolean(String(s.openaiApiKey || "").trim());
     if (provider === "claude") return Boolean(String(s.claudeApiKey || "").trim());
     if (provider === "gemini") return Boolean(String(s.geminiApiKey || "").trim());
+    if (provider === "openrouter") return Boolean(String(s.openrouterApiKey || "").trim());
     return false;
   });
 }
