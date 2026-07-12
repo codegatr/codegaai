@@ -27,14 +27,13 @@ const PROVIDERS = {
     apiKey: "claudeApiKey",
     modelKey: "claudeModel",
   },
-  // OpenRouter: OpenAI-uyumlu geçit. Varsayılan model GLM-5.2'nin ÜCRETSİZ
-  // varyantı (z-ai/glm-5.2:free) — güçlü muhakeme/kod, sıfır maliyet.
-  // Not: :free modellerde günlük istek limiti vardır ve istemler sağlayıcı
-  // tarafından eğitimde kullanılabilir (gizlilik: yerel moddan farklıdır).
+  // OpenRouter: OpenAI-uyumlu geçit. GLM-5.2'nin eski `:free` varyantı
+  // kaldırıldı. `openrouter/free`, o anda kullanılabilen ücretsiz modellerden
+  // uygun olanına yönlendirir. İstemler sağlayıcıya gider (yerel moddan farklıdır).
   openrouter: {
-    label: "OpenRouter (GLM 5.2 ücretsiz)",
+    label: "OpenRouter (ücretsiz model havuzu)",
     baseUrl: "https://openrouter.ai/api/v1",
-    model: "z-ai/glm-5.2:free",
+    model: "openrouter/free",
     baseKey: "openrouterBaseUrl",
     apiKey: "openrouterApiKey",
     modelKey: "openrouterModel",

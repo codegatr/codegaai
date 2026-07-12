@@ -74,7 +74,7 @@ const DEFAULTS = {
   geminiModel: "gemini-2.5-flash",
   openrouterBaseUrl: "https://openrouter.ai/api/v1", // OpenAI-uyumlu geçit
   openrouterApiKey: "", // YALNIZCA yerelde saklanır
-  openrouterModel: "z-ai/glm-5.2:free", // GLM-5.2 ücretsiz varyantı (günlük limitli)
+  openrouterModel: "openrouter/free", // Değişen ücretsiz modeller arasında otomatik yönlendirme
   continuousLearning: false, // açıkken kaynaklardan sürekli öğren
   agentWatch: true, // güvenilir AI ajan depolarını GitHub üzerinden izle
   agentWatchIntervalHours: 6,
@@ -134,12 +134,19 @@ const RETIRED_CLAUDE_MODELS = new Set([
   "claude-3-7-sonnet-20250219",
 ]);
 
+const RETIRED_OPENROUTER_MODELS = new Set([
+  "z-ai/glm-5.2:free",
+]);
+
 function normalizeSettings(settings) {
   const next = { ...settings };
   next.trustedFolders = runtimePolicy.normalizeTrustedFolders(next.trustedFolders);
   next.modelFallbackOrder = runtimePolicy.normalizeProviderOrder(next.modelFallbackOrder, next.provider);
   if (RETIRED_CLAUDE_MODELS.has(String(next.claudeModel || "").trim())) {
     next.claudeModel = DEFAULTS.claudeModel;
+  }
+  if (RETIRED_OPENROUTER_MODELS.has(String(next.openrouterModel || "").trim())) {
+    next.openrouterModel = DEFAULTS.openrouterModel;
   }
   next.remoteToolsDeviceName = String(next.remoteToolsDeviceName || runtimePolicy.defaultDeviceName()).trim();
   next.toolPermissions = {
