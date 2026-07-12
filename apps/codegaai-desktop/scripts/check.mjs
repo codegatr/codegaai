@@ -432,7 +432,12 @@ const cloudProviderFile = readText(join(root, "src/main/agent/cloud-provider.js"
 if (!cloudProviderFile.includes("claude-opus-4-8") || !cloudProviderFile.includes("anthropicSamplingRemoved")) throw new Error("cloud-provider.js güncel Claude modeli (claude-opus-4-8/anthropicSamplingRemoved) eksik");
 if (cloudProviderFile.includes("claude-sonnet-4-20250514")) throw new Error("cloud-provider.js emekli Claude modeline (claude-sonnet-4-20250514) referans içermemeli");
 
-if (pkg.version !== "6.0.0-alpha.115") throw new Error(`Desktop package version must be 6.0.0-alpha.115, got ${pkg.version}`);
+const cloudProviderORFile = readText(join(root, "src/main/agent/cloud-provider.js"));
+if (!cloudProviderORFile.includes("openrouter") || !cloudProviderORFile.includes("z-ai/glm-5.2:free")) throw new Error("cloud-provider.js OpenRouter/GLM-5.2 ücretsiz sağlayıcısı eksik");
+const runtimePolicyORFile = readText(join(root, "src/main/agent/runtime-policy.js"));
+if (!runtimePolicyORFile.includes('"openrouter"')) throw new Error("runtime-policy.js PROVIDER_VALUES openrouter içermiyor");
+
+if (pkg.version !== "6.0.0-alpha.116") throw new Error(`Desktop package version must be 6.0.0-alpha.116, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

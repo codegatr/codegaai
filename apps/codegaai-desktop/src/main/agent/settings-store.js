@@ -72,6 +72,9 @@ const DEFAULTS = {
   geminiBaseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
   geminiApiKey: "",
   geminiModel: "gemini-2.5-flash",
+  openrouterBaseUrl: "https://openrouter.ai/api/v1", // OpenAI-uyumlu geçit
+  openrouterApiKey: "", // YALNIZCA yerelde saklanır
+  openrouterModel: "z-ai/glm-5.2:free", // GLM-5.2 ücretsiz varyantı (günlük limitli)
   continuousLearning: false, // açıkken kaynaklardan sürekli öğren
   agentWatch: true, // güvenilir AI ajan depolarını GitHub üzerinden izle
   agentWatchIntervalHours: 6,
