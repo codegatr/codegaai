@@ -778,14 +778,6 @@ function resolveWeatherCity(input, history = []) {
   if (recentWeather && current && current.split(/\s+/).length <= 4 && !/(internet|araştır|google|web)/i.test(current)) {
     return current;
   }
-  // Konumdan sonra "internete bağlanıp araştıramıyor musun?" denirse son konumu tekrar kullan.
-  if (recentWeather && /(internet|araştır|bağlan)/i.test(current)) {
-    const lastLocation = [...userTurns].reverse().find((item) => {
-      const value = item.replace(/[?!.,]/g, " ").replace(/\s+/g, " ").trim();
-      return value && value.split(/\s+/).length <= 4 && !extractWeatherCity(value) && !/(internet|araştır|google|web)/i.test(value);
-    });
-    return lastLocation || extractWeatherCity(recentWeather);
-  }
   return "";
 }
 

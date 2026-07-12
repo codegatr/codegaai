@@ -29,6 +29,14 @@ describe("araştırma ve hava niyeti yönlendirmesi", () => {
     const history = [{ role: "user", content: "Konya'da hava durumu nedir?" }];
     expect(resolveWeatherCity("Konya Selçuklu", history)).toBe("Konya Selçuklu");
   });
+
+  test("hava konuşmasından sonraki bağımsız araştırmayı hava takibi saymaz", () => {
+    const history = [
+      { role: "user", content: "Konya'da hava durumu nedir?" },
+      { role: "assistant", content: "Konya 20 °C" },
+    ];
+    expect(resolveWeatherCity("codega.com.tr hakkında araştırma yapar mısın?", history)).toBe("");
+  });
 });
 
 // askDirect web araştırma: (1) domain'li "bilgi ver" araştırma tetikler,

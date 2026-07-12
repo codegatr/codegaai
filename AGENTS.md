@@ -59,3 +59,5 @@ Every meaningful development task ends with:
 - Risks or limitations
 - Release or PR status when applicable
 
+Every desktop release must also update the visitor-facing `README.md` current-version section, release highlights, download link, and current test counts. The desktop `npm run check` gate must fail when the README current version does not match `apps/codegaai-desktop/package.json`.
+

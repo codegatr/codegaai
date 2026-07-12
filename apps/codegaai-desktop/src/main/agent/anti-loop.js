@@ -128,12 +128,15 @@ function collapseRepetition(text) {
  */
 function detectRunawayRepetition(text) {
   const counts = new Map();
-  for (const raw of String(text || "").split(/\n+|(?<=[.!?])\s+/)) {
-    const n = norm(raw);
-    if (n.length < MIN_DEDUP_LEN) continue;
-    const c = (counts.get(n) || 0) + 1;
-    counts.set(n, c);
-    if (c >= 3) return true;
+  const proseSegments = String(text || "").split(/```[\s\S]*?```/g);
+  for (const segment of proseSegments) {
+    for (const raw of segment.split(/\n+|(?<=[.!?])\s+/)) {
+      const n = norm(raw);
+      if (n.length < MIN_DEDUP_LEN) continue;
+      const c = (counts.get(n) || 0) + 1;
+      counts.set(n, c);
+      if (c >= 3) return true;
+    }
   }
   return false;
 }
