@@ -1,3 +1,17 @@
+## Codex Update - 2026-07-13 — alpha.123: Güncel bilgi ve hava araç yönlendirmesi
+
+Varsayılan `askDirect` yolu hava aracını çağırmadığı için model “internete erişimim yok”
+diyordu. Araştırma niyeti regex'i de kelime sınırı olmadan `net` aradığı için
+“yönetimini” gibi sözcükleri yanlışlıkla internet isteği sayabiliyordu.
+
+- Güncel hava soruları doğrudan `weather` aracına gider; model çağrılmaz.
+- “Konya'da hava?” ardından “Konya Selçuklu” gibi kısa konum takipleri bağlamdan çözülür.
+- Güncel/bugün/son durum gibi dış kaynağa bağlı istekler açık “ara” komutu olmadan araştırılır.
+- `net` internet tetikleyicisine kelime sınırı eklendi; teknik sorular yanlış araştırmaya gitmez.
+- Türkçe niyet katlama gerçek `ö/ü/ş/ı` karakterleri için Unicode-normalize edildi.
+- Odak araştırma/hava testleri 11/11 başarılı.
+- Release hedefi: `desktop-v6.0.0-alpha.123`; full CI ve asset metadata doğrulanmalıdır.
+
 ## Codex Update - 2026-07-13 — alpha.122: OpenRouter gerçek sohbet routing düzeltmesi
 
 OpenRouter bağlantı testi başarılı olmasına rağmen gerçek sohbet Ollama'ya düşüyordu.

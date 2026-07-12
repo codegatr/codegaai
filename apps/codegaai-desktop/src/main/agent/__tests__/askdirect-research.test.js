@@ -1,6 +1,6 @@
 "use strict";
 
-const { ModelManager, extractResearchQuery } = require("../../model-manager");
+const { ModelManager, extractResearchQuery, resolveWeatherCity, wantsWebResearch } = require("../../model-manager");
 const { TOOLS } = require("../tools");
 
 describe("extractResearchQuery: temiz sorgu (Türkçe-güvenli, domain-öncelikli)", () => {
@@ -16,9 +16,52 @@ describe("extractResearchQuery: temiz sorgu (Türkçe-güvenli, domain-öncelikl
 
 });
 
+describe("araştırma ve hava niyeti yönlendirmesi", () => {
+  test("yönetimini kelimesindeki 'net' internet araştırması sayılmaz", () => {
+    expect(wantsWebResearch("Cache Stampede yönetimini hangi iki tasarım deseniyle çözersin?")).toBe(false);
+  });
+
+  test("açık güncel bilgi isteği araştırma gerektirir", () => {
+    expect(wantsWebResearch("Döviz kurunda güncel durum nedir?")).toBe(true);
+  });
+
+  test("hava sorusundan sonraki kısa konumu bağlamdan çözer", () => {
+    const history = [{ role: "user", content: "Konya'da hava durumu nedir?" }];
+    expect(resolveWeatherCity("Konya Selçuklu", history)).toBe("Konya Selçuklu");
+  });
+});
+
 // askDirect web araştırma: (1) domain'li "bilgi ver" araştırma tetikler,
 // (2) araştırma başarısızsa model UYDURMAZ, dürüst mesaj döner.
 describe("askDirect web araştırma (uydurma önleme)", () => {
+  test("güncel hava sorusunu modele değil weather aracına yollar", async () => {
+    const mgr = new ModelManager();
+    mgr.installedModels = async () => ["qwen2.5:4b"];
+    let generateCalled = 0;
+    mgr.generate = async () => { generateCalled += 1; return "İnternet erişimim yok."; };
+    const orig = TOOLS.weather.fn;
+    TOOLS.weather.fn = async (city) => `${city} için güncel hava 24 °C.`;
+    try {
+      const res = await mgr.askDirect("Konya'da hava durumu nedir?", { chatId: "weather1" });
+      expect(res.source).toBe("direct_weather");
+      expect(res.text).toMatch(/24 °C/);
+      expect(generateCalled).toBe(0);
+    } finally { TOOLS.weather.fn = orig; }
+  });
+
+  test("hava konuşmasındaki kısa ilçe takibini weather aracına yollar", async () => {
+    const mgr = new ModelManager();
+    mgr.installedModels = async () => ["qwen2.5:4b"];
+    const orig = TOOLS.weather.fn;
+    const cities = [];
+    TOOLS.weather.fn = async (city) => { cities.push(city); return `${city}: açık`; };
+    try {
+      await mgr.askDirect("Konya'da hava durumu nedir?", { chatId: "weather2" });
+      const res = await mgr.askDirect("Konya Selçuklu", { chatId: "weather2" });
+      expect(res.source).toBe("direct_weather");
+      expect(cities).toEqual(["Konya", "Konya Selçuklu"]);
+    } finally { TOOLS.weather.fn = orig; }
+  });
   test("araştırma başarısız → uydurmaz, dürüst mesaj döner (model çağrılmaz)", async () => {
     const mgr = new ModelManager();
     mgr.installedModels = async () => ["qwen2.5:4b"];
