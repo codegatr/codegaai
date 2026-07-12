@@ -145,8 +145,8 @@
               <button type="button" class="status-line health-link" data-settings-target="ai" data-provider-target="gemini" aria-label="Gemini ayarlarını aç">
                 <span class="dot plan" id="ov-health-gemini-dot"></span><strong>Gemini</strong><span id="ov-health-gemini">yapılandırılmadı</span><span class="health-link-arrow" aria-hidden="true">›</span>
               </button>
-              <button type="button" class="status-line health-link" data-settings-target="ai" data-provider-target="openrouter" aria-label="OpenRouter (GLM 5.2 ücretsiz) ayarlarını aç">
-                <span class="dot plan" id="ov-health-openrouter-dot"></span><strong>OpenRouter (GLM 5.2)</strong><span id="ov-health-openrouter">yapılandırılmadı</span><span class="health-link-arrow" aria-hidden="true">›</span>
+              <button type="button" class="status-line health-link" data-settings-target="ai" data-provider-target="openrouter" aria-label="OpenRouter ücretsiz model ayarlarını aç">
+                <span class="dot plan" id="ov-health-openrouter-dot"></span><strong>OpenRouter (ücretsiz)</strong><span id="ov-health-openrouter">yapılandırılmadı</span><span class="health-link-arrow" aria-hidden="true">›</span>
               </button>
               <button type="button" class="status-line health-link" data-settings-target="mcp" data-focus-target="mcp-url" aria-label="MCP ayarlarını aç">
                 <span class="dot plan" id="ov-health-mcp-dot"></span><strong>MCP</strong><span id="ov-health-mcp">yapılandırılmadı</span><span class="health-link-arrow" aria-hidden="true">›</span>
@@ -181,14 +181,14 @@
           <div class="settings-row">
             <div>
               <strong>Sağlayıcı</strong>
-              <p>Yerel Ollama veya OpenAI, Claude, Gemini, OpenRouter (GLM 5.2 ücretsiz) ve OpenAI-uyumlu bulut sağlayıcıları. Anahtar girili bulut sağlayıcı, yerel model tıkanınca otomatik yedek rota olur.</p>
+              <p>Yerel Ollama veya OpenAI, Claude, Gemini, OpenRouter ücretsiz model havuzu ve OpenAI-uyumlu bulut sağlayıcıları. Anahtar girili bulut sağlayıcı, yerel model tıkanınca otomatik yedek rota olur.</p>
             </div>
             <select id="provider-select">
               <option value="ollama">Yerel (Ollama)</option>
               <option value="openai">OpenAI-uyumlu (bulut)</option>
               <option value="claude">Claude (Anthropic)</option>
               <option value="gemini">Gemini (Google)</option>
-              <option value="openrouter">OpenRouter — GLM 5.2 (ücretsiz)</option>
+              <option value="openrouter">OpenRouter — Ücretsiz Modeller</option>
             </select>
           </div>
           <div class="settings-field" id="provider-cloud-fields">

@@ -1,3 +1,16 @@
+## Codex Update - 2026-07-12 — alpha.119: OpenRouter ücretsiz model havuzu
+
+`z-ai/glm-5.2:free` OpenRouter tarafından kaldırıldığı için bağlantı testi HTTP 404
+döndürüyordu. Varsayılan model resmi `openrouter/free` yönlendiricisine taşındı;
+eski kayıtlı slug açılışta otomatik güncelleniyor ve arayüz artık GLM 5.2'nin
+ücretsiz olduğunu iddia etmiyor.
+
+- Değişen alanlar: OpenRouter provider profili, settings migration, renderer metinleri,
+  regresyon testi ve `check.mjs` guard.
+- Güvenlik: API anahtarı yalnız yerel ayarlarda kalır; testlere/loglara gerçek anahtar eklenmedi.
+- Gate: OpenRouter 6/6, full desktop CI 58 suite / 641 test, `npm run check` başarılı.
+- Release: `desktop-v6.0.0-alpha.119`; Actions asset doğrulaması tamamlanmadan başarılı sayılmaz.
+
 ## Claude Update - 2026-07-12 — alpha.118: Kontrol Merkezi'nde OpenRouter görünürlüğü (UX açığı)
 
 ### Kullanıcı şikayeti (haklı)

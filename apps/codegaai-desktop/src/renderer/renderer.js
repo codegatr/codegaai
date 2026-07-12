@@ -2873,7 +2873,7 @@ const PROVIDER_FIELDS = {
   openai: { base: "openaiBaseUrl", key: "openaiApiKey", model: "openaiModel", baseUrl: "https://api.openai.com/v1", modelName: "gpt-4o-mini" },
   claude: { base: "claudeBaseUrl", key: "claudeApiKey", model: "claudeModel", baseUrl: "https://api.anthropic.com/v1", modelName: "claude-opus-4-8" },
   gemini: { base: "geminiBaseUrl", key: "geminiApiKey", model: "geminiModel", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", modelName: "gemini-2.5-flash" },
-  openrouter: { base: "openrouterBaseUrl", key: "openrouterApiKey", model: "openrouterModel", baseUrl: "https://openrouter.ai/api/v1", modelName: "z-ai/glm-5.2:free" },
+  openrouter: { base: "openrouterBaseUrl", key: "openrouterApiKey", model: "openrouterModel", baseUrl: "https://openrouter.ai/api/v1", modelName: "openrouter/free" },
 };
 
 function selectedProviderFields() {

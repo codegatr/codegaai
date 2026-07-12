@@ -433,7 +433,7 @@ if (!cloudProviderFile.includes("claude-opus-4-8") || !cloudProviderFile.include
 if (cloudProviderFile.includes("claude-sonnet-4-20250514")) throw new Error("cloud-provider.js emekli Claude modeline (claude-sonnet-4-20250514) referans içermemeli");
 
 const cloudProviderORFile = readText(join(root, "src/main/agent/cloud-provider.js"));
-if (!cloudProviderORFile.includes("openrouter") || !cloudProviderORFile.includes("z-ai/glm-5.2:free")) throw new Error("cloud-provider.js OpenRouter/GLM-5.2 ücretsiz sağlayıcısı eksik");
+if (!cloudProviderORFile.includes("openrouter") || !cloudProviderORFile.includes('model: "openrouter/free"')) throw new Error("cloud-provider.js OpenRouter ücretsiz model yönlendiricisi eksik");
 const runtimePolicyORFile = readText(join(root, "src/main/agent/runtime-policy.js"));
 if (!runtimePolicyORFile.includes('"openrouter"')) throw new Error("runtime-policy.js PROVIDER_VALUES openrouter içermiyor");
 
@@ -443,7 +443,7 @@ if (!modelManagerFile.includes("buildSelfRepairInstruction")) throw new Error("m
 if (modelManagerFile.includes("[SYSTEM LIMIT]")) throw new Error("model-manager.js '[SYSTEM LIMIT]' bahane nutku geri gelmiş — insani mesaj kullanılmalı");
 
 if (!indexHtml.includes("ov-health-openrouter")) throw new Error("index.html Kontrol Merkezi OpenRouter sağlık satırı (ov-health-openrouter) eksik");
-if (pkg.version !== "6.0.0-alpha.118") throw new Error(`Desktop package version must be 6.0.0-alpha.118, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.119") throw new Error(`Desktop package version must be 6.0.0-alpha.119, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];
