@@ -1023,6 +1023,24 @@ const CORPORATE_FINANCE_FRAMEWORK_CONTRACT = [
   "- Cevabin sonunda idx_transactions_customer_date composite index gerekcesini acikla.",
 ].join("\n");
 
+function wantsSelfRepairDesign(text) {
+  const q = String(text || "").toLowerCase();
+  const hasDefect = /(on\s+join|yarım\s+kal.*alias|c\.|karakter\s+salat|syntax|sözdizimi)/i.test(q);
+  const hasRepair = /(self[-\s]?reflection|self[-\s]?correct|öz[-\s]?yansıma|kendi\s+kendine|arka\s+planda|otomatik\s+düzelt|otomatik\s+onar)/i.test(q);
+  const asksDesign = /(mantık|kurgu|akış|tasarla|açıkla|1\s*sayfa|bir\s*sayfa)/i.test(q);
+  return hasDefect && hasRepair && asksDesign;
+}
+
+const SELF_REPAIR_DESIGN_CONTRACT = [
+  "SELF-REPAIR MANTIK TASARIMI TESLIM SOZLESMESI:",
+  "- Kullanıcı seçim veya teyit istemiyor; 'önce açıklayayım mı, kod yazayım mı' diye GERİ SORMA.",
+  "- Yaklaşık bir sayfalık temiz ve uygulanabilir mantığı doğrudan teslim et.",
+  "- Akışı şu aşamalarla kur: stream tespiti, görünür çıktıyı karantinaya alma, somut kusur teşhisi, orijinal niyeti koruyan onarım prompt'u, temiz yeniden üretim, syntax/semantik doğrulama, sınırlı retry ve güvenli fallback.",
+  "- ON JOIN için doğru sıra 'FROM table alias JOIN table alias ON condition'; yarım c. alias için eksik kolon/ifade bağlamdan tamamlanmalı.",
+  "- İç muhakeme zincirini dökme; gözlemlenebilir kararlar, durumlar ve doğrulama kriterleri yaz.",
+  "- Kullanıcı kod istemediyse dosya veya Python örneği üretme; mantık tasarımını ver.",
+].join("\n");
+
 function groundResearchAnswer(query, research, generated) {
   const summary = String(generated || "").trim();
   if (!summary) return buildGroundedResearchFallback(query, research);
@@ -1617,6 +1635,9 @@ class ModelManager {
     if (wantsCorporateFinanceFramework(text0)) {
       messages.push({ role: "system", content: CORPORATE_FINANCE_FRAMEWORK_CONTRACT });
     }
+    if (wantsSelfRepairDesign(text0)) {
+      messages.push({ role: "system", content: SELF_REPAIR_DESIGN_CONTRACT });
+    }
     const projectRoot = semanticProjectRoot(opts);
     if (projectRoot) {
       try {
@@ -1781,6 +1802,19 @@ class ModelManager {
     }
 
     if (!text) text = "Şu an yanıt üretemedim. Ollama'nın açık ve bir modelin kurulu olduğundan emin olup tekrar dener misin?";
+    if (answerAdequacy.isIrrelevantShortAnswer(text0, text) && !this._aborted) {
+      let regenerated = "";
+      try {
+        regenerated = String(await this.generate(model, answerAdequacy.buildFocusedRegenMessages(text0), [], null, {
+          guardrailConfig,
+          guardrailAttempt: 1,
+        }) || "").trim();
+      } catch (_e) {}
+      if (regenerated && !answerAdequacy.isIrrelevantShortAnswer(text0, regenerated)) {
+        text = regenerated;
+        source = "direct_adequacy_recovered";
+      }
+    }
     history.push({ role: "user", content: text0 });
     history.push({ role: "assistant", content: text });
     if (history.length > MAX_HISTORY_MESSAGES) history.splice(0, history.length - MAX_HISTORY_MESSAGES);

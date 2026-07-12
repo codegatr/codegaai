@@ -17,6 +17,11 @@ const LONG_Q =
   "hata olursa rollback mantığını nasıl kurarım? 5 modül aynı sürüm numarasını paylaşıyor, " +
   "sürüm çakışması riski var.";
 
+const SELF_REPAIR_Q =
+  "CODEGA AI, ürettiğin kodun içinde ON JOIN veya yarım kalan bir c. alias'ı gördüğün an " +
+  "hata vermek kolaycılıktır. Arka planda hangi mantıksal hatayı yaptığını Self-Reflection ile " +
+  "analiz edip kodu düzeltmek için 1 sayfalık temiz bir mantık kurgulayabilir misin?";
+
 describe("answer-adequacy — irrelevant short answer gate", () => {
   test("uzun mimari soru + '6 TL' → REJECT", () => {
     expect(a.isIrrelevantShortAnswer(LONG_Q, "6 TL")).toBe(true);
@@ -60,5 +65,15 @@ describe("answer-adequacy — irrelevant short answer gate", () => {
     const msgs = a.buildFocusedRegenMessages(LONG_Q);
     expect(msgs[msgs.length - 1].content).toContain("package.json");
     expect(a.CONTROLLED_RETRY_MESSAGE).toMatch(/küçük parçalara/i);
+  });
+
+  test("açık self-repair tasarımı yerine seçenek soran cevabı reddeder", () => {
+    const deflection = "Önce sadece mantığın nasıl çalışacağını açıklayayım mı, yoksa doğrudan Python örneği mi sunayım? Hangisini tercih edersiniz?";
+    expect(a.isDeflectingClarification(SELF_REPAIR_Q, deflection)).toBe(true);
+    expect(a.isIrrelevantShortAnswer(SELF_REPAIR_Q, deflection)).toBe(true);
+
+    const good = "Akış önce stream çıktısını karantinaya alır; ON JOIN kusurunu teşhis eder, orijinal niyeti koruyan onarım prompt'u ile yeniden üretir ve syntax doğrulamasından geçirir.";
+    expect(a.isDeflectingClarification(SELF_REPAIR_Q, good)).toBe(false);
+    expect(a.isIrrelevantShortAnswer(SELF_REPAIR_Q, good)).toBe(false);
   });
 });
