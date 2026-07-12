@@ -443,7 +443,7 @@ if (!modelManagerFile.includes("buildSelfRepairInstruction")) throw new Error("m
 if (modelManagerFile.includes("[SYSTEM LIMIT]")) throw new Error("model-manager.js '[SYSTEM LIMIT]' bahane nutku geri gelmiş — insani mesaj kullanılmalı");
 
 if (!indexHtml.includes("ov-health-openrouter")) throw new Error("index.html Kontrol Merkezi OpenRouter sağlık satırı (ov-health-openrouter) eksik");
-if (pkg.version !== "6.0.0-alpha.122") throw new Error(`Desktop package version must be 6.0.0-alpha.122, got ${pkg.version}`);
+if (pkg.version !== "6.0.0-alpha.123") throw new Error(`Desktop package version must be 6.0.0-alpha.123, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

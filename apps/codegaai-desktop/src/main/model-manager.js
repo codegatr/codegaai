@@ -746,6 +746,8 @@ function hasModel(listOutput, model) {
 
 function _foldTr(text) {
   return String(text || "").toLowerCase()
+    .replace(/ı/g, "i")
+    .normalize("NFD").replace(/\p{Diacritic}/gu, "")
     .replace(/Ä±/g, "i").replace(/ÅŸ/g, "s").replace(/ÄŸ/g, "g")
     .replace(/Ã¼/g, "u").replace(/Ã¶/g, "o").replace(/Ã§/g, "c");
 }
@@ -753,8 +755,10 @@ function _foldTr(text) {
 /** AÃ§Ä±k internet/araÅŸtÄ±rma niyeti mi? (zayÄ±f yerel model aracÄ± tetikleyemiyor; biz zorlarÄ±z) */
 function wantsWebResearch(input) {
   const q = _foldTr(input);
-  if (/(internet|web|google|cevrimici|online|net)\S*\s*(ten|te|de|da|den|dan)?\s*(arastir|aratip|arat|ara|bak|tara|incele)/.test(q)) return true;
+  if (/\b(internet|web|google|cevrimici|online|net)\S*\s*(ten|te|de|da|den|dan)?\s*(arastir|aratip|arat|ara|bak|tara|incele)/.test(q)) return true;
   if (/(guncel|son dakika|haber|piyasa|kur|fiyat|bugun)\S*.*(arastir|ara\b|bul\b|bak\b)/.test(q)) return true;
+  // Güncelliği doğası gereği dış kaynağa bağlı istekler açıkça "ara" demese de araştırılır.
+  if (/\b(guncel|bugun|son dakika|son durum|canli|anlik|doviz kuru|borsa|piyasa fiyati)\b/.test(q)) return true;
   // kÄ±sa ve emir kipi "araÅŸtÄ±r/araÅŸtÄ±rÄ±p Ã¶zetle"
   if (/\barastir/.test(q) && q.split(/\s+/).length <= 9) return true;
   // Mesajda bir alan adÄ±/URL varsa ve "hakkÄ±nda bilgi/araÅŸtÄ±r/incele/nedir" gibi
@@ -762,6 +766,27 @@ function wantsWebResearch(input) {
   if (/\b[a-z0-9-]+\.(net|com|org|io|dev|gov|edu|co|tr|info|biz|com\.tr|net\.tr|org\.tr)\b/.test(q) &&
       /(hakkinda|bilgi|arastir|incele|nedir|ne is|tanit|hakk\b|sitesi|ara\b|bak\b)/.test(q)) return true;
   return false;
+}
+
+function resolveWeatherCity(input, history = []) {
+  const direct = extractWeatherCity(input);
+  if (direct) return direct;
+  const current = String(input || "").replace(/[?!.,]/g, " ").replace(/\s+/g, " ").trim();
+  const userTurns = (history || []).filter((item) => item && item.role === "user").map((item) => String(item.content || ""));
+  const recentWeather = [...userTurns].reverse().find((item) => extractWeatherCity(item));
+  // "Konya'da hava?" ardından "Selçuklu" / "Konya Selçuklu" gibi konum daraltma.
+  if (recentWeather && current && current.split(/\s+/).length <= 4 && !/(internet|araştır|google|web)/i.test(current)) {
+    return current;
+  }
+  // Konumdan sonra "internete bağlanıp araştıramıyor musun?" denirse son konumu tekrar kullan.
+  if (recentWeather && /(internet|araştır|bağlan)/i.test(current)) {
+    const lastLocation = [...userTurns].reverse().find((item) => {
+      const value = item.replace(/[?!.,]/g, " ").replace(/\s+/g, " ").trim();
+      return value && value.split(/\s+/).length <= 4 && !extractWeatherCity(value) && !/(internet|araştır|google|web)/i.test(value);
+    });
+    return lastLocation || extractWeatherCity(recentWeather);
+  }
+  return "";
 }
 
 /** SİTE DENETİMİ niyeti mi? ("şu siteyi analiz et / artı eksi / denetle / değerlendir")
@@ -1571,6 +1596,17 @@ class ModelManager {
 
     const history = this.historyFor(opts.chatId);
     if (history.length === 0) seedConversationHistory(history, opts.history, MAX_HISTORY_MESSAGES);
+
+    // Güncel hava bilgisi modele bırakılmaz: doğrudan ağ aracından alınır. Kısa
+    // konum takipleri ("Konya Selçuklu") önceki hava sorusuyla birleştirilir.
+    const weatherCity = resolveWeatherCity(text0, history);
+    if (weatherCity) {
+      const weather = await AGENT_TOOLS.weather.fn(weatherCity);
+      history.push({ role: "user", content: text0 });
+      history.push({ role: "assistant", content: weather });
+      if (history.length > MAX_HISTORY_MESSAGES) history.splice(0, history.length - MAX_HISTORY_MESSAGES);
+      return { text: weather, model: "codega-weather", source: "direct_weather" };
+    }
 
     // WEB ARAŞTIRMA: "internette ara / şu siteye bak" gibi istekte zayıf yerel model
     // aracı tetikleyemiyor → BİZ araştırırız. Aksi halde "hangi projeyi üretelim?" veya
@@ -2950,6 +2986,7 @@ module.exports = {
   wantsWebResearch,
   wantsSiteAudit,
   extractResearchQuery,
+  resolveWeatherCity,
   classifyResearchSource,
   scoreResearchSource,
   rankResearchSources,
