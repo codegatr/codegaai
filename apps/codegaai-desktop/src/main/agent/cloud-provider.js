@@ -27,6 +27,18 @@ const PROVIDERS = {
     apiKey: "claudeApiKey",
     modelKey: "claudeModel",
   },
+  // OpenRouter: OpenAI-uyumlu geçit. Varsayılan model GLM-5.2'nin ÜCRETSİZ
+  // varyantı (z-ai/glm-5.2:free) — güçlü muhakeme/kod, sıfır maliyet.
+  // Not: :free modellerde günlük istek limiti vardır ve istemler sağlayıcı
+  // tarafından eğitimde kullanılabilir (gizlilik: yerel moddan farklıdır).
+  openrouter: {
+    label: "OpenRouter (GLM 5.2 ücretsiz)",
+    baseUrl: "https://openrouter.ai/api/v1",
+    model: "z-ai/glm-5.2:free",
+    baseKey: "openrouterBaseUrl",
+    apiKey: "openrouterApiKey",
+    modelKey: "openrouterModel",
+  },
 };
 
 // Claude 4.7+ ailesi (opus-4-7/4-8, sonnet-5, fable-5, mythos-5) sampling

@@ -1,3 +1,36 @@
+## Claude Update - 2026-07-12 — alpha.116: OpenRouter sağlayıcısı (GLM-5.2 ücretsiz)
+
+### Ne (kullanıcı: "GLM 5.2 ücretsiz, API olarak arka plana ekleyelim")
+Doğrulama: GLM-5.2 = Z.ai amiral gemisi (756B MoE, 1M ctx, MIT açık ağırlık). Yerelde
+ÇALIŞMAZ (kullanıcı makinesi 4B'de zorlanıyor). Ücretsiz erişim: OpenRouter'da
+z-ai/glm-5.2:free varyantı GERÇEKTEN var (ücretsiz, günlük istek limitli).
+
+### Entegrasyon (minimal — mevcut OpenAI-uyumlu altyapı üstüne)
+- cloud-provider.js PROVIDERS.openrouter: baseUrl https://openrouter.ai/api/v1,
+  varsayılan model z-ai/glm-5.2:free. Routing otomatik openaiChat/openaiChatStream
+  (claude-olmayan tüm sağlayıcılar gibi) → SIFIR yeni istemci kodu.
+- runtime-policy.js PROVIDER_VALUES += "openrouter" (fallback zinciri geçerli).
+- settings-store.js DEFAULTS: openrouterBaseUrl/ApiKey/Model (anahtar YALNIZ yerelde).
+- renderer.js PROVIDER_FIELDS + providerHealth("openrouter"); index.html select'e
+  "OpenRouter — GLM 5.2 (ücretsiz)" seçeneği.
+- Test: openrouter-provider.test.js (5): profil, configFromSettings, provider-chain,
+  DEFAULTS, routing varsayımı.
+- check.mjs guard: cloud-provider openrouter/z-ai/glm-5.2:free + runtime-policy.
+
+### Gate: check 250 · test:ci 636/636. Sürüm alpha.116 (repo alpha.115'e ilerlemişti).
+
+### Kullanım (kullanıcıya anlatıldı)
+1) openrouter.ai'da ücretsiz hesap + API anahtarı al. 2) CODEGA Ayarlar → Sağlayıcı →
+"OpenRouter — GLM 5.2 (ücretsiz)" → anahtarı yapıştır. Model alanı z-ai/glm-5.2:free hazır.
+
+### Riskler / notlar (Codex/ChatGPT)
+- :free modellerde OpenRouter günlük istek limiti uygular; istemler sağlayıcı tarafından
+  eğitim için kullanılabilir → GİZLİLİK yerel moddan farklı; UI'da not etmek iyi olur (ayrı PR).
+- Local-first kimlik korunuyor: varsayılan hâlâ ollama; openrouter opt-in.
+- providerHealth "openrouter" satırı overview panelinde DOM elementi yoksa sessizce atlanır.
+
+---
+
 ## Claude Update - 2026-07-01 — alpha.97: P4 Site Denetimi (yapılandırılmış artı/eksi)
 
 ### Ne (kullanıcı: "bir siteyi analiz et dediğimizde artısı eksisi kontrol edilsin")

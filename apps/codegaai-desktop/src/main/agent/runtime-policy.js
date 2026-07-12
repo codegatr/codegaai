@@ -4,7 +4,7 @@ const os = require("node:os");
 const path = require("node:path");
 
 const PERMISSION_VALUES = new Set(["allow", "ask", "deny"]);
-const PROVIDER_VALUES = new Set(["ollama", "openai", "claude", "gemini"]);
+const PROVIDER_VALUES = new Set(["ollama", "openai", "claude", "gemini", "openrouter"]);
 
 function normalizeFolder(value) {
   const raw = String(value || "").trim();
