@@ -19,7 +19,9 @@ const ARCH_KEYWORDS = [
   "dependency", "bağımlılık", "bagimlilik", "refactor", "migration", "migrasyon",
   "project brain", "sürüm çakışması", "surum cakismasi", "version conflict",
   "transaction", "backoff", "preflight", "overrides", "pipeline", "ci/cd",
-  "deadlock", "race condition", "idempot",
+  "deadlock", "race condition", "idempot", "self-reflection", "self reflection",
+  "self-correct", "self correct", "on join", "alias", "guardrail", "otomatik onar",
+  "öz-yansıma", "öz yansıma",
 ];
 
 const PURE_NUMERIC_RE = /^\s*[%₺$€]?\s*-?\d+([.,]\d+)?\s*(tl|try|₺|lira|usd|\$|eur|€|%|adet)?\s*[.!…]?\s*$/i;
@@ -56,9 +58,20 @@ function isInadequateAnswer(input, answer) {
   return false;
 }
 
+/** Açık bir teknik teslim istenmişken modelin işi seçenek sorusuyla kullanıcıya geri atması. */
+function isDeflectingClarification(input, answer) {
+  const q = lower(input);
+  const a = lower(answer);
+  const explicitDeliverable = /(doğrudan|direkt|1\s*sayfa|bir\s*sayfa|mantık\s*kurg|akış|tasarla|oluştur|yaz|sun)/i.test(q);
+  const selfRepairTopic = /(self[-\s]?reflection|self[-\s]?correct|öz[-\s]?yansıma|otomatik\s*onar|on\s+join|yarım\s+kal.*alias|c\.)/i.test(q);
+  const choiceQuestion = /(hangisini\s+tercih|hangisi(?:ni)?\s+ister|yoksa\s+önce|önce\s+sadece.*(?:mı|mi|mu|mü)|doğrudan.*(?:mı|mi|mu|mü)|değil\s+mi\s*\?|ne\s+yapalım)/i.test(a);
+  const substantive = /(tespit|karantina|teşhis|onarım|doğrulama|retry|yeniden\s+üret|ast|parser|syntax|transaction)/i.test(a);
+  return explicitDeliverable && selfRepairTopic && choiceQuestion && !substantive;
+}
+
 /** Uzun teknik soru + yetersiz cevap → reddet. */
 function isIrrelevantShortAnswer(input, answer) {
-  return isLongTechnicalQuestion(input) && isInadequateAnswer(input, answer);
+  return isLongTechnicalQuestion(input) && (isInadequateAnswer(input, answer) || isDeflectingClarification(input, answer));
 }
 
 /** Reddedilen cevap için odaklı yeniden-üretim mesajları. */
@@ -71,7 +84,8 @@ function buildFocusedRegenMessages(input) {
         "kısa cevap VERME. Soruyu somut adımlar, mimari ve gerektiğinde kod örneğiyle " +
         "yanıtla. İlgili kavramları (package.json/version.php güncelleme, dosya kilidi + " +
         "retry/backoff, atomic write → rename, doğrulama, hata olursa staged rollback) " +
-        "açıkça ele al. Konu dışına çıkma, soruyu tekrar etme.",
+        "açıkça ele al. Konu dışına çıkma, soruyu tekrar etme. " +
+        "Kullanıcı açık bir teknik mantık/akış istediyse seçenek sorma; çözüm kurgusunu doğrudan teslim et.",
     },
     { role: "user", content: String(input || "") },
   ];
@@ -87,6 +101,7 @@ module.exports = {
   technicalSignals,
   isLongTechnicalQuestion,
   isInadequateAnswer,
+  isDeflectingClarification,
   isIrrelevantShortAnswer,
   buildFocusedRegenMessages,
   CONTROLLED_RETRY_MESSAGE,

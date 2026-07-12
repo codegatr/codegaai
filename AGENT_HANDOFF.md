@@ -1,3 +1,16 @@
+## Codex Update - 2026-07-13 — alpha.121: Self-repair tasarımında kaçamak cevap kapısı
+
+Kullanıcının ON JOIN/yarım alias için bir sayfalık self-reflection onarım mantığı
+istemesine model seçenek sorusuyla karşılık veriyordu. SQL stream self-repair hattı
+mevcuttu; eksik olan, bu meta-mühendislik isteğini doğrudan teslim olarak sınıflandırmak
+ve uzun ama içeriksiz netleştirme sorusunu yetersiz cevap saymaktı.
+
+- Self-repair tasarım niyetine doğrudan teslim sözleşmesi enjekte edilir.
+- “Hangisini tercih edersiniz?” türü gereksiz seçenek soruları adequacy gate tarafından reddedilir.
+- `askDirect` bir kez odaklı yeniden üretir; temiz cevap `direct_adequacy_recovered` olarak döner.
+- Gate: odak testleri 20/20, full desktop CI 58 suite / 644 test başarılı.
+- Release hedefi: `desktop-v6.0.0-alpha.121`; Actions ve asset metadata doğrulanmalıdır.
+
 ## Codex Update - 2026-07-12 — alpha.120: Updater asset yarış koşulu düzeltmesi
 
 alpha.119 tag'inde eski `desktop-release.yml` ile güncel Windows workflow aynı

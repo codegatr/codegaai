@@ -127,3 +127,43 @@ describe("askDirect corporate finance contract", () => {
     expect(systemText).not.toMatch(/KURUMSAL FINANS\/PDO URETIM SOZLESMESI/);
   });
 });
+
+describe("askDirect self-repair design contract", () => {
+  const question =
+    "CODEGA AI, ON JOIN veya yarım kalan c. alias gördüğünde hata basmak yerine " +
+    "Self-Reflection ile düzeltmek için 1 sayfalık temiz bir mantık kurgulayabilir misin?";
+
+  test("self-repair tasarımında geri soru sormama ve onarım akışı sözleşmesi enjekte edilir", async () => {
+    const mgr = new ModelManager();
+    mgr.installedModels = async () => ["qwen3.5:4b"];
+    let seen = null;
+    mgr.generate = async (_m, messages) => {
+      if (!seen) seen = messages;
+      return "Akış çıktıyı karantinaya alır, somut kusuru teşhis eder, orijinal isteği koruyarak kodu yeniden üretir ve syntax doğrulamasından geçirir.";
+    };
+
+    await mgr.askDirect(question, { chatId: "c-self-repair-contract" });
+
+    const systemText = seen.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
+    expect(systemText).toMatch(/SELF-REPAIR MANTIK TASARIMI/);
+    expect(systemText).toMatch(/GERİ SORMA/);
+    expect(systemText).toMatch(/karantinaya alma/);
+  });
+
+  test("seçenek soran kaçamak cevap otomatik yeniden üretilir", async () => {
+    const mgr = new ModelManager();
+    mgr.installedModels = async () => ["qwen3.5:4b"];
+    let calls = 0;
+    mgr.generate = async () => {
+      calls += 1;
+      if (calls === 1) return "Önce mantığı mı açıklayayım, yoksa Python örneği mi sunayım? Hangisini tercih edersiniz?";
+      return "Akış çıktıyı karantinaya alır, kusuru teşhis eder, kodu yeniden üretir ve syntax doğrulamasından geçirir.";
+    };
+
+    const result = await mgr.askDirect(question, { chatId: "c-self-repair-recovery" });
+    expect(calls).toBe(2);
+    expect(result.source).toBe("direct_adequacy_recovered");
+    expect(result.text).toMatch(/karantinaya alır/);
+    expect(result.text).not.toMatch(/Hangisini tercih/i);
+  });
+});
