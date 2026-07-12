@@ -179,9 +179,10 @@ describe("askDirect: düzeltme de bozuksa çöp teslim edilmez", () => {
     expect(calls).toBe(3); // orijinal + iki kontrollu duzeltme denemesi
     expect(res.source).toBe("direct_degenerate_fallback");
     expect(res.text).not.toMatch(/CREATE TABELA/);
-    expect(res.text).toMatch(/durdurdum/);
-    expect(res.text).toMatch(/gorevi bolmesini istememeli/);
-    expect(res.text).toMatch(/\[SYSTEM LIMIT\]/);
+    // İNSANİ mesaj: kısa/dürüst; iç-politika duvarı ve "[SYSTEM LIMIT]" nutku YOK.
+    expect(res.text).toMatch(/göstermedim|onarmayı denedim/);
+    expect(res.text).not.toMatch(/\[SYSTEM LIMIT\]/);
+    expect(res.text).not.toMatch(/gorevi bolmesini istememeli/); // iç talimat sızmaz
     expect(res.text).not.toMatch(/kucuk parcalara|parcalara bol/i);
   });
 
@@ -291,7 +292,8 @@ describe("askDirect: düzeltme de bozuksa çöp teslim edilmez", () => {
     expect(res.source).toBe("direct_degenerate_fallback");
     expect(res.text).not.toMatch(/CREATE TABELA/);
     expect(res.text).not.toMatch(/kucuk parcalara|parcalara bol/i);
-    expect(res.text).toMatch(/tek butun/);
-    expect(res.text).toMatch(/Bulut saglayici yoksa/);
+    // İnsani mesaj: iç-politika satırları ("tek butun"/"Bulut saglayici yoksa") sızmaz.
+    expect(res.text).toMatch(/onarmayı denedim|göstermedim/);
+    expect(res.text).not.toMatch(/Bulut saglayici yoksa/);
   });
 });

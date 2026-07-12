@@ -1,3 +1,47 @@
+## Claude Update - 2026-07-12 — alpha.117: Öz-Yansıma Onarımı + insani hata mesajı
+
+### Kullanıcı şikayeti (haklı)
+Guardrail bozuk SQL'i kesince kullanıcıya İÇ-POLİTİKA duvarı + "[SYSTEM LIMIT] buluta geç"
+nutku basılıyordu. "Basit iş için başka sağlayıcı seçin diye arkaya saklanma" — alpha.77
+anti-bahane ilkesinin ihlali. Ayrıca retry'lar JENERİKti ("tekrar dene"); kullanıcının
+istediği öz-yansıma (hangi mantık hatası? → düzelt) yoktu.
+
+### Fix 1: Öz-Yansıma Onarımı (stream-guardrail.js + model-manager.js)
+- diagnoseStructuralDefects(text): STRUCTURAL_PATTERNS eşleşmelerini insan-okur kusur
+  listesine çevirir (DEFECT_LABELS: "ON JOIN — doğru sözdizimi JOIN..ON'dur", "yarım
+  alias c." vb.) + SUÇLU SATIR kesiti.
+- buildSelfRepairInstruction(reason, attempt, defects): "bu bir yeniden-yazma değil HATA
+  DÜZELTME görevi; her kusurun mantık hatasını belirle, TAM düzeltilmiş sürümü tek seferde
+  üret" talimatı.
+- model-manager retry döngüsü: 1. deneme = ONARIM MODU (teşhis + bozuk çıktının SON 1200
+  karakteri gösterilir — kusurlar genelde kuyruktadır); 2.+ deneme = jenerik flush.
+  Onarım başarılıysa source=direct_selfcorrected.
+
+### Fix 2: İnsani hata mesajı (buildDegenerateRecoveryFallback yeniden yazıldı)
+- İç-politika checklist'i ve "[SYSTEM LIMIT] Ayarlar > AI Sağlayıcı..." nutku KALDIRILDI.
+- Yeni: 3 satır — "elim sürçtü: <neden>, bozuk çıktıyı göstermedim; kendi kendime onarmayı
+  denedim ama temiz sonuç üretemedim; [bulut varsa: otomatik güçlü rotaya geçeceğim /
+  yoksa: tekrar gönder, sık oluyorsa qwen2.5:7b çözer]".
+- check.mjs guard TERSİNE çevrildi: "[SYSTEM LIMIT]" metni model-manager'da GÖRÜLÜRSE CI
+  kırılır. Eski iki Codex guard'ı ([SYSTEM LIMIT] zorunluluğu, "gorevi bolmesini
+  istememeli") yeni davranışa güncellendi.
+
+### Testler
+- self-repair.test.js (4): teşhis (ON JOIN + alias + suçlu satır), temiz SQL kusursuz,
+  onarım talimatı içeriği, uçtan uca akış (bozuk→onarım turu teşhisli→düzeltilmiş kod).
+- runaway-stream-guard.test.js: 2 test yeni insani mesaja güncellendi (SYSTEM LIMIT yok).
+- check.mjs: diagnose/buildSelfRepair + anti-SYSTEM-LIMIT guard'ları.
+
+### Gate: check 251 · test:ci 640/640. Sürüm alpha.117.
+
+### Codex/ChatGPT notu
+- STRUCTURAL_PATTERNS'a kalıp eklerken DEFECT_LABELS'a insan-okur etiketi de ekleyin —
+  yoksa onarım turunda o kusur açıklamasız kalır (id gösterilir, çalışır ama zayıf).
+- "[SYSTEM LIMIT]" metnini geri GETİRMEYİN — check guard bilerek kırar.
+- Hâlâ açık: _foldTr mojibake (chip), Indexer PR#2, P5 mod davranış farkı, 7B teşhisi.
+
+---
+
 ## Claude Update - 2026-07-12 — alpha.116: OpenRouter sağlayıcısı (GLM-5.2 ücretsiz)
 
 ### Ne (kullanıcı: "GLM 5.2 ücretsiz, API olarak arka plana ekleyelim")

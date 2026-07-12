@@ -148,6 +148,63 @@ function quarantineStreamFailure(event = {}, settings = {}) {
   }
 }
 
+// İnsan-okur teşhis etiketleri (öz-yansıma onarımında modele gösterilir).
+const DEFECT_LABELS = Object.freeze({
+  sql_on_join: "SQL'de 'ON JOIN' yazılmış — doğru sözdizimi 'JOIN tablo alias ON koşul'dur; ON ile JOIN yer değiştirmiş",
+  sql_parameterless_join: "JOIN(...) biçiminde parametreli-fonksiyon gibi JOIN kullanılmış — JOIN bir fonksiyon değildir",
+  sql_malformed_customers_join: "Tablo adı ile JOIN sözdizimi iç içe geçmiş (örn. 'customers ON JOIN')",
+  dangling_sql_alias: "Yarım kalmış alias — 'c.' gibi bir tablo takma adından sonra kolon adı yazılmamış",
+  dangling_buffer_alias: "Satır sonunda yarım alias kalmış ('c.' / 't.') — ifade tamamlanmamış",
+  lazy_line_placeholder: "Kodun ortasına '// rest of ...' gibi tembel placeholder bırakılmış — kod eksik",
+  lazy_block_placeholder: "Blok yorum placeholder'ı bırakılmış — gerçek kod yazılmamış",
+  lazy_html_placeholder: "HTML placeholder yorumu bırakılmış — gerçek içerik yazılmamış",
+  truncated_php_chain: "PHP ifadesi yarıda kesilmiş (-> veya = ile bitiyor) — zincir tamamlanmamış",
+});
+
+/**
+ * ÖZ-YANSIMA TEŞHİSİ: bozuk metindeki SOMUT kusurları listeler (hangi kalıp,
+ * insan-okur açıklama, suçlu satır kesiti). Onarım turunda modele "neyi neden
+ * yanlış yaptın" olarak gösterilir — jenerik 'tekrar dene'den çok daha etkili.
+ */
+function diagnoseStructuralDefects(text) {
+  const value = String(text || "");
+  const defects = [];
+  for (const pattern of STRUCTURAL_PATTERNS) {
+    const m = value.match(pattern.re);
+    if (!m) continue;
+    const idx = m.index || 0;
+    const line = value.slice(Math.max(0, value.lastIndexOf("\n", idx) + 1), value.indexOf("\n", idx) === -1 ? undefined : value.indexOf("\n", idx)).trim().slice(0, 160);
+    defects.push({
+      id: pattern.id,
+      reason: pattern.reason,
+      label: DEFECT_LABELS[pattern.id] || pattern.id,
+      evidence: line,
+    });
+  }
+  return defects;
+}
+
+/**
+ * ÖZ-YANSIMA ONARIM TALİMATI: bozuk çıktı + somut kusur listesi ile modele
+ * "önce hatanın mantığını analiz et, sonra TAM düzeltilmiş sürümü yaz" der.
+ * Kullanıcıya hata basmak yerine arka planda kendi hatasını düzeltme yolu.
+ */
+function buildSelfRepairInstruction(reason, attempt, defects = []) {
+  const defectLines = (defects || []).slice(0, 5).map((d, i) =>
+    `${i + 1}. ${d.label}${d.evidence ? `\n   Suçlu satır: \`${d.evidence}\`` : ""}`);
+  return [
+    `ÖZ-YANSIMA ONARIMI (deneme ${attempt}): az önceki üretimin ${reason} nedeniyle karantinaya alındı.`,
+    "Bu bir yeniden-yazma değil, HATA DÜZELTME görevidir. Aşağıda kendi çıktında tespit edilen SOMUT kusurlar var:",
+    defectLines.length ? defectLines.join("\n") : "- (kalıp eşleşmedi; kuyruk bozulması/karakter salatası tespit edildi)",
+    "",
+    "Şimdi şunu yap:",
+    "1) Her kusur için hangi MANTIK hatasını yaptığını içinden kısaca belirle (yazma).",
+    "2) Kullanıcının ORİJİNAL isteğini, bu hataları düzeltilmiş TAM ve ÇALIŞIR haliyle TEK seferde yeniden üret.",
+    "Kurallar: bozuk tokenları devam ettirme, bozuk çıktıdan alıntı yapma, placeholder bırakma.",
+    "SQL için: FROM tablo alias JOIN tablo alias ON koşul. ASLA 'ON JOIN', 'JOIN(...)', yarım alias ('c.') yazma.",
+  ].join("\n");
+}
+
 function buildGuardrailRetryInstruction(reason, attempt) {
   return [
     `Guardrail recovery attempt ${attempt}: previous local output was aborted because of ${reason}.`,
@@ -166,4 +223,7 @@ module.exports = {
   quarantineLogPath,
   quarantineStreamFailure,
   buildGuardrailRetryInstruction,
+  diagnoseStructuralDefects,
+  buildSelfRepairInstruction,
+  DEFECT_LABELS,
 };

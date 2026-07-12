@@ -404,9 +404,9 @@ if (!ollamaClientFile.includes("hasCharSalad") || !ollamaClientFile.includes('"c
 if (!ollamaClientFile.includes("structuralStreamFailure") || !ollamaClientFile.includes("appendStreamDiagnostic") || !ollamaClientFile.includes('"structural_error"')) throw new Error("ollama-client.js structural stream guard/diagnostic log eksik");
 if (!modelManagerFile.includes("direct_cloud_recovered") || !modelManagerFile.includes("tryCloudRecovery") || !modelManagerFile.includes("local retries failed")) throw new Error("model-manager.js char_salad/structural sonrası bulut toparlama (direct_cloud_recovered/tryCloudRecovery) eksik");
 if (!modelManagerFile.includes("ON JOIN") || !modelManagerFile.includes("DirectAdmin/PDO")) throw new Error("model-manager.js SQL recovery promptu DirectAdmin/PDO ve ON JOIN yasaklarini icermeli");
-if (!modelManagerFile.includes("local retries failed") || !modelManagerFile.includes("[SYSTEM LIMIT]")) throw new Error("model-manager.js structural failover ve SYSTEM LIMIT bildirimi eksik");
+if (!modelManagerFile.includes("local retries failed")) throw new Error("model-manager.js structural failover eksik");
 if (!modelManagerFile.includes("wantsCorporateFinanceFramework") || !modelManagerFile.includes("KURUMSAL FINANS/PDO URETIM SOZLESMESI") || !modelManagerFile.includes("idx_transactions_customer_date")) throw new Error("model-manager.js kurumsal finans/PDO uretim sozlesmesi eksik");
-if (!modelManagerFile.includes("buildDegenerateRecoveryFallback") || !modelManagerFile.includes("gorevi bolmesini istememeli")) throw new Error("model-manager.js kullaniciya bolme dayatmayan integral recovery fallback eksik");
+if (!modelManagerFile.includes("buildDegenerateRecoveryFallback") || !modelManagerFile.includes("onarmayı denedim")) throw new Error("model-manager.js insani recovery fallback (onarmayı denedim) eksik");
 if (modelManagerFile.includes("daha küçük parçalara böl") || modelManagerFile.includes("daha kucuk parcalara bol")) throw new Error("model-manager.js fallback kullanicidan gorevi kucultmesini istememeli");
 const streamGuardrailFile = readText(join(root, "src/main/agent/stream-guardrail.js"));
 if (!streamGuardrailFile.includes("STRUCTURAL_PATTERNS") || !streamGuardrailFile.includes("quarantineStreamFailure") || !streamGuardrailFile.includes("streamGuardrailMaxLocalRetries")) throw new Error("stream-guardrail.js pattern/config/quarantine sozlesmesi eksik");
@@ -437,7 +437,12 @@ if (!cloudProviderORFile.includes("openrouter") || !cloudProviderORFile.includes
 const runtimePolicyORFile = readText(join(root, "src/main/agent/runtime-policy.js"));
 if (!runtimePolicyORFile.includes('"openrouter"')) throw new Error("runtime-policy.js PROVIDER_VALUES openrouter içermiyor");
 
-if (pkg.version !== "6.0.0-alpha.116") throw new Error(`Desktop package version must be 6.0.0-alpha.116, got ${pkg.version}`);
+const sgFile = readText(join(root, "src/main/agent/stream-guardrail.js"));
+if (!sgFile.includes("diagnoseStructuralDefects") || !sgFile.includes("buildSelfRepairInstruction")) throw new Error("stream-guardrail.js öz-yansıma onarımı (diagnoseStructuralDefects/buildSelfRepairInstruction) eksik");
+if (!modelManagerFile.includes("buildSelfRepairInstruction")) throw new Error("model-manager.js onarım turu (buildSelfRepairInstruction) bağlanmamış");
+if (modelManagerFile.includes("[SYSTEM LIMIT]")) throw new Error("model-manager.js '[SYSTEM LIMIT]' bahane nutku geri gelmiş — insani mesaj kullanılmalı");
+
+if (pkg.version !== "6.0.0-alpha.117") throw new Error(`Desktop package version must be 6.0.0-alpha.117, got ${pkg.version}`);
 
 // macOS universal binary kontrolu (ARM64 Gatekeeper fix)
 const macTargets = pkg.build?.mac?.target || [];

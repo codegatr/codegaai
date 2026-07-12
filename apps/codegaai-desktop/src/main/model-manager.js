@@ -25,6 +25,8 @@ const {
   normalizeGuardrailConfig,
   quarantineStreamFailure,
   buildGuardrailRetryInstruction,
+  diagnoseStructuralDefects,
+  buildSelfRepairInstruction,
 } = require("./agent/stream-guardrail");
 const { sanitizePrompt } = require("./agent/sanitize-prompt");
 const answerAdequacy = require("./agent/answer-adequacy");
@@ -990,23 +992,17 @@ function buildDegenerateRecoveryFallback(reason, settings = {}) {
     const cloud = configFromSettings(settings, { provider });
     return String(cloud.apiKey || "").trim();
   });
-  const providerText = hasConfiguredCloud
-    ? `Yapilandirilmis bulut recovery sirasi hazir: ${cloudProviders.join(", ")}. Sonraki denemede yerel model yine bozulursa otomatik guclu rotaya gecilir.`
-    : "[SYSTEM LIMIT] Yerel donanim baglam penceresi bu buyuk tek parca gorevi tamamlayamadi. Sistemin bolunmeden otonom calisabilmesi icin lutfen Ayarlar > AI Saglayici bolumune Claude/OpenAI/Gemini API anahtarinizi ekleyin veya daha guclu bir yerel modele gecin.";
+  // KISA, İNSANİ, DÜRÜST — iç-politika duvarı ve "buluta geç" nutku YOK.
+  // Ne yaptığını söyler, tek satırlık pratik öneriyle bitirir.
+  const suggestion = hasConfiguredCloud
+    ? `Bir sonraki denemede otomatik olarak güçlü rotaya (${cloudProviders.join(", ")}) geçeceğim — istersen aynı mesajı tekrar gönder.`
+    : "Aynı isteği tekrar gönderirsen yeniden denerim; sık tekrarlanıyorsa daha güçlü bir yerel model (örn. qwen2.5:7b) bu tıkanıklığı çözer.";
 
   return [
-    `Yanit uretimini guvenlik nedeniyle durdurdum: ${degenerateReasonLabel(reason)}.`,
-    "Bozuk token akisini kullaniciya gondermedim; yerel context-flush duzeltme denemesi de temiz sonuc vermedi.",
-    "",
-    "CODEGA AI burada kullanicidan gorevi bolmesini istememeli. Dogru davranis:",
-    "- Bozuk stream'i aninda kesmek ve char_salad tokenlarini saklamak.",
-    "- SQL/PHP cevabinda ON JOIN, JOIN(...), yarim alias (c.) ve placeholder bulunan metni reddetmek.",
-    "- Ayni istegi tek butun olarak koruyup yerel retry ile yeniden denemek.",
-    "- Bulut saglayici yapilandirilmissa Claude/OpenAI/Gemini recovery rotasina otomatik gecmek.",
-    "- Bulut saglayici yoksa bunu kapasite siniri olarak aciklamak, kullaniciya isi parcalatmak degil.",
-    "",
-    providerText,
-  ].join("\n");
+    `Bu üretimde elim sürçtü: ${degenerateReasonLabel(reason)} tespit ettim, bozuk çıktıyı sana göstermedim.`,
+    "Arka planda hatayı analiz edip kendi kendime onarmayı denedim ama temiz bir sonuç üretemedim.",
+    suggestion,
+  ].join("\n").replace(/\s+\n/g, "\n");
 }
 
 function wantsCorporateFinanceFramework(text) {
@@ -1717,13 +1713,22 @@ class ModelManager {
           action: "local_retry",
           text,
         }, guardrailConfig);
+        // ÖZ-YANSIMA ONARIMI (1. deneme): jenerik "tekrar dene" yerine bozuk
+        // çıktıdaki SOMUT kusurlar teşhis edilip modele "hatanı analiz et,
+        // düzeltilmiş TAM sürümü yaz" denir. Sonraki denemeler jenerik flush.
+        const defects = attempt === 1 ? diagnoseStructuralDefects(text) : [];
+        const repairMode = attempt === 1 && (defects.length > 0 || /salad|alias|placeholder/i.test(String(q.reason)));
         const retryMsgs = messages.concat([
-          { role: "system", content: buildGuardrailRetryInstruction(q.reason, attempt) },
-          { role: "assistant", content: String(text || "").slice(0, 300) },
-          { role: "user", content:
-            "Bu yanıt bozuk (boş, kendini tekrar ediyor ya da konudan koptun). " +
-            "Aynı soruyu ŞİMDİ net, TEK seferde ve TEKRARSIZ yeniden yanıtla. " +
-            "Kendinle konuşma; 'benim yanıtım / sizin tarafınız / hangi yolu izliyorsunuz' gibi ifadeler KULLANMA." },
+          { role: "system", content: repairMode
+            ? buildSelfRepairInstruction(q.reason, attempt, defects)
+            : buildGuardrailRetryInstruction(q.reason, attempt) },
+          // Onarım modunda kusurun geçtiği KUYRUK gösterilir (hatalar genelde sonda).
+          { role: "assistant", content: repairMode ? String(text || "").slice(-1200) : String(text || "").slice(0, 300) },
+          { role: "user", content: repairMode
+            ? "Yukarıdaki kendi çıktındaki kusurları düzelt ve orijinal isteği TAM, çalışır, tek parça olarak yeniden üret."
+            : "Bu yanıt bozuk (boş, kendini tekrar ediyor ya da konudan koptun). " +
+              "Aynı soruyu ŞİMDİ net, TEK seferde ve TEKRARSIZ yeniden yanıtla. " +
+              "Kendinle konuşma; 'benim yanıtım / sizin tarafınız / hangi yolu izliyorsunuz' gibi ifadeler KULLANMA." },
         ]);
         this._abort = new AbortController();
         let retry = "";
