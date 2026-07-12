@@ -1,3 +1,16 @@
+## Codex Update - 2026-07-13 — alpha.122: OpenRouter gerçek sohbet routing düzeltmesi
+
+OpenRouter bağlantı testi başarılı olmasına rağmen gerçek sohbet Ollama'ya düşüyordu.
+Kök neden `configuredProviderChain()` filtresinin OpenAI/Claude/Gemini anahtarlarını
+kontrol edip `openrouterApiKey` dalını unutmasıydı; normalize edilen OpenRouter zincirden
+sessizce çıkarılıyordu.
+
+- `runtime-policy.js` yapılandırılmış OpenRouter'ı zincirde tutar.
+- `askDirect` seçili `openrouter/free` endpoint'ine gider; Ollama yalnız gerçek fallback olur.
+- Regresyon testi endpoint URL'sini ve gönderilen model slug'ını doğrular.
+- Odak OpenRouter testleri 8/8 başarılı.
+- Release hedefi: `desktop-v6.0.0-alpha.122`; full CI ve asset metadata doğrulanmalıdır.
+
 ## Codex Update - 2026-07-13 — alpha.121: Self-repair tasarımında kaçamak cevap kapısı
 
 Kullanıcının ON JOIN/yarım alias için bir sayfalık self-reflection onarım mantığı
