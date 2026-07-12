@@ -1,3 +1,17 @@
+## Codex Update - 2026-07-13 — alpha.124: ZIP teslimi ve hava bağlamı izolasyonu
+
+Uzun PHP ZIP üretiminde kod içindeki meşru tekrarlar `runaway_repetition` sanılıyor,
+OpenRouter cevabı reddedilip yavaş Ollama retry'ına düşüyordu. Ayrıca hava konuşmasından
+sonraki her `araştır` mesajı önceki şehrin hava takibi sayılıyordu.
+
+- Runaway detector fenced/kod-ağırlıklı segmentlerdeki tekrarları saymaz.
+- ZIP teslim niyeti gerçek Türkçe `oluştur/üret` ifadelerini Unicode-normalize eder.
+- Model cevabı sonrası ZIP paketleme aşaması UI durumunda görünür.
+- Dosya blokları yoksa ham/yarım çıktı yerine açık `deliver_no_files` hatası döner.
+- Hava bağlamı yalnız kısa konum takibine uygulanır; bağımsız domain araştırması hava olmaz.
+- Odak anti-loop/research/builder testleri 42/42 başarılı.
+- Release hedefi: `desktop-v6.0.0-alpha.124`; full CI ve asset metadata doğrulanmalıdır.
+
 ## Codex Update - 2026-07-13 — alpha.123: Güncel bilgi ve hava araç yönlendirmesi
 
 Varsayılan `askDirect` yolu hava aracını çağırmadığı için model “internete erişimim yok”

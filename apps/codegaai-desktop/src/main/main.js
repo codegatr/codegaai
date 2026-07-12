@@ -660,6 +660,7 @@ function registerIpc() {
         );
         const files = extractFiles(gen && gen.text || "");
         if (files.length) {
+          try { event.sender.send("chat:status", { stage: "packaging", text: `${files.length} dosya doğrulandı; ZIP hazırlanıyor.` }); } catch (_e) {}
           const workspaceRoot = path.join(app.getPath("userData"), "codega-workspace");
           try {
             // SELF-VALIDATION: ZIP'ten ÖNCE temel syntax kontrolü (php -l / JSON / JS).
@@ -688,8 +689,10 @@ function registerIpc() {
             result = { text: `Dosyalar üretildi ama paketleme tamamlanamadı: ${userMessageForZipError(execErr)}`, source: "deliver_error" };
           }
         } else {
-          // Model dosya üretmediyse ham çıktıyı bırak (bahane yerine en azından kod).
-          result = gen;
+          result = {
+            text: "ZIP oluşturulamadı: model, dosya adına sahip tamamlanmış kod blokları üretmedi. İsteği yeniden denediğinde her dosyayı ayrı kod bloğunda üretip ZIP olarak teslim edeceğim.",
+            source: "deliver_no_files",
+          };
         }
       } else if (deepMode) {
         // Tam bilişsel pipeline (chunking/doğrulama/escalation).

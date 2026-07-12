@@ -24,6 +24,12 @@ describe("anti-loop: tekrar/döngü temizliği", () => {
     expect(out).toContain("```python\nx = 1\nx = 1\nprint(x)\n```");
   });
 
+  test("kod bloğundaki meşru uzun satır tekrarını runaway saymaz", () => {
+    const repeated = "header('Cache-Control: private, max-age=0, must-revalidate');";
+    const php = `\`\`\`php\n<?php\n${repeated}\n${repeated}\n${repeated}\n\`\`\``;
+    expect(detectRunawayRepetition(php)).toBe(false);
+  });
+
   test("normal (tekrarsız) metni bozmaz", () => {
     const clean = "Cevap 4'tür. Çünkü üç renk vardır; dördüncü top kesinlikle bir renkle eşleşir.";
     expect(collapseRepetition(clean)).toBe(clean);

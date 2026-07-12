@@ -20,6 +20,10 @@ describe("build-intent: teslim isteği saptama", () => {
     expect(detectDeliverIntent("requestAnimationFrame nedir?").isDeliver).toBe(false);
     expect(detectDeliverIntent("bana bir PHP fonksiyonu açıkla").isDeliver).toBe(false);
   });
+
+  test("gerçek Türkçe oluştur + ZIP ifadesi teslim akışını tetikler", () => {
+    expect(detectDeliverIntent("Dosyaları oluştur ve projeyi ZIP olarak ver").isDeliver).toBe(true);
+  });
 });
 
 describe("extract-files: kod bloklarından dosya", () => {

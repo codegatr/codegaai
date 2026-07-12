@@ -39,6 +39,25 @@
 
 ---
 
+## Güncel Sürüm — 6.0.0-alpha.124
+
+**Yayın tarihi:** 13 Temmuz 2026
+
+**İndir:** [CODEGA AI Desktop 6.0.0-alpha.124](https://github.com/codegatr/codegaai/releases/tag/desktop-v6.0.0-alpha.124)
+
+Bu sürümde:
+
+- OpenRouter `openrouter/free` gerçek sohbet sağlayıcı zincirinde çalışır; Ollama yalnız fallback olur.
+- Güncel hava ve zamana bağlı bilgiler model tahminine bırakılmadan ağ araçlarıyla alınır.
+- Hava konuşmasından sonraki bağımsız araştırmalar eski şehir bağlamına yanlış bağlanmaz.
+- Uzun kod bloklarındaki meşru tekrarlar dejenerasyon sayılmaz; gerçek runaway döngü koruması devam eder.
+- Üretilen dosyalar doğrulandıktan sonra ZIP paketleme aşaması görünür ve gerçek arşiv teslim edilir.
+- Windows ve macOS updater metadata dosyaları release varlıklarıyla birlikte doğrulanır.
+
+Önceki sürümler ve ayrıntılı varlıklar için [GitHub Releases](https://github.com/codegatr/codegaai/releases) sayfasına bakın.
+
+---
+
 ## CODEGA AI Nedir?
 
 CODEGA AI, **offline-first çalışan, kendi mühendislik aklına sahip, güvenli şekilde evrimleşen bir Yapay Zeka Yazılım Mühendisliği Platformudur.** Yerel modeller (Ollama/Qwen), güçlü bulut sağlayıcıları (Claude Opus 4.8, GPT, Gemini), proje hafızası, araç kullanımı, yazılım fabrikası ve insan onaylı öz-evrim döngüsünü tek bir ajan omurgasında birleştirir.
@@ -129,7 +148,7 @@ python launcher.py
 cd apps/codegaai-desktop
 npm install
 npm run dev        # uygulamayı başlat
-npm run test:ci    # check + 50 suite / 583 test
+npm run test:ci    # check + 58 suite / 654 test
 ```
 
 macOS geliştirici kurulumu: `bash installer/macos/install.sh` (Python 3.12'de Coqui TTS atlanır; XTTS gerekiyorsa Python 3.11 kullanın).
@@ -153,7 +172,7 @@ macOS geliştirici kurulumu: `bash installer/macos/install.sh` (Python 3.12'de C
 Hiçbir sürüm şu kapılardan geçmeden yayınlanmaz:
 
 1. **`npm run check`** — 240+ dosyalık yapısal sözleşme: zorunlu modüller, sürüm çift-pin (package.json ↔ check.mjs), güvenlik kuralları (asar, asInvoker, emekli model referansı yasağı)
-2. **`npm run test:ci`** — 50 suite / 583 Jest testi: regresyon, UTF-8/mojibake, builder, ZIP bütünlüğü, görev sürekliliği, bağlam sürekliliği, hafıza bütünlüğü, Kontrol Merkezi sözleşmesi
+2. **`npm run test:ci`** — 58 suite / 654 Jest testi: regresyon, UTF-8/mojibake, builder, ZIP bütünlüğü, görev sürekliliği, bağlam sürekliliği, hafıza bütünlüğü, Kontrol Merkezi sözleşmesi
 3. **Python sözleşme testleri** — README, federasyon PHP, kurulum ve platform iş akışı denetimleri
 4. **Tag-tetiklemeli release** — `desktop-v*` tag'i Windows + macOS build'lerini üretir; updater metadata (`latest.yml`) otomatik yayınlanır
 

@@ -9,6 +9,7 @@
 
 function fold(s) {
   return String(s || "").toLowerCase()
+    .replace(/ı/g, "i").normalize("NFD").replace(/\p{Diacritic}/gu, "")
     .replace(/[çÇ]/g, "c").replace(/[ğĞ]/g, "g").replace(/[ıİ]/g, "i")
     .replace(/[öÖ]/g, "o").replace(/[şŞ]/g, "s").replace(/[üÜ]/g, "u");
 }
