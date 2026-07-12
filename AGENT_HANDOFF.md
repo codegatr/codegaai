@@ -1,3 +1,35 @@
+## Claude Update - 2026-07-12 — alpha.118: Kontrol Merkezi'nde OpenRouter görünürlüğü (UX açığı)
+
+### Kullanıcı şikayeti (haklı)
+alpha.116 OpenRouter'ı arka plana ekledi ama Kontrol Merkezi > Genel Bakış > AI Health
+Dashboard'da SATIRI YOKTU — kullanıcı "Sağlayıcı nerede?" diye sordu ve haklıydı; olmayan
+bir menüye yönlendirmiştim. Gerçek konum: Zeka > Yapay Zeka > Sağlayıcı dropdown'ı
+(provider-select). Health panosundaki OpenAI/Claude/Gemini satırları data-provider-target
+ile oraya zıplıyor; OpenRouter satırı eksikti → görünmezdi.
+
+### Fix (index.html)
+- AI Health Dashboard'a "OpenRouter (GLM 5.2)" health-link satırı eklendi
+  (ov-health-openrouter / -dot; data-settings-target="ai" data-provider-target="openrouter").
+  Tıklayınca Yapay Zeka sekmesine gidip dropdown'da openrouter'ı seçiyor (mevcut jenerik
+  handler renderer.js:2677 — kod değişikliği gerekmedi).
+- renderer.js'teki providerHealth("openrouter") çağrısı (alpha.116) artık bu satırı
+  canlı besliyor (anahtar girilince "hazır/aktif" + yeşil nokta).
+- Sağlayıcı açıklama metni güncellendi: OpenRouter (GLM 5.2 ücretsiz) + "anahtar girili
+  bulut sağlayıcı, yerel model tıkanınca otomatik yedek rota olur".
+- check.mjs guard: ov-health-openrouter. Sürüm alpha.118.
+
+### Gate: check 251 · test:ci 640/640.
+
+### Kullanıcıya doğru yol (artık gerçek):
+Kontrol Merkezi > Genel Bakış > AI HEALTH DASHBOARD > "OpenRouter (GLM 5.2)" satırına tıkla
+→ açılan Yapay Zeka sekmesinde API anahtarını gir → Bağlantıyı Test Et.
+
+### Ders (Codex/ChatGPT)
+- Yeni sağlayıcı eklerken 5 nokta: PROVIDERS + PROVIDER_VALUES + DEFAULTS + PROVIDER_FIELDS
+  + INDEX.HTML (hem select option HEM health satırı). alpha.116'da son parça atlanmıştı.
+
+---
+
 ## Claude Update - 2026-07-12 — alpha.117: Öz-Yansıma Onarımı + insani hata mesajı
 
 ### Kullanıcı şikayeti (haklı)
