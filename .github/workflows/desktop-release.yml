@@ -1,9 +1,10 @@
 name: Desktop Release
 
 on:
-  push:
-    tags:
-      - 'desktop-v*'
+  # Tag yayınını build-codegaai-desktop-windows/macos workflow'ları yapar.
+  # Bu eski birleşik workflow aynı Windows asset'lerini ikinci kez yükleyip
+  # updater'ın elindeki imzalı GitHub URL'sini geçersiz kıldığı için yalnızca
+  # manuel kurtarma amacıyla çalıştırılabilir.
   workflow_dispatch:
 
 permissions:

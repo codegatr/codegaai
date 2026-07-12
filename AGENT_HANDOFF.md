@@ -1,3 +1,15 @@
+## Codex Update - 2026-07-12 — alpha.120: Updater asset yarış koşulu düzeltmesi
+
+alpha.119 tag'inde eski `desktop-release.yml` ile güncel Windows workflow aynı
+isimli `.exe`/`latest.yml` asset'lerini art arda yükledi. İkinci yükleme ilk asset'i
+değiştirince çalışan updater'ın geçici GitHub asset URL'si geçersiz kaldı ve
+`Cannot download` hatası oluştu.
+
+- `desktop-release.yml` tag tetikleyicisi kaldırıldı; workflow yalnız manuel kurtarma içindir.
+- Tag yayınını tek Windows ve tek macOS workflow'u yapar; aynı Windows asset'i iki kez yazılmaz.
+- Updater 403/404/Cannot download hatasını kullanıcıya yeniden kontrol/indirme önerisiyle açıklar.
+- Release hedefi: `desktop-v6.0.0-alpha.120`; Actions ve asset metadata doğrulanmalıdır.
+
 ## Codex Update - 2026-07-12 — alpha.119: OpenRouter ücretsiz model havuzu
 
 `z-ai/glm-5.2:free` OpenRouter tarafından kaldırıldığı için bağlantı testi HTTP 404

@@ -102,6 +102,9 @@ function updateErrorMessage(error) {
   if (/sha512 checksum mismatch|checksum mismatch/i.test(message)) {
     return "Guncelleme dosyasi dogrulanamadi. Indirme bozulmus veya GitHub release dosyasi yeni guncellenmis olabilir; birazdan tekrar kontrol edip yeniden indir.";
   }
+  if (/Cannot download|status code 404|HttpError:\s*404|status code 403|HttpError:\s*403/i.test(message)) {
+    return "GitHub indirme baglantisi gecersiz veya suresi dolmus. Guncellemeyi yeniden kontrol edip tekrar indir.";
+  }
   if (/ERR_UPDATER_CHANNEL_FILE_NOT_FOUND|Cannot find channel/i.test(message)) {
     return "Guncelleme metadata dosyasi sunucuda bulunamadi (latest-mac.yml). Agda bir sorun olabilir; birazdan tekrar dene.";
   }
