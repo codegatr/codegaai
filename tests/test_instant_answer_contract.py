@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import unittest
+from unittest.mock import patch
 
 
 class InstantAnswerContractTest(unittest.TestCase):
@@ -31,6 +32,53 @@ class InstantAnswerContractTest(unittest.TestCase):
         self.assertIsNotNone(answer)
         self.assertEqual(answer.content, "OK")
         self.assertEqual(answer.intent, "direct_output")
+
+    def test_plain_ok_write_returns_exact_text_without_model(self) -> None:
+        from codegaai.core.instant_answers import instant_answer_for
+
+        answer = instant_answer_for("OK yaz")
+
+        self.assertIsNotNone(answer)
+        self.assertEqual(answer.content, "OK")
+        self.assertEqual(answer.intent, "direct_output")
+
+    def test_direct_output_preserves_real_turkish_value(self) -> None:
+        from codegaai.core.instant_answers import instant_answer_for
+
+        answer = instant_answer_for("Sadece MAVİ yaz. Başka hiçbir şey yazma.")
+
+        self.assertIsNotNone(answer)
+        self.assertEqual(answer.content, "MAVİ")
+        self.assertEqual(answer.intent, "direct_output")
+
+    def test_short_qa_real_turkish_returns_without_model(self) -> None:
+        from codegaai.core.instant_answers import instant_answer_for
+
+        answer = instant_answer_for("PHP nedir? Tek cümle.")
+
+        self.assertIsNotNone(answer)
+        self.assertEqual(answer.intent, "short_qa")
+        self.assertIn("PHP", answer.content)
+
+    def test_chat_endpoint_instant_answer_does_not_touch_engine(self) -> None:
+        from fastapi.testclient import TestClient
+        from codegaai.api.server import app
+
+        client = TestClient(app)
+        with patch(
+            "codegaai.api.routes.chat.LLMEngine.get",
+            side_effect=AssertionError("LLMEngine.get must not run for instant answers"),
+        ):
+            response = client.post(
+                "/api/chat",
+                json={"messages": [{"role": "user", "content": "Sadece MAVİ yaz. Başka hiçbir şey yazma."}]},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["message"]["content"], "MAVİ")
+        self.assertEqual(payload["model"], "instant")
+        self.assertIn("fast_path_used=true", payload["note"])
 
     def test_sanitizer_removes_leaked_calculate_tool(self) -> None:
         from codegaai.core.answer_sanitizer import sanitize_final_answer

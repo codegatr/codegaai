@@ -7,7 +7,7 @@ Deterministic pre-model answers for tiny tasks.
 Local models are useful for reasoning, but they should never spend minutes on
 arithmetic, one-word control prompts, or very small factual questions. This
 module keeps the chat pipeline responsive by answering safe micro-tasks before
-model generation.
+model generation, routing, RAG, verifier, federation, or agent loops.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from __future__ import annotations
 import ast
 import operator
 import re
+import unicodedata
 from dataclasses import dataclass
 
 
@@ -35,18 +36,18 @@ _ALLOWED_UNARY = {
     ast.USub: operator.neg,
 }
 
-_ACKS = {"tamam", "ok", "peki", "olur", "anladim", "anladım"}
+_ACKS = {"tamam", "ok", "peki", "olur", "anladim"}
 _GREETINGS = {
-    "merhaba": "Merhaba. Buradayim, nasil yardimci olayim?",
-    "selam": "Selam. Buradayim, nasil yardimci olayim?",
-    "gunaydin": "Gunaydin. Buradayim, nasil yardimci olayim?",
-    "iyi aksamlar": "Iyi aksamlar. Buradayim, nasil yardimci olayim?",
-    "iyi geceler": "Iyi geceler. Buradayim, nasil yardimci olayim?",
+    "merhaba": "Merhaba, nasil yardimci olabilirim?",
+    "selam": "Selam, nasil yardimci olabilirim?",
+    "gunaydin": "Gunaydin, nasil yardimci olabilirim?",
+    "iyi aksamlar": "Iyi aksamlar, nasil yardimci olabilirim?",
+    "iyi geceler": "Iyi geceler, nasil yardimci olabilirim?",
 }
 _THANKS = {"tesekkur", "tesekkurler", "sagol", "eyvallah"}
 
 _DIRECT_OUTPUT_RE = re.compile(
-    r"(?:^|\b)(?:sadece|yalnizca|only)\s+"
+    r"(?:^|\b)(?:sadece|yalnizca|yalniz|only)\s+"
     r"[\"']?(?P<value>[^\"'\r\n]{1,40}?)[\"']?\s+"
     r"(?:yaz|soyle|cevapla|write|say|reply)\b",
     re.IGNORECASE,
@@ -76,13 +77,40 @@ class InstantAnswer:
     intent: str = "instant"
 
 
+def _repair_mojibake(text: str) -> str:
+    value = str(text or "")
+    if not any(marker in value for marker in ("Ã", "Ä", "Å")):
+        return value
+    try:
+        repaired = value.encode("latin1").decode("utf-8")
+    except UnicodeError:
+        return value
+    turkish = "çğıöşüÇĞİÖŞÜ"
+    if sum(ch in repaired for ch in turkish) >= sum(ch in value for ch in turkish):
+        return repaired
+    return value
+
+
 def _fold_tr(text: str) -> str:
+    value = _repair_mojibake(text)
     table = str.maketrans({
-        "İ": "i", "I": "i", "ı": "i", "ğ": "g", "Ğ": "g",
-        "ü": "u", "Ü": "u", "ş": "s", "Ş": "s",
-        "ö": "o", "Ö": "o", "ç": "c", "Ç": "c",
+        "İ": "i",
+        "I": "i",
+        "ı": "i",
+        "ğ": "g",
+        "Ğ": "g",
+        "ü": "u",
+        "Ü": "u",
+        "ş": "s",
+        "Ş": "s",
+        "ö": "o",
+        "Ö": "o",
+        "ç": "c",
+        "Ç": "c",
     })
-    return str(text or "").translate(table).casefold().replace("i\u0307", "i")
+    value = unicodedata.normalize("NFKD", value.translate(table))
+    value = "".join(ch for ch in value if not unicodedata.combining(ch))
+    return value.casefold().replace("i\u0307", "i")
 
 
 def _eval_node(node: ast.AST) -> float:
@@ -115,7 +143,7 @@ def calculate_expression(expr: str) -> str | None:
 
 def instant_answer_for(message: str) -> InstantAnswer | None:
     """Answer safe micro-tasks without calling the LLM."""
-    text = str(message or "").strip()
+    text = _repair_mojibake(str(message or "")).strip()
     if not text:
         return None
 
@@ -147,24 +175,25 @@ def instant_answer_for(message: str) -> InstantAnswer | None:
 
     if compact in _ACKS:
         return InstantAnswer("Tamam.", intent="ack")
+    if compact in {"ok yaz", "okay yaz"}:
+        return InstantAnswer("OK", intent="direct_output")
+    if compact == "tamam yaz":
+        return InstantAnswer("Tamam", intent="direct_output")
     if compact in _GREETINGS:
         return InstantAnswer(_GREETINGS[compact], intent="social")
     if compact in _THANKS:
         return InstantAnswer("Rica ederim. Buradayim, devam edebiliriz.", intent="social")
 
-    # Deterministic command/query answers. These must run before generic LLM
-    # routing so prompts like "Sadece komutu yaz" do not get reduced to the
-    # placeholder word "komutu".
     if re.search(r"(ubuntu|linux).{0,80}(disk|kullanim|kullanimi|usage)", folded, re.IGNORECASE):
         return InstantAnswer("df -h", intent="command_qa")
 
-    if re.search(r"(mysql|mariadb).{0,80}(tum|tüm|veritaban|database).{0,80}(liste|goster|göster|show)", folded, re.IGNORECASE):
+    if re.search(r"(mysql|mariadb).{0,80}(tum|veritaban|database).{0,80}(liste|goster|show)", folded, re.IGNORECASE):
         return InstantAnswer("SHOW DATABASES;", intent="command_qa")
 
-    if re.search(r"(docker).{0,80}(calisan|çalışan|container|konteyner).{0,80}(liste|goster|göster|ps)", folded, re.IGNORECASE):
+    if re.search(r"(docker).{0,80}(calisan|container|konteyner).{0,80}(liste|goster|ps)", folded, re.IGNORECASE):
         return InstantAnswer("docker ps", intent="command_qa")
 
-    if re.search(r"(users).{0,80}(tum|tüm|kayit|kayıt).{0,80}(liste|goster|göster|select)", folded, re.IGNORECASE):
+    if re.search(r"(users).{0,80}(tum|kayit).{0,80}(liste|goster|select)", folded, re.IGNORECASE):
         return InstantAnswer("SELECT * FROM users;", intent="command_qa")
 
     if re.search(r"\bphp\s+(nedir|ne demek)\b", folded, re.IGNORECASE):

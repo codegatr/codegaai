@@ -136,7 +136,6 @@ async def chat(req: ChatRequest) -> ChatResponse:
         raise HTTPException(400, "messages boş olamaz")
 
     store = ChatStore.open()
-    engine = LLMEngine.get()
 
     # chat_id verildiyse doğrula + son kullanıcı mesajını DB'ye yaz
     if req.chat_id is not None:
@@ -185,9 +184,16 @@ async def chat(req: ChatRequest) -> ChatResponse:
                 finish_reason="stop",
                 timing_ms=0,
                 chat_id=req.chat_id,
+                note=(
+                    f"task_class={instant.intent}; fast_path_used=true; "
+                    "planner_enabled=false; verifier_enabled=false; "
+                    "adversarial_review_enabled=false; response_completed=true; timeout=false"
+                ),
             )
     except Exception as exc:
         log.debug("Instant answer skipped: %s", exc)
+
+    engine = LLMEngine.get()
     try:
         from codegaai.core.model_router import ModelRouter
         history_for_routing = [
