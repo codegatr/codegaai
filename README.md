@@ -39,11 +39,11 @@
 
 ---
 
-## Güncel Sürüm — 6.0.0-alpha.125
+## Güncel Sürüm — 6.0.0-alpha.126
 
 **Yayın tarihi:** 13 Temmuz 2026
 
-**İndir:** [CODEGA AI Desktop 6.0.0-alpha.125](https://github.com/codegatr/codegaai/releases/tag/desktop-v6.0.0-alpha.125)
+**İndir:** [CODEGA AI Desktop 6.0.0-alpha.126](https://github.com/codegatr/codegaai/releases/tag/desktop-v6.0.0-alpha.126)
 
 Bu sürümde:
 

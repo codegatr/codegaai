@@ -5,6 +5,13 @@ const os = require("node:os");
 const path = require("node:path");
 const { detectDeliverIntent } = require("../builder/build-intent");
 const { extractFiles } = require("../builder/extract-files");
+const {
+  buildPackPhp,
+  buildSeparateCodeBlockContract,
+  detectZipBundlingRisk,
+  normalizeGeneratedProject,
+  renderFilesAsMarkdown,
+} = require("../builder/file-parser-packer-engine");
 const { executeProject } = require("../builder/project-executor");
 
 describe("build-intent: teslim isteği saptama", () => {
@@ -73,6 +80,59 @@ describe("extract-files: kod bloklarından dosya", () => {
   test("path traversal içeren etiket normalize edilir (kök dışına çıkmaz kısmı)", () => {
     const files = extractFiles("```php ./sub/config.php\n<?php\n```");
     expect(files[0].path).toBe("sub/config.php");
+  });
+});
+
+describe("file-parser-packer-engine: guvenli dosya ayrisma + pack.php", () => {
+  test("pack.php diskten addFile ile paketler; addFromString kullanmaz ve 20 satiri gecmez", () => {
+    const pack = buildPackPhp({ zipName: "demo.zip" });
+    expect(pack).toMatch(/ZipArchive/);
+    expect(pack).toMatch(/addFile/);
+    expect(pack).not.toMatch(/addFromString/);
+    expect(pack.split(/\r?\n/).length).toBeLessThanOrEqual(20);
+  });
+
+  test("proje sozlesmesi ayri code block ve pack.php kuralini zorlar", () => {
+    const contract = buildSeparateCodeBlockContract({ zipName: "demo.zip" });
+    expect(contract).toMatch(/AYRI Markdown kod blogu/);
+    expect(contract).toMatch(/pack\.php/);
+    expect(contract).toMatch(/addFromString/);
+  });
+
+  test("ayri dosya bloklarini normalize eder ve eksikse pack.php ekler", () => {
+    const text = [
+      "```php index.php",
+      "<?php echo 'ok';",
+      "```",
+      "```sql schema.sql",
+      "CREATE TABLE users(id INT);",
+      "```",
+    ].join("\n");
+    const r = normalizeGeneratedProject(text, { zipName: "demo.zip" });
+    expect(r.diagnostics.needsRetry).toBe(false);
+    expect(r.files.map((f) => f.path)).toEqual(["index.php", "schema.sql", "pack.php"]);
+    expect(r.files.find((f) => f.path === "pack.php").content).toMatch(/demo\.zip/);
+  });
+
+  test("tek dev ZipArchive/addFromString bundling riskini yakalar", () => {
+    const text = "```php build.php\n<?php $zip=new ZipArchive(); $zip->addFromString('index.php','<?php echo 1;');\n```";
+    const risk = detectZipBundlingRisk(text);
+    const r = normalizeGeneratedProject(text);
+    expect(risk.isRisky).toBe(true);
+    expect(r.diagnostics.errors).toContain("MONOLITHIC_ZIP_BUNDLING");
+    expect(r.diagnostics.needsRetry).toBe(true);
+  });
+
+  test("kapanmamis kod blogunu retry gerektiren yarim dosya olarak isaretler", () => {
+    const r = normalizeGeneratedProject("```php index.php\n<?php echo 'yarim';");
+    expect(r.diagnostics.unclosedFence).toBe(true);
+    expect(r.retryInstruction).toMatch(/yarim kalan dosyayi/);
+  });
+
+  test("normalize edilen dosyalar tekrar markdown olarak ayri bloklara doner", () => {
+    const out = renderFilesAsMarkdown([{ path: "app/index.php", content: "<?php echo 'ok';" }]);
+    expect(out).toMatch(/```php app\/index\.php/);
+    expect(out).toMatch(/echo 'ok'/);
   });
 });
 

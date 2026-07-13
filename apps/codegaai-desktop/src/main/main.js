@@ -43,7 +43,10 @@ const { contextEngine }            = require("./agent/context/context-engine");
 const { registerAEPIpc }              = require("./agent/aep/aep-ipc");
 const { aepOS }                       = require("./agent/aep/aep-os");
 const { detectDeliverIntent }         = require("./agent/builder/build-intent");
-const { extractFiles }                = require("./agent/builder/extract-files");
+const {
+  buildSeparateCodeBlockContract,
+  normalizeGeneratedProject,
+}                                      = require("./agent/builder/file-parser-packer-engine");
 const { executeProject }              = require("./agent/builder/project-executor");
 const { registerACEIpc }              = require("./agent/ace/ace-ipc");
 const { initACEOS }                   = require("./agent/ace/ace-os");
@@ -650,16 +653,30 @@ function registerIpc() {
       // üretme — modele dosyaları ürettir, GERÇEKTEN diske yaz ve paketle.
       const deliver = detectDeliverIntent(message);
       if (deliver.isDeliver) {
+        const outputContract = buildSeparateCodeBlockContract({
+          projectName: deliver.folder,
+          zipName: deliver.zipName,
+        });
         const gen = await modelManager.askDirect(
-          `${resolvedMessage}\n\n[SİSTEM: Yalnız istenen dosyaları üret. Her dosyayı ` +
+          `${resolvedMessage}\n\n[SİSTEM: Yalnız istenen dosyaları üret.\n${outputContract}\nHer dosyayı ` +
           "```dil:GERÇEK_DOSYA_ADI``` biçiminde AYRI kod bloğunda ver — dosya adı ZORUNLU " +
           "(örn ```php:config.php, ```sql:schema.sql, ```apache:.htaccess). Ana sayfa index.php, " +
           "DB bağlantısı config.php, veritabanı şeması schema.sql, yönlendirme .htaccess olsun. " +
           "'dosya-1' gibi jenerik ad KULLANMA. Açıklama/bahane yazma.]",
           { onToken, chatId, history: histOpt, cognitiveContext: simpleMode ? "" : cognitiveBrief }
         );
-        const files = extractFiles(gen && gen.text || "");
-        if (files.length) {
+        const normalized = normalizeGeneratedProject(gen && gen.text || "", {
+          projectName: deliver.folder,
+          zipName: deliver.zipName,
+        });
+        const files = normalized.files;
+        if (normalized.diagnostics.needsRetry) {
+          try {
+            logs.warn("builder", `project output retry-needed: ${normalized.diagnostics.errors.join(",")} ${normalized.retryInstruction}`);
+          } catch (_e) {}
+        }
+        const realFiles = files.filter((f) => String(f.path || "").toLowerCase() !== "pack.php");
+        if (realFiles.length && !normalized.diagnostics.zipBundlingRisk.isRisky && !normalized.diagnostics.unclosedFence) {
           try { event.sender.send("chat:status", { stage: "packaging", text: `${files.length} dosya doğrulandı; ZIP hazırlanıyor.` }); } catch (_e) {}
           const workspaceRoot = path.join(app.getPath("userData"), "codega-workspace");
           try {
