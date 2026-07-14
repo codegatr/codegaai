@@ -39,20 +39,20 @@
 
 ---
 
-## Güncel Sürüm — 6.0.0-alpha.124
+## Güncel Sürüm — 7.0.0
 
-**Yayın tarihi:** 13 Temmuz 2026
+**Yayın tarihi:** 14 Temmuz 2026
 
-**İndir:** [CODEGA AI Desktop 6.0.0-alpha.124](https://github.com/codegatr/codegaai/releases/tag/desktop-v6.0.0-alpha.124)
+**İndir:** [CODEGA AI Desktop 7.0.0](https://github.com/codegatr/codegaai/releases/tag/desktop-v7.0.0)
 
 Bu sürümde:
 
-- OpenRouter `openrouter/free` gerçek sohbet sağlayıcı zincirinde çalışır; Ollama yalnız fallback olur.
-- Güncel hava ve zamana bağlı bilgiler model tahminine bırakılmadan ağ araçlarıyla alınır.
-- Hava konuşmasından sonraki bağımsız araştırmalar eski şehir bağlamına yanlış bağlanmaz.
-- Uzun kod bloklarındaki meşru tekrarlar dejenerasyon sayılmaz; gerçek runaway döngü koruması devam eder.
-- Üretilen dosyalar doğrulandıktan sonra ZIP paketleme aşaması görünür ve gerçek arşiv teslim edilir.
-- Windows ve macOS updater metadata dosyaları release varlıklarıyla birlikte doğrulanır.
+- RAM, VRAM ve CPU rezervlerini hesaba katan cihaz profili görev bazlı en uygun yerel modeli önerir.
+- Eksik önerilen Ollama modeli arka planda hazırlanırken kurulu model kesintisiz hizmet vermeyi sürdürür.
+- Yerel stream çıktısı doğrulanana kadar karantinada tutulur; `char_salad`, bozuk SQL/PHP ve runaway içerik kullanıcıya sızmaz.
+- Yerel onarım başarısız olduğunda yapılandırılmış Claude/OpenAI/Gemini/OpenRouter failover zinciri devreye girer.
+- `.codegaai.json` v2 proje belleği secretsiz mühendislik gerçeklerini yerel vektörler ve keyword fallback ile kalıcı hatırlar.
+- Kurulu Ollama modellerinin manifest/digest sürüm durumu başlangıçta kontrol edilir; güncelleme insan onayı olmadan uygulanmaz.
 
 Önceki sürümler ve ayrıntılı varlıklar için [GitHub Releases](https://github.com/codegatr/codegaai/releases) sayfasına bakın.
 
@@ -148,7 +148,7 @@ python launcher.py
 cd apps/codegaai-desktop
 npm install
 npm run dev        # uygulamayı başlat
-npm run test:ci    # check + 58 suite / 654 test
+npm run test:ci    # check + 59 suite / 659 test
 ```
 
 macOS geliştirici kurulumu: `bash installer/macos/install.sh` (Python 3.12'de Coqui TTS atlanır; XTTS gerekiyorsa Python 3.11 kullanın).
@@ -172,7 +172,7 @@ macOS geliştirici kurulumu: `bash installer/macos/install.sh` (Python 3.12'de C
 Hiçbir sürüm şu kapılardan geçmeden yayınlanmaz:
 
 1. **`npm run check`** — 240+ dosyalık yapısal sözleşme: zorunlu modüller, sürüm çift-pin (package.json ↔ check.mjs), güvenlik kuralları (asar, asInvoker, emekli model referansı yasağı)
-2. **`npm run test:ci`** — 58 suite / 654 Jest testi: regresyon, UTF-8/mojibake, builder, ZIP bütünlüğü, görev sürekliliği, bağlam sürekliliği, hafıza bütünlüğü, Kontrol Merkezi sözleşmesi
+2. **`npm run test:ci`** — 59 suite / 659 Jest testi: regresyon, UTF-8/mojibake, builder, ZIP bütünlüğü, görev sürekliliği, bağlam sürekliliği, hafıza bütünlüğü, Kontrol Merkezi sözleşmesi
 3. **Python sözleşme testleri** — README, federasyon PHP, kurulum ve platform iş akışı denetimleri
 4. **Tag-tetiklemeli release** — `desktop-v*` tag'i Windows + macOS build'lerini üretir; updater metadata (`latest.yml`) otomatik yayınlanır
 

@@ -116,7 +116,7 @@ describe("streamChatOnce canlı kesici: tur içi kaçak tekrar", () => {
 
     expect(full).toContain("Temiz baslangic");
     expect(full).toContain("qwertyuiop");
-    expect(tokens.join("")).toBe("Temiz baslangic. ");
+    expect(tokens.join("")).toBe("");
     expect(tokens.join("")).not.toContain("qwertyuiop");
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
@@ -143,12 +143,25 @@ describe("streamChatOnce canlı kesici: tur içi kaçak tekrar", () => {
     });
 
     expect(full).toContain("ON JOIN");
-    expect(tokens.join("")).toBe("Temiz SQL girisi. ");
+    expect(tokens.join("")).toBe("");
     expect(tokens.join("")).not.toContain("ON JOIN");
     expect(global.fetch).toHaveBeenCalledTimes(1);
     const logText = fs.readFileSync(logPath, "utf8");
     expect(logText).toMatch(/sql_syntax_salad|dangling_alias|structural_error/);
     expect(logText).toMatch(/ON JOIN/);
+  });
+
+  test("guvenli yerel akis guardrail tamamlaninca tek parca flush edilir", async () => {
+    const lines = [tokenLine("Temiz "), tokenLine("ve tamamlanmis yanit."), finalLine("stop")];
+    global.fetch = jest.fn(async () => abortAwareStream(lines, {}));
+    const tokens = [];
+
+    const full = await ollamaChatStream("m", [{ role: "user", content: "yanitla" }], {
+      onToken: (token) => tokens.push(token),
+    });
+
+    expect(full).toBe("Temiz ve tamamlanmis yanit.");
+    expect(tokens).toEqual([full]);
   });
 });
 

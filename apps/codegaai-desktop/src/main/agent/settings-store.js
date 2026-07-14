@@ -44,6 +44,7 @@ const DEFAULTS = {
   streaming: true, // cevabı token token canlı göster (kapatılabilir)
   provider: "ollama", // "ollama" | "openai" | "claude" | "gemini"
   modelAutoFallback: true,
+  autoDownloadRecommendedModels: true, // uygun eksik Ollama modelini arka planda tekil olarak hazirla
   modelFallbackOrder: ["ollama", "openai", "claude", "gemini"],
   trustedFolders: [],
   toolPermissions: {
