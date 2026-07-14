@@ -9,6 +9,8 @@ const {
   saveSemanticProjectProfile,
   extractProjectProfileFacts,
   buildProjectProfileContext,
+  rememberProjectSemanticFacts,
+  recallProjectSemanticMemory,
 } = require("../memory/semantic-project-profile");
 const { ModelManager } = require("../../model-manager");
 
@@ -46,6 +48,30 @@ describe("semantic-project-profile", () => {
     expect(context).toMatch(/PROJECT SEMANTIC PROFILE/);
     expect(context).toMatch(/Keep CODEGA local-first/);
     expect(context).toMatch(/forbiddenLibraries/);
+  });
+
+  test("persists project-scoped vectors and recalls the closest engineering fact", async () => {
+    const dir = tmpDir();
+    const vector = async (text) => /guardrail|char_salad/i.test(text) ? [1, 0] : [0, 1];
+    await rememberProjectSemanticFacts(dir, {
+      guardrails: ["Abort and quarantine char_salad before user-visible output."],
+      environment: ["DirectAdmin constraints matter."],
+    }, { embedFn: vector });
+
+    const recalled = await recallProjectSemanticMemory(dir, "guardrail char_salad", { embedFn: vector, limit: 1 });
+    expect(loadSemanticProjectProfile(dir).version).toBe(2);
+    expect(recalled.mode).toBe("vector");
+    expect(recalled.items[0].text).toMatch(/char_salad/);
+    expect(recalled.context).toMatch(/RECALLED PROJECT MEMORY/);
+  });
+
+  test("does not persist secret-like facts in semantic memory", async () => {
+    const dir = tmpDir();
+    const result = await rememberProjectSemanticFacts(dir, {
+      environment: ["api_key=super-secret-value"],
+    }, { embedFn: async () => [1] });
+    expect(result.added).toBe(0);
+    expect(loadSemanticProjectProfile(dir).memories).toEqual([]);
   });
 
   test("askDirect loads project profile as system context when projectRoot is provided", async () => {

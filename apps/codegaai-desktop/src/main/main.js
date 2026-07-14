@@ -1523,6 +1523,11 @@ app.whenReady().then(async () => {
     if (!settings || !settings.defaultModel) return;
     // Re-detect after setup to keep status current
     await modelManager.detect().catch(() => {});
+    // Sadece manifest/digest kontrolu yapilir; model dosyasi insan onayi olmadan
+    // degistirilmez. UI mevcut ModelUpdateService snapshot'i uzerinden sonucu gosterir.
+    if (settings.autoModelUpdates !== false) {
+      await modelUpdateService.check().catch(() => {});
+    }
   };
   try { await maybeUpdateModels(); } catch (_e) {}
 });

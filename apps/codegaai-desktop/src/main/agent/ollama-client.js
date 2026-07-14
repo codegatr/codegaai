@@ -5,7 +5,11 @@ const os = require("node:os");
 const path = require("node:path");
 const { detectRunawayRepetition } = require("./anti-loop");
 const { hasCharSalad, structuralStreamFailure } = require("./answer-quality");
-const { quarantineStreamFailure } = require("./stream-guardrail");
+const {
+  quarantineStreamFailure,
+  normalizeGuardrailConfig,
+  detectStreamGuardrailFailure,
+} = require("./stream-guardrail");
 /**
  * agent/ollama-client.js
  * -----------------------
@@ -348,16 +352,19 @@ async function ollamaChatStream(model, messages, opts = {}) {
   // genOptions bir kez kurulur; her tur aynı parametrelerle çalışır.
   // numCtx girdi boyutuna göre uyarlanır (büyük prompt budanmasın → dejenerasyon).
   const genOptions = buildGenOptions({ ...opts, numCtx: adaptiveNumCtx(messages, opts.numCtx, opts.numPredict) });
+  const guardrail = normalizeGuardrailConfig({}, opts.guardrailConfig || {});
+  const quarantineTokens = guardrail.enabled && guardrail.quarantineEnabled;
 
   let convo = Array.isArray(messages) ? messages.slice() : [];
   let full = "";
   let continuations = 0;
+  let terminalReason = null;
 
   for (;;) {
     const { text, doneReason } = await streamChatOnce(model, convo, {
       host,
       think,
-      onToken,
+      onToken: quarantineTokens ? null : onToken,
       signal: opts.signal,
       timeoutMs: perRoundTimeoutMs,
       genOptions,
@@ -365,6 +372,7 @@ async function ollamaChatStream(model, messages, opts = {}) {
       guardrailAttempt: opts.guardrailAttempt,
     });
     full += text;
+    terminalReason = doneReason;
 
     // Canlı kesici bu turu kestiyse devam turu ATMA — çöpü uzatma.
     if (doneReason === "runaway" || doneReason === "char_salad" || doneReason === "structural_error") break;
@@ -383,6 +391,13 @@ async function ollamaChatStream(model, messages, opts = {}) {
       { role: "assistant", content: full },
       { role: "user", content: "Önceki yanıtın çıktı sınırında kesildi. Kaldığın yerden, hiçbir şeyi tekrar etmeden devam et." }
     );
+  }
+  if (quarantineTokens && onToken && full.trim()) {
+    const finalFailure = detectStreamGuardrailFailure(full, guardrail);
+    const unsafe = terminalReason === "runaway" || terminalReason === "char_salad" || terminalReason === "structural_error" || finalFailure.bad;
+    if (!unsafe) {
+      try { onToken(full); } catch (_e) {}
+    }
   }
   return full;
 }

@@ -68,11 +68,15 @@ const { runOrchestrated } = require("./agent/orchestrator");
 const { SPECIALISTS, routeStep, buildSpecialistPrompt } = require("./agent/agents");
 const improveDrafts = require("./agent/improve-drafts");
 const experts = require("./agent/experts");
+const systemInfo = require("./agent/system-info");
+const { recommendModelSet, modelForTask } = require("./agent/device-model-policy");
 const {
   loadSemanticProjectProfile,
   saveSemanticProjectProfile,
   extractProjectProfileFacts,
   buildProjectProfileContext,
+  rememberProjectSemanticFacts,
+  recallProjectSemanticMemory,
 } = require("./agent/memory/semantic-project-profile");
 
 function extractWeatherCity(input) {
@@ -1584,7 +1588,19 @@ class ModelManager {
     const guardrailConfig = normalizeGuardrailConfig(s, opts.guardrail || {});
     let installed = [];
     try { installed = await this.installedModels(); } catch (_e) { installed = []; }
-    const model = s.defaultModel || s.model || chooseModelForTask("chat", installed) || DEFAULT_MODEL;
+    const task = detectTask(text0);
+    const hardware = s.hardwareProfile || systemInfo.analyze(MODEL_OPTIONS);
+    const deviceRecommendation = recommendModelSet(hardware);
+    const desiredModel = modelForTask(task, deviceRecommendation.recommended) || DEFAULT_MODEL;
+    const configuredModel = s.defaultModel || s.model || "";
+    const model = isInstalledModel(installed, configuredModel)
+      ? configuredModel
+      : chooseModelForTask(task, installed) || chooseModelForTask("chat", installed) || desiredModel;
+    const primaryProvider = configuredProviderChain(s)[0] || "ollama";
+    if (primaryProvider === "ollama" && s.autoDownloadRecommendedModels !== false && !isInstalledModel(installed, desiredModel)) {
+      const localRuntimeReady = await ollamaReachable().catch(() => false);
+      if (localRuntimeReady) this.prepareModelInBackground(desiredModel);
+    }
 
     const history = this.historyFor(opts.chatId);
     if (history.length === 0) seedConversationHistory(history, opts.history, MAX_HISTORY_MESSAGES);
@@ -1669,9 +1685,13 @@ class ModelManager {
     const projectRoot = semanticProjectRoot(opts);
     if (projectRoot) {
       try {
-        saveSemanticProjectProfile(projectRoot, extractProjectProfileFacts(text0));
+        const extractedFacts = extractProjectProfileFacts(text0);
+        saveSemanticProjectProfile(projectRoot, extractedFacts);
+        await rememberProjectSemanticFacts(projectRoot, extractedFacts);
         const profileContext = buildProjectProfileContext(loadSemanticProjectProfile(projectRoot));
         if (profileContext) messages.push({ role: "system", content: profileContext });
+        const recalled = await recallProjectSemanticMemory(projectRoot, text0, { limit: 5 });
+        if (recalled.context) messages.push({ role: "system", content: recalled.context });
       } catch (error) {
         try { logs.warn("semantic_project_profile", error && (error.message || error)); } catch (_e) {}
       }
@@ -1744,6 +1764,9 @@ class ModelManager {
             this._abort = null;
           }
           if (recovered && !looksDegenerate(recovered, text0).bad) {
+            if (opts.onToken) {
+              try { opts.onToken(recovered); } catch (_e) {}
+            }
             return { text: recovered, model: `${provider}:${cloud.model}` };
           }
         }

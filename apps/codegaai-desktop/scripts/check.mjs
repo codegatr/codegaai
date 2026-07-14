@@ -443,7 +443,7 @@ if (!modelManagerFile.includes("buildSelfRepairInstruction")) throw new Error("m
 if (modelManagerFile.includes("[SYSTEM LIMIT]")) throw new Error("model-manager.js '[SYSTEM LIMIT]' bahane nutku geri gelmiş — insani mesaj kullanılmalı");
 
 if (!indexHtml.includes("ov-health-openrouter")) throw new Error("index.html Kontrol Merkezi OpenRouter sağlık satırı (ov-health-openrouter) eksik");
-if (pkg.version !== "6.0.0-alpha.124") throw new Error(`Desktop package version must be 6.0.0-alpha.124, got ${pkg.version}`);
+if (pkg.version !== "7.0.0") throw new Error(`Desktop package version must be 7.0.0, got ${pkg.version}`);
 const readmeFile = readText(join(repoRoot, "README.md"));
 if (!readmeFile.includes(`## Güncel Sürüm — ${pkg.version}`)) throw new Error(`README güncel sürüm bilgisi package.json ile eşleşmeli: ${pkg.version}`);
 
