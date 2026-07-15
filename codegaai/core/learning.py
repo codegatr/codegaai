@@ -435,7 +435,6 @@ class TrainingEngine:
         return self._status.state == "training"
 
     @staticmethod
-    @staticmethod
     def check_dependencies() -> dict[str, bool]:
         """peft + trl + bitsandbytes mevcut mu? Frozen build'de subprocess ile test et."""
         import sys
