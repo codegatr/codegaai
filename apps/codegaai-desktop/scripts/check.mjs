@@ -166,6 +166,10 @@ for (const file of required) readText(join(root, file));
 for (const file of rootRequired) readText(join(repoRoot, file));
 
 const pkg = JSON.parse(readText(join(root, "package.json")));
+const packageLock = JSON.parse(readText(join(root, "package-lock.json")));
+if (packageLock.version !== pkg.version || packageLock.packages?.[""]?.version !== pkg.version) {
+  throw new Error(`package-lock.json version must match package.json: ${pkg.version}`);
+}
 if (!pkg.build?.nsis || !pkg.dependencies?.["electron-updater"]) throw new Error("Installer/updater configuration is missing");
 if (pkg.build?.win?.requestedExecutionLevel !== "asInvoker") throw new Error("Windows installer must not request elevated privileges by default");
 if (pkg.build?.asar !== true) throw new Error("Electron app should be packed with asar");
