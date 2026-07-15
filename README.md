@@ -39,20 +39,19 @@
 
 ---
 
-## Güncel Sürüm — 7.0.0
+## Güncel Sürüm — 7.0.1
 
-**Yayın tarihi:** 14 Temmuz 2026
+**Yayın tarihi:** 15 Temmuz 2026
 
-**İndir:** [CODEGA AI Desktop 7.0.0](https://github.com/codegatr/codegaai/releases/tag/desktop-v7.0.0)
+**İndir:** [CODEGA AI Desktop 7.0.1](https://github.com/codegatr/codegaai/releases/tag/desktop-v7.0.1)
 
 Bu sürümde:
 
-- RAM, VRAM ve CPU rezervlerini hesaba katan cihaz profili görev bazlı en uygun yerel modeli önerir.
-- Eksik önerilen Ollama modeli arka planda hazırlanırken kurulu model kesintisiz hizmet vermeyi sürdürür.
-- Yerel stream çıktısı doğrulanana kadar karantinada tutulur; `char_salad`, bozuk SQL/PHP ve runaway içerik kullanıcıya sızmaz.
-- Yerel onarım başarısız olduğunda yapılandırılmış Claude/OpenAI/Gemini/OpenRouter failover zinciri devreye girer.
-- `.codegaai.json` v2 proje belleği secretsiz mühendislik gerçeklerini yerel vektörler ve keyword fallback ile kalıcı hatırlar.
-- Kurulu Ollama modellerinin manifest/digest sürüm durumu başlangıçta kontrol edilir; güncelleme insan onayı olmadan uygulanmaz.
+- Eğitim motorunun bağımlılık denetimini bozan çift `staticmethod` hatası giderildi.
+- `package.json` ve `package-lock.json` sürümleri temiz Windows/macOS kurulumları için eşitlendi.
+- Masaüstü kalite kapısı, lockfile sürümü release sürümünden ayrıştığında yayını artık durdurur.
+- Cihaz uyumlu model yönlendirme, karantinaya alınmış yerel akış ve bulut kurtarma zinciri korunur.
+- 59 test paketi ve 659 Jest testiyle yanıt kalitesi, bellek, builder ve teslimat regresyonları doğrulanır.
 
 Önceki sürümler ve ayrıntılı varlıklar için [GitHub Releases](https://github.com/codegatr/codegaai/releases) sayfasına bakın.
 
