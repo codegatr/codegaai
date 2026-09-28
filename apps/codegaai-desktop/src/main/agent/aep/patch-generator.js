@@ -25,6 +25,7 @@ const { execSync } = require("node:child_process");
 const { generatePRContent, createGitHubPR } = require("./pr-agent");
 const { PROPOSAL_STATUS } = require("./improvement-planner");
 const { SelfQAAgent } = require("./self-qa-agent");
+const { guardPatchSet } = require("./path-guard");
 
 // ── Durum Sabitleri ────────────────────────────────────────────────────────────
 
@@ -108,6 +109,26 @@ class PatchGenerator {
       result.status = PATCH_STATUS.PATCHING;
       const patches = await this._generatePatches(task, proposal, branchName);
       result.changedFiles = patches.map(p => p.path);
+
+      // 3b. YOL KORUMASI (push ÖNCESİ): LLM'in ürettiği patch'ler korumalı yollara
+      // (workflow, sır, updater/preload iç dosyaları, ayar deposu) ya da depo dışına
+      // (traversal/mutlak) DOKUNAMAZ. SelfQA push SONRASI çalışır; bu kapı bozuk yolun
+      // uzak dala hiç gitmemesini sağlar. CODEGA_RULES §Autonomous Development.
+      const pathGuard = guardPatchSet(patches);
+      if (!pathGuard.ok) {
+        const reasons = pathGuard.blocked.map((b) => `${b.path} (${b.reason})`).join("; ");
+        result.status = PATCH_STATUS.QA_BLOCKED;
+        result.qaReview = {
+          ok: false,
+          blockers: pathGuard.blocked.map((b) => ({
+            code: "protected-path",
+            message: `Korumalı/geçersiz yol: ${b.path} (${b.reason})`,
+            files: [b.path],
+          })),
+          warnings: [],
+        };
+        throw new Error(`Yol koruması engelledi (push edilmedi): ${reasons}`);
+      }
 
       // 4. Dosyaları GitHub'a push et
       if (this._token && patches.length) {

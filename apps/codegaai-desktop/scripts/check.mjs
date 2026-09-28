@@ -98,6 +98,8 @@ const required = [
   "src/main/agent/answer-adequacy.js",
   "src/main/agent/aep/engineering-timeline.js",
   "src/main/agent/aep/timeline-seed.js",
+  "src/main/agent/aep/path-guard.js",
+  "src/main/agent/__tests__/aep-path-guard.test.js",
   "src/main/agent/__tests__/engineering-timeline.test.js",
   "src/main/agent/__tests__/aep-cycle-integration.test.js",
   "src/main/agent/__tests__/context-continuity.test.js",
@@ -354,6 +356,11 @@ if (!mmFile.includes("_askBatched") || !mmFile.includes("chunkQuestions")) throw
 if (!mmFile.includes("strongestInstalledModel") || !mmFile.includes("autoModelEscalation")) throw new Error("model-manager.js otomatik model yükseltme (strongestInstalledModel/autoModelEscalation) eksik");
 const aepOsTimelineFile = readText(join(root, "src/main/agent/aep/aep-os.js"));
 if (!aepOsTimelineFile.includes("EngineeringTimeline") || !aepOsTimelineFile.includes("this.timeline")) throw new Error("aep-os.js Engineering Timeline entegrasyonu eksik");
+// AEP Yol Koruması: otonom patch hattı korumalı yollara/dışına yazamaz (CODEGA_RULES §Autonomous Development).
+if (!existsSync(join(root, "src/main/agent/aep/path-guard.js"))) throw new Error("AEP yol koruması modülü (aep/path-guard.js) eksik");
+const aepSelfQaFile = readText(join(root, "src/main/agent/aep/self-qa-agent.js"));
+const aepPatchGenFile = readText(join(root, "src/main/agent/aep/patch-generator.js"));
+if (!aepSelfQaFile.includes("guardPatchSet") || !aepPatchGenFile.includes("guardPatchSet")) throw new Error("AEP yol koruması (guardPatchSet) self-qa-agent veya patch-generator'a bağlanmamış");
 const mainEvoFile = readText(join(root, "src/main/main.js"));
 if (!mainEvoFile.includes("maybeRunEvolutionCycle") || !mainEvoFile.includes("aepOS.runCycle")) throw new Error("main.js otonom evrim döngüsü (maybeRunEvolutionCycle/aepOS.runCycle) bağlanmamış");
 if (!mmFile.includes("seedConversationHistory") || !mainEvoFile.includes("history:")) throw new Error("Bağlam sürekliliği (seedConversationHistory / renderer history taşıma) eksik");
