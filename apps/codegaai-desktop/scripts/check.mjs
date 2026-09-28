@@ -352,6 +352,7 @@ if (!ollamaClientFile.includes("adaptiveNumCtx")) throw new Error("ollama-client
 const mmFile = readText(join(root, "src/main/model-manager.js"));
 if (!mmFile.includes("_askBatched") || !mmFile.includes("chunkQuestions")) throw new Error("model-manager.js ardışık çok-soru kuyruğu (_askBatched/chunkQuestions) eksik");
 if (!mmFile.includes("strongestInstalledModel") || !mmFile.includes("autoModelEscalation")) throw new Error("model-manager.js otomatik model yükseltme (strongestInstalledModel/autoModelEscalation) eksik");
+if (!mmFile.includes("shouldEscalateToCloudForReasoning") || !mmFile.includes("WEAK_LOCAL_REASONING_THRESHOLD_B")) throw new Error("model-manager.js öngörülü bulut yönlendirmesi (shouldEscalateToCloudForReasoning/WEAK_LOCAL_REASONING_THRESHOLD_B) eksik");
 const aepOsTimelineFile = readText(join(root, "src/main/agent/aep/aep-os.js"));
 if (!aepOsTimelineFile.includes("EngineeringTimeline") || !aepOsTimelineFile.includes("this.timeline")) throw new Error("aep-os.js Engineering Timeline entegrasyonu eksik");
 const mainEvoFile = readText(join(root, "src/main/main.js"));

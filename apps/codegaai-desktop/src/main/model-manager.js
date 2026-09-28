@@ -1174,11 +1174,23 @@ function isRiddleQuestion(input) {
     && /(gerekir|yapmal[ıi]|kullanmal[ıi]|açmal[ıi])/i.test(q);
 }
 
-function prioritizeStrongModelForHeavyPrompt(input, installed, attemptModels, settings = {}) {
-  const current = Array.isArray(attemptModels) ? [...attemptModels] : [];
-  const heavyPrompt = answerAdequacy.isLongTechnicalQuestion(input)
+// Ağır/muhakeme sinyali: uzun teknik soru, çok-soruluk girdi veya bilmece/pratik-zekâ.
+// Hem yerel model yükseltmesi (prioritizeStrongModelForHeavyPrompt) hem öngörülü bulut
+// yönlendirmesi (shouldEscalateToCloudForReasoning) bu TEK imzayı paylaşır.
+function isReasoningEscalationCandidate(input) {
+  return answerAdequacy.isLongTechnicalQuestion(input)
     || finalAnswerSanitizer.isMultiQuestionInput(input)
     || isRiddleQuestion(input);
+}
+
+// Öngörülü bulut yönlendirme eşiği (B): en güçlü KURULU yerel model bu değerin altındaysa
+// muhakeme sorularında yerelin yetersiz kalacağı (kelime salatası) varsayılır — Konya
+// maden-suyu vakası: tek 3-4B model → salata. Eşik ve üzeri yerel yeterli kabul edilir.
+const WEAK_LOCAL_REASONING_THRESHOLD_B = 7;
+
+function prioritizeStrongModelForHeavyPrompt(input, installed, attemptModels, settings = {}) {
+  const current = Array.isArray(attemptModels) ? [...attemptModels] : [];
+  const heavyPrompt = isReasoningEscalationCandidate(input);
   if (!heavyPrompt || settings.autoModelEscalation === false) {
     return { attemptModels: current, escalated: false, model: null, size: 0, previousSize: modelParamSize(current[0]) };
   }
@@ -1195,6 +1207,35 @@ function prioritizeStrongModelForHeavyPrompt(input, installed, attemptModels, se
     size: strong.size,
     previousSize: curSize,
   };
+}
+
+// ÖNGÖRÜLÜ BULUT YÖNLENDİRMESİ: yerel birincil (ollama) olsa bile, bir bilmece/muhakeme
+// sorusu geldiğinde ve en güçlü KURULU yerel model eşiğin (<7B) altındaysa — yerelin kelime
+// salatası üreteceğini ÖNCEDEN bilerek, yerel HATA beklemeden — yapılandırılmış (API-anahtarlı)
+// bulut sağlayıcı zincirinin İLKİNE yönlendirir. Böylece tek küçük model kuruluyken
+// "yükseltmenin hedefi yok" boşluğu (Konya vakası) kapanır. route=false döner (mevcut
+// yerel-öncelikli davranış korunur) şu durumlarda: autoModelEscalation=false, muhakeme sorusu
+// değil, API-anahtarlı bulut yok (veya modelAutoFallback=false), ya da yerel model yeterince
+// güçlü. Saf + test edilebilir: yalnız (input, installed, settings) üzerinden karar verir.
+function shouldEscalateToCloudForReasoning(input, installed, settings = {}, opts = {}) {
+  const threshold = Number.isFinite(opts.threshold) ? opts.threshold : WEAK_LOCAL_REASONING_THRESHOLD_B;
+  if (settings.autoModelEscalation === false) {
+    return { route: false, reason: "escalation_disabled", threshold };
+  }
+  if (!isReasoningEscalationCandidate(input)) {
+    return { route: false, reason: "not_reasoning", threshold };
+  }
+  // configuredProviderChain zaten API-anahtarına göre süzer ve modelAutoFallback=false ise
+  // yalnız birincil sağlayıcıyı döndürür → bulut yoksa/kapalıysa cloudProviders boş kalır.
+  const cloudProviders = configuredProviderChain(settings).filter((p) => p !== "ollama");
+  if (!cloudProviders.length) {
+    return { route: false, reason: "no_cloud_provider", threshold };
+  }
+  const strong = strongestInstalledModel(installed);
+  if (strong.size >= threshold) {
+    return { route: false, reason: "local_strong_enough", provider: cloudProviders[0], localSize: strong.size, threshold };
+  }
+  return { route: true, reason: "weak_local_reasoning", provider: cloudProviders[0], localSize: strong.size, threshold };
 }
 
 function buildPrompt(task, input) {
@@ -2899,14 +2940,16 @@ class ModelManager {
     const s = getSettings();
     const providers = configuredProviderChain(s);
     const primaryProvider = providers[0] || "ollama";
-    const tryCloudProvider = async (provider) => {
+    // stream: varsayılan olarak yalnız birincil sağlayıcıda akıtılır; öngörülü rota
+    // birincil olmayan bulut sağlayıcıyı seçse de akışı sürdürebilmek için zorlanabilir.
+    const tryCloudProvider = async (provider, { stream = provider === primaryProvider } = {}) => {
       const cloud = configFromSettings(s, { provider });
       try {
         const o = {
           ...cloud,
           signal: sig,
         };
-        const content = onToken && provider === primaryProvider
+        const content = onToken && stream
           ? await cloudChatStream(messages, { ...o, onToken })
           : await cloudChat(messages, o);
         if (content && content.trim()) {
@@ -2922,6 +2965,28 @@ class ModelManager {
       return "";
     };
     const cloudProviders = providers.filter((item) => item !== "ollama");
+
+    // ÖNGÖRÜLÜ BULUT YÖNLENDİRMESİ: birincil sağlayıcı yerel olsa da, girdi bir bilmece/
+    // muhakeme sorusu VE en güçlü kurulu yerel model zayıf (<7B) VE API-anahtarlı bir bulut
+    // zinciri varsa → yereli HİÇ denemeden buluta yönlen (yerelin salatasını beklemeden).
+    // Maliyet olmasın diye önce ucuz metin sezicisi geçmeden installedModels() çağrılmaz.
+    // Bulut boş/başarısızsa aşağıdaki yerel-öncelikli akışa düşülür (fail-safe).
+    if (primaryProvider === "ollama" && cloudProviders.length && s.autoModelEscalation !== false) {
+      const lastUser = [...messages].reverse().find((m) => m && m.role === "user");
+      const userText = lastUser && lastUser.content;
+      if (isReasoningEscalationCandidate(userText)) {
+        let installedForRoute = [];
+        try { installedForRoute = await this.installedModels(); } catch (_e) { installedForRoute = []; }
+        const decision = shouldEscalateToCloudForReasoning(userText, installedForRoute, s);
+        if (decision.route) {
+          try { logs.info("model-router", `öngörülü bulut: zayıf yerel (${decision.localSize}B<${decision.threshold}B) + muhakeme → ${decision.provider} önden seçildi`); } catch (_e) {}
+          const content = await tryCloudProvider(decision.provider, { stream: true });
+          if (content && content.trim()) return content;
+          try { logs.warn("model-router", `öngörülü bulut (${decision.provider}) sonuç vermedi → yerel akışa düşülüyor`); } catch (_e) {}
+        }
+      }
+    }
+
     if (primaryProvider !== "ollama") {
       for (const provider of cloudProviders) {
         const content = await tryCloudProvider(provider);
@@ -3014,7 +3079,10 @@ module.exports = {
   strongestInstalledModel,
   seedConversationHistory,
   isRiddleQuestion,
+  isReasoningEscalationCandidate,
   prioritizeStrongModelForHeavyPrompt,
+  shouldEscalateToCloudForReasoning,
+  WEAK_LOCAL_REASONING_THRESHOLD_B,
   TASK_MODELS,
   missingModelReply,
   parsePullProgress,
