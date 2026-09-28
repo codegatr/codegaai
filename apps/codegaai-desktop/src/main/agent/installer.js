@@ -71,6 +71,27 @@ function run(cmd, args, { onData, timeoutMs = 0, detached = false } = {}) {
   });
 }
 
+/**
+ * Detached (arka plan) spawn için güvenli sarmalayıcı.
+ *
+ * KRİTİK: `spawn(cmd, ...).unref()` doğrudan çağrıldığında, komut bulunamazsa (ör. Ollama
+ * kurulu değil) Node bir sonraki tick'te 'error' (ENOENT) olayı yayınlar. 'error'
+ * dinleyicisi YOKSA bu, yakalanmamış istisnaya dönüşür ve ELECTRON ANA SÜRECİ ÇÖKER
+ * ("A JavaScript error occurred in the main process — spawn ollama.exe ENOENT" diyalogu).
+ * serve başlatma en-iyi-çaba olduğundan hatayı sessizce yutarız; app çökmez.
+ * @returns {import("child_process").ChildProcess|null}
+ */
+function safeDetachedSpawn(cmd, args, opts = {}) {
+  try {
+    const child = spawn(cmd, args, opts);
+    if (child && typeof child.on === "function") child.on("error", () => {});
+    if (child && typeof child.unref === "function") child.unref();
+    return child;
+  } catch (_e) {
+    return null;
+  }
+}
+
 function ollamaCommandCandidates() {
   const base = process.platform === "win32" ? "ollama.exe" : "ollama";
   const candidates = [base];
@@ -127,9 +148,9 @@ async function ensureOllamaServing() {
     await run("open", ["-a", "Ollama"], { timeoutMs: 8000 }).catch(() => {});
   } else if (process.platform === "win32") {
     const cmd = findOllamaCommand();
-    spawn(cmd, ["serve"], { detached: true, windowsHide: true, stdio: "ignore" }).unref();
+    safeDetachedSpawn(cmd, ["serve"], { detached: true, windowsHide: true, stdio: "ignore" });
   } else {
-    spawn("ollama", ["serve"], { detached: true, stdio: "ignore" }).unref();
+    safeDetachedSpawn("ollama", ["serve"], { detached: true, stdio: "ignore" });
   }
 }
 
@@ -319,10 +340,9 @@ async function restartOllama(modelsPath) {
   const env = { ...process.env, OLLAMA_MODELS: path.resolve(modelsPath) };
   await stopOllama();
   const command = findOllamaCommand();
-  const child = spawn(command, ["serve"], {
+  safeDetachedSpawn(command, ["serve"], {
     detached: true, windowsHide: true, stdio: "ignore", env,
   });
-  child.unref();
   return { ok: true, command };
 }
 
@@ -337,6 +357,7 @@ module.exports = {
   ollamaInstallerUrl,
   persistOllamaModelsPath,
   restartOllama,
+  safeDetachedSpawn,
   stopOllama,
   waitForOllama,
 };
