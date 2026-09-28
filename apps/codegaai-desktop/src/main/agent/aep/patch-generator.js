@@ -92,28 +92,21 @@ class PatchGenerator {
     };
 
     try {
-      // 1. Branch adı oluştur
+      // 1. Branch adı oluştur (uzak branch YALNIZ doğrulama+QA geçince oluşturulur)
       const branchName = this._branchName(task, proposal);
       result.branchName = branchName;
       result.rollbackPlan = `git revert HEAD veya branch'i sil: git push origin --delete ${branchName}`;
 
-      // 2. GitHub'da branch oluştur
-      result.status = PATCH_STATUS.BRANCHING;
-      this._log(result);
-
-      if (this._token) {
-        await this._createGitHubBranch(branchName);
-      }
-
-      // 3. Patch içeriği üret (LLM veya kural tabanlı)
+      // 2. Patch içeriği üret (LLM veya kural tabanlı)
       result.status = PATCH_STATUS.PATCHING;
+      this._log(result);
       const patches = await this._generatePatches(task, proposal, branchName);
       result.changedFiles = patches.map(p => p.path);
 
-      // 3b. YOL KORUMASI (push ÖNCESİ): LLM'in ürettiği patch'ler korumalı yollara
-      // (workflow, sır, updater/preload iç dosyaları, ayar deposu) ya da depo dışına
-      // (traversal/mutlak) DOKUNAMAZ. SelfQA push SONRASI çalışır; bu kapı bozuk yolun
-      // uzak dala hiç gitmemesini sağlar. CODEGA_RULES §Autonomous Development.
+      // 3. YOL KORUMASI: LLM'in ürettiği patch'ler korumalı yollara (workflow, sır,
+      // updater/preload iç dosyaları, ayar deposu) ya da depo dışına (traversal/mutlak)
+      // DOKUNAMAZ. Bozuk yol ne yerelde uygulanır ne uzak dala gider.
+      // CODEGA_RULES §Autonomous Development.
       const pathGuard = guardPatchSet(patches);
       if (!pathGuard.ok) {
         const reasons = pathGuard.blocked.map((b) => `${b.path} (${b.reason})`).join("; ");
@@ -130,22 +123,20 @@ class PatchGenerator {
         throw new Error(`Yol koruması engelledi (push edilmedi): ${reasons}`);
       }
 
-      // 4. Dosyaları GitHub'a push et
-      if (this._token && patches.length) {
-        await this._pushPatches(branchName, patches);
-      }
-
-      // 5. Test
+      // 4. YEREL DOĞRULAMA (push ÖNCESİ) — DOĞRULANABİLİR SELF-PATCH:
+      // Patch'i yerel çalışma ağacına UYGULA → check.mjs + jest koştur → ağacı ESKİ
+      // HALİNE getir. Böylece testler patch'in GERÇEK halini sınar (eskiden testler
+      // patch push edildikten sonra yamasız yerel ağaçta koşuyordu = anlamsızdı).
+      // Yalnız YEŞİLSE devam; kırmızıysa push YOK. Otonom evrimin doğrulanabilirlik şartı.
       result.status = PATCH_STATUS.TESTING;
-      result.testResults = await this._runTests();
-
-      // Kalite geçmesi gerekiyor (0 başarısız)
-      if (result.testResults.failed > 0) {
-        throw new Error(`${result.testResults.failed} test başarısız oldu — patch reddedildi`);
+      const verification = await this._verifyPatchesLocally(patches);
+      result.testResults = verification.testResults;
+      result.verification = { checkOk: verification.checkOk, ok: verification.ok, error: verification.error || null };
+      if (!verification.ok) {
+        throw new Error(`Yerel doğrulama başarısız (push edilmedi): ${verification.error}`);
       }
 
-      // 5b. Self QA Agent — ikinci, bağımsız ajan ilk ajanın kodunu denetler.
-      // Test yoksa / UTF-8 bozulduysa / test başarısızsa release bloklanır.
+      // 5. Self QA Agent — ikinci, bağımsız ajan ilk ajanın kodunu denetler.
       result.status = PATCH_STATUS.QA_REVIEW;
       const qaReview = this._selfQA.review({
         patches: patches,
@@ -158,7 +149,14 @@ class PatchGenerator {
         throw new Error(`Self QA Agent release'i bloke etti: ${reasons}`);
       }
 
-      // 6. PR oluştur
+      // 6. Uzak branch oluştur + push (YALNIZ doğrulama+QA geçtikten sonra)
+      if (this._token) {
+        result.status = PATCH_STATUS.BRANCHING;
+        await this._createGitHubBranch(branchName);
+        if (patches.length) await this._pushPatches(branchName, patches);
+      }
+
+      // 7. PR oluştur
       result.status = PATCH_STATUS.PR_READY;
       const { title, body, labels } = generatePRContent({ task, proposal, patchResult: result });
 
@@ -279,6 +277,74 @@ Yalnızca JSON formatında döndür:
       parents: [headSha],
     });
     await this._githubPatch(`${API}/git/refs/heads/${branchName}`, { sha: newCom.sha });
+  }
+
+  _appDir() {
+    return path.join(this._projectRoot, "apps/codegaai-desktop");
+  }
+
+  /**
+   * DOĞRULANABİLİR SELF-PATCH çekirdeği: patch setini YEREL çalışma ağacına uygular,
+   * check.mjs + jest koşturur, sonra ağacı ESKİ HALİNE getirir (finally). Böylece
+   * doğrulama patch'in gerçek halini sınar ve çalışma ağacı temiz kalır.
+   *
+   * Güvenlik: her yol appDir içine sınırlanır (yol koruması ilk savunma; bu ikinci).
+   * Snapshot: var olan dosyanın içeriği saklanır, yoksa geri alımda silinir.
+   * @returns {Promise<{ok:boolean, checkOk:boolean, testResults:object|null, error:string|null}>}
+   */
+  async _verifyPatchesLocally(patches) {
+    const appDir = this._appDir();
+    const snapshots = [];
+    try {
+      for (const p of Array.isArray(patches) ? patches : []) {
+        const abs = path.resolve(appDir, String(p.path || ""));
+        if (abs !== appDir && !abs.startsWith(appDir + path.sep)) {
+          return { ok: false, checkOk: false, testResults: null, error: `yol appDir dışında: ${p.path}` };
+        }
+        const existed = fs.existsSync(abs);
+        snapshots.push({ abs, existed, original: existed ? fs.readFileSync(abs, "utf8") : null });
+        fs.mkdirSync(path.dirname(abs), { recursive: true });
+        fs.writeFileSync(abs, String(p.content == null ? "" : p.content), "utf8");
+      }
+
+      const check = await this._runIntegrityCheck();
+      if (!check.ok) {
+        return { ok: false, checkOk: false, testResults: null, error: `check.mjs başarısız: ${check.error || ""}`.trim() };
+      }
+
+      const testResults = await this._runTests();
+      if ((testResults.failed || 0) > 0) {
+        return { ok: false, checkOk: true, testResults, error: `${testResults.failed} test başarısız` };
+      }
+      if ((testResults.total || 0) === 0 && testResults.error) {
+        return { ok: false, checkOk: true, testResults, error: `test koşulamadı: ${testResults.error}` };
+      }
+      return { ok: true, checkOk: true, testResults, error: null };
+    } finally {
+      // GERİ AL: patch'lenen dosyaları eski haline döndür (çalışma ağacı kirletilmez).
+      for (const s of snapshots.reverse()) {
+        try {
+          if (s.existed) fs.writeFileSync(s.abs, s.original, "utf8");
+          else if (fs.existsSync(s.abs)) fs.unlinkSync(s.abs);
+        } catch (_e) { /* geri alım en-iyi-çaba */ }
+      }
+    }
+  }
+
+  /** check.mjs bütünlük/sözdizim kapısını çalıştır (patch YEREL uygulanmışken). */
+  async _runIntegrityCheck() {
+    try {
+      execSync(`node scripts/check.mjs`, {
+        cwd: this._appDir(),
+        timeout: 90000,
+        encoding: "utf8",
+        stdio: "pipe",
+      });
+      return { ok: true };
+    } catch (e) {
+      const detail = String((e && (e.stdout || "")) + (e && (e.stderr || "")) || (e && e.message) || "").slice(0, 400);
+      return { ok: false, error: detail };
+    }
   }
 
   async _runTests() {

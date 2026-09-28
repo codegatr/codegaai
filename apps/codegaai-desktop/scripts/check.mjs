@@ -100,6 +100,7 @@ const required = [
   "src/main/agent/aep/timeline-seed.js",
   "src/main/agent/aep/path-guard.js",
   "src/main/agent/__tests__/aep-path-guard.test.js",
+  "src/main/agent/__tests__/aep-verifiable-self-patch.test.js",
   "src/main/agent/__tests__/engineering-timeline.test.js",
   "src/main/agent/__tests__/aep-cycle-integration.test.js",
   "src/main/agent/__tests__/context-continuity.test.js",
@@ -361,6 +362,8 @@ if (!existsSync(join(root, "src/main/agent/aep/path-guard.js"))) throw new Error
 const aepSelfQaFile = readText(join(root, "src/main/agent/aep/self-qa-agent.js"));
 const aepPatchGenFile = readText(join(root, "src/main/agent/aep/patch-generator.js"));
 if (!aepSelfQaFile.includes("guardPatchSet") || !aepPatchGenFile.includes("guardPatchSet")) throw new Error("AEP yol koruması (guardPatchSet) self-qa-agent veya patch-generator'a bağlanmamış");
+// Doğrulanabilir self-patch: AEP patch'i yerelde uygulayıp doğrulamadan push etmemeli.
+if (!aepPatchGenFile.includes("_verifyPatchesLocally")) throw new Error("AEP doğrulanabilir self-patch (_verifyPatchesLocally) patch-generator'a eklenmemiş");
 const mainEvoFile = readText(join(root, "src/main/main.js"));
 if (!mainEvoFile.includes("maybeRunEvolutionCycle") || !mainEvoFile.includes("aepOS.runCycle")) throw new Error("main.js otonom evrim döngüsü (maybeRunEvolutionCycle/aepOS.runCycle) bağlanmamış");
 if (!mmFile.includes("seedConversationHistory") || !mainEvoFile.includes("history:")) throw new Error("Bağlam sürekliliği (seedConversationHistory / renderer history taşıma) eksik");
