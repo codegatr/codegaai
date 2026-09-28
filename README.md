@@ -39,19 +39,19 @@
 
 ---
 
-## Güncel Sürüm — 7.0.1
+## Güncel Sürüm — 7.0.2
 
-**Yayın tarihi:** 15 Temmuz 2026
+**Yayın tarihi:** 29 Eylül 2026
 
-**İndir:** [CODEGA AI Desktop 7.0.1](https://github.com/codegatr/codegaai/releases/tag/desktop-v7.0.1)
+**İndir:** [CODEGA AI Desktop 7.0.2](https://github.com/codegatr/codegaai/releases/tag/desktop-v7.0.2)
 
 Bu sürümde:
 
-- Eğitim motorunun bağımlılık denetimini bozan çift `staticmethod` hatası giderildi.
-- `package.json` ve `package-lock.json` sürümleri temiz Windows/macOS kurulumları için eşitlendi.
-- Masaüstü kalite kapısı, lockfile sürümü release sürümünden ayrıştığında yayını artık durdurur.
-- Cihaz uyumlu model yönlendirme, karantinaya alınmış yerel akış ve bulut kurtarma zinciri korunur.
-- 59 test paketi ve 659 Jest testiyle yanıt kalitesi, bellek, builder ve teslimat regresyonları doğrulanır.
+- **Çökme onarımı:** Ollama kurulu değilken `spawn ollama.exe ENOENT` yakalanmamış istisnası ana süreci çökertiyordu; `serve` başlatma artık güvenli sarmalayıcıyla hatayı yutar.
+- **Otonom evrim — yol koruması:** AEP patch hattı artık workflow, sır/.env, updater/preload iç dosyaları ve ayar deposu gibi korumalı yollara ya da depo dışına yazamaz (CODEGA_RULES §Autonomous Development).
+- **Otonom evrim — doğrulanabilir self-patch:** üretilen yama yerel çalışma ağacına uygulanıp `check` + `jest` geçmeden push/PR edilmez; başarısız yama uzak dala hiç gitmez.
+- **Öngörülü bulut yönlendirmesi:** en güçlü kurulu yerel model zayıfken (<7B) bilmece/muhakeme soruları, API-anahtarlı bulut sağlayıcı varsa yerel hata beklenmeden önden buluta yönlenir.
+- 63 test paketi ve 717 Jest testiyle yanıt kalitesi, bellek, builder, otonom evrim ve teslimat regresyonları doğrulanır.
 
 Önceki sürümler ve ayrıntılı varlıklar için [GitHub Releases](https://github.com/codegatr/codegaai/releases) sayfasına bakın.
 
@@ -147,7 +147,7 @@ python launcher.py
 cd apps/codegaai-desktop
 npm install
 npm run dev        # uygulamayı başlat
-npm run test:ci    # check + 59 suite / 659 test
+npm run test:ci    # check + 63 suite / 717 test
 ```
 
 macOS geliştirici kurulumu: `bash installer/macos/install.sh` (Python 3.12'de Coqui TTS atlanır; XTTS gerekiyorsa Python 3.11 kullanın).
@@ -171,7 +171,7 @@ macOS geliştirici kurulumu: `bash installer/macos/install.sh` (Python 3.12'de C
 Hiçbir sürüm şu kapılardan geçmeden yayınlanmaz:
 
 1. **`npm run check`** — 240+ dosyalık yapısal sözleşme: zorunlu modüller, sürüm çift-pin (package.json ↔ check.mjs), güvenlik kuralları (asar, asInvoker, emekli model referansı yasağı)
-2. **`npm run test:ci`** — 59 suite / 659 Jest testi: regresyon, UTF-8/mojibake, builder, ZIP bütünlüğü, görev sürekliliği, bağlam sürekliliği, hafıza bütünlüğü, Kontrol Merkezi sözleşmesi
+2. **`npm run test:ci`** — 63 suite / 717 Jest testi: regresyon, UTF-8/mojibake, builder, ZIP bütünlüğü, görev sürekliliği, bağlam sürekliliği, hafıza bütünlüğü, otonom evrim (yol koruması + doğrulanabilir self-patch), Kontrol Merkezi sözleşmesi
 3. **Python sözleşme testleri** — README, federasyon PHP, kurulum ve platform iş akışı denetimleri
 4. **Tag-tetiklemeli release** — `desktop-v*` tag'i Windows + macOS build'lerini üretir; updater metadata (`latest.yml`) otomatik yayınlanır
 

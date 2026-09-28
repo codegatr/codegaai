@@ -17,6 +17,8 @@
  *   - Onceki calistirmaya gore performans/test-suresi regresyonu
  */
 
+const { guardPatchSet } = require("./path-guard");
+
 const NULL_BYTE = String.fromCharCode(0x0000);
 const REPLACEMENT_CHAR = String.fromCharCode(0xfffd);
 
@@ -26,6 +28,7 @@ const BLOCKER = Object.freeze({
   PERF_REGRESSION: "perf-regression",
   TESTS_FAILED   : "tests-failed",
   PLACEHOLDER_TESTS: "placeholder-tests",
+  PROTECTED_PATH : "protected-path",
 });
 
 // Mojibake'de sik goeruelen UTF-8/Latin-1 cift kodlama imzalari.
@@ -56,12 +59,29 @@ class SelfQAAgent {
     const blockers = [];
     const warnings = [];
 
+    this._checkProtectedPaths(patches, blockers);
     this._checkTests(patches, blockers, warnings);
     this._checkUtf8(patches, blockers);
     this._checkTestOutcome(testResults, blockers);
     this._checkPerfRegression(testResults, baseline, warnings);
 
     return { ok: blockers.length === 0, blockers, warnings };
+  }
+
+  // -- 0. Korumalı yol denetimi (CODEGA_RULES §Autonomous Development) --------
+  // Otonom hat workflow/sır/updater/preload/settings-store gibi dosyalara ya da
+  // depo dışına (traversal/mutlak yol) yazamaz. path-guard tek doğruluk kaynağı.
+
+  _checkProtectedPaths(patches, blockers) {
+    const guard = guardPatchSet(patches);
+    if (guard.ok) return;
+    for (const b of guard.blocked) {
+      blockers.push({
+        code: BLOCKER.PROTECTED_PATH,
+        message: `Korumalı/geçersiz yola yazma engellendi (${b.reason}): ${b.path}`,
+        files: [b.path],
+      });
+    }
   }
 
   // -- 1. Test varligi ---------------------------------------------------------

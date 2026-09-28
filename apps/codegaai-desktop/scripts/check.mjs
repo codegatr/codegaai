@@ -98,6 +98,9 @@ const required = [
   "src/main/agent/answer-adequacy.js",
   "src/main/agent/aep/engineering-timeline.js",
   "src/main/agent/aep/timeline-seed.js",
+  "src/main/agent/aep/path-guard.js",
+  "src/main/agent/__tests__/aep-path-guard.test.js",
+  "src/main/agent/__tests__/aep-verifiable-self-patch.test.js",
   "src/main/agent/__tests__/engineering-timeline.test.js",
   "src/main/agent/__tests__/aep-cycle-integration.test.js",
   "src/main/agent/__tests__/context-continuity.test.js",
@@ -352,8 +355,16 @@ if (!ollamaClientFile.includes("adaptiveNumCtx")) throw new Error("ollama-client
 const mmFile = readText(join(root, "src/main/model-manager.js"));
 if (!mmFile.includes("_askBatched") || !mmFile.includes("chunkQuestions")) throw new Error("model-manager.js ardışık çok-soru kuyruğu (_askBatched/chunkQuestions) eksik");
 if (!mmFile.includes("strongestInstalledModel") || !mmFile.includes("autoModelEscalation")) throw new Error("model-manager.js otomatik model yükseltme (strongestInstalledModel/autoModelEscalation) eksik");
+if (!mmFile.includes("shouldEscalateToCloudForReasoning") || !mmFile.includes("WEAK_LOCAL_REASONING_THRESHOLD_B")) throw new Error("model-manager.js öngörülü bulut yönlendirmesi (shouldEscalateToCloudForReasoning/WEAK_LOCAL_REASONING_THRESHOLD_B) eksik");
 const aepOsTimelineFile = readText(join(root, "src/main/agent/aep/aep-os.js"));
 if (!aepOsTimelineFile.includes("EngineeringTimeline") || !aepOsTimelineFile.includes("this.timeline")) throw new Error("aep-os.js Engineering Timeline entegrasyonu eksik");
+// AEP Yol Koruması: otonom patch hattı korumalı yollara/dışına yazamaz (CODEGA_RULES §Autonomous Development).
+if (!existsSync(join(root, "src/main/agent/aep/path-guard.js"))) throw new Error("AEP yol koruması modülü (aep/path-guard.js) eksik");
+const aepSelfQaFile = readText(join(root, "src/main/agent/aep/self-qa-agent.js"));
+const aepPatchGenFile = readText(join(root, "src/main/agent/aep/patch-generator.js"));
+if (!aepSelfQaFile.includes("guardPatchSet") || !aepPatchGenFile.includes("guardPatchSet")) throw new Error("AEP yol koruması (guardPatchSet) self-qa-agent veya patch-generator'a bağlanmamış");
+// Doğrulanabilir self-patch: AEP patch'i yerelde uygulayıp doğrulamadan push etmemeli.
+if (!aepPatchGenFile.includes("_verifyPatchesLocally")) throw new Error("AEP doğrulanabilir self-patch (_verifyPatchesLocally) patch-generator'a eklenmemiş");
 const mainEvoFile = readText(join(root, "src/main/main.js"));
 if (!mainEvoFile.includes("maybeRunEvolutionCycle") || !mainEvoFile.includes("aepOS.runCycle")) throw new Error("main.js otonom evrim döngüsü (maybeRunEvolutionCycle/aepOS.runCycle) bağlanmamış");
 if (!mmFile.includes("seedConversationHistory") || !mainEvoFile.includes("history:")) throw new Error("Bağlam sürekliliği (seedConversationHistory / renderer history taşıma) eksik");
@@ -447,7 +458,7 @@ if (!modelManagerFile.includes("buildSelfRepairInstruction")) throw new Error("m
 if (modelManagerFile.includes("[SYSTEM LIMIT]")) throw new Error("model-manager.js '[SYSTEM LIMIT]' bahane nutku geri gelmiş — insani mesaj kullanılmalı");
 
 if (!indexHtml.includes("ov-health-openrouter")) throw new Error("index.html Kontrol Merkezi OpenRouter sağlık satırı (ov-health-openrouter) eksik");
-if (pkg.version !== "7.0.1") throw new Error(`Desktop package version must be 7.0.1, got ${pkg.version}`);
+if (pkg.version !== "7.0.2") throw new Error(`Desktop package version must be 7.0.2, got ${pkg.version}`);
 const readmeFile = readText(join(repoRoot, "README.md"));
 if (!readmeFile.includes(`## Güncel Sürüm — ${pkg.version}`)) throw new Error(`README güncel sürüm bilgisi package.json ile eşleşmeli: ${pkg.version}`);
 
